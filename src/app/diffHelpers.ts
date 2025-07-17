@@ -1,7 +1,9 @@
 /* ------------------------------------------------------------------ *
  * diffHelpers.ts
- * Robust extraction + application of LLM-friendly mini diff blocks.
+ * Robust extraction + application of LLM-friendly mini diff blocks using diff-match-patch.
  * ------------------------------------------------------------------ */
+
+import { diff_match_patch } from 'diff-match-patch';
 
 /* ---------- Block Extraction Helpers ---------- */
 
@@ -34,166 +36,156 @@ export function extractAllDiffBlocks(text: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(clean)) !== null) {
     const body = m[1].trimEnd();
-    if (body) blocks.push(body);
+    if (body) {
+      // Validate that this looks like a proper diff
+      const hasProperDiffMarkers = body.includes('\n+') || body.includes('\n-') || 
+                                  body.startsWith('+') || body.startsWith('-');
+      
+      if (hasProperDiffMarkers) {
+        blocks.push(body);
+      } else {
+        // This looks like a code block masquerading as a diff - skip it
+        console.warn('Skipping improperly formatted diff block (missing +/- markers)');
+      }
+    }
   }
   return blocks;
 }
 
-/* ---------- Diff Parsing ---------- */
-
-type DiffOp =
-  | { type: 'add'; line: string }
-  | { type: 'del'; line: string }
-  | { type: 'ctx'; line: string }
-  | { type: 'meta'; line: string };
+/* ---------- Diff Application using diff-match-patch ---------- */
 
 /**
- * Parse unified-ish diff lines (lightweight; not full GNU patch).
- * - Lines starting with '+' (except '+++') -> add.
- * - Lines starting with '-' (except '---') -> del.
- * - Lines starting with '@@' / '+++' / '---' -> meta.
- * - Anything else -> context.
- * Leading single space on context lines (common in fenced diffs) is stripped.
+ * Parse a unified diff block and convert it to the format needed by diff-match-patch.
+ * This extracts the actual changes from the diff markers.
  */
-function parseDiffLines(diffText: string): DiffOp[] {
-  const ops: DiffOp[] = [];
-  for (const rawLine of diffText.split(/\r?\n/)) {
-    if (!rawLine.length) {
-      ops.push({ type: 'ctx', line: '' });
+function parseDiffBlock(diffText: string): { oldText: string; newText: string } {
+  const lines = diffText.split('\n');
+  const oldLines: string[] = [];
+  const newLines: string[] = [];
+  
+  for (const line of lines) {
+    if (line.startsWith('@@')) {
+      // Skip hunk headers
       continue;
-    }
-    const ch = rawLine[0];
-    if (ch === '+' && rawLine !== '+++') {
-      ops.push({ type: 'add', line: rawLine.slice(1) });
+    } else if (line.startsWith('---') || line.startsWith('+++')) {
+      // Skip file headers
       continue;
+    } else if (line.startsWith('-')) {
+      // Line removed from old
+      oldLines.push(line.substring(1));
+    } else if (line.startsWith('+')) {
+      // Line added to new
+      newLines.push(line.substring(1));
+    } else if (line.startsWith(' ') || (!line.startsWith('-') && !line.startsWith('+'))) {
+      // Context line (appears in both)
+      const contextLine = line.startsWith(' ') ? line.substring(1) : line;
+      oldLines.push(contextLine);
+      newLines.push(contextLine);
     }
-    if (ch === '-' && rawLine !== '---') {
-      ops.push({ type: 'del', line: rawLine.slice(1) });
-      continue;
-    }
-    if (rawLine.startsWith('@@') || rawLine.startsWith('+++') || rawLine.startsWith('---')) {
-      ops.push({ type: 'meta', line: rawLine });
-      continue;
-    }
-    // context
-    ops.push({
-      type: 'ctx',
-      line: rawLine.startsWith(' ') ? rawLine.slice(1) : rawLine,
-    });
   }
-  return ops;
-}
-
-/* ---------- Fuzzy Matching Utilities ---------- */
-
-/**
- * Normalize for fuzzy line comparison:
- * - trim both ends
- * - collapse all internal whitespace runs to a single space
- */
-function norm(line: string): string {
-  return line.trim().replace(/\s+/g, ' ');
-}
-
-/** First index >= start where norm(orig[i]) === norm(target). */
-function findLineAfter(orig: string[], target: string, start: number): number {
-  const t = norm(target);
-  for (let i = start; i < orig.length; i++) {
-    if (norm(orig[i]) === t) return i;
-  }
-  return -1;
+  
+  return {
+    oldText: oldLines.join('\n'),
+    newText: newLines.join('\n')
+  };
 }
 
 /**
- * Anchor diff ops to the original file.
- * We try in priority:
- *   1. First context line that matches loosely.
- *   2. First delete line that matches loosely.
- *   3. If neither found, return -1 (unanchored; caller may skip block).
+ * Apply a single diff block using diff-match-patch.
+ * Much more reliable than custom parsing.
  */
-function findAnchorIndex(ops: DiffOp[], origLines: string[]): number {
-  // try context
-  for (const o of ops) {
-    if (o.type !== 'ctx') continue;
-    const idx = findLineAfter(origLines, o.line, 0);
-    if (idx >= 0) return idx;
-  }
-  // fallback: first del
-  for (const o of ops) {
-    if (o.type !== 'del') continue;
-    const idx = findLineAfter(origLines, o.line, 0);
-    if (idx >= 0) return idx;
-  }
-  return -1;
-}
-
-/* ---------- Applying A Single Diff Block ---------- */
-
-/**
- * Safely apply one diff block to `original`.
- * Strategy (loose, conservative, idempotent):
- *   - Parse ops.
- *   - Find an anchor in the original (first ctx, else del).
- *   - Walk ops in order:
- *       del: find *next* matching line after current cursor; remove if found.
- *       add: insert at cursor+1 (i.e., immediately after the last processed line).
- *       ctx: advance cursor to the matching line (if found); else leave cursor unchanged & copy nothing (context is advisory).
- *   - meta: ignored.
- * If no anchor found → return `original` unchanged (skip block).
- */
-function applyUnifiedOrSkip(original: string, diffText: string): string {
-  const origLines = original.split(/\r?\n/);
-  const ops = parseDiffLines(diffText);
-
-  const anchorIdx = findAnchorIndex(ops, origLines);
-  if (anchorIdx < 0) {
-    // Can't confidently place this diff → skip
+function applyDiffBlock(original: string, diffText: string): string {
+  try {
+    const dmp = new diff_match_patch();
+    
+    // Parse the diff block to extract old and new text
+    const { oldText, newText } = parseDiffBlock(diffText);
+    
+    // If we have specific old and new text, create patches
+    if (oldText && newText) {
+      const diffs = dmp.diff_main(oldText, newText);
+      dmp.diff_cleanupSemantic(diffs);
+      
+      const patches = dmp.patch_make(oldText, diffs);
+      
+      if (patches.length === 0) {
+        console.warn('No patches created from diff block');
+        return original;
+      }
+      
+      // Apply patches to the original text
+      const results = dmp.patch_apply(patches, original);
+      
+      // results[0] is the patched text, results[1] is array of success booleans
+      if (results[1].some(success => !success)) {
+        console.warn('Some patches failed to apply cleanly');
+      }
+      
+      return results[0];
+    } else {
+      // Fallback: try to apply the diff directly by finding context
+      return applyDiffBlockFallback(original, diffText, dmp);
+    }
+  } catch (error) {
+    console.error('Error applying diff block:', error);
     return original;
   }
+}
 
-  // We'll mutate a working array
-  const lines = [...origLines];
-  // Cursor is the last index we've meaningfully touched/seen. Start at anchor-1
-  // so first findLineAfter search (>= cursor+1) can find the anchor itself.
-  let cursor = anchorIdx - 1;
-
-  for (const op of ops) {
-    if (op.type === 'meta') continue;
-
-    if (op.type === 'ctx') {
-      const idx = findLineAfter(lines, op.line, cursor + 1);
-      if (idx >= 0) {
-        cursor = idx;
+/**
+ * Fallback method for applying diffs when we can't parse them cleanly.
+ */
+function applyDiffBlockFallback(original: string, diffText: string, dmp: InstanceType<typeof diff_match_patch>): string {
+  try {
+    // Extract context lines and changes
+    const lines = diffText.split('\n');
+    const contextLines: string[] = [];
+    const removedLines: string[] = [];
+    const addedLines: string[] = [];
+    
+    for (const line of lines) {
+      if (line.startsWith('-')) {
+        removedLines.push(line.substring(1));
+      } else if (line.startsWith('+')) {
+        addedLines.push(line.substring(1));
+      } else if (line.startsWith(' ') || (!line.startsWith('-') && !line.startsWith('+'))) {
+        const contextLine = line.startsWith(' ') ? line.substring(1) : line;
+        contextLines.push(contextLine);
       }
-      // else ignore; context just used to assist matching
-      continue;
     }
-
-    if (op.type === 'del') {
-      const idx = findLineAfter(lines, op.line, cursor + 1);
-      if (idx >= 0) {
-        lines.splice(idx, 1);
-        cursor = idx - 1; // after removal, cursor sits at prior line
+    
+    // If we have context, try to find it in the original and replace
+    if (contextLines.length > 0) {
+      const contextText = contextLines.join('\n');
+      const oldText = contextLines.concat(removedLines).join('\n');
+      const newText = contextLines.concat(addedLines).join('\n');
+      
+      if (original.includes(contextText)) {
+        // Simple string replacement for now
+        if (removedLines.length > 0) {
+          const textToReplace = removedLines.join('\n');
+          const replacement = addedLines.join('\n');
+          return original.replace(textToReplace, replacement);
+        } else if (addedLines.length > 0) {
+          // Insert after context
+          const insertion = addedLines.join('\n');
+          return original.replace(contextText, contextText + '\n' + insertion);
+        }
       }
-      continue;
     }
-
-    if (op.type === 'add') {
-      const insertAt = cursor + 1;
-      lines.splice(insertAt, 0, op.line);
-      cursor = insertAt; // cursor now at inserted line
-      continue;
-    }
+    
+    return original;
+  } catch (error) {
+    console.error('Error in fallback diff application:', error);
+    return original;
   }
-
-  return lines.join('\n');
 }
 
 /* ---------- Applying Multiple Blocks ---------- */
 
-/** Apply multiple diff blocks sequentially; each block sees the result of the previous. */
+/** Apply multiple diff blocks sequentially using diff-match-patch; each block sees the result of the previous. */
 export function applyAllDiffBlocks(original: string, blocks: string[]): string {
-  return blocks.reduce((acc, block) => applyUnifiedOrSkip(acc, block), original);
+  return blocks.reduce((acc, block) => applyDiffBlock(acc, block), original);
 }
 
 /* ------------------------------------------------------------------ *

@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCodeStore } from '@/lib/store';
+import { Message } from '@/app/api/chat/route';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
+interface DisplayMessage extends Message {
+  content?: string; // For display purposes only
   code?: string;
 }
 
@@ -18,7 +18,7 @@ const CHARS_PER_FRAME = 2;
 
 export default function ChatSidebar() {
   const { code, setCode, selection, setSelection } = useCodeStore();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -72,7 +72,11 @@ export default function ChatSidebar() {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: DisplayMessage = { 
+      role: 'user', 
+      variables: { USER_REQUEST: input },
+      content: input 
+    };
 
     // append user message + scroll
     setMessages((prev) => {
@@ -85,13 +89,35 @@ export default function ChatSidebar() {
     setLoading(true);
 
     try {
+      // Convert display messages to API messages
+      const apiMessages: Message[] = [...messages, userMessage].map(msg => ({
+        role: msg.role,
+        variables: msg.variables
+      }));
+
+      // Add system message with current code
+      const systemMessage: Message = {
+        role: 'system',
+        variables: { CURRENT_CODE: code || '' }
+      };
+
+      // Add selection variables to user message if selection exists
+      if (selection) {
+        userMessage.variables = {
+          ...userMessage.variables,
+          SELECTION: 'true',
+          SELECTION_X: selection.x.toString(),
+          SELECTION_Y: selection.y.toString(),
+          SELECTION_WIDTH: selection.width.toString(),
+          SELECTION_HEIGHT: selection.height.toString()
+        };
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
-          currentCode: code,
-          selection,
+          messages: [systemMessage, ...apiMessages],
         }),
       });
       if (!res.ok || !res.body) throw new Error(await res.text());
@@ -174,6 +200,7 @@ export default function ChatSidebar() {
             updated[idx] = {
               ...updated[idx],
               code: evt.code,
+              variables: { ASSISTANT_RESPONSE: evt.reply }
             };
             return updated;
           });

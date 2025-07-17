@@ -5,45 +5,74 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { extractFirstJsx, extractAllDiffBlocks, applyAllDiffBlocks } from '@/app/diffHelpers';
 
-interface Message {
-  role: 'user' | 'assistant';
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  variables?: Record<string, string>;
+}
+
+interface ParsedMessage {
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-async function getSystemPrompt() {
-  const filePath = path.join(process.cwd(), 'src', 'lib', 'prompts', 'system-prompt.txt');
+async function getTemplate(templateName: string) {
+  const filePath = path.join(process.cwd(), 'src', 'lib', 'prompts', `${templateName}.txt`);
   return fs.readFile(filePath, 'utf-8');
+}
+
+function parseTemplate(template: string, variables: Record<string, string>): string {
+  let result = template;
+  
+  // Handle conditional sections first
+  Object.entries(variables).forEach(([key, value]) => {
+    // Find conditional sections for this variable
+    const sectionRegex = new RegExp(
+      `\\{\\{#${key}\\}\\}([\\s\\S]*?)\\{\\{\\/${key}\\}\\}`, 
+      'g'
+    );
+    
+    result = result.replace(sectionRegex, (match, content) => {
+      // If variable has a value, include the section content, otherwise remove it
+      return value ? content : '';
+    });
+  });
+  
+  // Replace regular variables
+  Object.entries(variables).forEach(([key, value]) => {
+    const placeholder = `{{${key}}}`;
+    result = result.replace(new RegExp(placeholder, 'g'), value);
+  });
+  
+  return result;
+}
+
+function parseMessageWithTemplate(template: string, variables: Record<string, string>): string {
+  return parseTemplate(template, variables);
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, currentCode, selection } = (await req.json()) as {
+    const { messages } = (await req.json()) as {
       messages: Message[];
-      selection: { x: number; y: number; width: number; height: number } | null;
-      currentCode?: string;
     };
 
-    const lastUserMessage = messages[messages.length - 1]?.content ?? '';
-    const systemPrompt = await getSystemPrompt();
+    const templates = {
+      'user': await getTemplate('user-prompt-template'),
+      'assistant': await getTemplate('assistant-prompt-template'),
+      'system': await getTemplate('system-prompt-template')
+    };
 
-    let prompt = '';
-    if (currentCode) {
-      prompt += `\n\nCurrent component code:\n\`\`\`jsx\n${currentCode}\n\`\`\`\n`;
-      console.log("currentCode", currentCode);
-    }
-    if (selection) {
-      prompt += `\n\nThe user has selected an area (x:${Math.round(selection.x)}, y:${Math.round(selection.y)}, w:${Math.round(selection.width)}, h:${Math.round(selection.height)}).`;
-    }
-    prompt += `\n\nUser request: "${lastUserMessage}"`;
+    // Parse all messages uniformly
+    const parsedMessages: ParsedMessage[] = messages.map(message => {
+      const template = templates[message.role];
+      const content = parseMessageWithTemplate(template, message.variables || {});
+      return { role: message.role, content };
+    });
 
     // Kick off model stream
     const result = await streamText({
-      model: azure('gpt-4o'),
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-        { role: 'user', content: prompt },
-      ],
+      model: azure('o4-mini'),
+      messages: parsedMessages,
     });
 
     const encoder = new TextEncoder();
@@ -61,7 +90,9 @@ export async function POST(req: NextRequest) {
           }
 
           // Model is done -> derive code patch
-          let newCode = currentCode ?? '';
+          const systemMessage = messages.find(m => m.role === 'system');
+          const currentCode = systemMessage?.variables?.CURRENT_CODE || '';
+          let newCode = currentCode;
           const jsxBlock = extractFirstJsx(full);
           if (jsxBlock) {
             newCode = jsxBlock;

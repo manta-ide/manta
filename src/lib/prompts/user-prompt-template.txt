@@ -1,0 +1,8 @@
+{{#SELECTION}}
+The user has selected an area (x:{{SELECTION_X}}, y:{{SELECTION_Y}}, w:{{SELECTION_WIDTH}}, h:{{SELECTION_HEIGHT}}).
+{{/SELECTION}}
+
+
+{{#USER_REQUEST}}
+The user request is: {{USER_REQUEST}}.
+{{/USER_REQUEST}}
