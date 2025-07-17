@@ -11,6 +11,7 @@ import { useCodeStore } from '@/lib/store';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  code?: string;
 }
 
 export default function ChatSidebar() {
@@ -24,7 +25,9 @@ export default function ChatSidebar() {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+
+    setMessages(newMessages);
     setInput('');
 
     setLoading(true);
@@ -34,13 +37,17 @@ export default function ChatSidebar() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages: [...messages, userMessage], code, selection }),
+        body: JSON.stringify({ 
+            messages: newMessages, 
+            currentCode: code, 
+            selection
+        }),
       });
 
       if (!res.ok) throw new Error(await res.text());
 
       const data = (await res.json()) as { reply: string, code: string };
-      const assistantMessage: Message = { role: 'assistant', content: data.reply };
+      const assistantMessage: Message = { role: 'assistant', content: data.reply, code: data.code };
       setMessages((prev) => [...prev, assistantMessage]);
       setCode(data.code);
       setSelection(null);
