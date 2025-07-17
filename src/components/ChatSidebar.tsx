@@ -1,72 +1,96 @@
 'use client';
 
-import { useChat } from 'ai/react';
+import { useState } from 'react';
+import { Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCodeStore } from '@/lib/store';
+
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function ChatSidebar() {
-  const { messages, input, handleInputChange, handleSubmit } = useChat();
+  const { code, setCode, selection, setSelection } = useCodeStore();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages: [...messages, userMessage], code, selection }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      const data = (await res.json()) as { reply: string, code: string };
+      const assistantMessage: Message = { role: 'assistant', content: data.reply };
+      setMessages((prev) => [...prev, assistantMessage]);
+      setCode(data.code);
+      setSelection(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div style={{ 
-      width: '300px',
-      height: '100vh',
-      borderRight: '1px solid #ccc',
-      padding: '16px',
-      backgroundColor: '#f9f9f9',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <h2 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: 'bold' }}>
-        AI Chat
-      </h2>
-      
-      <div style={{ 
-        flex: 1,
-        overflowY: 'auto',
-        marginBottom: '16px',
-        padding: '8px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px'
-      }}>
-        {messages.map((message) => (
-          <div key={message.id} style={{ 
-            marginBottom: '12px',
-            padding: '8px',
-            backgroundColor: message.role === 'user' ? '#e3f2fd' : '#f5f5f5',
-            borderRadius: '4px'
-          }}>
-            <strong>{message.role === 'user' ? 'You' : 'AI'}:</strong>
-            <div style={{ marginTop: '4px' }}>{message.content}</div>
-          </div>
-        ))}
+    <Card className="w-[350px] flex flex-col h-full">
+      <CardHeader>
+        <CardTitle>AI Chat</CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 overflow-y-auto">
+        <div className="space-y-4">
+          {messages.map((m, idx) => (
+            <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : ''}`}>
+              <div className={`p-2 rounded-lg ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex">
+              <div className="p-2 rounded-lg bg-muted">
+                thinking...
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+      <div className="p-4 border-t">
+        {selection && (
+            <div className="text-xs text-muted-foreground mb-2">
+                Selected: x: {Math.round(selection.x)}, y: {Math.round(selection.y)}, w: {Math.round(selection.width)}, h: {Math.round(selection.height)}
+            </div>
+        )}
+        <form onSubmit={sendMessage} className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Say something..."
+          />
+          <Button type="submit" size="icon" disabled={loading}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
       </div>
-
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px' }}>
-        <input
-          value={input}
-          onChange={handleInputChange}
-          placeholder="Type your message..."
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid #ccc',
-            borderRadius: '4px'
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Send
-        </button>
-      </form>
-    </div>
+    </Card>
   );
 } 
