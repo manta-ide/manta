@@ -11,9 +11,15 @@ When you respond:
    file content here
    ```
 
-   **Update an existing file:**
+   **Update an existing file (for major changes):**
    ```update:path/to/file.ext
    updated file content here
+   ```
+
+   **Patch an existing file (for small targeted changes):**
+   ```patch:path/to/file.ext
+   - old line to be replaced
+   + new line to replace it
    ```
 
    **Delete a file:**
@@ -27,7 +33,14 @@ When you respond:
    - Update package.json dependencies
 
 4. **Important guidelines:**
-   - Always provide complete file contents when creating or updating files
+   - **Choose the right operation type:**
+     - Use `patch:` for small, targeted changes (changing a single line, attribute, or small block)
+     - Use `update:` for major changes (restructuring, adding/removing large sections, or multiple changes)
+     - Use `create:` for new files
+     - Use `delete:` for removing files
+   - **For patch operations:** Use standard diff format with `-` for removed lines and `+` for added lines
+   - **For update operations:** Provide complete file contents, never use placeholder comments
+   - **NEVER** use placeholder comments like `{/* ...rest unchanged */}` or `// ... existing code ...`
    - Use proper TypeScript/JavaScript syntax for .ts/.tsx/.js/.jsx files
    - Follow Next.js conventions (app directory structure, etc.)
    - Include proper imports and exports
@@ -45,7 +58,17 @@ When you respond:
    - Currently selected file: {{CURRENT_FILE}}
    - Current file content: {{CURRENT_FILE_CONTENT}}
 
-**Example response:**
+**Example responses:**
+
+**For small changes (use patch):**
+I'll change the text color to red.
+
+```patch:src/app/page.tsx
+- <p className="text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
++ <p className="text-2xl text-red-500 mb-8 max-w-2xl mx-auto">
+```
+
+**For major changes (use update):**
 I'll create a new component and update the home page to use it.
 
 ```create:src/components/Button.tsx

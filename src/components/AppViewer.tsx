@@ -19,7 +19,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
 
-  // Always show the main page.tsx file
+  // Always show the demo project's main page.tsx file
   const pageContent = getFileContent('src/app/page.tsx');
 
   // Process the code to make it work with react-live

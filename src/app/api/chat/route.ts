@@ -15,7 +15,7 @@ interface ParsedMessage {
 }
 
 interface FileOperation {
-  type: 'create' | 'update' | 'delete';
+  type: 'create' | 'update' | 'delete' | 'patch';
   path: string;
   content?: string;
 }
@@ -59,16 +59,42 @@ function parseFileOperations(response: string): FileOperation[] {
   const operations: FileOperation[] = [];
   
   // Look for file operation blocks in the response
-  const fileOpRegex = /```(create|update|delete):([^\n]+)\n([\s\S]*?)```/g;
+  const fileOpRegex = /```(create|update|delete|patch):([^\n]+)\n([\s\S]*?)```/g;
   let match;
   
   while ((match = fileOpRegex.exec(response)) !== null) {
     const [, type, path, content] = match;
-    operations.push({
-      type: type as 'create' | 'update' | 'delete',
-      path: path.trim(),
-      content: type === 'delete' ? undefined : content.trim()
-    });
+    const trimmedContent = content.trim();
+    
+    if (type === 'patch') {
+      // Store the raw diff content for processing
+      operations.push({
+        type: 'patch',
+        path: path.trim(),
+        content: trimmedContent
+      });
+    } else {
+      // Validate that the content is not using placeholder comments
+      if (type !== 'delete' && trimmedContent) {
+        const hasPlaceholderComments = 
+          trimmedContent.includes('...rest unchanged') ||
+          trimmedContent.includes('... existing code ...') ||
+          trimmedContent.includes('...rest of page unchanged') ||
+          trimmedContent.includes('... rest of file unchanged') ||
+          /\/\*.*?\.{3}.*?\*\//.test(trimmedContent) ||
+          /\/\/.*?\.{3}/.test(trimmedContent);
+        
+        if (hasPlaceholderComments) {
+          console.warn(`Warning: File operation for ${path} contains placeholder comments. This may result in incomplete file content.`);
+        }
+      }
+      
+      operations.push({
+        type: type as 'create' | 'update' | 'delete',
+        path: path.trim(),
+        content: type === 'delete' ? undefined : trimmedContent
+      });
+    }
   }
   
   // Also look for individual file operations described in text

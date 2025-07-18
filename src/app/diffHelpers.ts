@@ -91,41 +91,51 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
 }
 
 /**
- * Apply a single diff block using diff-match-patch.
- * Much more reliable than custom parsing.
+ * Apply a single diff block using simple string replacement for patch operations.
+ * More reliable than diff-match-patch for simple line-by-line changes.
  */
 function applyDiffBlock(original: string, diffText: string): string {
   try {
-    const dmp = new diff_match_patch();
-    
     // Parse the diff block to extract old and new text
     const { oldText, newText } = parseDiffBlock(diffText);
     
-    // If we have specific old and new text, create patches
-    if (oldText && newText) {
-      const diffs = dmp.diff_main(oldText, newText);
-      dmp.diff_cleanupSemantic(diffs);
-      
-      const patches = dmp.patch_make(oldText, diffs);
-      
-      if (patches.length === 0) {
-        console.warn('No patches created from diff block');
-        return original;
+    console.log('🔧 Diff block parsing:');
+    console.log('  oldText:', JSON.stringify(oldText));
+    console.log('  newText:', JSON.stringify(newText));
+    
+    // If we have both old and new text, try simple string replacement first
+    if (oldText && newText && oldText !== newText) {
+      // Check if the old text exists in the original
+      if (original.includes(oldText)) {
+        console.log('  ✅ Found exact match, applying replacement');
+        return original.replace(oldText, newText);
       }
       
-      // Apply patches to the original text
-      const results = dmp.patch_apply(patches, original);
+      // If exact match failed, try with normalized line endings
+      const normalizedOriginal = original.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const normalizedOldText = oldText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       
-      // results[0] is the patched text, results[1] is array of success booleans
-      if (results[1].some(success => !success)) {
-        console.warn('Some patches failed to apply cleanly');
+      if (normalizedOriginal.includes(normalizedOldText)) {
+        console.log('  ✅ Found match with normalized line endings, applying replacement');
+        const normalizedNewText = newText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const result = normalizedOriginal.replace(normalizedOldText, normalizedNewText);
+        
+        // Restore original line endings
+        if (original.includes('\r\n')) {
+          return result.replace(/\n/g, '\r\n');
+        } else if (original.includes('\r')) {
+          return result.replace(/\n/g, '\r');
+        }
+        return result;
       }
       
-      return results[0];
-    } else {
-      // Fallback: try to apply the diff directly by finding context
-      return applyDiffBlockFallback(original, diffText, dmp);
+      console.warn('  ❌ Could not find text to replace');
+      console.log('  Original contains old text:', original.includes(oldText));
+      console.log('  First 100 chars of original:', JSON.stringify(original.substring(0, 100)));
     }
+    
+    // Fallback to diff-match-patch for more complex cases
+    return applyDiffBlockFallback(original, diffText, new diff_match_patch());
   } catch (error) {
     console.error('Error applying diff block:', error);
     return original;
@@ -185,7 +195,23 @@ function applyDiffBlockFallback(original: string, diffText: string, dmp: Instanc
 
 /** Apply multiple diff blocks sequentially using diff-match-patch; each block sees the result of the previous. */
 export function applyAllDiffBlocks(original: string, blocks: string[]): string {
-  return blocks.reduce((acc, block) => applyDiffBlock(acc, block), original);
+  // Normalize line endings in the original content to avoid Windows/Unix line ending issues
+  const normalizedOriginal = original.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  const result = blocks.reduce((acc, block) => {
+    // Also normalize line endings in the diff block
+    const normalizedBlock = block.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return applyDiffBlock(acc, normalizedBlock);
+  }, normalizedOriginal);
+  
+  // Restore original line endings if the original had them
+  if (original.includes('\r\n')) {
+    return result.replace(/\n/g, '\r\n');
+  } else if (original.includes('\r')) {
+    return result.replace(/\n/g, '\r');
+  }
+  
+  return result;
 }
 
 /* ------------------------------------------------------------------ *

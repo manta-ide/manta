@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
 import { Message } from '@/app/api/chat/route';
 import SelectionBadges from './SelectionBadge';
+import { applyAllDiffBlocks } from '@/app/diffHelpers';
 
 interface DisplayMessage extends Message {
   content?: string; // For display purposes only
@@ -17,7 +18,7 @@ interface DisplayMessage extends Message {
 const CHARS_PER_FRAME = 2;
 
 export default function ChatSidebar() {
-  const { getAllFiles, currentFile, selection, setSelection, setCurrentFile, createFile, setFileContent, deleteFile } = useProjectStore();
+  const { getAllFiles, currentFile, selection, setSelection, setCurrentFile, createFile, setFileContent, deleteFile, getFileContent } = useProjectStore();
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -88,6 +89,24 @@ export default function ChatSidebar() {
             break;
           case 'update':
             await setFileContent(op.path, op.content || '');
+            break;
+          case 'patch':
+            // Apply patch using diff helpers
+            const currentContent = getFileContent(op.path);
+            console.log(`🔧 Patch operation for ${op.path} (${currentContent ? currentContent.length : 'null'} chars)`);
+            
+            if (currentContent && op.content) {
+              const newContent = applyAllDiffBlocks(currentContent, [op.content]);
+              
+              if (newContent !== currentContent) {
+                await setFileContent(op.path, newContent);
+                console.log(`✅ Patch applied successfully to ${op.path}`);
+              } else {
+                console.warn(`❌ Patch operation failed: no changes made to ${op.path}`);
+              }
+            } else {
+              console.warn(`❌ Patch operation failed: missing content for ${op.path}`);
+            }
             break;
           case 'delete':
             await deleteFile(op.path);

@@ -1,5 +1,10 @@
 {{#SELECTION}}
-The user has selected an area (x:{{SELECTION_X}}, y:{{SELECTION_Y}}, w:{{SELECTION_WIDTH}}, h:{{SELECTION_HEIGHT}}).
+The user has selected an area in the preview (x:{{SELECTION_X}}, y:{{SELECTION_Y}}, w:{{SELECTION_WIDTH}}, h:{{SELECTION_HEIGHT}}).
+When making changes based on this selection, you MUST:
+1. Analyze the current file content to understand what UI element was likely selected
+2. Make the requested changes to that specific element
+3. Always provide the COMPLETE file content, never use placeholder comments
+4. Ensure the change is precise and doesn't affect other parts of the file
 {{/SELECTION}}
 
 
