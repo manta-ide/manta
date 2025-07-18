@@ -1,0 +1,238 @@
+'use client';
+
+import { useProjectStore } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import Editor from '@monaco-editor/react';
+import { X } from 'lucide-react';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+
+export default function FileEditor() {
+  const { currentFile, getFileContent, setFileContent, setCurrentFile } = useProjectStore();
+  const [content, setContent] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (currentFile) {
+      const fileContent = getFileContent(currentFile);
+      setContent(fileContent);
+      setIsEditing(false);
+    } else {
+      setContent('');
+    }
+  }, [currentFile, getFileContent]);
+
+  const handleContentChange = (value: string | undefined) => {
+    const newContent = value || '';
+    setContent(newContent);
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    if (currentFile) {
+      setFileContent(currentFile, content);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCloseFile = () => {
+    setCurrentFile(null);
+  };
+
+  const getFileExtension = (filename: string) => {
+    return filename.split('.').pop()?.toLowerCase() || '';
+  };
+
+  const getLanguageFromExtension = (filename: string) => {
+    const ext = getFileExtension(filename);
+    switch (ext) {
+      case 'tsx':
+        return 'typescript';
+      case 'ts':
+        return 'typescript';
+      case 'jsx':
+        return 'javascript';
+      case 'js':
+        return 'javascript';
+      case 'css':
+        return 'css';
+      case 'json':
+        return 'json';
+      case 'md':
+        return 'markdown';
+      case 'html':
+        return 'html';
+      default:
+        return 'plaintext';
+    }
+  };
+
+  const getFileName = (fullPath: string) => {
+    return fullPath.split('/').pop() || fullPath;
+  };
+
+  const getPathSegments = (fullPath: string) => {
+    const segments = fullPath.split('/');
+    return segments.slice(0, -1); // All except the last segment (filename)
+  };
+
+  const getFileTypePrefix = (filename: string) => {
+    const ext = getFileExtension(filename);
+    switch (ext) {
+      case 'tsx':
+      case 'ts':
+        return 'TS';
+      case 'jsx':
+      case 'js':
+        return 'JS';
+      case 'css':
+        return 'CSS';
+      case 'json':
+        return 'JSON';
+      case 'md':
+        return 'MD';
+      case 'html':
+        return 'HTML';
+      default:
+        return '';
+    }
+  };
+
+  if (!currentFile) {
+    return (
+      <div className="flex items-center justify-center bg-background h-full">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-2">No file selected</p>
+          <p className="text-sm text-muted-foreground">Choose a file from the file tree to start editing</p>
+        </div>
+      </div>
+    );
+  }
+
+  const pathSegments = getPathSegments(currentFile);
+  const fileName = getFileName(currentFile);
+  const fileTypePrefix = getFileTypePrefix(fileName);
+
+  return (
+    <div className="flex flex-col h-full bg-white border-l">
+      {/* Tab Area */}
+      <div className="bg-white border-b border-[#e1e4e8] flex-shrink-0">
+        <div className="flex items-center">
+          <div className="flex items-center gap-2 px-3 py-2 bg-white border-r border-[#e1e4e8] text-[#1f2937] text-sm min-w-0">
+            {fileTypePrefix && (
+              <span className="text-[#005fb8] font-bold text-sm">{fileTypePrefix}</span>
+            )}
+            <span className="flex items-center gap-1 min-w-0">
+              {fileName}
+              {isEditing && (
+                <span className="text-[#1f2937] ml-1">●</span>
+              )}
+            </span>
+            <button
+              onClick={handleCloseFile}
+              className="text-[#6b7280] hover:text-[#1f2937] hover:bg-[#f3f4f6] p-1 rounded ml-auto"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="flex items-center gap-2 ml-auto px-3 py-2">
+            {isEditing && (
+              <button
+                onClick={handleSave}
+                className="text-xs bg-[#0969da] text-white px-3 py-1.5 rounded hover:bg-[#0860ca] font-medium"
+              >
+                Save
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Breadcrumb Navigation */}
+      <div className="bg-white border-b border-[#e1e4e8] px-3 py-2 flex-shrink-0">
+        <Breadcrumb>
+          <BreadcrumbList>
+            {pathSegments.map((segment, index) => (
+              <div key={index} className="flex items-center">
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="#" className="text-[#005fb8] hover:text-[#106ebe] text-sm">
+                    {segment}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="text-[#605e5c]" />
+              </div>
+            ))}
+            <BreadcrumbItem>
+              <BreadcrumbPage className="text-[#323130] text-sm font-medium">
+                {fileTypePrefix && <span className="text-[#005fb8] font-bold text-sm mr-1">{fileTypePrefix}</span>}
+                {fileName}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      
+      <div className="flex-1 min-h-0">
+        <Editor
+          value={content}
+          onChange={handleContentChange}
+          language={getLanguageFromExtension(currentFile)}
+          theme="vs"
+          options={{
+            fontSize: 14,
+            lineNumbers: 'on',
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            wordWrap: 'off',
+            automaticLayout: true,
+            tabSize: 2,
+            insertSpaces: true,
+            renderWhitespace: 'none',
+            folding: true,
+            lineDecorationsWidth: 10,
+            lineNumbersMinChars: 3,
+            glyphMargin: false,
+            contextmenu: true,
+            selectOnLineNumbers: true,
+            roundedSelection: false,
+            readOnly: false,
+            cursorStyle: 'line',
+            cursorWidth: 2,
+            cursorBlinking: 'blink',
+            renderLineHighlight: 'line',
+            smoothScrolling: true,
+            scrollbar: {
+              vertical: 'auto',
+              horizontal: 'auto',
+              useShadows: false,
+              verticalScrollbarSize: 10,
+              horizontalScrollbarSize: 10,
+            },
+            // Disable error markers for cleaner look
+            'semanticHighlighting.enabled': true,
+            quickSuggestions: true,
+            suggestOnTriggerCharacters: true,
+            acceptSuggestionOnEnter: 'on',
+            acceptSuggestionOnCommitCharacter: true,
+            snippetSuggestions: 'inline',
+            wordBasedSuggestions: "currentDocument",
+            formatOnType: true,
+            formatOnPaste: true,
+          }}
+          onMount={(editor: any, monaco: any) => {
+            // Add Ctrl+S shortcut
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+              handleSave();
+            });
+          }}
+        />
+      </div>
+    </div>
+  );
+} 

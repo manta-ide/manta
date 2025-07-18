@@ -1,35 +1,44 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCodeStore } from '@/lib/store';
+import { Textarea } from '@/components/ui/textarea';
+import { useProjectStore } from '@/lib/store';
 import { Message } from '@/app/api/chat/route';
+import SelectionBadges from './SelectionBadge';
 
 interface DisplayMessage extends Message {
   content?: string; // For display purposes only
-  code?: string;
+  operations?: any; // For file operations
 }
 
 /** Typing speed: characters appended per animation frame. */
 const CHARS_PER_FRAME = 2;
 
 export default function ChatSidebar() {
-  const { code, setCode, selection, setSelection } = useCodeStore();
+  const { getAllFiles, currentFile, selection, setSelection, setCurrentFile, createFile, setFileContent, deleteFile } = useProjectStore();
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
   // scroll container
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Streaming refs
   const charQueueRef = useRef<string[]>([]);
   const animatingRef = useRef(false);
   const streamIdxRef = useRef<number | null>(null);
   const typedLenRef = useRef(0); // # chars typed so far
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  }, [input]);
 
   /** Scroll to bottom helper */
   const scrollToBottom = () => {
@@ -68,6 +77,28 @@ export default function ChatSidebar() {
     requestAnimationFrame(step);
   };
 
+  const applyFileOperations = async (operations: any[]) => {
+    if (!operations || !Array.isArray(operations)) return;
+    
+    for (const op of operations) {
+      try {
+        switch (op.type) {
+          case 'create':
+            await createFile(op.path, op.content || '');
+            break;
+          case 'update':
+            await setFileContent(op.path, op.content || '');
+            break;
+          case 'delete':
+            await deleteFile(op.path);
+            break;
+        }
+      } catch (error) {
+        console.error('Error applying file operation:', error);
+      }
+    }
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -95,10 +126,18 @@ export default function ChatSidebar() {
         variables: msg.variables
       }));
 
-      // Add system message with current code
+      // Get all files and serialize them
+      const allFiles = getAllFiles();
+      const projectStructure = JSON.stringify(Object.fromEntries(allFiles), null, 2);
+
+      // Add system message with current project state
       const systemMessage: Message = {
         role: 'system',
-        variables: { CURRENT_CODE: code || '' }
+        variables: { 
+          PROJECT_FILES: projectStructure,
+          CURRENT_FILE: currentFile || '',
+          CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
+        }
       };
 
       // Add selection variables to user message if selection exists
@@ -169,7 +208,7 @@ export default function ChatSidebar() {
     try {
       const evt = JSON.parse(line) as
         | { t: 'token'; d: string }
-        | { t: 'final'; reply: string; code: string }
+        | { t: 'final'; reply: string; operations: any }
         | { t: 'error'; error: string };
 
       if (evt.t === 'token') {
@@ -188,8 +227,8 @@ export default function ChatSidebar() {
           }
         }
 
-        // attach code once typing done
-        const waitUntilDone = () => {
+        // attach operations once typing done
+        const waitUntilDone = async () => {
           if (animatingRef.current || charQueueRef.current.length > 0) {
             requestAnimationFrame(waitUntilDone);
             return;
@@ -199,12 +238,15 @@ export default function ChatSidebar() {
             const idx = streamIdxRef.current ?? updated.length - 1;
             updated[idx] = {
               ...updated[idx],
-              code: evt.code,
+              operations: evt.operations,
               variables: { ASSISTANT_RESPONSE: evt.reply }
             };
             return updated;
           });
-          setCode(evt.code);
+          
+          // Apply file operations to the project
+          await applyFileOperations(evt.operations);
+          
           setSelection(null);
           streamIdxRef.current = null;
           queueMicrotask(scrollToBottom);
@@ -218,21 +260,25 @@ export default function ChatSidebar() {
     }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(e);
+    }
+  };
+
   return (
-    <Card className="w-[350px] flex flex-col h-full transition-none">
-      <CardHeader>
-        <CardTitle>AI Chat</CardTitle>
-      </CardHeader>
+    <div className="w-80 flex flex-col h-full bg-background border-l">
       {/* scroll container ref */}
-      <CardContent className="flex-1 overflow-y-auto transition-none" ref={scrollRef}>
-        <div className="space-y-4 transition-none">
+      <div className="flex-1 overflow-y-auto p-3" ref={scrollRef}>
+        <div className="space-y-4">
           {messages.map((m, idx) => (
             <div
               key={idx}
-              className={`flex ${m.role === 'user' ? 'justify-end' : ''} transition-none`}
+              className={`flex ${m.role === 'user' ? 'justify-end' : ''}`}
             >
               <div
-                className={`whitespace-pre-wrap break-words p-2 rounded-lg transition-none ${
+                className={`whitespace-pre-wrap break-words p-3 rounded-lg max-w-[80%] text-sm ${
                   m.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted'
@@ -244,29 +290,38 @@ export default function ChatSidebar() {
           ))}
           {loading && streamIdxRef.current === null && (
             <div className="flex">
-              <div className="p-2 rounded-lg bg-muted">thinking...</div>
+              <div className="p-3 rounded-lg bg-muted text-sm">thinking...</div>
             </div>
           )}
         </div>
-      </CardContent>
-      <div className="p-4 border-t">
-        {selection && (
-          <div className="text-xs text-muted-foreground mb-2">
-            Selected: x: {Math.round(selection.x)}, y: {Math.round(selection.y)}, w:{' '}
-            {Math.round(selection.width)}, h: {Math.round(selection.height)}
-          </div>
-        )}
-        <form onSubmit={sendMessage} className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Say something..."
+      </div>
+      
+      <div className="p-3 border-t">
+        <form onSubmit={sendMessage} className="space-y-3">
+          {/* Selection badges inside input area */}
+          <SelectionBadges
+            currentFile={currentFile}
+            selection={selection}
+            onRemoveFile={() => setCurrentFile(null)}
+            onRemoveSelection={() => setSelection(null)}
           />
-          <Button type="submit" size="icon" disabled={loading}>
-            <Send className="h-4 w-4" />
-          </Button>
+          
+          <div className="flex gap-2 items-end">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask AI to help with your project..."
+              className="flex-1 resize-none text-sm min-h-[38px] max-h-[120px]"
+              rows={1}
+            />
+            <Button type="submit" size="icon" disabled={loading} className="shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </form>
       </div>
-    </Card>
+    </div>
   );
 }

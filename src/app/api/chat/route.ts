@@ -3,7 +3,6 @@ import { streamText } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { extractFirstJsx, extractAllDiffBlocks, applyAllDiffBlocks } from '@/app/diffHelpers';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -13,6 +12,12 @@ export interface Message {
 interface ParsedMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+interface FileOperation {
+  type: 'create' | 'update' | 'delete';
+  path: string;
+  content?: string;
 }
 
 async function getTemplate(templateName: string) {
@@ -48,6 +53,42 @@ function parseTemplate(template: string, variables: Record<string, string>): str
 
 function parseMessageWithTemplate(template: string, variables: Record<string, string>): string {
   return parseTemplate(template, variables);
+}
+
+function parseFileOperations(response: string): FileOperation[] {
+  const operations: FileOperation[] = [];
+  
+  // Look for file operation blocks in the response
+  const fileOpRegex = /```(create|update|delete):([^\n]+)\n([\s\S]*?)```/g;
+  let match;
+  
+  while ((match = fileOpRegex.exec(response)) !== null) {
+    const [, type, path, content] = match;
+    operations.push({
+      type: type as 'create' | 'update' | 'delete',
+      path: path.trim(),
+      content: type === 'delete' ? undefined : content.trim()
+    });
+  }
+  
+  // Also look for individual file operations described in text
+  const textOpRegex = /(?:create|update|delete)\s+(?:file\s+)?["`']([^"`']+)["`'](?:\s+with\s+content)?/gi;
+  while ((match = textOpRegex.exec(response)) !== null) {
+    const [fullMatch, filePath] = match;
+    const operation = fullMatch.toLowerCase().startsWith('create') ? 'create' :
+                     fullMatch.toLowerCase().startsWith('update') ? 'update' : 'delete';
+    
+    // Only add if we don't already have an operation for this file
+    if (!operations.find(op => op.path === filePath.trim())) {
+      operations.push({
+        type: operation,
+        path: filePath.trim(),
+        content: operation === 'delete' ? undefined : ''
+      });
+    }
+  }
+  
+  return operations;
 }
 
 export async function POST(req: NextRequest) {
@@ -89,23 +130,12 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Model is done -> derive code patch
-          const systemMessage = messages.find(m => m.role === 'system');
-          const currentCode = systemMessage?.variables?.CURRENT_CODE || '';
-          let newCode = currentCode;
-          const jsxBlock = extractFirstJsx(full);
-          if (jsxBlock) {
-            newCode = jsxBlock;
-          } else if (currentCode) {
-            const diffBlocks = extractAllDiffBlocks(full);
-            if (diffBlocks.length > 0) {
-              newCode = applyAllDiffBlocks(currentCode, diffBlocks);
-            }
-          }
+          // Model is done -> parse file operations
+          const fileOperations = parseFileOperations(full);
 
           controller.enqueue(
             encoder.encode(
-              JSON.stringify({ t: 'final', reply: full, code: newCode }) + '\n'
+              JSON.stringify({ t: 'final', reply: full, operations: fileOperations }) + '\n'
             )
           );
         } catch (err: any) {
