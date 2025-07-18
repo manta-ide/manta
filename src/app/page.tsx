@@ -62,7 +62,7 @@ export default function Home() {
         
         {/* Chat Panel */}
         {panels.chat && (
-          <div className="w-80 flex-shrink-0">
+          <div className="w-96 flex-shrink-0">
             <ChatSidebar />
           </div>
         )}

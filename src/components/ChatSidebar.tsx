@@ -25,7 +25,6 @@ export default function ChatSidebar() {
 
   // scroll container
   const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Streaming refs
   const charQueueRef = useRef<string[]>([]);
@@ -33,13 +32,7 @@ export default function ChatSidebar() {
   const streamIdxRef = useRef<number | null>(null);
   const typedLenRef = useRef(0); // # chars typed so far
 
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
-    }
-  }, [input]);
+
 
   /** Scroll to bottom helper */
   const scrollToBottom = () => {
@@ -287,9 +280,12 @@ export default function ChatSidebar() {
   };
 
   return (
-    <div className="w-80 flex flex-col h-full bg-background border-l">
+    <div className="w-96 flex flex-col h-full bg-background border-l">
       {/* scroll container ref */}
-      <div className="flex-1 overflow-y-auto p-3" ref={scrollRef}>
+      <div 
+        className="flex-1 overflow-y-auto p-3 chat-scrollbar" 
+        ref={scrollRef}
+      >
         <div className="space-y-4">
           {messages.map((m, idx) => (
             <div
@@ -327,13 +323,11 @@ export default function ChatSidebar() {
           
           <div className="flex gap-2 items-end">
             <Textarea
-              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask AI to help with your project..."
-              className="flex-1 resize-none text-sm min-h-[38px] max-h-[120px]"
-              rows={1}
+              className="flex-1 resize-none text-sm field-sizing-content max-h-29.5 min-h-0 py-1.75"
             />
             <Button type="submit" size="icon" disabled={loading} className="shrink-0">
               <Send className="h-4 w-4" />

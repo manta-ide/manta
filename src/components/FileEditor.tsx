@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useProjectStore } from '@/lib/store';
 import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
@@ -19,8 +20,11 @@ export default function FileEditor() {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
+    console.log('📂 File changed:', currentFile);
     if (currentFile) {
       const fileContent = getFileContent(currentFile);
+      console.log('📝 File content length:', fileContent.length);
+      console.log('📝 File content preview:', fileContent.substring(0, 100) + '...');
       setContent(fileContent);
       setIsEditing(false);
     } else {
@@ -51,26 +55,37 @@ export default function FileEditor() {
 
   const getLanguageFromExtension = (filename: string) => {
     const ext = getFileExtension(filename);
+    let language = '';
     switch (ext) {
       case 'tsx':
-        return 'typescript';
+        language = 'typescript';
+        break;
       case 'ts':
-        return 'typescript';
+        language = 'typescript';
+        break;
       case 'jsx':
-        return 'javascript';
+        language = 'javascript'; // JSX files should use javascript, not typescriptreact
+        break;
       case 'js':
-        return 'javascript';
+        language = 'javascript';
+        break;
       case 'css':
-        return 'css';
+        language = 'css';
+        break;
       case 'json':
-        return 'json';
+        language = 'json';
+        break;
       case 'md':
-        return 'markdown';
+        language = 'markdown';
+        break;
       case 'html':
-        return 'html';
+        language = 'html';
+        break;
       default:
-        return 'plaintext';
+        language = 'plaintext';
     }
+    console.log(`🔍 Language detection for ${filename} (ext: ${ext}) -> ${language}`);
+    return language;
   };
 
   const getFileName = (fullPath: string) => {
@@ -182,8 +197,17 @@ export default function FileEditor() {
         <Editor
           value={content}
           onChange={handleContentChange}
-          language={getLanguageFromExtension(currentFile)}
+          language={(() => {
+            const detectedLanguage = getLanguageFromExtension(currentFile);
+            console.log('🎯 Setting editor language to:', detectedLanguage);
+            return detectedLanguage;
+          })()}
+          path={currentFile}
           theme="vs"
+          beforeMount={(monaco: any) => {
+            console.log('🔧 Monaco beforeMount - setting up models');
+            console.log('📄 Current file for beforeMount:', currentFile);
+          }}
           options={{
             fontSize: 14,
             lineNumbers: 'on',
@@ -226,10 +250,121 @@ export default function FileEditor() {
             formatOnPaste: true,
           }}
           onMount={(editor: any, monaco: any) => {
+            console.log('🚀 Monaco editor mounted');
+            console.log('📄 Current file:', currentFile);
+            console.log('🔧 Monaco object:', monaco);
+            
             // Add Ctrl+S shortcut
             editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
               handleSave();
             });
+            
+            // Get current language
+            const model = editor.getModel();
+            const currentLanguage = model?.getLanguageId();
+            console.log('🗣️ Current language ID:', currentLanguage);
+            console.log('🔗 Model URI:', model?.uri?.toString());
+            
+            // Configure TypeScript compiler options for JSX
+            const tsOptions = {
+              target: monaco.languages.typescript.ScriptTarget.Latest,
+              allowNonTsExtensions: true,
+              moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+              module: monaco.languages.typescript.ModuleKind.ESNext,
+              noEmit: true,
+              esModuleInterop: true,
+              jsx: monaco.languages.typescript.JsxEmit.ReactJSX, // Changed from React to ReactJSX
+              jsxFactory: 'React.createElement',
+              jsxFragmentFactory: 'React.Fragment',
+              allowJs: true,
+              typeRoots: ['node_modules/@types'],
+              skipLibCheck: true,
+              allowSyntheticDefaultImports: true,
+              strict: false,
+              declaration: false,
+              removeComments: false,
+              lib: ['ES2020', 'DOM', 'DOM.Iterable']
+            };
+            
+            console.log('⚙️ Applying TypeScript options:', tsOptions);
+            
+            try {
+              // Apply settings to both TypeScript and TypeScript React
+              monaco.languages.typescript.typescriptDefaults.setCompilerOptions(tsOptions);
+              monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+                noSemanticValidation: false,
+                noSyntaxValidation: false,
+                noSuggestionDiagnostics: false
+              });
+              console.log('✅ TypeScript configuration applied successfully');
+            } catch (error) {
+              console.error('❌ Error applying TypeScript configuration:', error);
+            }
+
+            // Add React types and JSX global types
+            const reactTypes = `
+              declare module 'react' {
+                export = React;
+                export as namespace React;
+                declare namespace React {
+                  type ReactElement = any;
+                  type ReactNode = any;
+                  type ComponentType<P = {}> = any;
+                  function createElement(type: any, props?: any, ...children: any[]): ReactElement;
+                  const Fragment: ComponentType<{}>;
+                  function useState<T>(initialState: T | (() => T)): [T, (value: T | ((prev: T) => T)) => void];
+                  function useEffect(effect: () => void | (() => void), deps?: any[]): void;
+                }
+              }
+              
+              declare global {
+                namespace JSX {
+                  interface Element extends React.ReactElement<any, any> { }
+                  interface ElementClass extends React.Component<any> {
+                    render(): React.ReactNode;
+                  }
+                  interface ElementAttributesProperty { props: {}; }
+                  interface ElementChildrenAttribute { children: {}; }
+                  interface IntrinsicElements {
+                    [elemName: string]: any;
+                  }
+                }
+              }
+            `;
+            
+            try {
+              monaco.languages.typescript.typescriptDefaults.addExtraLib(
+                reactTypes,
+                'file:///node_modules/@types/react/index.d.ts'
+              );
+              console.log('✅ React types added successfully');
+            } catch (error) {
+              console.error('❌ Error adding React types:', error);
+            }
+
+            // Add jsx-runtime types
+            const jsxRuntimeTypes = `
+              declare module 'react/jsx-runtime' {
+                export function jsx(type: any, props: any, key?: any): any;
+                export function jsxs(type: any, props: any, key?: any): any;
+                export { jsx as jsxDEV };
+                export { jsxs as jsxsDEV };
+                export const Fragment: any;
+              }
+            `;
+
+            try {
+              monaco.languages.typescript.typescriptDefaults.addExtraLib(
+                jsxRuntimeTypes,
+                'file:///node_modules/@types/react/jsx-runtime.d.ts'
+              );
+              console.log('✅ JSX runtime types added successfully');
+            } catch (error) {
+              console.error('❌ Error adding JSX runtime types:', error);
+            }
+            
+            // Log available languages
+            console.log('🌍 Available languages:', monaco.languages.getLanguages().map((l: any) => l.id));
           }}
         />
       </div>
