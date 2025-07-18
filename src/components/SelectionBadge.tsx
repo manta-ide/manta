@@ -45,7 +45,7 @@ export default function SelectionBadges({
   if (!currentFile && !selection) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 p-2 border-b">
+    <div className="flex flex-wrap gap-2 p-2">
       {currentFile && (
         <SelectionBadge
           type="file"
@@ -58,6 +58,60 @@ export default function SelectionBadges({
           type="area"
           label={`${Math.round(selection.width)}×${Math.round(selection.height)}`}
           onRemove={onRemoveSelection}
+        />
+      )}
+    </div>
+  );
+}
+
+// New component for displaying badges in messages (read-only)
+interface MessageBadgeProps {
+  type: 'file' | 'area';
+  label: string;
+  variant?: 'light' | 'dark';
+}
+
+export function MessageBadge({ type, label, variant = 'light' }: MessageBadgeProps) {
+  const badgeClass = variant === 'dark' 
+    ? "bg-white/20 text-white/80 border-white/30" 
+    : "bg-black/10 text-black/70 border-black/20";
+    
+  return (
+    <Badge variant="outline" className={`gap-1 text-xs border ${badgeClass}`}>
+      {type === 'file' ? (
+        <File className="w-3 h-3" />
+      ) : (
+        <MousePointer className="w-3 h-3" />
+      )}
+      <span>{label}</span>
+    </Badge>
+  );
+}
+
+// Component for displaying badges within messages
+interface MessageBadgesProps {
+  currentFile?: string | null;
+  selection?: { x: number; y: number; width: number; height: number } | null;
+  variant?: 'light' | 'dark';
+}
+
+export function MessageBadges({ currentFile, selection, variant = 'light' }: MessageBadgesProps) {
+  if (!currentFile && !selection) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      {currentFile && (
+        <MessageBadge
+          type="file"
+          label={currentFile}
+          variant={variant}
+        />
+      )}
+      {selection && (
+        <MessageBadge
+          type="area"
+          label={`${Math.round(selection.width)}×${Math.round(selection.height)}`}
+          variant={variant}
         />
       )}
     </div>

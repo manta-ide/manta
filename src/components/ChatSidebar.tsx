@@ -7,11 +7,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
 import { Message } from '@/app/api/chat/route';
 import SelectionBadges from './SelectionBadge';
+import { MessageBadges } from './SelectionBadge';
 import { applyAllDiffBlocks } from '@/app/diffHelpers';
 
 interface DisplayMessage extends Message {
   content?: string; // For display purposes only
   operations?: any; // For file operations
+  // Store selection context for this message
+  messageContext?: {
+    currentFile?: string | null;
+    selection?: { x: number; y: number; width: number; height: number } | null;
+  };
 }
 
 /** Typing speed: characters appended per animation frame. */
@@ -31,8 +37,6 @@ export default function ChatSidebar() {
   const animatingRef = useRef(false);
   const streamIdxRef = useRef<number | null>(null);
   const typedLenRef = useRef(0); // # chars typed so far
-
-
 
   /** Scroll to bottom helper */
   const scrollToBottom = () => {
@@ -115,10 +119,17 @@ export default function ChatSidebar() {
     e.preventDefault();
     if (!input.trim()) return;
 
+    // Store current selection context
+    const messageContext = {
+      currentFile,
+      selection
+    };
+
     const userMessage: DisplayMessage = { 
       role: 'user', 
       variables: { USER_REQUEST: input },
-      content: input 
+      content: input,
+      messageContext
     };
 
     // append user message + scroll
@@ -286,26 +297,29 @@ export default function ChatSidebar() {
         className="flex-1 overflow-y-auto p-3 chat-scrollbar" 
         ref={scrollRef}
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {messages.map((m, idx) => (
-            <div
-              key={idx}
-              className={`flex ${m.role === 'user' ? 'justify-end' : ''}`}
-            >
+            <div key={idx} className="w-full">
               <div
-                className={`whitespace-pre-wrap break-words p-3 rounded-lg max-w-[80%] text-sm ${
+                className={`whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm ${
                   m.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                    ? 'bg-muted text-black'
+                    : 'bg-primary text-primary-foreground'
                 }`}
               >
+                {/* Display badges for context */}
+                <MessageBadges
+                  currentFile={m.messageContext?.currentFile}
+                  selection={m.messageContext?.selection}
+                  variant={m.role === 'user' ? 'light' : 'dark'}
+                />
                 {m.content}
               </div>
             </div>
           ))}
           {loading && streamIdxRef.current === null && (
-            <div className="flex">
-              <div className="p-3 rounded-lg bg-muted text-sm">thinking...</div>
+            <div className="w-full">
+              <div className="p-3 rounded-lg bg-primary text-primary-foreground text-sm w-full">thinking...</div>
             </div>
           )}
         </div>
@@ -313,7 +327,7 @@ export default function ChatSidebar() {
       
       <div className="p-3 border-t">
         <form onSubmit={sendMessage} className="space-y-3">
-          {/* Selection badges inside input area */}
+          {/* Show current selection badges above input for context */}
           <SelectionBadges
             currentFile={currentFile}
             selection={selection}
