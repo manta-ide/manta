@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { streamText } from 'ai';
 import { azure } from '@ai-sdk/azure';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getTemplate, parseMessageWithTemplate } from '@/lib/templateHelpers';
+import { parseFileOperations } from '@/lib/fileOperationHelpers';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -12,109 +12,6 @@ export interface Message {
 interface ParsedMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
-}
-
-interface FileOperation {
-  type: 'create' | 'update' | 'delete' | 'patch';
-  path: string;
-  content?: string;
-}
-
-async function getTemplate(templateName: string) {
-  const filePath = path.join(process.cwd(), 'src', 'lib', 'prompts', `${templateName}.txt`);
-  return fs.readFile(filePath, 'utf-8');
-}
-
-function parseTemplate(template: string, variables: Record<string, string>): string {
-  let result = template;
-  
-  // Handle conditional sections first
-  Object.entries(variables).forEach(([key, value]) => {
-    // Find conditional sections for this variable
-    const sectionRegex = new RegExp(
-      `\\{\\{#${key}\\}\\}([\\s\\S]*?)\\{\\{\\/${key}\\}\\}`, 
-      'g'
-    );
-    
-    result = result.replace(sectionRegex, (match, content) => {
-      // If variable has a value, include the section content, otherwise remove it
-      return value ? content : '';
-    });
-  });
-  
-  // Replace regular variables
-  Object.entries(variables).forEach(([key, value]) => {
-    const placeholder = `{{${key}}}`;
-    result = result.replace(new RegExp(placeholder, 'g'), value);
-  });
-  
-  return result;
-}
-
-function parseMessageWithTemplate(template: string, variables: Record<string, string>): string {
-  return parseTemplate(template, variables);
-}
-
-function parseFileOperations(response: string): FileOperation[] {
-  const operations: FileOperation[] = [];
-  
-  // Look for file operation blocks in the response
-  const fileOpRegex = /```(create|update|delete|patch):([^\n]+)\n([\s\S]*?)```/g;
-  let match;
-  
-  while ((match = fileOpRegex.exec(response)) !== null) {
-    const [, type, path, content] = match;
-    const trimmedContent = content.trim();
-    
-    if (type === 'patch') {
-      // Store the raw diff content for processing
-      operations.push({
-        type: 'patch',
-        path: path.trim(),
-        content: trimmedContent
-      });
-    } else {
-      // Validate that the content is not using placeholder comments
-      if (type !== 'delete' && trimmedContent) {
-        const hasPlaceholderComments = 
-          trimmedContent.includes('...rest unchanged') ||
-          trimmedContent.includes('... existing code ...') ||
-          trimmedContent.includes('...rest of page unchanged') ||
-          trimmedContent.includes('... rest of file unchanged') ||
-          /\/\*.*?\.{3}.*?\*\//.test(trimmedContent) ||
-          /\/\/.*?\.{3}/.test(trimmedContent);
-        
-        if (hasPlaceholderComments) {
-          console.warn(`Warning: File operation for ${path} contains placeholder comments. This may result in incomplete file content.`);
-        }
-      }
-      
-      operations.push({
-        type: type as 'create' | 'update' | 'delete',
-        path: path.trim(),
-        content: type === 'delete' ? undefined : trimmedContent
-      });
-    }
-  }
-  
-  // Also look for individual file operations described in text
-  const textOpRegex = /(?:create|update|delete)\s+(?:file\s+)?["`']([^"`']+)["`'](?:\s+with\s+content)?/gi;
-  while ((match = textOpRegex.exec(response)) !== null) {
-    const [fullMatch, filePath] = match;
-    const operation = fullMatch.toLowerCase().startsWith('create') ? 'create' :
-                     fullMatch.toLowerCase().startsWith('update') ? 'update' : 'delete';
-    
-    // Only add if we don't already have an operation for this file
-    if (!operations.find(op => op.path === filePath.trim())) {
-      operations.push({
-        type: operation,
-        path: filePath.trim(),
-        content: operation === 'delete' ? undefined : ''
-      });
-    }
-  }
-  
-  return operations;
 }
 
 export async function POST(req: NextRequest) {

@@ -1,292 +1,39 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
-import { Message } from '@/app/api/chat/route';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
-import { applyAllDiffBlocks } from '@/app/diffHelpers';
-
-interface DisplayMessage extends Message {
-  content?: string; // For display purposes only
-  operations?: any; // For file operations
-  // Store selection context for this message
-  messageContext?: {
-    currentFile?: string | null;
-    selection?: { x: number; y: number; width: number; height: number } | null;
-  };
-}
-
-/** Typing speed: characters appended per animation frame. */
-const CHARS_PER_FRAME = 2;
+import { useChatService } from '@/lib/chatService';
 
 export default function ChatSidebar() {
-  const { getAllFiles, currentFile, selection, setSelection, setCurrentFile, createFile, setFileContent, deleteFile, getFileContent } = useProjectStore();
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const { currentFile, selection, setSelection, setCurrentFile } = useProjectStore();
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
 
   // scroll container
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Streaming refs
-  const charQueueRef = useRef<string[]>([]);
-  const animatingRef = useRef(false);
-  const streamIdxRef = useRef<number | null>(null);
-  const typedLenRef = useRef(0); // # chars typed so far
+  // Use chat service for all chat logic
+  const { state, actions, streamIdxRef } = useChatService(scrollRef);
+  const { messages, loading } = state;
+  const { sendMessage } = actions;
 
-  /** Scroll to bottom helper */
-  const scrollToBottom = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    // No smooth each frame; cheap immediate pin
-    el.scrollTop = el.scrollHeight;
-  };
-
-  /** rAF typewriter drain */
-  const kickAnimation = () => {
-    if (animatingRef.current) return;
-    animatingRef.current = true;
-
-    const step = () => {
-      if (charQueueRef.current.length > 0 && streamIdxRef.current !== null) {
-        const chunk = charQueueRef.current.splice(0, CHARS_PER_FRAME).join('');
-        typedLenRef.current += chunk.length;
-        setMessages((prev) => {
-          const updated = [...prev];
-          const idx = streamIdxRef.current!;
-          const m = updated[idx];
-          updated[idx] = {
-            ...m,
-            content: (m?.content ?? '') + chunk,
-          };
-          return updated;
-        });
-        scrollToBottom(); // keep view pinned
-        requestAnimationFrame(step);
-      } else {
-        animatingRef.current = false;
-      }
-    };
-
-    requestAnimationFrame(step);
-  };
-
-  const applyFileOperations = async (operations: any[]) => {
-    if (!operations || !Array.isArray(operations)) return;
-    
-    for (const op of operations) {
-      try {
-        switch (op.type) {
-          case 'create':
-            await createFile(op.path, op.content || '');
-            break;
-          case 'update':
-            await setFileContent(op.path, op.content || '');
-            break;
-          case 'patch':
-            // Apply patch using diff helpers
-            const currentContent = getFileContent(op.path);
-            console.log(`🔧 Patch operation for ${op.path} (${currentContent ? currentContent.length : 'null'} chars)`);
-            
-            if (currentContent && op.content) {
-              const newContent = applyAllDiffBlocks(currentContent, [op.content]);
-              
-              if (newContent !== currentContent) {
-                await setFileContent(op.path, newContent);
-                console.log(`✅ Patch applied successfully to ${op.path}`);
-              } else {
-                console.warn(`❌ Patch operation failed: no changes made to ${op.path}`);
-              }
-            } else {
-              console.warn(`❌ Patch operation failed: missing content for ${op.path}`);
-            }
-            break;
-          case 'delete':
-            await deleteFile(op.path);
-            break;
-        }
-      } catch (error) {
-        console.error('Error applying file operation:', error);
-      }
-    }
-  };
-
-  const sendMessage = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    // Store current selection context
-    const messageContext = {
-      currentFile,
-      selection
-    };
-
-    const userMessage: DisplayMessage = { 
-      role: 'user', 
-      variables: { USER_REQUEST: input },
-      content: input,
-      messageContext
-    };
-
-    // append user message + scroll
-    setMessages((prev) => {
-      const updated = [...prev, userMessage];
-      queueMicrotask(scrollToBottom);
-      return updated;
-    });
-
-    setInput('');
-    setLoading(true);
-
-    try {
-      // Convert display messages to API messages
-      const apiMessages: Message[] = [...messages, userMessage].map(msg => ({
-        role: msg.role,
-        variables: msg.variables
-      }));
-
-      // Get all files and serialize them
-      const allFiles = getAllFiles();
-      const projectStructure = JSON.stringify(Object.fromEntries(allFiles), null, 2);
-
-      // Add system message with current project state
-      const systemMessage: Message = {
-        role: 'system',
-        variables: { 
-          PROJECT_FILES: projectStructure,
-          CURRENT_FILE: currentFile || '',
-          CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
-        }
-      };
-
-      // Add selection variables to user message if selection exists
-      if (selection) {
-        userMessage.variables = {
-          ...userMessage.variables,
-          SELECTION: 'true',
-          SELECTION_X: selection.x.toString(),
-          SELECTION_Y: selection.y.toString(),
-          SELECTION_WIDTH: selection.width.toString(),
-          SELECTION_HEIGHT: selection.height.toString()
-        };
-      }
-
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [systemMessage, ...apiMessages],
-        }),
-      });
-      if (!res.ok || !res.body) throw new Error(await res.text());
-
-      // create streaming placeholder assistant msg
-      setMessages((prev) => {
-        const idx = prev.length;
-        streamIdxRef.current = idx;
-        queueMicrotask(scrollToBottom);
-        return [...prev, { role: 'assistant', content: '' }];
-      });
-
-      // reset streaming state
-      charQueueRef.current = [];
-      typedLenRef.current = 0;
-      animatingRef.current = false;
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffered = '';
-      let done = false;
-
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        if (readerDone) {
-          done = true;
-          if (buffered.length) processLine(buffered); // last line (no newline)
-          break;
-        }
-        buffered += decoder.decode(value, { stream: true });
-
-        // split NDJSON
-        let nl;
-        while ((nl = buffered.indexOf('\n')) >= 0) {
-          const line = buffered.slice(0, nl);
-          buffered = buffered.slice(nl + 1);
-          if (line.length) processLine(line);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const messageToSend = input;
+    setInput(''); // Clear input immediately
+    await sendMessage(messageToSend);
   };
-
-  /** Parse & handle one NDJSON event */
-  function processLine(line: string) {
-    try {
-      const evt = JSON.parse(line) as
-        | { t: 'token'; d: string }
-        | { t: 'final'; reply: string; operations: any }
-        | { t: 'error'; error: string };
-
-      if (evt.t === 'token') {
-        if (evt.d) {
-          charQueueRef.current.push(...evt.d.split(''));
-          kickAnimation();
-        }
-      } else if (evt.t === 'final') {
-        // no content overwrite; trust streamed tokens
-        if (process.env.NODE_ENV !== 'production') {
-          const diff = evt.reply.length - typedLenRef.current;
-          if (diff !== 0) {
-            console.warn(
-              `Typewriter: final reply length (${evt.reply.length}) != typed (${typedLenRef.current}). diff=${diff}`
-            );
-          }
-        }
-
-        // attach operations once typing done
-        const waitUntilDone = async () => {
-          if (animatingRef.current || charQueueRef.current.length > 0) {
-            requestAnimationFrame(waitUntilDone);
-            return;
-          }
-          setMessages((prev) => {
-            const updated = [...prev];
-            const idx = streamIdxRef.current ?? updated.length - 1;
-            updated[idx] = {
-              ...updated[idx],
-              operations: evt.operations,
-              variables: { ASSISTANT_RESPONSE: evt.reply }
-            };
-            return updated;
-          });
-          
-          // Apply file operations to the project
-          await applyFileOperations(evt.operations);
-          
-          setSelection(null);
-          streamIdxRef.current = null;
-          queueMicrotask(scrollToBottom);
-        };
-        waitUntilDone();
-      } else if (evt.t === 'error') {
-        console.error('Model error:', evt.error);
-      }
-    } catch (err) {
-      console.error('Bad stream line', line, err);
-    }
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(e);
+      handleSubmit(e);
     }
   };
 
@@ -326,7 +73,7 @@ export default function ChatSidebar() {
       </div>
       
       <div className="p-3 border-t">
-        <form onSubmit={sendMessage} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Show current selection badges above input for context */}
           <SelectionBadges
             currentFile={currentFile}

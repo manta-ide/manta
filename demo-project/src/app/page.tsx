@@ -7,10 +7,10 @@ export default function LandingPage() {
       <div className="flex flex-col items-center justify-center h-[75vh] px-8">
         <div className="text-center max-w-4xl">
           <Edit3 className="w-20 h-20 text-primary mx-auto mb-8" />
-          <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-6xl font-bold mb-6 text-black">
             Manta Editor 123
           </h1>
-          <p className="text-2xl text-red-500 mb-8 max-w-2xl mx-auto">
+          <p className="text-2xl text-black mb-8 max-w-2xl mx-auto">
             The future of Next.js development. Edit components visually with AI assistance.
           </p>
           <div className="flex justify-center gap-4 mb-16">
@@ -28,7 +28,7 @@ export default function LandingPage() {
       <div className="py-24 px-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Powerful Features</h2>
+            <h2 className="text-4xl font-bold mb-4 text-green-500">Powerful Features</h2>
             <p className="text-xl text-muted-foreground">Everything you need to build modern Next.js applications</p>
           </div>
           
