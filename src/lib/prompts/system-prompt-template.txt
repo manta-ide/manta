@@ -11,15 +11,15 @@ When you respond:
    file content here
    ```
 
-   **Update an existing file (for major changes):**
-   ```update:path/to/file.ext
-   updated file content here
-   ```
-
-   **Patch an existing file (for small targeted changes):**
+   **Patch an existing file:**
    ```patch:path/to/file.ext
    - old line to be replaced
    + new line to replace it
+   ```
+
+  **Update an existing file (for major changes):**
+   ```update:path/to/file.ext
+   updated file content here
    ```
 
    **Delete a file:**

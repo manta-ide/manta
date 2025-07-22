@@ -1,7 +1,11 @@
 import { RefObject } from 'react';
 
-/** Typing speed: characters appended per animation frame. */
-export const CHARS_PER_FRAME = 2;
+/** Base typing speed: characters appended per animation frame. */
+export const BASE_CHARS_PER_FRAME = 2;
+/** Maximum typing speed when catching up */
+export const MAX_CHARS_PER_FRAME = 20;
+/** Queue size threshold to start speeding up */
+export const SPEED_UP_THRESHOLD = 50;
 
 export interface StreamingState {
   charQueueRef: RefObject<string[]>;
@@ -29,7 +33,22 @@ export function scrollToBottom(scrollRef: RefObject<HTMLDivElement | null>): voi
   el.scrollTop = el.scrollHeight;
 }
 
-/** rAF typewriter drain */
+/** Calculate adaptive typing speed based on queue size */
+function getAdaptiveSpeed(queueSize: number): number {
+  if (queueSize < SPEED_UP_THRESHOLD) {
+    return BASE_CHARS_PER_FRAME;
+  }
+  
+  // Exponential scale up based on queue size
+  const multiplier = Math.min(
+    MAX_CHARS_PER_FRAME / BASE_CHARS_PER_FRAME,
+    1 + (queueSize / SPEED_UP_THRESHOLD) * 2
+  );
+  
+  return Math.floor(BASE_CHARS_PER_FRAME * multiplier);
+}
+
+/** rAF typewriter drain with adaptive speed */
 export function kickAnimation(
   streamingState: StreamingState,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
@@ -40,8 +59,12 @@ export function kickAnimation(
 
   const step = () => {
     if (streamingState.charQueueRef.current && streamingState.charQueueRef.current.length > 0 && streamingState.streamIdxRef.current !== null) {
-      const chunk = streamingState.charQueueRef.current.splice(0, CHARS_PER_FRAME).join('');
+      const queueSize = streamingState.charQueueRef.current.length;
+      const charsThisFrame = getAdaptiveSpeed(queueSize);
+      
+      const chunk = streamingState.charQueueRef.current.splice(0, charsThisFrame).join('');
       streamingState.typedLenRef.current = (streamingState.typedLenRef.current || 0) + chunk.length;
+      
       setMessages((prev) => {
         const updated = [...prev];
         const idx = streamingState.streamIdxRef.current!;
@@ -52,6 +75,7 @@ export function kickAnimation(
         };
         return updated;
       });
+      
       scrollToBottom(scrollRef); // keep view pinned
       requestAnimationFrame(step);
     } else {

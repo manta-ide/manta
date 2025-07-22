@@ -198,6 +198,28 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Team Section */}
+      <div className="py-24 px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Meet the Team</h2>
+            <p className="text-xl text-muted-foreground">Our dedicated team of professionals.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
+            <div className="p-8 bg-card rounded-xl border shadow-sm text-center">
+              <div className="w-24 h-24 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center text-3xl text-primary">A</div>
+              <h3 className="text-xl font-semibold mb-1">Alice Doe</h3>
+              <p className="text-muted-foreground">CEO</p>
+            </div>
+            <div className="p-8 bg-card rounded-xl border shadow-sm text-center">
+              <div className="w-24 h-24 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center text-3xl text-primary">B</div>
+              <h3 className="text-xl font-semibold mb-1">Bob Smith</h3>
+              <p className="text-muted-foreground">CTO</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <div className="py-24 px-8">
         <div className="max-w-4xl mx-auto text-center">
