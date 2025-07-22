@@ -8,9 +8,9 @@ export default function LandingPage() {
         <div className="text-center max-w-4xl">
           <Edit3 className="w-20 h-20 text-primary mx-auto mb-8" />
           <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-            Manta Editor
+            Manta Editor 123
           </h1>
-          <p className="text-2xl text-green-500 mb-8 max-w-2xl mx-auto">
+          <p className="text-2xl text-red-500 mb-8 max-w-2xl mx-auto">
             The future of Next.js development. Edit components visually with AI assistance.
           </p>
           <div className="flex justify-center gap-4 mb-16">

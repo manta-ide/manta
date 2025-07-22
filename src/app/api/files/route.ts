@@ -12,6 +12,38 @@ interface FileNode {
 
 const PROJECT_ROOT = path.join(process.cwd(), 'demo-project');
 
+// Directories and files to exclude from the editor
+const EXCLUDED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.next',
+  'dist',
+  'build',
+  '.vscode',
+  '.idea',
+  'coverage',
+  '.nyc_output',
+  '.cache',
+  'tmp',
+  'temp',
+  '.DS_Store',
+  'Thumbs.db'
+]);
+
+const EXCLUDED_FILES = new Set([
+  '.gitignore',
+  '.env',
+  '.env.local',
+  '.env.development.local',
+  '.env.test.local',
+  '.env.production.local',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  '.DS_Store',
+  'Thumbs.db'
+]);
+
 // Function to recursively read directory structure
 async function readDirectoryStructure(dirPath: string, relativePath: string = ''): Promise<{ files: Map<string, string>, fileTree: FileNode[] }> {
   const files = new Map<string, string>();
@@ -21,6 +53,11 @@ async function readDirectoryStructure(dirPath: string, relativePath: string = ''
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
     
     for (const entry of entries) {
+      // Skip excluded directories and files
+      if (EXCLUDED_DIRS.has(entry.name) || EXCLUDED_FILES.has(entry.name)) {
+        continue;
+      }
+      
       const fullPath = path.join(dirPath, entry.name);
       const relativeFilePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
       // Normalize path to use forward slashes for consistency
