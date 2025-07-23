@@ -39,7 +39,7 @@ export default function FileEditor() {
   };
 
   const handleSave = () => {
-    if (currentFile) {
+    if (currentFile && isEditing && content.length > 0) {
       setFileContent(currentFile, content);
       setIsEditing(false);
     }
