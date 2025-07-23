@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import a clean, modern font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
 :root {
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
@@ -23,6 +26,43 @@
   --input: 214.3 31.8% 91.4%;
   --ring: 221.2 83.2% 53.3%;
   --radius: 0.5rem;
+}
+
+/* Scrollbar styling for a sleeker look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--secondary)/60%);
+  border-radius: var(--radius);
+  border: 2px solid hsl(var(--background));
+}
+
+/* Card utility for translucent panels */
+.card {
+  background-color: hsl(var(--card)/0.75);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+}
+
+/* Smooth link hover transitions */
+a {
+  transition: color 0.2s ease;
+}
+
+/* Custom text selection highlight */
+::selection {
+  background-color: hsla(var(--primary), 0.3);
+  color: hsl(var(--primary-foreground));
 }
 
 .dark {
@@ -54,4 +94,6 @@
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  font-family: 'Inter', sans-serif;
+  transition: background-color 0.5s ease, color 0.5s ease;
 } 

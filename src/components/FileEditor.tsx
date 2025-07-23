@@ -121,10 +121,10 @@ export default function FileEditor() {
 
   if (!currentFile) {
     return (
-      <div className="flex items-center justify-center bg-background h-full">
+      <div className="flex items-center justify-center bg-zinc-900 h-full">
         <div className="text-center">
-          <p className="text-muted-foreground mb-2">No file selected</p>
-          <p className="text-sm text-muted-foreground">Choose a file from the file tree to start editing</p>
+          <p className="text-zinc-400 mb-2">No file selected</p>
+          <p className="text-sm text-zinc-500">Choose a file from the file tree to start editing</p>
         </div>
       </div>
     );
@@ -135,23 +135,23 @@ export default function FileEditor() {
   const fileTypePrefix = getFileTypePrefix(fileName);
 
   return (
-    <div className="flex flex-col h-full bg-white border-l">
+    <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
       {/* Tab Area */}
-      <div className="bg-white border-b border-[#e1e4e8] flex-shrink-0">
+      <div className="bg-zinc-800 border-b border-zinc-700 flex-shrink-0">
         <div className="flex items-center">
-          <div className="flex items-center gap-2 px-3 py-2 bg-white border-r border-[#e1e4e8] text-[#1f2937] text-sm min-w-0">
+          <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-r border-zinc-700 text-zinc-200 text-sm min-w-0">
             {fileTypePrefix && (
-              <span className="text-[#005fb8] font-bold text-sm">{fileTypePrefix}</span>
+              <span className="text-zinc-400 font-bold text-sm">{fileTypePrefix}</span>
             )}
             <span className="flex items-center gap-1 min-w-0">
               {fileName}
               {isEditing && (
-                <span className="text-[#1f2937] ml-1">●</span>
+                <span className="text-zinc-400 ml-1 animate-pulse">●</span>
               )}
             </span>
             <button
               onClick={handleCloseFile}
-              className="text-[#6b7280] hover:text-[#1f2937] hover:bg-[#f3f4f6] p-1 rounded ml-auto"
+              className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 p-1 rounded ml-auto transition-colors duration-150"
             >
               <X className="w-3 h-3" />
             </button>
@@ -160,7 +160,7 @@ export default function FileEditor() {
             {isEditing && (
               <button
                 onClick={handleSave}
-                className="text-xs bg-[#0969da] text-white px-3 py-1.5 rounded hover:bg-[#0860ca] font-medium"
+                className="text-xs bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded hover:bg-zinc-600 font-medium transition-all duration-150"
               >
                 Save
               </button>
@@ -170,22 +170,22 @@ export default function FileEditor() {
       </div>
 
       {/* Breadcrumb Navigation */}
-      <div className="bg-white border-b border-[#e1e4e8] px-3 py-2 flex-shrink-0">
+      <div className="bg-zinc-800 border-b border-zinc-700 px-3 py-2 flex-shrink-0">
         <Breadcrumb>
           <BreadcrumbList>
             {pathSegments.map((segment, index) => (
               <div key={index} className="flex items-center">
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="#" className="text-[#005fb8] hover:text-[#106ebe] text-sm">
+                  <BreadcrumbLink href="#" className="text-zinc-400 hover:text-zinc-300 text-sm transition-colors duration-150">
                     {segment}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator className="text-[#605e5c]" />
+                <BreadcrumbSeparator className="text-zinc-500" />
               </div>
             ))}
             <BreadcrumbItem>
-              <BreadcrumbPage className="text-[#323130] text-sm font-medium">
-                {fileTypePrefix && <span className="text-[#005fb8] font-bold text-sm mr-1">{fileTypePrefix}</span>}
+              <BreadcrumbPage className="text-zinc-200 text-sm font-medium">
+                {fileTypePrefix && <span className="text-zinc-400 font-bold text-sm mr-1">{fileTypePrefix}</span>}
                 {fileName}
               </BreadcrumbPage>
             </BreadcrumbItem>
@@ -203,7 +203,7 @@ export default function FileEditor() {
             return detectedLanguage;
           })()}
           path={currentFile}
-          theme="vs"
+          theme="vs-dark"
           beforeMount={(monaco: any) => {
             console.log('🔧 Monaco beforeMount - setting up models');
             console.log('📄 Current file for beforeMount:', currentFile);

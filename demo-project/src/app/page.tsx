@@ -1,23 +1,25 @@
-import { Mail, Github, Linkedin } from 'lucide-react';
+import { Mail, Github, Linkedin, Car } from 'lucide-react';
 
 export default function PortfolioPage() {
   return (
-    <div className="min-h-screen bg-background px-8">
+    <div className="min-h-screen px-8">
       {/* Hero Section */}
-      <section className="flex flex-col items-center justify-center text-center py-24">
-        <div className="w-32 h-32 rounded-full bg-muted/30 mb-6 flex items-center justify-center text-4xl font-bold text-primary">
-          JD
+      <section className="flex flex-col items-center justify-center text-center py-24 bg-white text-black rounded-xl px-8 mb-12 shadow-lg">
+        <div className="w-32 h-32 rounded-full bg-secondary mb-6 flex items-center justify-center">
+          <Car className="w-16 h-16 text-primary" />
         </div>
-        <h1 className="text-6xl font-bold mb-4 text-foreground">John Doe</h1>
-        <p className="text-xl text-muted-foreground mb-6">
-          Software Engineer specializing in web and distributed systems.
+        <h1 className="text-6xl font-bold mb-4">
+          John Doe
+        </h1>
+        <p className="text-xl mb-6">
+          Full-stack developer passionate about automotive and gaming industries
         </p>
-        <div className="flex gap-6">
-          <a
-            href="https://github.com/johndoe"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:text-primary/80"
+      <div className="flex gap-6">
+        <a
+          href="https://github.com/artem-m"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:text-primary/80"
           >
             <Github className="w-8 h-8" />
           </a>
@@ -29,11 +31,11 @@ export default function PortfolioPage() {
           >
             <Linkedin className="w-8 h-8" />
           </a>
-          <a
-            href="mailto:johndoe@example.com"
-            className="text-primary hover:text-primary/80"
-          >
-            <Mail className="w-8 h-8" />
+        <a
+          href="mailto:artem@example.com"
+          className="text-primary hover:text-primary/80"
+        >
+          <Mail className="w-8 h-8" />
           </a>
         </div>
       </section>
@@ -43,16 +45,18 @@ export default function PortfolioPage() {
         <h2 className="text-4xl font-bold text-center mb-12 text-foreground">
           Skills
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 max-w-4xl mx-auto">
           {[
             'JavaScript',
             'TypeScript',
             'React',
             'Next.js',
             'Node.js',
-            'GraphQL',
+            'Microservices',
             'Docker',
             'Kubernetes',
+            'Game Development',
+            'Automotive Software',
           ].map((skill) => (
             <div
               key={skill}
@@ -65,12 +69,12 @@ export default function PortfolioPage() {
       </section>
 
       {/* Projects Section */}
-      <section id="projects" className="py-24 bg-muted/20">
+      <section id="projects" className="py-24">
         <h2 className="text-4xl font-bold text-center mb-12 text-foreground">
           Projects
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <div className="p-8 bg-card rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-8 bg-card rounded-lg border shadow-md hover:shadow-lg transition-shadow">
             <h3 className="text-2xl font-semibold mb-2">Project One</h3>
             <p className="text-muted-foreground mb-4">
               A web application for collaborating in real-time.
@@ -82,7 +86,7 @@ export default function PortfolioPage() {
               View on GitHub &rarr;
             </a>
           </div>
-          <div className="p-8 bg-card rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-8 bg-card rounded-lg border shadow-md hover:shadow-lg transition-shadow">
             <h3 className="text-2xl font-semibold mb-2">Project Two</h3>
             <p className="text-muted-foreground mb-4">
               An open-source CLI tool to streamline workflows.
@@ -104,34 +108,49 @@ export default function PortfolioPage() {
         </h2>
         <div className="space-y-8 max-w-4xl mx-auto">
           <div>
-            <h3 className="text-2xl font-semibold">
-              Software Engineer @ Company A
+            <h3 className="flex items-center text-2xl font-semibold">
+              <Car className="w-6 h-6 text-primary mr-2" />
+              Software Developer @ Porsche
             </h3>
             <span className="text-sm text-muted-foreground">
-              June 2021 - Present
+              Jan 2022 - Present
             </span>
             <ul className="list-disc list-inside mt-2 text-muted-foreground">
-              <li>Developed scalable microservices using Node.js and Docker.</li>
-              <li>Implemented real-time features with WebSockets.</li>
+              <li>Architected in-car telematics microservices with Node.js.</li>
+              <li>Integrated real-time analytics for vehicle performance.</li>
             </ul>
           </div>
           <div>
-            <h3 className="text-2xl font-semibold">
-              Frontend Developer @ Company B
+            <h3 className="flex items-center text-2xl font-semibold">
+              <Car className="w-6 h-6 text-primary mr-2" />
+              Developer @ HH Development
             </h3>
             <span className="text-sm text-muted-foreground">
-              Jan 2019 - May 2021
+              Jun 2020 - Dec 2021
             </span>
             <ul className="list-disc list-inside mt-2 text-muted-foreground">
-              <li>Built responsive UIs with React and Tailwind CSS.</li>
-              <li>Optimized performance resulting in 30% faster load times.</li>
+              <li>Built scalable web apps and internal tools with React.</li>
+              <li>Led migration to TypeScript and Next.js for new projects.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="flex items-center text-2xl font-semibold">
+              <Car className="w-6 h-6 text-primary mr-2" />
+              Senior Developer @ Playtika
+            </h3>
+            <span className="text-sm text-muted-foreground">
+              May 2018 - May 2020
+            </span>
+            <ul className="list-disc list-inside mt-2 text-muted-foreground">
+              <li>Developed micro front-ends for online gaming dashboards.</li>
+              <li>Optimized CI/CD pipelines, reducing release times by 40%.</li>
             </ul>
           </div>
         </div>
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-24 bg-muted/20">
+      <section id="contact" className="py-24">
         <h2 className="text-4xl font-bold text-center mb-8 text-foreground">
           Get In Touch
         </h2>
@@ -140,20 +159,19 @@ export default function PortfolioPage() {
         </p>
         <div className="text-center">
           <a
-            href="mailto:johndoe@example.com"
+            href="mailto:artem@example.com"
             className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
           >
             Email Me
           </a>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="py-12 text-center">
+    {/* Footer */}  
+    <footer className="py-12 text-center">
         <p className="text-sm text-muted-foreground">
           © {new Date().getFullYear()} John Doe. Built with Next.js & Tailwind CSS.
         </p>
-      </footer>
-    </div>
+    </footer>
+  </div>
   );
 }

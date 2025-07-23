@@ -37,8 +37,10 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
       <Button
         variant="ghost"
         size="sm"
-        className={`w-full justify-start h-8 px-2 font-normal text-sm ${
-          isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
+        className={`w-full justify-start h-8 px-2 font-normal text-sm transition-all duration-150 ${
+          isSelected 
+            ? 'bg-zinc-700 text-white' 
+            : 'hover:bg-zinc-800/50 text-zinc-300 hover:text-zinc-200'
         }`}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
         onClick={handleClick}
@@ -47,19 +49,19 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
           {node.type === 'directory' && (
             <div className="flex items-center">
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <ChevronDown className="w-4 h-4 text-zinc-400 transition-transform duration-200" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <ChevronRight className="w-4 h-4 text-zinc-400 transition-transform duration-200" />
               )}
               {isExpanded ? (
-                <FolderOpen className="w-4 h-4 text-blue-500 ml-1" />
+                <FolderOpen className="w-4 h-4 text-zinc-400 ml-1" />
               ) : (
-                <Folder className="w-4 h-4 text-blue-500 ml-1" />
+                <Folder className="w-4 h-4 text-zinc-400 ml-1" />
               )}
             </div>
           )}
           {node.type === 'file' && (
-            <File className="w-4 h-4 text-muted-foreground ml-5" />
+            <File className="w-4 h-4 text-zinc-400 ml-5" />
           )}
           <span className="text-sm truncate">{node.name}</span>
         </div>
@@ -87,13 +89,21 @@ export default function FileTree() {
 
   return (
     <div 
-      className="w-64 h-full bg-background border-r overflow-y-auto"
+      className="w-64 h-full bg-zinc-900 border-r border-zinc-700 overflow-y-auto custom-scrollbar"
       onClick={handleEmptySpaceClick}
     >
-      <div className="p-2">
-        {fileTree.map((node) => (
-          <FileTreeNode key={node.path} node={node} level={0} />
-        ))}
+      <div className="p-3">
+        <div className="mb-3">
+          <FileTreeNode 
+            node={{ 
+              name: 'manta-demo-project', 
+              path: 'manta-demo-project', 
+              type: 'directory', 
+              children: fileTree 
+            }} 
+            level={0} 
+          />
+        </div>
       </div>
     </div>
   );

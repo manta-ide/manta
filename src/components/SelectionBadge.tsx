@@ -13,7 +13,7 @@ interface SelectionBadgeProps {
 
 export function SelectionBadge({ type, label, onRemove }: SelectionBadgeProps) {
   return (
-    <Badge variant="secondary" className="gap-1 pr-1">
+    <Badge variant="outline" className="gap-1 pr-1 border-zinc-600 text-white bg-transparent">
       {type === 'file' ? (
         <File className="w-3 h-3" />
       ) : (
@@ -21,7 +21,7 @@ export function SelectionBadge({ type, label, onRemove }: SelectionBadgeProps) {
       )}
       <span className="text-xs">{label}</span>
       <button
-        className="focus-visible:border-ring focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground -my-px -ms-px -me-1 inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-[inherit] p-0 transition-[color,box-shadow] outline-none focus-visible:ring-[3px]"
+        className="text-zinc-400 hover:text-white -my-px -ms-px -me-1 inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-[inherit] p-0 transition-colors outline-none"
         onClick={onRemove}
       >
         <XIcon size={10} aria-hidden="true" />
@@ -76,8 +76,8 @@ interface MessageBadgeProps {
 
 export function MessageBadge({ type, label, variant = 'light' }: MessageBadgeProps) {
   const badgeClass = variant === 'dark' 
-    ? "bg-white/20 text-white/80 border-white/30" 
-    : "bg-black/10 text-black/70 border-black/20";
+    ? "border-zinc-600 text-white bg-transparent" 
+    : "border-zinc-600 text-white bg-transparent";
     
   return (
     <Badge variant="outline" className={`gap-1 text-xs border ${badgeClass}`}>

@@ -30,7 +30,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-zinc-900">
       <TopBar 
         panels={panels} 
         onTogglePanel={togglePanel}
@@ -39,30 +39,33 @@ export default function Home() {
       />
       
       <div className="flex flex-1 overflow-hidden">
-        {/* Files Panel */}
-        {panels.files && (
-          <div className="w-64 flex-shrink-0">
-            <FileTree />
-          </div>
-        )}
+        {/* Left side - Files and Editor panels */}
+        <div className="flex flex-1 min-w-0">
+          {/* Files Panel */}
+          {panels.files && (
+            <div className="w-64 flex-shrink-0 border-r border-zinc-700">
+              <FileTree />
+            </div>
+          )}
+          
+          {/* Editor Panel */}
+          {panels.editor && (
+            <div className={`${panels.viewer ? 'w-[600px] flex-shrink-0' : 'flex-1 min-w-0'} border-r border-zinc-700`}>
+              <FileEditor />
+            </div>
+          )}
+          
+          {/* App Viewer Panel - expands to fill remaining space */}
+          {panels.viewer && (
+            <div className="flex-1 min-w-0 bg-zinc-900">
+              <AppViewer isEditMode={isEditMode} />
+            </div>
+          )}
+        </div>
         
-        {/* Editor Panel */}
-        {panels.editor && (
-          <div className="w-[600px] flex-shrink-0">
-            <FileEditor />
-          </div>
-        )}
-        
-        {/* App Viewer Panel */}
-        {panels.viewer && (
-          <div className="flex-1 min-w-0">
-            <AppViewer isEditMode={isEditMode} />
-          </div>
-        )}
-        
-        {/* Chat Panel */}
+        {/* Chat Panel - always on the right, fixed width */}
         {panels.chat && (
-          <div className="w-96 flex-shrink-0">
+          <div className="w-96 flex-shrink-0 border-l border-zinc-700">
             <ChatSidebar />
           </div>
         )}

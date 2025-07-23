@@ -8,14 +8,17 @@ import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
 import { useChatService } from '@/lib/chatService';
+import { MessageRenderer } from './CodeBlock';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 function ThinkingIndicator() {
   return (
     <div className="w-full">
-      <div className="whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm bg-primary text-primary-foreground">
+      <div className="whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm bg-zinc-800 text-zinc-200">
         <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-primary-foreground/70" />
-          <div className="text-sm text-primary-foreground/80 font-medium">
+          <Brain className="h-4 w-4 text-zinc-400 animate-pulse" style={{ animationDuration: '1.5s' }} />
+          <div className="text-sm text-zinc-300 font-medium">
             <span className="inline-block animate-pulse" style={{ animationDelay: '0ms', animationDuration: '0.8s' }}>t</span>
             <span className="inline-block animate-pulse" style={{ animationDelay: '80ms', animationDuration: '0.8s' }}>h</span>
             <span className="inline-block animate-pulse" style={{ animationDelay: '160ms', animationDuration: '0.8s' }}>i</span>
@@ -63,7 +66,7 @@ export default function ChatSidebar() {
   };
 
   return (
-    <div className="w-96 flex flex-col h-full bg-background border-l">
+    <div className="w-96 flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
       {/* scroll container ref */}
       <div 
         className="flex-1 overflow-y-auto p-3 chat-scrollbar" 
@@ -73,10 +76,10 @@ export default function ChatSidebar() {
           {messages.map((m, idx) => (
             <div key={idx} className="w-full">
               <div
-                className={`whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm ${
+                className={`p-3 rounded-lg w-full text-sm ${
                   m.role === 'user'
-                    ? 'bg-muted text-black'
-                    : 'bg-primary text-primary-foreground'
+                    ? 'bg-zinc-800 text-zinc-200'
+                    : 'bg-zinc-900 text-zinc-200'
                 }`}
               >
                 {/* Display badges for context */}
@@ -85,7 +88,44 @@ export default function ChatSidebar() {
                   selection={m.messageContext?.selection}
                   variant={m.role === 'user' ? 'light' : 'dark'}
                 />
-                {m.content}
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    // Custom components for markdown elements
+                    h1: ({ children }) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-base font-bold text-white mb-2">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-sm font-bold text-white mb-1">{children}</h3>,
+                    p: ({ children }) => <p className="text-zinc-200 mb-2">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc list-inside text-zinc-200 mb-2 space-y-1">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside text-zinc-200 mb-2 space-y-1">{children}</ol>,
+                    li: ({ children }) => <li className="text-zinc-200">{children}</li>,
+                    strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                    em: ({ children }) => <em className="italic text-zinc-300">{children}</em>,
+                    code: ({ children, className }) => {
+                      // Check if this is a code block (has language)
+                      if (className && className.startsWith('language-')) {
+                        const language = className.replace('language-', '');
+                        return (
+                          <MessageRenderer 
+                            content={`\`\`\`${language}\n${children}\n\`\`\``} 
+                            theme="vs-dark"
+                          />
+                        );
+                      }
+                      // Inline code
+                      return <code className="bg-zinc-800 text-zinc-200 px-1 py-0.5 rounded text-sm font-mono">{children}</code>;
+                    },
+                    pre: ({ children }) => <div className="mb-2">{children}</div>,
+                    blockquote: ({ children }) => <blockquote className="border-l-4 border-zinc-600 pl-4 text-zinc-300 italic mb-2">{children}</blockquote>,
+                    a: ({ children, href }) => <a href={href} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                    table: ({ children }) => <table className="w-full border-collapse border border-zinc-600 mb-2">{children}</table>,
+                    th: ({ children }) => <th className="border border-zinc-600 px-2 py-1 text-left text-white bg-zinc-800">{children}</th>,
+                    td: ({ children }) => <td className="border border-zinc-600 px-2 py-1 text-zinc-200">{children}</td>,
+                    tr: ({ children }) => <tr className="border border-zinc-600">{children}</tr>,
+                  }}
+                >
+                  {m.content || ''}
+                </ReactMarkdown>
               </div>
             </div>
           ))}
@@ -95,7 +135,7 @@ export default function ChatSidebar() {
         </div>
       </div>
       
-      <div className="p-3 border-t">
+      <div className="p-3 border-t border-zinc-700">
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Show current selection badges above input for context */}
           <SelectionBadges
@@ -111,9 +151,9 @@ export default function ChatSidebar() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask AI to help with your project..."
-              className="flex-1 resize-none text-sm field-sizing-content max-h-29.5 min-h-0 py-1.75"
+              className="flex-1 resize-none text-sm field-sizing-content max-h-29.5 min-h-0 py-1.75 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400"
             />
-            <Button type="submit" size="icon" disabled={loading} className="shrink-0">
+            <Button type="submit" size="icon" disabled={loading} className="shrink-0 bg-zinc-700 hover:bg-zinc-600">
               <Send className="h-4 w-4" />
             </Button>
           </div>
