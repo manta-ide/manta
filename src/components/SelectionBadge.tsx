@@ -5,6 +5,11 @@ import { XIcon, File, MousePointer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { isValidSelection, formatSelectionLabel, Selection } from '@/lib/selectionHelpers';
 
+// Helper function to get just the filename from a full path
+function getFilenameFromPath(fullPath: string): string {
+  return fullPath.split('/').pop() || fullPath;
+}
+
 interface SelectionBadgeProps {
   type: 'file' | 'area';
   label: string;
@@ -52,7 +57,7 @@ export default function SelectionBadges({
       {currentFile && (
         <SelectionBadge
           type="file"
-          label={currentFile}
+          label={getFilenameFromPath(currentFile)}
           onRemove={onRemoveFile}
         />
       )}
@@ -108,7 +113,7 @@ export function MessageBadges({ currentFile, selection, variant = 'light' }: Mes
       {currentFile && (
         <MessageBadge
           type="file"
-          label={currentFile}
+          label={getFilenameFromPath(currentFile)}
           variant={variant}
         />
       )}

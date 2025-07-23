@@ -39,9 +39,9 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
         size="sm"
         className={`w-full justify-start h-8 px-2 font-normal text-sm transition-all duration-150 ${
           isSelected 
-            ? 'bg-zinc-700 text-white' 
-            : 'hover:bg-zinc-800/50 text-zinc-300 hover:text-zinc-200'
-        }`}
+            ? 'bg-zinc-700 text-white hover:text-white' 
+            : 'hover:bg-zinc-800/50 text-white hover:text-white'
+        } ${isSelected ? 'hover:bg-zinc-700' : ''}`}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
         onClick={handleClick}
       >
