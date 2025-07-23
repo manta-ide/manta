@@ -87,6 +87,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           files,
           currentFile: state.currentFile === filePath ? null : state.currentFile
         });
+        
+        // Refresh the file tree to reflect the deletion
+        await get().loadProjectFromFileSystem();
       } else {
         const data = await response.json();
         console.error('Error deleting file:', data.error);
@@ -108,6 +111,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const files = new Map(get().files);
         files.set(filePath, content);
         set({ files });
+        
+        // Refresh the file tree to reflect the new file
+        await get().loadProjectFromFileSystem();
       } else {
         const data = await response.json();
         console.error('Error creating file:', data.error);
