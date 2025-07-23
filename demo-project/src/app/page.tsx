@@ -14,7 +14,7 @@ export default function LandingPage() {
             The future of Next.js development. Edit components visually with AI assistance.
           </p>
           <div className="flex justify-center gap-4 mb-16">
-            <button className="px-8 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+            <button className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg font-semibold hover:from-red-600 hover:to-red-800 transition-colors">
               Get Started
             </button>
             <button className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg font-semibold hover:from-red-600 hover:to-red-800 transition-colors">
