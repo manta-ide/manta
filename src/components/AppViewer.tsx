@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { LiveProvider, LivePreview, LiveError } from 'react-live';
-import { Edit3, File, Code, MessageCircle } from 'lucide-react';
 import SelectionOverlay, { useSelectionHandlers } from './SelectionOverlay';
 
 interface AppViewerProps {
@@ -26,7 +25,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   const processCodeForLive = (code: string) => {
     if (!code) return '';
     
-    // Remove import statements as react-live doesn't handle them
+    // Remove all import statements since react-live uses scope instead
     let processedCode = code
       .replace(/import\s+.*?from\s+['"].*?[''];?\s*/g, '')
       .replace(/import\s+['"].*?[''];?\s*/g, '')
@@ -59,6 +58,20 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     );
   }
 
+  // Create a scope that includes commonly needed libraries
+  const scope = {
+    React,
+  };
+
+  // Dynamically add imports that are available
+  try {
+    // Add lucide-react icons if available
+    const lucideIcons = require('lucide-react');
+    Object.assign(scope, lucideIcons);
+  } catch (e) {
+    // lucide-react not available, skip
+  }
+
   return (
     <div className="flex flex-col h-full bg-background border-l">
       <div className="flex-1 relative min-h-0">
@@ -74,20 +87,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
             <LiveProvider 
               key={refreshKey} 
               code={processedCode}
-              scope={{ 
-                Edit3, 
-                File, 
-                Code, 
-                MessageCircle,
-                React,
-                useState: React.useState,
-                useEffect: React.useEffect,
-                useRef: React.useRef,
-                useCallback: React.useCallback,
-                useMemo: React.useMemo,
-                useReducer: React.useReducer,
-                useContext: React.useContext
-              }}
+              scope={scope}
             >
               <LivePreview />
               <LiveError className="m-4 p-4 bg-red-50 border border-red-200 rounded text-red-600 text-sm font-mono" />

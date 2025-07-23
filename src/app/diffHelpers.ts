@@ -1,9 +1,7 @@
 /* ------------------------------------------------------------------ *
  * diffHelpers.ts
- * Robust extraction + application of LLM-friendly mini diff blocks using diff-match-patch.
+ * Robust extraction + application of LLM-friendly mini diff blocks using advanced parsing.
  * ------------------------------------------------------------------ */
-
-import { diff_match_patch } from 'diff-match-patch';
 
 /* ---------- Block Extraction Helpers ---------- */
 
@@ -55,21 +53,28 @@ export function extractAllDiffBlocks(text: string): string[] {
 /* ---------- Diff Application using diff-match-patch ---------- */
 
 /**
- * Parse a unified diff block and convert it to the format needed by diff-match-patch.
- * This extracts the actual changes from the diff markers.
+ * Parse a unified diff block and extract individual hunks
  */
-function parseDiffBlock(diffText: string): { oldText: string; newText: string } {
+function parseUnifiedDiff(diffText: string): Array<{ oldText: string; newText: string }> {
   const lines = diffText.split('\n');
-  const oldLines: string[] = [];
-  const newLines: string[] = [];
+  const hunks: Array<{ oldText: string; newText: string }> = [];
   
-  let inHunk = false;
+  let currentHunk: { oldLines: string[], newLines: string[] } | null = null;
   
   for (const line of lines) {
-    // Handle @@ hunk headers - these mark the start of a diff section
-    if (line.startsWith('@@') && line.includes('@@')) {
-      inHunk = true;
-      console.log('Processing hunk:', line);
+    // Handle @@ hunk headers - start a new hunk
+    if (line.startsWith('@@')) {
+      // Save previous hunk if it exists
+      if (currentHunk) {
+        hunks.push({
+          oldText: currentHunk.oldLines.join('\n'),
+          newText: currentHunk.newLines.join('\n')
+        });
+      }
+      
+      // Start new hunk
+      currentHunk = { oldLines: [], newLines: [] };
+      console.log('Starting new hunk:', line);
       continue;
     }
     
@@ -78,10 +83,66 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
       continue;
     }
     
-    // Only process lines if we're in a hunk or if there's no hunk header (simple diff)
-    if (!inHunk && !diffText.includes('@@')) {
-      // Simple diff format without @@ headers
+    // Process lines if we're in a hunk
+    if (currentHunk) {
+      if (line.startsWith('-')) {
+        // Line removed from old
+        currentHunk.oldLines.push(line.substring(1));
+      } else if (line.startsWith('+')) {
+        // Line added to new
+        currentHunk.newLines.push(line.substring(1));
+      } else if (line.startsWith(' ')) {
+        // Context line (appears in both)
+        const contextLine = line.substring(1);
+        currentHunk.oldLines.push(contextLine);
+        currentHunk.newLines.push(contextLine);
+      } else if (line.trim().length > 0) {
+        // Non-prefixed line - treat as context
+        currentHunk.oldLines.push(line);
+        currentHunk.newLines.push(line);
+      }
+    }
+  }
+  
+  // Save final hunk
+  if (currentHunk) {
+    hunks.push({
+      oldText: currentHunk.oldLines.join('\n'),
+      newText: currentHunk.newLines.join('\n')
+    });
+  }
+  
+  return hunks;
+}
+
+/**
+ * Parse a unified diff block and convert it to the format needed by diff-match-patch.
+ * This extracts the actual changes from the diff markers.
+ */
+function parseDiffBlock(diffText: string): { oldText: string; newText: string } {
+  // First try to parse as unified diff with multiple hunks
+  const hunks = parseUnifiedDiff(diffText);
+  
+  if (hunks.length >= 1) {
+    console.log(`📦 Found ${hunks.length} hunk(s) in unified diff`);
+    // For single hunk, return it directly
+    // For multiple hunks, this will be handled by applyDiffBlock
+    return hunks[0];
+  }
+  
+  // Fallback to original parsing logic for non-unified diffs
+  const lines = diffText.split('\n');
+  const oldLines: string[] = [];
+  const newLines: string[] = [];
+  
+  let inHunk = false;
+  let currentSection = '';
+  
+  for (const line of lines) {
+    // Auto-detect if we should be in a hunk (no @@ headers present)
+    if (!inHunk && (line.startsWith('-') || line.startsWith('+') || line.startsWith(' '))) {
       inHunk = true;
+      console.log('Auto-detecting simple diff format (no @@ headers)');
     }
     
     if (inHunk) {
@@ -97,9 +158,25 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
         oldLines.push(contextLine);
         newLines.push(contextLine);
       } else if (line.trim().length > 0 && !line.startsWith('@')) {
-        // Non-empty line without prefix - treat as context
-        oldLines.push(line);
-        newLines.push(line);
+        // Non-empty line without prefix - treat as context if not a section header
+        if (!line.includes('Section') && !line.includes('@@') && !currentSection) {
+          console.log('Treating as context line:', line);
+          oldLines.push(line);
+          newLines.push(line);
+        }
+      }
+    }
+  }
+  
+  // If we couldn't parse anything meaningful, try a simpler approach
+  if (oldLines.length === 0 && newLines.length === 0) {
+    console.log('🔄 Falling back to simple line-by-line parsing');
+    
+    for (const line of lines) {
+      if (line.startsWith('-')) {
+        oldLines.push(line.substring(1));
+      } else if (line.startsWith('+')) {
+        newLines.push(line.substring(1));
       }
     }
   }
@@ -115,74 +192,108 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
  */
 function applyDiffBlock(original: string, diffText: string): string {
   try {
-    // Parse the diff block to extract old and new text
+    // First check if this is a multi-hunk diff
+    const hunks = parseUnifiedDiff(diffText);
+    
+    if (hunks.length > 1) {
+      console.log(`🔄 Applying ${hunks.length} hunks sequentially`);
+      
+      // Apply each hunk to the result of the previous application
+      let result = original;
+      for (let i = 0; i < hunks.length; i++) {
+        const hunk = hunks[i];
+        console.log(`📝 Applying hunk ${i + 1}/${hunks.length}`);
+        console.log('  oldText:', JSON.stringify(hunk.oldText.substring(0, 100)));
+        console.log('  newText:', JSON.stringify(hunk.newText.substring(0, 100)));
+        
+        const hunkResult = applySingleHunk(result, hunk.oldText, hunk.newText);
+        if (hunkResult !== result) {
+          result = hunkResult;
+          console.log(`  ✅ Hunk ${i + 1} applied successfully`);
+        } else {
+          console.warn(`  ❌ Hunk ${i + 1} failed to apply`);
+        }
+      }
+      
+      return result;
+    }
+    
+    // Single hunk or simple diff - use original logic
     const { oldText, newText } = parseDiffBlock(diffText);
     
     console.log('🔧 Diff block parsing:');
     console.log('  oldText:', JSON.stringify(oldText));
     console.log('  newText:', JSON.stringify(newText));
     
-    // If we have both old and new text, try multiple matching strategies
-    if (oldText && newText && oldText !== newText) {
-      
-      // Strategy 1: Exact match (fastest)
-      if (original.includes(oldText)) {
-        console.log('  ✅ Found exact match, applying replacement');
-        return original.replace(oldText, newText);
-      }
-      
-      // Strategy 2: Normalized line endings
-      const normalizedOriginal = original.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      const normalizedOldText = oldText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      
-      if (normalizedOriginal.includes(normalizedOldText)) {
-        console.log('  ✅ Found match with normalized line endings, applying replacement');
-        const normalizedNewText = newText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-        const result = normalizedOriginal.replace(normalizedOldText, normalizedNewText);
-        
-        // Restore original line endings
-        if (original.includes('\r\n')) {
-          return result.replace(/\n/g, '\r\n');
-        } else if (original.includes('\r')) {
-          return result.replace(/\n/g, '\r');
-        }
-        return result;
-      }
-      
-      // Strategy 3: Whitespace-tolerant matching
-      const whitespaceNormalizedOriginal = normalizeWhitespace(normalizedOriginal);
-      const whitespaceNormalizedOld = normalizeWhitespace(normalizedOldText);
-      
-      if (whitespaceNormalizedOriginal.includes(whitespaceNormalizedOld)) {
-        console.log('  ✅ Found match with whitespace normalization, applying replacement');
-        
-        // Find the actual text in the original that corresponds to the whitespace-normalized match
-        const originalMatch = findOriginalMatch(original, oldText);
-        if (originalMatch) {
-          console.log('  ✅ Found original match:', JSON.stringify(originalMatch));
-          return original.replace(originalMatch, newText);
-        }
-      }
-      
-      // Strategy 4: Fuzzy line-by-line matching
-      const fuzzyMatch = findFuzzyMatch(original, oldText);
-      if (fuzzyMatch) {
-        console.log('  ✅ Found fuzzy match, applying replacement');
-        return original.replace(fuzzyMatch, newText);
-      }
-      
-      console.warn('  ❌ Could not find text to replace with any strategy');
-      console.log('  Original contains old text:', original.includes(oldText));
-      console.log('  First 200 chars of original:', JSON.stringify(original.substring(0, 200)));
-      console.log('  Looking for text:', JSON.stringify(oldText.substring(0, 100)));
-    }
+    return applySingleHunk(original, oldText, newText);
     
-    // Fallback to diff-match-patch for more complex cases
-    return applyDiffBlockFallback(original, diffText, new diff_match_patch());
   } catch (error) {
     console.error('Error applying diff block:', error);
     return original;
   }
+}
+
+/**
+ * Apply a single hunk using multiple matching strategies
+ */
+function applySingleHunk(original: string, oldText: string, newText: string): string {
+  // If we have both old and new text, try multiple matching strategies
+  if (oldText && newText && oldText !== newText) {
+    
+    // Strategy 1: Exact match (fastest)
+    if (original.includes(oldText)) {
+      console.log('  ✅ Found exact match, applying replacement');
+      return original.replace(oldText, newText);
+    }
+    
+    // Strategy 2: Normalized line endings
+    const normalizedOriginal = original.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const normalizedOldText = oldText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    if (normalizedOriginal.includes(normalizedOldText)) {
+      console.log('  ✅ Found match with normalized line endings, applying replacement');
+      const normalizedNewText = newText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const result = normalizedOriginal.replace(normalizedOldText, normalizedNewText);
+      
+      // Restore original line endings
+      if (original.includes('\r\n')) {
+        return result.replace(/\n/g, '\r\n');
+      } else if (original.includes('\r')) {
+        return result.replace(/\n/g, '\r');
+      }
+      return result;
+    }
+    
+    // Strategy 3: Whitespace-tolerant matching
+    const whitespaceNormalizedOriginal = normalizeWhitespace(normalizedOriginal);
+    const whitespaceNormalizedOld = normalizeWhitespace(normalizedOldText);
+    
+    if (whitespaceNormalizedOriginal.includes(whitespaceNormalizedOld)) {
+      console.log('  ✅ Found match with whitespace normalization, applying replacement');
+      
+      // Find the actual text in the original that corresponds to the whitespace-normalized match
+      const originalMatch = findOriginalMatch(original, oldText);
+      if (originalMatch) {
+        console.log('  ✅ Found original match:', JSON.stringify(originalMatch));
+        return original.replace(originalMatch, newText);
+      }
+    }
+    
+    // Strategy 4: Fuzzy line-by-line matching
+    const fuzzyMatch = findFuzzyMatch(original, oldText);
+    if (fuzzyMatch) {
+      console.log('  ✅ Found fuzzy match, applying replacement');
+      return original.replace(fuzzyMatch, newText);
+    }
+    
+    console.warn('  ❌ Could not find text to replace with any strategy');
+    console.log('  Original contains old text:', original.includes(oldText));
+    console.log('  First 200 chars of original:', JSON.stringify(original.substring(0, 200)));
+    console.log('  Looking for text:', JSON.stringify(oldText.substring(0, 100)));
+  }
+  
+  // No changes could be applied
+  return original;
 }
 
 /**
@@ -268,55 +379,6 @@ function findFuzzyMatch(original: string, pattern: string): string | null {
   }
   
   return null;
-}
-
-/**
- * Fallback method for applying diffs when we can't parse them cleanly.
- */
-function applyDiffBlockFallback(original: string, diffText: string, dmp: InstanceType<typeof diff_match_patch>): string {
-  try {
-    // Extract context lines and changes
-    const lines = diffText.split('\n');
-    const contextLines: string[] = [];
-    const removedLines: string[] = [];
-    const addedLines: string[] = [];
-    
-    for (const line of lines) {
-      if (line.startsWith('-')) {
-        removedLines.push(line.substring(1));
-      } else if (line.startsWith('+')) {
-        addedLines.push(line.substring(1));
-      } else if (line.startsWith(' ') || (!line.startsWith('-') && !line.startsWith('+'))) {
-        const contextLine = line.startsWith(' ') ? line.substring(1) : line;
-        contextLines.push(contextLine);
-      }
-    }
-    
-    // If we have context, try to find it in the original and replace
-    if (contextLines.length > 0) {
-      const contextText = contextLines.join('\n');
-      const oldText = contextLines.concat(removedLines).join('\n');
-      const newText = contextLines.concat(addedLines).join('\n');
-      
-      if (original.includes(contextText)) {
-        // Simple string replacement for now
-        if (removedLines.length > 0) {
-          const textToReplace = removedLines.join('\n');
-          const replacement = addedLines.join('\n');
-          return original.replace(textToReplace, replacement);
-        } else if (addedLines.length > 0) {
-          // Insert after context
-          const insertion = addedLines.join('\n');
-          return original.replace(contextText, contextText + '\n' + insertion);
-        }
-      }
-    }
-    
-    return original;
-  } catch (error) {
-    console.error('Error in fallback diff application:', error);
-    return original;
-  }
 }
 
 /* ---------- Applying Multiple Blocks ---------- */

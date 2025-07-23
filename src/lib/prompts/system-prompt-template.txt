@@ -33,6 +33,25 @@ Delete a file:
 - Use standard unified diff format with @@ headers
 - Include 2-3 lines of context before and after changes
 - Use exact file paths from the project files list
+- @@ headers should include line numbers: @@ -start,count +start,count @@
+
+**Example patch:**
+```patch:src/app/page.tsx
+@@ -1,5 +1,5 @@
+-import { Edit3, File, Code, MessageCircle } from 'lucide-react';
++import { Edit3, File, Code, MessageCircle, Type, Zap } from 'lucide-react';
+
+ export default function LandingPage() {
+   return (
+@@ -60,5 +60,3 @@
+             <div className="p-8 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow">
+-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+-                <span className="text-primary font-bold">TS</span>
+-              </div>
++              <Type className="w-12 h-12 text-primary mb-4" />
+               <h3 className="text-xl font-semibold mb-3">TypeScript Support</h3>
+               <p className="text-muted-foreground">Full TypeScript support with intelligent autocomplete and type checking.</p>
+```
 
 **Guidelines:**
 - This is a Next.js project using TypeScript and Tailwind CSS

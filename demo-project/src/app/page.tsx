@@ -1,4 +1,4 @@
-import { Edit3, File, Code, MessageCircle } from 'lucide-react';
+import { Edit3, File, Code, MessageCircle, Type, Zap } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -58,17 +58,13 @@ export default function LandingPage() {
             </div>
             
             <div className="p-8 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-primary font-bold">TS</span>
-              </div>
+              <Type className="w-12 h-12 text-primary mb-4" />
               <h3 className="text-xl font-semibold mb-3">TypeScript Support</h3>
               <p className="text-muted-foreground">Full TypeScript support with intelligent autocomplete and type checking.</p>
             </div>
             
             <div className="p-8 bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-primary font-bold">⚡</span>
-              </div>
+              <Zap className="w-12 h-12 text-primary mb-4" />
               <h3 className="text-xl font-semibold mb-3">Fast Development</h3>
               <p className="text-muted-foreground">Accelerate your development workflow with our optimized editing environment.</p>
             </div>
