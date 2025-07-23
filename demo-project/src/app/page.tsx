@@ -2,13 +2,13 @@ import { Edit3, File, Code, MessageCircle } from 'lucide-react';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-full bg-gradient-to-br from-background to-muted/30">
+      <div className="min-h-full bg-background">
       {/* Hero Section */}
-      <div className="flex flex-col items-center justify-center h-[75vh] px-8">
+      <div className="flex flex-col items-center justify-center h-[75vh] px-8 bg-white">
         <div className="text-center max-w-4xl">
-          <Edit3 className="w-20 h-20 text-primary mx-auto mb-8" />
+          <Edit3 className="w-20 h-20 text-black mx-auto mb-8" />
           <h1 className="text-6xl font-bold mb-6 text-black">
-            Manta Editor 123
+            Manta Editor
           </h1>
           <p className="text-2xl text-black mb-8 max-w-2xl mx-auto">
             The future of Next.js development. Edit components visually with AI assistance.
@@ -17,7 +17,7 @@ export default function LandingPage() {
             <button className="px-8 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors">
               Get Started
             </button>
-            <button className="px-8 py-4 border border-border rounded-lg font-semibold hover:bg-accent transition-colors">
+            <button className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg font-semibold hover:from-red-600 hover:to-red-800 transition-colors">
               View Demo
             </button>
           </div>
@@ -115,7 +115,6 @@ export default function LandingPage() {
                 Get Started
               </button>
             </div>
-            
             <div className="p-8 bg-card rounded-xl border-2 border-primary shadow-lg relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <div className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
@@ -142,13 +141,13 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary.rounded-full"></div>
                   </div>
                   <span className="text-sm">Advanced features</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary.rounded-full"></div>
                   </div>
                   <span className="text-sm">Priority support</span>
                 </li>
@@ -157,7 +156,6 @@ export default function LandingPage() {
                 Start Free Trial
               </button>
             </div>
-            
             <div className="p-8 bg-card rounded-xl border shadow-sm">
               <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
@@ -167,25 +165,25 @@ export default function LandingPage() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary.rounded-full"></div>
                   </div>
                   <span className="text-sm">Everything in Pro</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary.rounded-full"></div>
                   </div>
                   <span className="text-sm">Team collaboration</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary.rounded-full"></div>
                   </div>
                   <span className="text-sm">Custom integrations</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary.rounded-full"></div>
                   </div>
                   <span className="text-sm">Dedicated support</span>
                 </li>

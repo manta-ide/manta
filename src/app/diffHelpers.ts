@@ -63,24 +63,44 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
   const oldLines: string[] = [];
   const newLines: string[] = [];
   
+  let inHunk = false;
+  
   for (const line of lines) {
-    if (line.startsWith('@@')) {
-      // Skip hunk headers
+    // Handle @@ hunk headers - these mark the start of a diff section
+    if (line.startsWith('@@') && line.includes('@@')) {
+      inHunk = true;
+      console.log('Processing hunk:', line);
       continue;
-    } else if (line.startsWith('---') || line.startsWith('+++')) {
-      // Skip file headers
+    }
+    
+    // Skip file headers
+    if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('diff ')) {
       continue;
-    } else if (line.startsWith('-')) {
-      // Line removed from old
-      oldLines.push(line.substring(1));
-    } else if (line.startsWith('+')) {
-      // Line added to new
-      newLines.push(line.substring(1));
-    } else if (line.startsWith(' ') || (!line.startsWith('-') && !line.startsWith('+'))) {
-      // Context line (appears in both)
-      const contextLine = line.startsWith(' ') ? line.substring(1) : line;
-      oldLines.push(contextLine);
-      newLines.push(contextLine);
+    }
+    
+    // Only process lines if we're in a hunk or if there's no hunk header (simple diff)
+    if (!inHunk && !diffText.includes('@@')) {
+      // Simple diff format without @@ headers
+      inHunk = true;
+    }
+    
+    if (inHunk) {
+      if (line.startsWith('-')) {
+        // Line removed from old
+        oldLines.push(line.substring(1));
+      } else if (line.startsWith('+')) {
+        // Line added to new
+        newLines.push(line.substring(1));
+      } else if (line.startsWith(' ')) {
+        // Context line (appears in both)
+        const contextLine = line.substring(1);
+        oldLines.push(contextLine);
+        newLines.push(contextLine);
+      } else if (line.trim().length > 0 && !line.startsWith('@')) {
+        // Non-empty line without prefix - treat as context
+        oldLines.push(line);
+        newLines.push(line);
+      }
     }
   }
   
@@ -91,8 +111,7 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
 }
 
 /**
- * Apply a single diff block using simple string replacement for patch operations.
- * More reliable than diff-match-patch for simple line-by-line changes.
+ * Apply a single diff block using improved string replacement with whitespace tolerance.
  */
 function applyDiffBlock(original: string, diffText: string): string {
   try {
@@ -103,15 +122,16 @@ function applyDiffBlock(original: string, diffText: string): string {
     console.log('  oldText:', JSON.stringify(oldText));
     console.log('  newText:', JSON.stringify(newText));
     
-    // If we have both old and new text, try simple string replacement first
+    // If we have both old and new text, try multiple matching strategies
     if (oldText && newText && oldText !== newText) {
-      // Check if the old text exists in the original
+      
+      // Strategy 1: Exact match (fastest)
       if (original.includes(oldText)) {
         console.log('  ✅ Found exact match, applying replacement');
         return original.replace(oldText, newText);
       }
       
-      // If exact match failed, try with normalized line endings
+      // Strategy 2: Normalized line endings
       const normalizedOriginal = original.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       const normalizedOldText = oldText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       
@@ -129,9 +149,32 @@ function applyDiffBlock(original: string, diffText: string): string {
         return result;
       }
       
-      console.warn('  ❌ Could not find text to replace');
+      // Strategy 3: Whitespace-tolerant matching
+      const whitespaceNormalizedOriginal = normalizeWhitespace(normalizedOriginal);
+      const whitespaceNormalizedOld = normalizeWhitespace(normalizedOldText);
+      
+      if (whitespaceNormalizedOriginal.includes(whitespaceNormalizedOld)) {
+        console.log('  ✅ Found match with whitespace normalization, applying replacement');
+        
+        // Find the actual text in the original that corresponds to the whitespace-normalized match
+        const originalMatch = findOriginalMatch(original, oldText);
+        if (originalMatch) {
+          console.log('  ✅ Found original match:', JSON.stringify(originalMatch));
+          return original.replace(originalMatch, newText);
+        }
+      }
+      
+      // Strategy 4: Fuzzy line-by-line matching
+      const fuzzyMatch = findFuzzyMatch(original, oldText);
+      if (fuzzyMatch) {
+        console.log('  ✅ Found fuzzy match, applying replacement');
+        return original.replace(fuzzyMatch, newText);
+      }
+      
+      console.warn('  ❌ Could not find text to replace with any strategy');
       console.log('  Original contains old text:', original.includes(oldText));
-      console.log('  First 100 chars of original:', JSON.stringify(original.substring(0, 100)));
+      console.log('  First 200 chars of original:', JSON.stringify(original.substring(0, 200)));
+      console.log('  Looking for text:', JSON.stringify(oldText.substring(0, 100)));
     }
     
     // Fallback to diff-match-patch for more complex cases
@@ -140,6 +183,91 @@ function applyDiffBlock(original: string, diffText: string): string {
     console.error('Error applying diff block:', error);
     return original;
   }
+}
+
+/**
+ * Normalize whitespace for better matching - collapse multiple spaces, normalize indentation
+ */
+function normalizeWhitespace(text: string): string {
+  return text
+    .split('\n')
+    .map(line => line.trim()) // Remove leading/trailing whitespace
+    .filter(line => line.length > 0) // Remove empty lines
+    .join('\n');
+}
+
+/**
+ * Find the original text that matches the pattern, preserving original whitespace
+ */
+function findOriginalMatch(original: string, pattern: string): string | null {
+  const originalLines = original.split('\n');
+  const patternLines = pattern.split('\n').filter(line => line.trim().length > 0);
+  
+  if (patternLines.length === 0) return null;
+  
+  // Look for the pattern sequence in the original
+  for (let i = 0; i <= originalLines.length - patternLines.length; i++) {
+    let match = true;
+    const matchedLines: string[] = [];
+    
+    let patternIndex = 0;
+    for (let j = i; j < originalLines.length && patternIndex < patternLines.length; j++) {
+      const originalLine = originalLines[j];
+      const patternLine = patternLines[patternIndex];
+      
+      // Skip empty lines in original
+      if (originalLine.trim().length === 0) {
+        matchedLines.push(originalLine);
+        continue;
+      }
+      
+      // Check if content matches (ignoring whitespace differences)
+      if (originalLine.trim() === patternLine.trim()) {
+        matchedLines.push(originalLine);
+        patternIndex++;
+      } else {
+        match = false;
+        break;
+      }
+    }
+    
+    if (match && patternIndex === patternLines.length) {
+      return matchedLines.join('\n');
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Find a fuzzy match by looking for similar content with different whitespace
+ */
+function findFuzzyMatch(original: string, pattern: string): string | null {
+  const originalLines = original.split('\n');
+  const patternLines = pattern.split('\n');
+  
+  // Try to find a sequence of lines that match the pattern content
+  for (let startIdx = 0; startIdx <= originalLines.length - patternLines.length; startIdx++) {
+    const candidateLines = originalLines.slice(startIdx, startIdx + patternLines.length);
+    
+    // Check if the content matches (ignoring whitespace)
+    let matches = true;
+    for (let i = 0; i < patternLines.length; i++) {
+      const originalContent = candidateLines[i]?.trim() || '';
+      const patternContent = patternLines[i]?.trim() || '';
+      
+      if (originalContent !== patternContent) {
+        matches = false;
+        break;
+      }
+    }
+    
+    if (matches) {
+      return candidateLines.join('\n');
+    }
+  }
+  
+  return null;
 }
 
 /**

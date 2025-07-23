@@ -1,4 +1,5 @@
 import { RefObject } from 'react';
+import { isValidSelection, Selection } from '@/lib/selectionHelpers';
 
 /** Base typing speed: characters appended per animation frame. */
 export const BASE_CHARS_PER_FRAME = 2;
@@ -21,7 +22,7 @@ export interface ChatMessage {
   variables?: Record<string, string>;
   messageContext?: {
     currentFile?: string | null;
-    selection?: { x: number; y: number; width: number; height: number } | null;
+    selection?: Selection | null;
   };
 }
 
@@ -173,10 +174,10 @@ export function processStreamLine(
 
 export function createMessageContext(
   currentFile: string | null,
-  selection: { x: number; y: number; width: number; height: number } | null
+  selection: Selection | null
 ) {
   return {
     currentFile,
-    selection
+    selection: isValidSelection(selection) ? selection : null
   };
 } 

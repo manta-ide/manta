@@ -14,14 +14,26 @@ export function parseFileOperations(response: string): FileOperation[] {
   let match;
   
   while ((match = fileOpRegex.exec(response)) !== null) {
-    const [, type, path, content] = match;
+    const [, type, pathRaw, content] = match;
     const trimmedContent = content.trim();
     
+    // Use the path as provided by the LLM, just clean whitespace
+    let cleanPath = pathRaw.trim();
+    
+    console.log(`📝 Parsed operation: ${type} on "${cleanPath}"`);
+    
     if (type === 'patch') {
+      // Log the diff format being used
+      if (trimmedContent.includes('@@')) {
+        console.log('📋 Using unified diff format (@@)');
+      } else {
+        console.log('📋 Using simple diff format');
+      }
+      
       // Store the raw diff content for processing
       operations.push({
         type: 'patch',
-        path: path.trim(),
+        path: cleanPath,
         content: trimmedContent
       });
     } else {
@@ -36,13 +48,13 @@ export function parseFileOperations(response: string): FileOperation[] {
           /\/\/.*?\.{3}/.test(trimmedContent);
         
         if (hasPlaceholderComments) {
-          console.warn(`Warning: File operation for ${path} contains placeholder comments. This may result in incomplete file content.`);
+          console.warn(`Warning: File operation for ${cleanPath} contains placeholder comments. This may result in incomplete file content.`);
         }
       }
       
       operations.push({
         type: type as 'create' | 'update' | 'delete',
-        path: path.trim(),
+        path: cleanPath,
         content: type === 'delete' ? undefined : trimmedContent
       });
     }
@@ -55,11 +67,14 @@ export function parseFileOperations(response: string): FileOperation[] {
     const operation = fullMatch.toLowerCase().startsWith('create') ? 'create' :
                      fullMatch.toLowerCase().startsWith('update') ? 'update' : 'delete';
     
+    // Use path as-is
+    const cleanPath = filePath.trim();
+    
     // Only add if we don't already have an operation for this file
-    if (!operations.find(op => op.path === filePath.trim())) {
+    if (!operations.find(op => op.path === cleanPath)) {
       operations.push({
         type: operation,
-        path: filePath.trim(),
+        path: cleanPath,
         content: operation === 'delete' ? undefined : ''
       });
     }

@@ -1,13 +1,38 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
 import { useChatService } from '@/lib/chatService';
+
+function ThinkingIndicator() {
+  return (
+    <div className="w-full">
+      <div className="whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm bg-primary text-primary-foreground">
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-primary-foreground/70" />
+          <div className="text-sm text-primary-foreground/80 font-medium">
+            <span className="inline-block animate-pulse" style={{ animationDelay: '0ms', animationDuration: '0.8s' }}>t</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '80ms', animationDuration: '0.8s' }}>h</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '160ms', animationDuration: '0.8s' }}>i</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '240ms', animationDuration: '0.8s' }}>n</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '320ms', animationDuration: '0.8s' }}>k</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '400ms', animationDuration: '0.8s' }}>i</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '480ms', animationDuration: '0.8s' }}>n</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '560ms', animationDuration: '0.8s' }}>g</span>
+            <span className="inline-block animate-pulse ml-1" style={{ animationDelay: '640ms', animationDuration: '0.8s' }}>.</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '720ms', animationDuration: '0.8s' }}>.</span>
+            <span className="inline-block animate-pulse" style={{ animationDelay: '800ms', animationDuration: '0.8s' }}>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ChatSidebar() {
   const { currentFile, selection, setSelection, setCurrentFile } = useProjectStore();
@@ -64,11 +89,9 @@ export default function ChatSidebar() {
               </div>
             </div>
           ))}
-          {loading && streamIdxRef.current === null && (
-            <div className="w-full">
-              <div className="p-3 rounded-lg bg-primary text-primary-foreground text-sm w-full">thinking...</div>
-            </div>
-          )}
+          
+          {/* Show animated thinking indicator when loading and no stream started */}
+          {loading && streamIdxRef.current === null && <ThinkingIndicator />}
         </div>
       </div>
       

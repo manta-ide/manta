@@ -14,6 +14,7 @@ import {
   createUserMessage, 
   convertToApiMessages 
 } from '@/lib/contextHelpers';
+import { Selection, isValidSelection } from '@/lib/selectionHelpers';
 
 export interface ChatServiceState {
   messages: DisplayMessage[];
@@ -54,12 +55,15 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
   const sendMessage = useCallback(async (input: string) => {
     if (!input.trim()) return;
 
-    const roundedSelection = {
-        x: Math.round(selection?.x || 0),
-        y: Math.round(selection?.y || 0),
-        width: Math.round(selection?.width || 0),
-        height: Math.round(selection?.height || 0)
-      };
+    // Only use selection if it's valid
+    const validSelection = isValidSelection(selection) ? selection : null;
+    
+    const roundedSelection = validSelection ? {
+        x: Math.round(validSelection.x),
+        y: Math.round(validSelection.y),
+        width: Math.round(validSelection.width),
+        height: Math.round(validSelection.height)
+      } : null;
 
     // Store current selection context and create user message
     const messageContext = createMessageContext(currentFile, roundedSelection);
@@ -132,7 +136,12 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
               setMessages,
               scrollRef,
               (ops) => applyFileOperations(ops, projectStore),
-              () => setSelection(null),
+              () => {
+                // Clear selection only if it was valid and used
+                if (validSelection) {
+                  setSelection(null);
+                }
+              },
               logResponse
             );
           }
@@ -153,7 +162,12 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
               setMessages,
               scrollRef,
               (ops) => applyFileOperations(ops, projectStore),
-              () => setSelection(null),
+              () => {
+                // Clear selection only if it was valid and used
+                if (validSelection) {
+                  setSelection(null);
+                }
+              },
               logResponse
             );
           }

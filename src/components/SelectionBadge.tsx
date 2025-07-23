@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { XIcon, File, MousePointer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { isValidSelection, formatSelectionLabel, Selection } from '@/lib/selectionHelpers';
 
 interface SelectionBadgeProps {
   type: 'file' | 'area';
@@ -31,7 +32,7 @@ export function SelectionBadge({ type, label, onRemove }: SelectionBadgeProps) {
 
 interface SelectionBadgesProps {
   currentFile: string | null;
-  selection: { x: number; y: number; width: number; height: number } | null;
+  selection: Selection | null;
   onRemoveFile: () => void;
   onRemoveSelection: () => void;
 }
@@ -42,7 +43,9 @@ export default function SelectionBadges({
   onRemoveFile, 
   onRemoveSelection 
 }: SelectionBadgesProps) {
-  if (!currentFile && !selection) return null;
+  const validSelection = isValidSelection(selection);
+  
+  if (!currentFile && !validSelection) return null;
 
   return (
     <div className="flex flex-wrap gap-2 p-2">
@@ -53,10 +56,10 @@ export default function SelectionBadges({
           onRemove={onRemoveFile}
         />
       )}
-      {selection && (
+      {validSelection && (
         <SelectionBadge
           type="area"
-          label={`${Math.round(selection.width)}×${Math.round(selection.height)}`}
+          label={formatSelectionLabel(selection)}
           onRemove={onRemoveSelection}
         />
       )}
@@ -91,12 +94,14 @@ export function MessageBadge({ type, label, variant = 'light' }: MessageBadgePro
 // Component for displaying badges within messages
 interface MessageBadgesProps {
   currentFile?: string | null;
-  selection?: { x: number; y: number; width: number; height: number } | null;
+  selection?: Selection | null;
   variant?: 'light' | 'dark';
 }
 
 export function MessageBadges({ currentFile, selection, variant = 'light' }: MessageBadgesProps) {
-  if (!currentFile && !selection) return null;
+  const validSelection = isValidSelection(selection);
+  
+  if (!currentFile && !validSelection) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5 mb-2">
@@ -107,10 +112,10 @@ export function MessageBadges({ currentFile, selection, variant = 'light' }: Mes
           variant={variant}
         />
       )}
-      {selection && (
+      {validSelection && (
         <MessageBadge
           type="area"
-          label={`${Math.round(selection.width)}×${Math.round(selection.height)}`}
+          label={formatSelectionLabel(selection)}
           variant={variant}
         />
       )}

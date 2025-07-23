@@ -1,8 +1,9 @@
 import { Message } from '@/app/api/chat/route';
+import { isValidSelection, Selection } from '@/lib/selectionHelpers';
 
 export interface MessageContext {
   currentFile?: string | null;
-  selection?: { x: number; y: number; width: number; height: number } | null;
+  selection?: Selection | null;
 }
 
 export interface DisplayMessage extends Message {
@@ -31,17 +32,22 @@ export function createSystemMessage(
 export function createUserMessage(
   input: string,
   messageContext: MessageContext,
-  selection?: { x: number; y: number; width: number; height: number } | null
+  selection?: Selection | null
 ): DisplayMessage {
+  const validSelection = isValidSelection(selection);
+  
   const userMessage: DisplayMessage = { 
     role: 'user', 
     variables: { USER_REQUEST: input },
     content: input,
-    messageContext
+    messageContext: {
+      currentFile: messageContext.currentFile,
+      selection: validSelection ? selection : null
+    }
   };
 
-  // Add selection variables to user message if selection exists
-  if (selection) {
+  // Add selection variables to user message only if selection is valid
+  if (validSelection) {
     userMessage.variables = {
       ...userMessage.variables,
       SELECTION: 'true',
