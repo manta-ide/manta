@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Send, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +49,41 @@ export default function ChatSidebar() {
   const { messages, loading } = state;
   const { sendMessage } = actions;
 
+  // Memoize markdown components to prevent re-rendering
+  const markdownComponents = useMemo(() => ({
+    // Custom components for markdown elements
+    h1: ({ children }: any) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-base font-bold text-white mb-2">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-sm font-bold text-white mb-1">{children}</h3>,
+    p: ({ children }: any) => <p className="text-zinc-200 mb-2">{children}</p>,
+    ul: ({ children }: any) => <ul className="list-disc list-inside text-zinc-200 mb-2 space-y-1">{children}</ul>,
+    ol: ({ children }: any) => <ol className="list-decimal list-inside text-zinc-200 mb-2 space-y-1">{children}</ol>,
+    li: ({ children }: any) => <li className="text-zinc-200">{children}</li>,
+    strong: ({ children }: any) => <strong className="font-bold text-white">{children}</strong>,
+    em: ({ children }: any) => <em className="italic text-zinc-300">{children}</em>,
+    code: ({ children, className }: any) => {
+      // Check if this is a code block (has language)
+      if (className && className.startsWith('language-')) {
+        const language = className.replace('language-', '');
+        return (
+          <MessageRenderer 
+            content={`\`\`\`${language}\n${children}\n\`\`\``} 
+            theme="vs-dark"
+          />
+        );
+      }
+      // Inline code
+      return <code className="bg-zinc-800 text-zinc-200 px-1 py-0.5 rounded text-sm font-mono">{children}</code>;
+    },
+    pre: ({ children }: any) => <div className="mb-2">{children}</div>,
+    blockquote: ({ children }: any) => <blockquote className="border-l-4 border-zinc-600 pl-4 text-zinc-300 italic mb-2">{children}</blockquote>,
+    a: ({ children, href }: any) => <a href={href} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+    table: ({ children }: any) => <table className="w-full border-collapse border border-zinc-600 mb-2">{children}</table>,
+    th: ({ children }: any) => <th className="border border-zinc-600 px-2 py-1 text-left text-white bg-zinc-800">{children}</th>,
+    td: ({ children }: any) => <td className="border border-zinc-600 px-2 py-1 text-zinc-200">{children}</td>,
+    tr: ({ children }: any) => <tr className="border border-zinc-600">{children}</tr>,
+  }), []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -90,39 +125,7 @@ export default function ChatSidebar() {
                 />
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
-                  components={{
-                    // Custom components for markdown elements
-                    h1: ({ children }) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-base font-bold text-white mb-2">{children}</h2>,
-                    h3: ({ children }) => <h3 className="text-sm font-bold text-white mb-1">{children}</h3>,
-                    p: ({ children }) => <p className="text-zinc-200 mb-2">{children}</p>,
-                    ul: ({ children }) => <ul className="list-disc list-inside text-zinc-200 mb-2 space-y-1">{children}</ul>,
-                    ol: ({ children }) => <ol className="list-decimal list-inside text-zinc-200 mb-2 space-y-1">{children}</ol>,
-                    li: ({ children }) => <li className="text-zinc-200">{children}</li>,
-                    strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
-                    em: ({ children }) => <em className="italic text-zinc-300">{children}</em>,
-                    code: ({ children, className }) => {
-                      // Check if this is a code block (has language)
-                      if (className && className.startsWith('language-')) {
-                        const language = className.replace('language-', '');
-                        return (
-                          <MessageRenderer 
-                            content={`\`\`\`${language}\n${children}\n\`\`\``} 
-                            theme="vs-dark"
-                          />
-                        );
-                      }
-                      // Inline code
-                      return <code className="bg-zinc-800 text-zinc-200 px-1 py-0.5 rounded text-sm font-mono">{children}</code>;
-                    },
-                    pre: ({ children }) => <div className="mb-2">{children}</div>,
-                    blockquote: ({ children }) => <blockquote className="border-l-4 border-zinc-600 pl-4 text-zinc-300 italic mb-2">{children}</blockquote>,
-                    a: ({ children, href }) => <a href={href} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                    table: ({ children }) => <table className="w-full border-collapse border border-zinc-600 mb-2">{children}</table>,
-                    th: ({ children }) => <th className="border border-zinc-600 px-2 py-1 text-left text-white bg-zinc-800">{children}</th>,
-                    td: ({ children }) => <td className="border border-zinc-600 px-2 py-1 text-zinc-200">{children}</td>,
-                    tr: ({ children }) => <tr className="border border-zinc-600">{children}</tr>,
-                  }}
+                  components={markdownComponents}
                 >
                   {m.content || ''}
                 </ReactMarkdown>

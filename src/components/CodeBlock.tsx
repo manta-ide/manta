@@ -31,13 +31,150 @@ interface CodeBlockProps {
   theme?: 'vs-dark' | 'vs';
 }
 
-function PatchBlock({ code, filename }: { code: string; filename: string }) {
+function DeleteBlock({ code, filename, isLoading }: { code: string; filename: string; isLoading: boolean }) {
+  const displayName = filename.split('/').pop() || filename;
+  
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
+      <div className="bg-gradient-to-r from-zinc-800/80 to-zinc-700/80 px-4 py-2 flex items-center justify-between hover:from-zinc-700/80 hover:to-zinc-600/80 transition-all duration-200">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-red-400/80"></div>
+          <span className="text-sm font-medium text-zinc-200">{displayName}</span>
+          {isLoading ? (
+            <div className="flex items-center gap-1">
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1.5s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1.5s' }}></div>
+            </div>
+          ) : (
+            <span className="text-red-400/70 text-xs bg-red-500/10 px-1.5 py-0.5 rounded">deleted</span>
+          )}
+        </div>
+      </div>
+      {!isLoading && (
+        <div className="bg-zinc-900/95 px-4 py-3 text-sm text-zinc-300">
+          <div className="flex items-center gap-2 text-red-300">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>File has been deleted from the project</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FileOperationBlock({ code, filename, operation, isLoading, theme }: { 
+  code: string; filename: string; operation: string; isLoading: boolean; theme: 'vs-dark' | 'vs'; 
+}) {
+  const displayName = filename.split('/').pop() || filename;
+  const isCreate = operation === 'create';
+  
+  if (isLoading) {
+    return (
+      <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
+        <div className="bg-gradient-to-r from-zinc-800/80 to-zinc-700/80 px-4 py-2 flex items-center justify-between hover:from-zinc-700/80 hover:to-zinc-600/80 transition-all duration-200">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${isCreate ? 'bg-emerald-400/80' : 'bg-blue-400/80'}`}></div>
+            <span className="text-sm font-medium text-zinc-200">{displayName}</span>
+            <div className="flex items-center gap-1">
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1.5s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1.5s' }}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate height based on number of lines for completed state
+  const lineCount = code.split('\n').length;
+  const lineHeight = 18;
+  const minHeight = 40;
+  const maxHeight = 400;
+  const calculatedHeight = Math.max(minHeight, Math.min(maxHeight, lineCount * lineHeight + 20));
+
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
+      <div className="bg-gradient-to-r from-zinc-800/80 to-zinc-700/80 px-4 py-2 flex items-center justify-between hover:from-zinc-700/80 hover:to-zinc-600/80 transition-all duration-200">
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${isCreate ? 'bg-emerald-400/80' : 'bg-blue-400/80'}`}></div>
+          <span className="text-sm font-medium text-zinc-200">{displayName}</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded ${
+            isCreate 
+              ? 'text-emerald-400/70 bg-emerald-500/10' 
+              : 'text-blue-400/70 bg-blue-500/10'
+          }`}>
+            {isCreate ? 'new' : 'updated'}
+          </span>
+        </div>
+      </div>
+      <div style={{ height: `${calculatedHeight}px` }}>
+        <Editor
+          value={code}
+          language={getMonacoLanguage(filename.split('.').pop() || 'txt')}
+          theme={theme}
+          options={{
+            readOnly: true,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            wordWrap: 'off',
+            automaticLayout: true,
+            fontSize: 12,
+            lineNumbers: 'on',
+            glyphMargin: false,
+            folding: false,
+            lineDecorationsWidth: 0,
+            lineNumbersMinChars: 3,
+            renderLineHighlight: 'none',
+            scrollbar: {
+              vertical: lineCount > 20 ? 'auto' : 'hidden',
+              horizontal: 'auto',
+              verticalScrollbarSize: 8,
+              horizontalScrollbarSize: 8,
+            },
+            overviewRulerLanes: 0,
+            hideCursorInOverviewRuler: true,
+            overviewRulerBorder: false,
+            renderWhitespace: 'none',
+            contextmenu: false,
+            selectOnLineNumbers: false,
+            cursorStyle: 'line',
+            smoothScrolling: true,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PatchBlock({ code, filename, isLoading }: { code: string; filename: string; isLoading?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const lines = code.split('\n').filter(line => line !== ''); // Remove empty lines
   
   // Extract just the filename from the path
   const displayName = filename.split('/').pop() || filename;
   
+  if (isLoading) {
+    return (
+      <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
+        <div className="bg-gradient-to-r from-orange-800/80 to-orange-700/80 px-4 py-2 flex items-center justify-between transition-all duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-orange-400/80"></div>
+            <span className="text-sm font-medium text-zinc-200">{displayName}</span>
+            <div className="flex items-center gap-1">
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1.5s' }}></div>
+              <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1.5s' }}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
       <div 
@@ -143,7 +280,80 @@ function PatchBlock({ code, filename }: { code: string; filename: string }) {
   );
 }
 
+function ToolStatusBlock({ code, language }: { code: string; language: string }) {
+  const parts = language.split(':');
+  const toolName = parts[1] || 'tool';
+  const status = parts[2] || 'calling';
+  
+  const isCompleted = status === 'completed';
+  const icon = isCompleted ? '✅' : '🔧';
+  const statusText = isCompleted ? `${toolName} completed` : `Calling ${toolName}`;
+  
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
+      <div className={`px-4 py-2 flex items-center gap-3 transition-all duration-200 ${
+        isCompleted 
+          ? 'bg-gradient-to-r from-emerald-800/80 to-emerald-700/80 hover:from-emerald-700/80 hover:to-emerald-600/80' 
+          : 'bg-gradient-to-r from-blue-800/80 to-blue-700/80 hover:from-blue-700/80 hover:to-blue-600/80'
+      }`}>
+        <div className={`w-2 h-2 rounded-full ${
+          isCompleted ? 'bg-emerald-400/80' : 'bg-blue-400/80'
+        }`}></div>
+        <span className="text-base">{icon}</span>
+        <span className="text-sm font-medium text-zinc-200">{statusText}</span>
+        {!isCompleted ? (
+          <div className="flex items-center gap-1 ml-auto">
+            <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
+            <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1.5s' }}></div>
+            <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1.5s' }}></div>
+          </div>
+        ) : (
+          <div className="w-2 h-2 rounded-full bg-emerald-400/60 ml-auto"></div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CodeBlock({ code, language, theme = 'vs-dark' }: CodeBlockProps) {
+  // Handle tool status blocks
+  if (language && language.startsWith('tool-status:')) {
+    return <ToolStatusBlock code={code} language={language} />;
+  }
+
+  // Handle file operations with calling/loading states
+  if (language && (language.includes(':calling') || language.includes(':completed'))) {
+    const parts = language.split(':');
+    const operation = parts[0];
+    const filename = parts[1] || 'file';
+    const status = parts[2] || 'completed';
+    
+    const isLoading = status === 'calling';
+    
+    if (operation === 'delete') {
+      return <DeleteBlock code={code} filename={filename} isLoading={isLoading} />;
+    } else if (operation === 'create' || operation === 'update') {
+      return <FileOperationBlock code={code} filename={filename} operation={operation} isLoading={isLoading} theme={theme} />;
+    } else if (operation === 'patch') {
+      return <PatchBlock code={code} filename={filename} isLoading={isLoading} />;
+    }
+  }
+
+  // Handle file operations without status (for direct create/update/delete/patch blocks)
+  if (language && (language.startsWith('create:') || language.startsWith('update:') || language.startsWith('delete:') || language.startsWith('patch:'))) {
+    const parts = language.split(':');
+    const operation = parts[0];
+    const filename = parts[1] || 'file';
+    
+    if (operation === 'delete') {
+      return <DeleteBlock code={code} filename={filename} isLoading={false} />;
+    } else if (operation === 'create' || operation === 'update') {
+      return <FileOperationBlock code={code} filename={filename} operation={operation} isLoading={false} theme={theme} />;
+    } else if (operation === 'patch') {
+      return <PatchBlock code={code} filename={filename} isLoading={false} />;
+    }
+  }
+
   // Handle patch blocks specially - check multiple conditions to ensure detection
   const isPatchBlock = language && (
     language.startsWith('patch:') || 
@@ -152,7 +362,7 @@ export function CodeBlock({ code, language, theme = 'vs-dark' }: CodeBlockProps)
   
   if (isPatchBlock) {
     const filename = language.includes(':') ? language.split(':')[1] || 'file' : 'file';
-    return <PatchBlock code={code} filename={filename} />;
+    return <PatchBlock code={code} filename={filename} isLoading={false} />;
   }
 
   // Calculate height based on number of lines

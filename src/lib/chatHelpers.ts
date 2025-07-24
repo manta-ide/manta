@@ -88,15 +88,23 @@ export function kickAnimation(
 }
 
 export interface StreamEvent {
-  t: 'token' | 'final' | 'error';
+  t: 'token' | 'final' | 'error' | 'tool_call' | 'tool_result';
   d?: string;
   reply?: string;
   operations?: any;
   error?: string;
+  toolName?: string;
+  args?: any;
+  result?: any;
+  codeBlock?: {
+    language: string;
+    filename: string;
+    content: string;
+  };
 }
 
 /** Parse & handle one NDJSON event */
-export function processStreamLine(
+export async function processStreamLine(
   line: string,
   streamingState: StreamingState,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
@@ -104,7 +112,7 @@ export function processStreamLine(
   onOperations: (operations: any[]) => Promise<void>,
   onComplete: () => void,
   onFullResponse?: (fullResponse: string) => void
-): void {
+): Promise<void> {
   try {
     const evt = JSON.parse(line) as StreamEvent;
 
@@ -115,6 +123,95 @@ export function processStreamLine(
         }
         kickAnimation(streamingState, setMessages, scrollRef);
       }
+    } else if (evt.t === 'tool_call') {
+      // Show code block immediately with calling status in header
+      setMessages((prev) => {
+        const updated = [...prev];
+        const idx = streamingState.streamIdxRef.current ?? updated.length - 1;
+        const currentContent = updated[idx]?.content || '';
+        
+        // Create a placeholder code block with calling status
+        let toolMessage = '';
+        if (evt.toolName === 'createFile' || evt.toolName === 'updateFile') {
+          const operation = evt.toolName === 'createFile' ? 'create' : 'update';
+          const filePath = evt.args?.path || 'file';
+          toolMessage = `\n\`\`\`${operation}:${filePath}:calling\nLoading...\n\`\`\`\n`;
+        } else if (evt.toolName === 'patchFile') {
+          const filePath = evt.args?.path || 'file';
+          toolMessage = `\n\`\`\`patch:${filePath}:calling\nLoading...\n\`\`\`\n`;
+        } else if (evt.toolName === 'deleteFile') {
+          const filePath = evt.args?.path || 'file';
+          toolMessage = `\n\`\`\`delete:${filePath}:calling\nPreparing to delete file...\n\`\`\`\n`;
+        } else {
+          // Fallback for other tools
+          toolMessage = `\n\`\`\`tool-status:${evt.toolName}:calling\n🔧 Calling ${evt.toolName}\n\`\`\`\n`;
+        }
+        
+        updated[idx] = {
+          ...updated[idx],
+          content: currentContent + toolMessage
+        };
+        
+        return updated;
+      });
+      scrollToBottom(scrollRef);
+    } else if (evt.t === 'tool_result') {
+      // Replace the calling code block with the actual result
+      if (!evt.toolName) {
+        console.warn('Tool result missing toolName');
+        return;
+      }
+      
+      // Apply file operation immediately to update AppViewer
+      if (evt.result?.operation) {
+        await onOperations([evt.result.operation]);
+      }
+      
+      setMessages((prev) => {
+        const updated = [...prev];
+        const idx = streamingState.streamIdxRef.current ?? updated.length - 1;
+        const currentContent = updated[idx]?.content || '';
+        
+        let newContent = currentContent;
+        
+        // Replace the calling code block with the actual result
+        if (evt.codeBlock) {
+          // Create the calling pattern to replace
+          const escapedToolName = evt.toolName!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          
+          if (evt.toolName === 'createFile' || evt.toolName === 'updateFile') {
+            const operation = evt.toolName === 'createFile' ? 'create' : 'update';
+            const filePath = evt.codeBlock.filename;
+            const callingPattern = `\`\`\`${operation}:${filePath}:calling\nLoading...\n\`\`\``;
+            const resultBlock = `\`\`\`${evt.codeBlock.language}\n${evt.codeBlock.content}\n\`\`\``;
+            newContent = newContent.replace(callingPattern, resultBlock);
+          } else if (evt.toolName === 'patchFile') {
+            const filePath = evt.codeBlock.filename;
+            const callingPattern = `\`\`\`patch:${filePath}:calling\nLoading...\n\`\`\``;
+            const resultBlock = `\`\`\`${evt.codeBlock.language}\n${evt.codeBlock.content}\n\`\`\``;
+            newContent = newContent.replace(callingPattern, resultBlock);
+          } else if (evt.toolName === 'deleteFile') {
+            const filePath = evt.codeBlock.filename;
+            const callingPattern = `\`\`\`delete:${filePath}:calling\nPreparing to delete file...\n\`\`\``;
+            const resultBlock = `\`\`\`${evt.codeBlock.language}\nFile deleted: ${filePath}\n\`\`\``;
+            newContent = newContent.replace(callingPattern, resultBlock);
+          }
+        } else {
+          // Fallback for tools without code blocks
+          const callingPattern = `\`\`\`tool-status:${evt.toolName}:calling\n🔧 Calling ${evt.toolName}\n\`\`\``;
+          const completedBlock = `\`\`\`tool-status:${evt.toolName}:completed\n✅ ${evt.toolName} completed\n\`\`\``;
+          newContent = newContent.replace(callingPattern, completedBlock);
+        }
+        
+        updated[idx] = {
+          ...updated[idx],
+          content: newContent
+        };
+        
+        return updated;
+      });
+      
+      scrollToBottom(scrollRef);
     } else if (evt.t === 'final') {
       // Log the full response if callback provided
       if (onFullResponse && evt.reply) {
@@ -133,7 +230,7 @@ export function processStreamLine(
         }
       }
 
-      // attach operations once typing done
+      // attach operations once typing done (for backward compatibility)
       const waitUntilDone = async () => {
         const isAnimating = streamingState.animatingRef.current;
         const hasQueuedChars = streamingState.charQueueRef.current && streamingState.charQueueRef.current.length > 0;
@@ -148,13 +245,13 @@ export function processStreamLine(
           const idx = streamingState.streamIdxRef.current ?? updated.length - 1;
           updated[idx] = {
             ...updated[idx],
-            operations: evt.operations,
+            operations: evt.operations || [],
             variables: { ASSISTANT_RESPONSE: evt.reply || '' }
           };
           return updated;
         });
         
-        // Apply file operations to the project
+        // Apply file operations to the project (for backward compatibility)
         if (evt.operations && evt.operations.length > 0) {
           await onOperations(evt.operations);
         }

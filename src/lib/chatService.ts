@@ -130,7 +130,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
         if (readerDone) {
           done = true;
           if (buffered.length) {
-            processStreamLine(
+            await processStreamLine(
               buffered,
               streamingState,
               setMessages,
@@ -156,7 +156,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
           const line = buffered.slice(0, nl);
           buffered = buffered.slice(nl + 1);
           if (line.length) {
-            processStreamLine(
+            await processStreamLine(
               line,
               streamingState,
               setMessages,

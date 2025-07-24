@@ -12,7 +12,7 @@ export default function PortfolioPage() {
           John Doe
         </h1>
         <p className="text-xl mb-6">
-          Full-stack developer passionate about automotive and gaming industries
+          Full-stack developer passionate about automotive and gaming industries1
         </p>
       <div className="flex gap-6">
         <a
@@ -39,7 +39,6 @@ export default function PortfolioPage() {
           </a>
         </div>
       </section>
-      {/* Education section removed */}
       {/* Skills Section */}
       <section id="skills" className="py-24">
         <h2 className="text-4xl font-bold text-center mb-12 text-foreground">
@@ -104,7 +103,7 @@ export default function PortfolioPage() {
       {/* Experience Section */}
       <section id="experience" className="py-24">
         <h2 className="text-4xl font-bold text-center mb-12 text-foreground">
-          Experience
+          Experience1
         </h2>
         <div className="space-y-8 max-w-4xl mx-auto">
           <div>
