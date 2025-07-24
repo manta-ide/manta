@@ -39,7 +39,7 @@ export default function PortfolioPage() {
           </a>
         </div>
       </section>
-
+      {/* Education section removed */}
       {/* Skills Section */}
       <section id="skills" className="py-24">
         <h2 className="text-4xl font-bold text-center mb-12 text-foreground">

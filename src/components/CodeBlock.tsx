@@ -32,7 +32,7 @@ interface CodeBlockProps {
 }
 
 function PatchBlock({ code, filename }: { code: string; filename: string }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const lines = code.split('\n').filter(line => line !== ''); // Remove empty lines
   
   // Extract just the filename from the path
@@ -47,9 +47,36 @@ function PatchBlock({ code, filename }: { code: string; filename: string }) {
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-emerald-400/80"></div>
           <span className="text-sm font-medium text-zinc-200">{displayName}</span>
+          {(() => {
+            // Calculate total additions and deletions from the patch
+            let totalAdditions = 0;
+            let totalDeletions = 0;
+            
+            lines.forEach(line => {
+              if (line.startsWith('+') && !line.startsWith('@@')) {
+                totalAdditions++;
+              } else if (line.startsWith('-') && !line.startsWith('@@')) {
+                totalDeletions++;
+              }
+            });
+            
+            return (
+              <div className="flex items-center gap-1">
+                {totalDeletions > 0 && (
+                  <span className="text-red-400/70 text-xs bg-red-500/10 px-1.5 py-0.5 rounded">
+                    -{totalDeletions}
+                  </span>
+                )}
+                {totalAdditions > 0 && (
+                  <span className="text-emerald-400/70 text-xs bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    +{totalAdditions}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-400 font-mono">{lines.length} changes</span>
           <svg 
             className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
             fill="none" 
@@ -83,24 +110,7 @@ function PatchBlock({ code, filename }: { code: string; filename: string }) {
                 const addedLines = parseInt(newCount || '1');
                 
                 return (
-                  <div key={index} className="px-4 py-1.5 bg-zinc-800/60 text-zinc-300 border-y border-zinc-700/30 flex items-center gap-2">
-                    <span className="text-zinc-400 text-xs">@@</span>
-                    <span className="text-red-400/80 text-xs">{oldStart}{oldCount ? ',' + oldCount : ''}</span>
-                    <span className="text-zinc-500">→</span>
-                    <span className="text-emerald-400/80 text-xs">{newStart}{newCount ? ',' + newCount : ''}</span>
-                    <span className="text-zinc-400 text-xs">@@</span>
-                    <div className="flex items-center gap-1 ml-auto">
-                      {deletedLines > 0 && (
-                        <span className="text-red-400/70 text-xs bg-red-500/10 px-1.5 py-0.5 rounded">
-                          -{deletedLines}
-                        </span>
-                      )}
-                      {addedLines > 0 && (
-                        <span className="text-emerald-400/70 text-xs bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                          +{addedLines}
-                        </span>
-                      )}
-                    </div>
+                  <div key={index} className="px-4 py-1.5 bg-zinc-800/60 text-zinc-300 border-y border-zinc-700/30">
                   </div>
                 );
               }
