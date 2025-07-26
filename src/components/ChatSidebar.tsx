@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { Send, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
 import { useChatService } from '@/lib/chatStreamingService';
+import { updateAutoScrollState } from '@/lib/chatAnimationUtils';
 import { MessageRenderer } from './CodeBlock';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -45,9 +46,27 @@ export default function ChatSidebar() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Use chat service for all chat logic
-  const { state, actions, streamIdxRef } = useChatService(scrollRef);
+  const { state, actions, streamIdxRef, streamingState } = useChatService(scrollRef);
   const { messages, loading } = state;
   const { sendMessage } = actions;
+
+  // Set up scroll event listener to track auto-scroll state
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      // Always update auto-scroll state based on user's scroll position
+      // This allows users to scroll up during streaming to disable auto-scroll
+      updateAutoScrollState(scrollRef, streamingState);
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      scrollElement.removeEventListener('scroll', handleScroll);
+    };
+  }, [scrollRef, streamingState]);
 
   // Memoize markdown components to prevent re-rendering
   const markdownComponents = useMemo(() => ({

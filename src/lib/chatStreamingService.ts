@@ -14,6 +14,8 @@ import {
   ChatMessage, 
   StreamingState, 
   scrollToBottom, 
+  conditionalScrollToBottom,
+  updateAutoScrollState,
   processStreamLine, 
   createMessageContext 
 } from '@/lib/chatAnimationUtils';
@@ -50,12 +52,14 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
   const animatingRef = useRef(false);
   const streamIdxRef = useRef<number | null>(null);
   const typedLenRef = useRef(0);
+  const autoScrollRef = useRef(true); // Start in auto-scroll mode
 
   const streamingState: StreamingState = {
     charQueueRef,
     animatingRef,
     streamIdxRef,
-    typedLenRef
+    typedLenRef,
+    autoScrollRef
   };
 
   // Project store adapter for file operations
@@ -86,7 +90,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     // Add user message to UI
     setMessages((prev) => {
       const updated = [...prev, userMessage];
-      queueMicrotask(() => scrollToBottom(scrollRef));
+      queueMicrotask(() => conditionalScrollToBottom(scrollRef, streamingState));
       return updated;
     });
 
@@ -118,7 +122,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       setMessages((prev) => {
         const idx = prev.length;
         streamIdxRef.current = idx;
-        queueMicrotask(() => scrollToBottom(scrollRef));
+        queueMicrotask(() => conditionalScrollToBottom(scrollRef, streamingState));
         return [...prev, { role: 'assistant', content: '' }];
       });
 
@@ -202,6 +206,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
   return {
     state: { messages, loading },
     actions: { sendMessage, clearMessages },
-    streamIdxRef
+    streamIdxRef,
+    streamingState
   };
 } 

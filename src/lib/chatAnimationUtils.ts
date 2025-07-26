@@ -22,6 +22,7 @@ export interface StreamingState {
   animatingRef: RefObject<boolean>;
   streamIdxRef: RefObject<number | null>;
   typedLenRef: RefObject<number>;
+  autoScrollRef: RefObject<boolean>;
 }
 
 export interface ChatMessage {
@@ -36,6 +37,30 @@ export interface ChatMessage {
 }
 
 /**
+ * Checks if the user is in the bottom percentage zone of the scroll container
+ * @param scrollRef - Reference to the scroll container
+ * @param bottomPercentage - Percentage of the bottom area considered "auto-scroll zone" (default 20%)
+ */
+function isUserInBottomZone(scrollRef: RefObject<HTMLDivElement | null>, bottomPercentage = 2.5): boolean {
+  const el = scrollRef.current;
+  if (!el) return true;
+  
+  const { scrollTop, scrollHeight, clientHeight } = el;
+  
+  // Calculate the total scrollable distance
+  const maxScrollTop = scrollHeight - clientHeight;
+  
+  // If there's no scrollable content, consider user at bottom
+  if (maxScrollTop <= 0) return true;
+  
+  // Calculate the position as a percentage from the top (0-100%)
+  const scrollPercentage = (scrollTop / maxScrollTop) * 100;
+  
+  // User is in bottom zone if they're in the bottom X% of the scrollable area
+  return scrollPercentage >= (100 - bottomPercentage);
+}
+
+/**
  * Scrolls the chat container to the bottom
  * Used to keep the latest messages visible during streaming
  */
@@ -44,6 +69,52 @@ export function scrollToBottom(scrollRef: RefObject<HTMLDivElement | null>): voi
   if (!el) return;
   // No smooth each frame; cheap immediate pin
   el.scrollTop = el.scrollHeight;
+}
+
+/**
+ * Enables auto-scroll mode - will scroll to bottom during streaming
+ */
+export function enableAutoScroll(streamingState: StreamingState): void {
+  if (streamingState.autoScrollRef.current !== null) {
+    streamingState.autoScrollRef.current = true;
+  }
+}
+
+/**
+ * Disables auto-scroll mode - will not scroll during streaming
+ */
+export function disableAutoScroll(streamingState: StreamingState): void {
+  if (streamingState.autoScrollRef.current !== null) {
+    streamingState.autoScrollRef.current = false;
+  }
+}
+
+/**
+ * Checks and updates auto-scroll state based on scroll position
+ * Enables auto-scroll if user is at bottom, disables if not
+ */
+export function updateAutoScrollState(
+  scrollRef: RefObject<HTMLDivElement | null>, 
+  streamingState: StreamingState
+): void {
+  if (isUserInBottomZone(scrollRef)) {
+    enableAutoScroll(streamingState);
+  } else {
+    disableAutoScroll(streamingState);
+  }
+}
+
+/**
+ * Smart scroll that only scrolls if in auto-scroll mode
+ * Two-state system: either auto-scrolling or not
+ */
+export function conditionalScrollToBottom(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  streamingState: StreamingState
+): void {
+  if (streamingState.autoScrollRef.current) {
+    scrollToBottom(scrollRef);
+  }
 }
 
 /**
@@ -95,7 +166,7 @@ export function kickAnimation(
         return updated;
       });
       
-      scrollToBottom(scrollRef); // keep view pinned
+      conditionalScrollToBottom(scrollRef, streamingState); // only scroll if in auto-scroll mode
       requestAnimationFrame(step);
     } else {
       streamingState.animatingRef.current = false;
@@ -175,7 +246,7 @@ export async function processStreamLine(
         
         return updated;
       });
-      scrollToBottom(scrollRef);
+      conditionalScrollToBottom(scrollRef, streamingState);
     } else if (evt.t === 'tool_result') {
       // Replace the calling code block with the actual result
       if (!evt.toolName) {
@@ -232,7 +303,7 @@ export async function processStreamLine(
         return updated;
       });
       
-      scrollToBottom(scrollRef);
+      conditionalScrollToBottom(scrollRef, streamingState);
     } else if (evt.t === 'final') {
       // Log the full response if callback provided
       if (onFullResponse && evt.reply) {
