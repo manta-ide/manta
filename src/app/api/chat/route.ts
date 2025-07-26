@@ -6,16 +6,12 @@ import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTempl
 import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { join } from 'path';
-
-export interface Message {
-  role: 'user' | 'assistant' | 'system';
-  variables?: Record<string, string>;
-}
-
-interface ParsedMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
+import { 
+  Message, 
+  ParsedMessage, 
+  ChatRequestSchema,
+  MessageVariablesSchema
+} from '../lib/schemas';
 
 // File operation tools
 const fileTools = {
@@ -161,9 +157,8 @@ const fileTools = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = (await req.json()) as {
-      messages: Message[];
-    };
+    // Parse and validate the request body using Zod
+    const { messages } = ChatRequestSchema.parse(await req.json());
 
     const templates = {
       'user': await getTemplate('user-prompt-template'),
@@ -171,10 +166,12 @@ export async function POST(req: NextRequest) {
       'system': await getTemplate('system-prompt-template')
     };
 
-    // Parse all messages uniformly
+    // Parse all messages uniformly, with Zod validation on variables
     const parsedMessages: ParsedMessage[] = messages.map(message => {
       const template = templates[message.role];
-      const content = parseMessageWithTemplate(template, message.variables || {});
+      // Validate message variables against schema before using them
+      const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
+      const content = parseMessageWithTemplate(template, validatedVariables);
       return { role: message.role, content };
     });
 

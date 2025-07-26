@@ -8,7 +8,11 @@
  */
 
 import { RefObject } from 'react';
-import { isValidSelection, Selection } from '@/lib/uiSelectionUtils';
+import { 
+  Selection,
+  Message
+} from '@/app/api/lib/schemas';
+import { isValidSelection } from '@/app/api/lib/messageContextUtils';
 
 /** Base typing speed: characters appended per animation frame. */
 export const BASE_CHARS_PER_FRAME = 2;
@@ -23,17 +27,6 @@ export interface StreamingState {
   streamIdxRef: RefObject<number | null>;
   typedLenRef: RefObject<number>;
   autoScrollRef: RefObject<boolean>;
-}
-
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content?: string;
-  operations?: any;
-  variables?: Record<string, string>;
-  messageContext?: {
-    currentFile?: string | null;
-    selection?: Selection | null;
-  };
 }
 
 /**
@@ -141,7 +134,7 @@ function getAdaptiveSpeed(queueSize: number): number {
  */
 export function kickAnimation(
   streamingState: StreamingState,
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
   scrollRef: RefObject<HTMLDivElement | null>
 ): void {
   if (streamingState.animatingRef.current) return;
@@ -199,7 +192,7 @@ export interface StreamEvent {
 export async function processStreamLine(
   line: string,
   streamingState: StreamingState,
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
   scrollRef: RefObject<HTMLDivElement | null>,
   onOperations: (operations: any[]) => Promise<void>,
   onComplete: () => void,
@@ -361,16 +354,4 @@ export async function processStreamLine(
   }
 }
 
-/**
- * Creates message context for AI processing
- * Validates selection and prepares context data
- */
-export function createMessageContext(
-  currentFile: string | null,
-  selection: Selection | null
-) {
-  return {
-    currentFile,
-    selection: isValidSelection(selection) ? selection : null
-  };
-} 
+ 

@@ -11,24 +11,18 @@ import { useState, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { applyFileOperations, ProjectStore } from '@/app/api/lib/fileOperationUtils';
 import { 
-  ChatMessage, 
   StreamingState, 
-  scrollToBottom, 
   conditionalScrollToBottom,
-  updateAutoScrollState,
-  processStreamLine, 
-  createMessageContext 
+  processStreamLine
 } from '@/lib/chatAnimationUtils';
+import { isValidSelection } from '@/app/api/lib/messageContextUtils';
 import { 
-  DisplayMessage, 
-  createSystemMessage, 
-  createUserMessage, 
-  convertToApiMessages 
-} from '@/app/api/lib/messageContextUtils';
-import { Selection, isValidSelection } from '@/lib/uiSelectionUtils';
+  Message, 
+  MessageContext
+} from '@/app/api/lib/schemas';
 
 export interface ChatServiceState {
-  messages: DisplayMessage[];
+  messages: Message[];
   loading: boolean;
 }
 
@@ -44,7 +38,7 @@ export interface ChatServiceActions {
 export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>) {
   const { getAllFiles, currentFile, selection, setSelection, createFile, setFileContent, deleteFile, getFileContent } = useProjectStore();
   
-  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Streaming refs for animation state
@@ -83,9 +77,33 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
         height: Math.round(validSelection.height)
       } : null;
 
-    // Store current selection context and create user message
-    const messageContext = createMessageContext(currentFile, roundedSelection);
-    const userMessage = createUserMessage(input, messageContext, roundedSelection);
+    // Store current selection context
+    const messageContext: MessageContext = {
+      currentFile,
+      selection: roundedSelection
+    };
+
+    // Create base user message for UI
+    const userMessage: Message = { 
+      role: 'user',
+      variables: {
+        USER_REQUEST: input
+      },
+      content: input,
+      messageContext
+    };
+
+    // Add selection variables if selection is valid
+    if (roundedSelection) {
+      userMessage.variables = {
+        ...userMessage.variables,
+        SELECTION: 'true',
+        SELECTION_X: roundedSelection.x.toString(),
+        SELECTION_Y: roundedSelection.y.toString(),
+        SELECTION_WIDTH: roundedSelection.width.toString(),
+        SELECTION_HEIGHT: roundedSelection.height.toString()
+      };
+    }
 
     // Add user message to UI
     setMessages((prev) => {
@@ -97,13 +115,22 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     setLoading(true);
 
     try {
-      // Convert messages for API and create system message
-      const apiMessages = convertToApiMessages([...messages, userMessage]);
+      // Prepare API request with all files and current context
       const allFiles = getAllFiles();
-      const systemMessage = createSystemMessage(allFiles, currentFile);
+      
+      // Create system message with project context
+      const systemMessage = {
+        role: 'system' as const,
+        variables: {
+          PROJECT_FILES: JSON.stringify(Object.fromEntries(allFiles), null, 2),
+          CURRENT_FILE: currentFile || '',
+          CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
+        }
+      };
 
+      // Prepare API messages (system + conversation history)
       const requestPayload = {
-        messages: [systemMessage, ...apiMessages],
+        messages: [systemMessage, ...messages, userMessage],
       };
 
       console.log('📤 SENT TO MODEL:');

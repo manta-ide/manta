@@ -7,25 +7,19 @@
  * This is a backend-only utility that processes message data for AI consumption.
  */
 
-import { Message } from '@/app/api/chat/route';
-import { Selection } from '@/lib/uiSelectionUtils';
-
-export interface MessageContext {
-  currentFile?: string | null;
-  selection?: Selection | null;
-}
-
-export interface DisplayMessage extends Message {
-  content?: string; // For display purposes only
-  operations?: any; // For file operations
-  // Store selection context for this message
-  messageContext?: MessageContext;
-}
+import { 
+  Message,
+  MessageContext,
+  Selection,
+  MessageVariables,
+  SystemVariablesSchema,
+  UserVariablesSchema
+} from './schemas';
 
 /**
  * Validates if a selection object is meaningful for AI processing
  */
-function isValidSelection(selection: Selection | null | undefined): selection is Selection {
+export function isValidSelection(selection: Selection | null | undefined): selection is Selection {
   if (!selection) return false;
   
   // Must have positive dimensions and be reasonably sized (at least 5x5 pixels)
@@ -33,6 +27,19 @@ function isValidSelection(selection: Selection | null | undefined): selection is
          selection.height >= 5 && 
          selection.x >= 0 && 
          selection.y >= 0;
+}
+
+/**
+ * Creates a message context object from current file and selection
+ */
+export function createMessageContext(
+  currentFile: string | null,
+  selection: Selection | null
+): MessageContext {
+  return {
+    currentFile,
+    selection
+  };
 }
 
 /**
@@ -45,13 +52,15 @@ export function createSystemMessage(
 ): Message {
   const projectStructure = JSON.stringify(Object.fromEntries(allFiles), null, 2);
   
+  const variables = SystemVariablesSchema.parse({
+    PROJECT_FILES: projectStructure,
+    CURRENT_FILE: currentFile || '',
+    CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
+  });
+  
   return {
     role: 'system',
-    variables: { 
-      PROJECT_FILES: projectStructure,
-      CURRENT_FILE: currentFile || '',
-      CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
-    }
+    variables
   };
 }
 
@@ -63,30 +72,37 @@ export function createUserMessage(
   input: string,
   messageContext: MessageContext,
   selection?: Selection | null
-): DisplayMessage {
+): Message {
   const validSelection = isValidSelection(selection);
   
-  const userMessage: DisplayMessage = { 
+  // Create base variables
+  const variables: MessageVariables = {
+    USER_REQUEST: input
+  };
+
+  // Add selection variables to user message only if selection is valid
+  if (validSelection && selection) {
+    Object.assign(variables, {
+      SELECTION: 'true',
+      SELECTION_X: selection.x.toString(),
+      SELECTION_Y: selection.y.toString(),
+      SELECTION_WIDTH: selection.width.toString(),
+      SELECTION_HEIGHT: selection.height.toString()
+    });
+  }
+  
+  // Validate with UserVariablesSchema
+  const validatedVariables = UserVariablesSchema.parse(variables);
+  
+  const userMessage: Message = { 
     role: 'user', 
-    variables: { USER_REQUEST: input },
+    variables: validatedVariables,
     content: input,
     messageContext: {
       currentFile: messageContext.currentFile,
       selection: validSelection ? selection : null
     }
   };
-
-  // Add selection variables to user message only if selection is valid
-  if (validSelection) {
-    userMessage.variables = {
-      ...userMessage.variables,
-      SELECTION: 'true',
-      SELECTION_X: selection.x.toString(),
-      SELECTION_Y: selection.y.toString(),
-      SELECTION_WIDTH: selection.width.toString(),
-      SELECTION_HEIGHT: selection.height.toString()
-    };
-  }
 
   return userMessage;
 }
@@ -95,7 +111,7 @@ export function createUserMessage(
  * Converts display messages to API-compatible messages
  * Strips UI-specific properties and keeps only variables for AI processing
  */
-export function convertToApiMessages(messages: DisplayMessage[]): Message[] {
+export function convertToApiMessages(messages: Message[]): Message[] {
   return messages.map(msg => ({
     role: msg.role,
     variables: msg.variables

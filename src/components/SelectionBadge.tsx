@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { XIcon, File, MousePointer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { isValidSelection, formatSelectionLabel, Selection } from '@/lib/uiSelectionUtils';
+import { formatSelectionLabel } from '@/lib/uiSelectionUtils';
+import { isValidSelection } from '@/app/api/lib/messageContextUtils';
+import { Selection } from '@/app/api/lib/schemas';
 
 // Helper function to get just the filename from a full path
 function getFilenameFromPath(fullPath: string): string {
