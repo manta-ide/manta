@@ -1,20 +1,29 @@
+/**
+ * Chat Streaming Service
+ * 
+ * React hook that manages real-time chat streaming with AI, including message state,
+ * streaming animations, and file operations integration.
+ * 
+ * This is a frontend-only service that handles UI state and streaming responses.
+ */
+
 import { useState, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { applyFileOperations, ProjectStore } from '@/lib/fileOperationHelpers';
+import { applyFileOperations, ProjectStore } from '@/app/api/lib/fileOperationUtils';
 import { 
   ChatMessage, 
   StreamingState, 
   scrollToBottom, 
   processStreamLine, 
   createMessageContext 
-} from '@/lib/chatHelpers';
+} from '@/lib/chatAnimationUtils';
 import { 
   DisplayMessage, 
   createSystemMessage, 
   createUserMessage, 
   convertToApiMessages 
-} from '@/lib/contextHelpers';
-import { Selection, isValidSelection } from '@/lib/selectionHelpers';
+} from '@/app/api/lib/messageContextUtils';
+import { Selection, isValidSelection } from '@/lib/uiSelectionUtils';
 
 export interface ChatServiceState {
   messages: DisplayMessage[];
@@ -26,13 +35,17 @@ export interface ChatServiceActions {
   clearMessages: () => void;
 }
 
+/**
+ * Custom React hook for managing chat streaming functionality
+ * Handles message sending, response streaming, and file operations
+ */
 export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>) {
   const { getAllFiles, currentFile, selection, setSelection, createFile, setFileContent, deleteFile, getFileContent } = useProjectStore();
   
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Streaming refs
+  // Streaming refs for animation state
   const charQueueRef = useRef<string[]>([]);
   const animatingRef = useRef(false);
   const streamIdxRef = useRef<number | null>(null);
@@ -45,6 +58,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     typedLenRef
   };
 
+  // Project store adapter for file operations
   const projectStore: ProjectStore = {
     createFile,
     setFileContent,

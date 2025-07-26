@@ -1,5 +1,14 @@
+/**
+ * Message Context Processing Utilities
+ * 
+ * Backend utilities for creating and managing message contexts for AI chat.
+ * Handles system message creation, user message formatting, and selection context.
+ * 
+ * This is a backend-only utility that processes message data for AI consumption.
+ */
+
 import { Message } from '@/app/api/chat/route';
-import { isValidSelection, Selection } from '@/lib/selectionHelpers';
+import { Selection } from '@/lib/uiSelectionUtils';
 
 export interface MessageContext {
   currentFile?: string | null;
@@ -13,6 +22,23 @@ export interface DisplayMessage extends Message {
   messageContext?: MessageContext;
 }
 
+/**
+ * Validates if a selection object is meaningful for AI processing
+ */
+function isValidSelection(selection: Selection | null | undefined): selection is Selection {
+  if (!selection) return false;
+  
+  // Must have positive dimensions and be reasonably sized (at least 5x5 pixels)
+  return selection.width >= 5 && 
+         selection.height >= 5 && 
+         selection.x >= 0 && 
+         selection.y >= 0;
+}
+
+/**
+ * Creates a system message with project context for the AI
+ * Includes all project files and current file information
+ */
 export function createSystemMessage(
   allFiles: Map<string, string>,
   currentFile: string | null
@@ -29,6 +55,10 @@ export function createSystemMessage(
   };
 }
 
+/**
+ * Creates a user message with context information for the AI
+ * Includes selection data if valid selection is provided
+ */
 export function createUserMessage(
   input: string,
   messageContext: MessageContext,
@@ -61,6 +91,10 @@ export function createUserMessage(
   return userMessage;
 }
 
+/**
+ * Converts display messages to API-compatible messages
+ * Strips UI-specific properties and keeps only variables for AI processing
+ */
 export function convertToApiMessages(messages: DisplayMessage[]): Message[] {
   return messages.map(msg => ({
     role: msg.role,

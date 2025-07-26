@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { XIcon, File, MousePointer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { isValidSelection, formatSelectionLabel, Selection } from '@/lib/selectionHelpers';
+import { isValidSelection, formatSelectionLabel, Selection } from '@/lib/uiSelectionUtils';
 
 // Helper function to get just the filename from a full path
 function getFilenameFromPath(fullPath: string): string {

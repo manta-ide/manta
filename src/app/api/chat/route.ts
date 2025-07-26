@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { streamText, tool } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { z } from 'zod';
-import { getTemplate, parseMessageWithTemplate } from '@/lib/templateHelpers';
+import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { join } from 'path';

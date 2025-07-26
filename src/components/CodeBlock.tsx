@@ -160,9 +160,9 @@ function PatchBlock({ code, filename, isLoading }: { code: string; filename: str
   if (isLoading) {
     return (
       <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
-        <div className="bg-gradient-to-r from-orange-800/80 to-orange-700/80 px-4 py-2 flex items-center justify-between transition-all duration-200">
+        <div className="bg-gradient-to-r from-zinc-800/80 to-zinc-700/80 px-4 py-2 flex items-center justify-between transition-all duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-orange-400/80"></div>
+            <div className="w-2 h-2 rounded-full bg-emerald-400/80"></div>
             <span className="text-sm font-medium text-zinc-200">{displayName}</span>
             <div className="flex items-center gap-1">
               <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>

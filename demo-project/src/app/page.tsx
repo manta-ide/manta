@@ -8,7 +8,7 @@ export default function PortfolioPage() {
         <div className="w-32 h-32 rounded-full bg-secondary mb-6 flex items-center justify-center">
           <Car className="w-16 h-16 text-primary" />
         </div>
-        <h1 className="text-6xl font-bold mb-4">
+        <h1 className="text-6xl font-bold mb-4 text-black">
           John Doe
         </h1>
         <p className="text-xl mb-6">

@@ -1,3 +1,12 @@
+/**
+ * UI Selection Utilities
+ * 
+ * Frontend utilities for managing and validating UI selection state.
+ * Handles selection coordinates, validation, and display formatting.
+ * 
+ * This is a frontend-only utility that operates on UI selection data.
+ */
+
 export interface Selection {
   x: number;
   y: number;
@@ -7,6 +16,7 @@ export interface Selection {
 
 /**
  * Check if a selection is valid and meaningful (not empty or too small)
+ * Used to filter out accidental or meaningless selections
  */
 export function isValidSelection(selection: Selection | null | undefined): selection is Selection {
   if (!selection) return false;
@@ -19,7 +29,8 @@ export function isValidSelection(selection: Selection | null | undefined): selec
 }
 
 /**
- * Format selection for display
+ * Format selection dimensions for display in UI components
+ * Returns a user-friendly string representation of selection size
  */
 export function formatSelectionLabel(selection: Selection): string {
   return `${Math.round(selection.width)}×${Math.round(selection.height)}`;

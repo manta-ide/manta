@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
-import { useChatService } from '@/lib/chatService';
+import { useChatService } from '@/lib/chatStreamingService';
 import { MessageRenderer } from './CodeBlock';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';

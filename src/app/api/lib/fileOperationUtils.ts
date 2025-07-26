@@ -1,3 +1,12 @@
+/**
+ * File Operation Processing Utilities
+ * 
+ * Backend utilities for parsing and applying file operations from AI responses.
+ * Handles create, update, delete, and patch operations on the file system.
+ * 
+ * This is a backend-only utility that processes file operations and applies diff patches.
+ */
+
 import { applyAllDiffBlocks } from '@/app/diffHelpers';
 
 export interface FileOperation {
@@ -6,6 +15,10 @@ export interface FileOperation {
   content?: string;
 }
 
+/**
+ * Parses file operations from AI response text
+ * Looks for code blocks with operation syntax: ```create:path, ```update:path, etc.
+ */
 export function parseFileOperations(response: string): FileOperation[] {
   const operations: FileOperation[] = [];
   
@@ -83,6 +96,9 @@ export function parseFileOperations(response: string): FileOperation[] {
   return operations;
 }
 
+/**
+ * Interface for project store operations (abstraction for frontend store)
+ */
 export interface ProjectStore {
   createFile: (path: string, content: string) => Promise<void>;
   setFileContent: (path: string, content: string) => Promise<void>;
@@ -90,6 +106,10 @@ export interface ProjectStore {
   getFileContent: (path: string) => string | null;
 }
 
+/**
+ * Applies a list of file operations to the project store
+ * Handles create, update, delete, and patch operations with proper error handling
+ */
 export async function applyFileOperations(operations: any[], store: ProjectStore): Promise<void> {
   if (!operations || !Array.isArray(operations)) return;
   

@@ -1,5 +1,14 @@
+/**
+ * Chat Animation Utilities
+ * 
+ * Frontend utilities for managing real-time chat streaming animations and UI effects.
+ * Handles typewriter animations, scroll management, and streaming event processing.
+ * 
+ * This is a frontend-only utility that operates on React state and DOM manipulation.
+ */
+
 import { RefObject } from 'react';
-import { isValidSelection, Selection } from '@/lib/selectionHelpers';
+import { isValidSelection, Selection } from '@/lib/uiSelectionUtils';
 
 /** Base typing speed: characters appended per animation frame. */
 export const BASE_CHARS_PER_FRAME = 2;
@@ -26,7 +35,10 @@ export interface ChatMessage {
   };
 }
 
-/** Scroll to bottom helper */
+/**
+ * Scrolls the chat container to the bottom
+ * Used to keep the latest messages visible during streaming
+ */
 export function scrollToBottom(scrollRef: RefObject<HTMLDivElement | null>): void {
   const el = scrollRef.current;
   if (!el) return;
@@ -34,7 +46,10 @@ export function scrollToBottom(scrollRef: RefObject<HTMLDivElement | null>): voi
   el.scrollTop = el.scrollHeight;
 }
 
-/** Calculate adaptive typing speed based on queue size */
+/**
+ * Calculate adaptive typing speed based on queue size
+ * Speeds up animation when there's a backlog of characters to display
+ */
 function getAdaptiveSpeed(queueSize: number): number {
   if (queueSize < SPEED_UP_THRESHOLD) {
     return BASE_CHARS_PER_FRAME;
@@ -49,7 +64,10 @@ function getAdaptiveSpeed(queueSize: number): number {
   return Math.floor(BASE_CHARS_PER_FRAME * multiplier);
 }
 
-/** rAF typewriter drain with adaptive speed */
+/**
+ * Starts or continues the typewriter animation loop
+ * Uses requestAnimationFrame for smooth character-by-character display
+ */
 export function kickAnimation(
   streamingState: StreamingState,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
@@ -103,7 +121,10 @@ export interface StreamEvent {
   };
 }
 
-/** Parse & handle one NDJSON event */
+/**
+ * Processes a single streaming event line from the AI response
+ * Handles tokens, tool calls, tool results, and final completion
+ */
 export async function processStreamLine(
   line: string,
   streamingState: StreamingState,
@@ -269,6 +290,10 @@ export async function processStreamLine(
   }
 }
 
+/**
+ * Creates message context for AI processing
+ * Validates selection and prepares context data
+ */
 export function createMessageContext(
   currentFile: string | null,
   selection: Selection | null
