@@ -93,4 +93,57 @@ export const ChatRequestSchema = z.object({
   messages: z.array(MessageSchema),
 });
 
-export type ChatRequest = z.infer<typeof ChatRequestSchema>; 
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+// Evaluation schemas
+export const TestCaseSchema = z.object({
+  id: z.string().optional(),
+  input: z.string(),
+  // Optional context for each test case
+  currentFile: z.string().optional(),
+  selection: SelectionSchema.optional()
+});
+
+export type TestCase = z.infer<typeof TestCaseSchema>;
+
+export const EvalDatasetSchema = z.object({
+  dataset: z.array(TestCaseSchema),
+});
+
+export type EvalDataset = z.infer<typeof EvalDatasetSchema>;
+
+export const EvalResultSchema = z.object({
+  testCaseId: z.string(),
+  input: z.string(),
+  aiResponse: z.string(),
+  judgeScore: z.number(),
+  judgeReasoning: z.string(),
+  toolCalls: z.array(z.any()).optional(),
+  fileOperations: z.array(z.any()).optional(),
+});
+
+export type EvalResult = z.infer<typeof EvalResultSchema>;
+
+export const EvalJobSchema = z.object({
+  jobId: z.string(),
+  status: z.enum(['running', 'completed', 'failed']),
+  progress: z.number(), // 0-100
+  results: z.array(EvalResultSchema),
+  statistics: z.object({
+    average: z.number(),
+    median: z.number(),
+    standardDeviation: z.number(),
+    count: z.number(),
+  }).optional(),
+  error: z.string().optional(),
+  createdAt: z.date(),
+  completedAt: z.date().optional(),
+});
+
+export type EvalJob = z.infer<typeof EvalJobSchema>;
+
+export const EvalRequestSchema = z.object({
+  dataset: z.array(TestCaseSchema),
+});
+
+export type EvalRequest = z.infer<typeof EvalRequestSchema>; 

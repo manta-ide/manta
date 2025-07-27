@@ -196,7 +196,8 @@ export async function processStreamLine(
   scrollRef: RefObject<HTMLDivElement | null>,
   onOperations: (operations: any[]) => Promise<void>,
   onComplete: () => void,
-  onFullResponse?: (fullResponse: string) => void
+  onFullResponse?: (fullResponse: string) => void,
+  onFileOperationCompleted?: () => Promise<void>
 ): Promise<void> {
   try {
     const evt = JSON.parse(line) as StreamEvent;
@@ -250,6 +251,16 @@ export async function processStreamLine(
       // Apply file operation immediately to update AppViewer
       if (evt.result?.operation) {
         await onOperations([evt.result.operation]);
+        
+        // Refresh project store for file operations that succeeded
+        if (evt.result.success && 
+            (evt.toolName === 'createFile' || evt.toolName === 'updateFile' || 
+             evt.toolName === 'patchFile' || evt.toolName === 'deleteFile')) {
+          if (onFileOperationCompleted) {
+            console.log('🔄 File operation completed, refreshing project store:', evt.toolName);
+            await onFileOperationCompleted();
+          }
+        }
       }
       
       setMessages((prev) => {

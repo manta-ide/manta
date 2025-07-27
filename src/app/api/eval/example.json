@@ -1,0 +1,24 @@
+{
+  "dataset": [
+    {
+      "id": "test_1",
+      "input": "Create a simple React component for a button with a click handler"
+    },
+    {
+      "id": "test_2", 
+      "input": "Add error handling to the login function",
+      "currentFile": "src/components/LoginForm.tsx"
+    },
+    {
+      "id": "test_3",
+      "input": "Fix the styling issues in the selected area",
+      "currentFile": "src/app/page.tsx",
+      "selection": {
+        "x": 100,
+        "y": 200,
+        "width": 300,
+        "height": 150
+      }
+    }
+  ]
+} 

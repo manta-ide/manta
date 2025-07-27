@@ -6,6 +6,7 @@ import FileTree from "@/components/FileTree";
 import FileEditor from "@/components/FileEditor";
 import AppViewer from "@/components/AppViewer";
 import TopBar from "@/components/TopBar";
+import EvaluationWindow from "@/components/EvaluationWindow";
 import { useProjectStore } from "@/lib/store";
 
 export default function Home() {
@@ -14,6 +15,7 @@ export default function Home() {
     editor: false,
     viewer: true,
     chat: true,
+    eval: false,
   });
   
   const [isEditMode, setIsEditMode] = useState(true);
@@ -22,6 +24,7 @@ export default function Home() {
 
   // Load project from filesystem on mount
   useEffect(() => {
+    console.log('🚀 Loading project on mount');
     loadProjectFromFileSystem();
   }, []); // Empty dependency array to run only once on mount
 
@@ -36,6 +39,7 @@ export default function Home() {
         onTogglePanel={togglePanel}
         isEditMode={isEditMode}
         setIsEditMode={setIsEditMode}
+        onOpenEval={() => togglePanel('eval')}
       />
       
       <div className="flex flex-1 overflow-hidden">
@@ -63,12 +67,23 @@ export default function Home() {
           )}
         </div>
         
-        {/* Chat Panel - always on the right, fixed width */}
-        {panels.chat && (
-          <div className="w-96 flex-shrink-0 border-l border-zinc-700">
-            <ChatSidebar />
-          </div>
-        )}
+        {/* Right side panels */}
+        <div className="flex">
+          {/* Chat Panel */}
+          {panels.chat && (
+            <div className="w-96 flex-shrink-0 border-l border-zinc-700">
+              <ChatSidebar />
+            </div>
+          )}
+          
+          {/* Evaluation Panel */}
+          {panels.eval && (
+            <EvaluationWindow 
+              isOpen={panels.eval}
+              onClose={() => togglePanel('eval')}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

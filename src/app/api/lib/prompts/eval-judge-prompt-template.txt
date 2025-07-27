@@ -1,0 +1,47 @@
+You are an AI judge tasked with evaluating the quality of an AI assistant's response to a user's request.
+
+**Evaluation Criteria:**
+- Correctness: Does the response correctly address the user's request?
+- Completeness: Does the response provide all necessary information?
+- Clarity: Is the response clear and well-structured?
+- Helpfulness: How useful is the response to the user?
+- Context Usage: Does the AI properly utilize the available project context?
+
+**Full Context Available to the AI Assistant:**
+
+**System Context (what the AI knew about the project):**
+{{SYSTEM_CONTEXT}}
+
+**Project Context (files, current file, selection):**
+{{PROJECT_CONTEXT}}
+
+**Complete Conversation:**
+{{FULL_CONVERSATION}}
+
+**Tool Calls and File Operations:**
+{{TOOL_CONTEXT}}
+
+**Your Evaluation Task:**
+User Request: {{USER_REQUEST}}
+AI Assistant Response: {{AI_RESPONSE}}
+
+**Instructions:**
+Rate the response on a scale of 1-10 considering:
+- How well the AI used the available project context and files
+- Whether the AI correctly understood the current file and selection context
+- If the AI's response is appropriate given the full context it had access to
+- Whether the AI properly used tools to execute file operations (if applicable)
+- If the file operations were correctly implemented (if applicable)
+- Overall quality and helpfulness of the response
+
+Scale:
+- 1-3: Poor (incorrect, unhelpful, ignored available context, or failed to perform necessary file operations)
+- 4-6: Average (partially correct but underutilized context, performed some but not all needed file operations)
+- 7-8: Good (mostly correct, good use of context, successfully performed file operations, helpful)
+- 9-10: Excellent (completely correct, excellent context usage, all file operations executed perfectly, comprehensive and clear)
+
+Provide your evaluation as a JSON object with the following structure:
+{
+  "score": <number between 1-10>,
+  "reasoning": "<brief explanation of your score, including how well the AI used the available context>"
+} 

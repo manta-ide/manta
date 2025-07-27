@@ -9,7 +9,6 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { applyFileOperations, ProjectStore } from '@/app/api/lib/fileOperationUtils';
 import { 
   StreamingState, 
   conditionalScrollToBottom,
@@ -36,7 +35,7 @@ export interface ChatServiceActions {
  * Handles message sending, response streaming, and file operations
  */
 export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>) {
-  const { getAllFiles, currentFile, selection, setSelection, createFile, setFileContent, deleteFile, getFileContent } = useProjectStore();
+  const { getAllFiles, currentFile, selection, setSelection, loadProjectFromFileSystem } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,14 +53,6 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     streamIdxRef,
     typedLenRef,
     autoScrollRef
-  };
-
-  // Project store adapter for file operations
-  const projectStore: ProjectStore = {
-    createFile,
-    setFileContent,
-    deleteFile,
-    getFileContent
   };
 
   const sendMessage = useCallback(async (input: string) => {
@@ -180,14 +171,19 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
               streamingState,
               setMessages,
               scrollRef,
-              (ops) => applyFileOperations(ops, projectStore),
-              () => {
+              async () => {}, // No file operations - handled by backend
+              async () => {
                 // Clear selection only if it was valid and used
                 if (validSelection) {
                   setSelection(null);
                 }
               },
-              logResponse
+              logResponse,
+              async () => {
+                // Refresh project store when file operations complete
+                console.log('🔄 Refreshing project store after file operation');
+                await loadProjectFromFileSystem();
+              }
             );
           }
           break;
@@ -206,14 +202,19 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
               streamingState,
               setMessages,
               scrollRef,
-              (ops) => applyFileOperations(ops, projectStore),
-              () => {
+              async () => {}, // No file operations - handled by backend
+              async () => {
                 // Clear selection only if it was valid and used
                 if (validSelection) {
                   setSelection(null);
                 }
               },
-              logResponse
+              logResponse,
+              async () => {
+                // Refresh project store when file operations complete
+                console.log('🔄 Refreshing project store after file operation');
+                await loadProjectFromFileSystem();
+              }
             );
           }
         }
@@ -223,7 +224,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     } finally {
       setLoading(false);
     }
-  }, [messages, currentFile, selection, getAllFiles, scrollRef, setSelection, createFile, setFileContent, deleteFile, getFileContent]);
+  }, [messages, currentFile, selection, getAllFiles, scrollRef, setSelection, loadProjectFromFileSystem]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);

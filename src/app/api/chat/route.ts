@@ -1,17 +1,22 @@
 import { NextRequest } from 'next/server';
 import { streamText, tool } from 'ai';
-import { azure } from '@ai-sdk/azure';
+import { azure, createAzure } from '@ai-sdk/azure';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
+import { promises as fs } from 'fs';
 import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { join } from 'path';
+import { applyAllDiffBlocks } from '@/app/diffHelpers';
 import { 
   Message, 
   ParsedMessage, 
   ChatRequestSchema,
   MessageVariablesSchema
 } from '../lib/schemas';
+
+// Project root for file operations (demo-project directory)
+const PROJECT_ROOT = join(process.cwd(), 'demo-project');
 
 // File operation tools
 const fileTools = {
@@ -23,7 +28,7 @@ const fileTools = {
     }),
     execute: async ({ path, content }) => {
       try {
-        const fullPath = join(process.cwd(), path);
+        const fullPath = join(PROJECT_ROOT, path);
         const dir = dirname(fullPath);
         
         // Create directory if it doesn't exist
@@ -55,7 +60,7 @@ const fileTools = {
     }),
     execute: async ({ path, content }) => {
       try {
-        const fullPath = join(process.cwd(), path);
+        const fullPath = join(PROJECT_ROOT, path);
         
         if (!existsSync(fullPath)) {
           return { 
@@ -89,7 +94,7 @@ const fileTools = {
     }),
     execute: async ({ path, patch }) => {
       try {
-        const fullPath = join(process.cwd(), path);
+        const fullPath = join(PROJECT_ROOT, path);
         
         if (!existsSync(fullPath)) {
           return { 
@@ -99,18 +104,24 @@ const fileTools = {
           };
         }
         
-        // Read current content and apply patch using the same logic as the old system
+        // Read current content and apply patch
         const currentContent = readFileSync(fullPath, 'utf-8');
+        const newContent = applyAllDiffBlocks(currentContent, [patch]);
         
-        // For now, we'll return the patch info for UI display
-        // The actual patching will be handled by the chat service
-        return { 
-          success: true, 
-          message: `Patch prepared for: ${path}`,
-          operation: { type: 'patch', path, content: patch },
-          patch: patch,
-          path: path
-        };
+        if (newContent !== currentContent) {
+          writeFileSync(fullPath, newContent, 'utf-8');
+          return { 
+            success: true, 
+            message: `Patch applied successfully to: ${path}`,
+            operation: { type: 'patch', path, content: patch }
+          };
+        } else {
+          return { 
+            success: false, 
+            message: `Patch application failed - no changes made to: ${path}`,
+            operation: { type: 'patch', path, content: patch }
+          };
+        }
       } catch (error) {
         return { 
           success: false, 
@@ -128,7 +139,7 @@ const fileTools = {
     }),
     execute: async ({ path }) => {
       try {
-        const fullPath = join(process.cwd(), path);
+        const fullPath = join(PROJECT_ROOT, path);
         
         if (!existsSync(fullPath)) {
           return { 
