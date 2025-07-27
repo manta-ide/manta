@@ -23,7 +23,7 @@ interface TopBarProps {
 
 export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMode, onOpenEval }: TopBarProps) {
   const switchId = useId();
-  
+
   return (
     <header className="border-b border-zinc-700 bg-zinc-800 px-4 py-3">
       <div className="flex items-center justify-end">
@@ -48,7 +48,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               Edit/Preview mode toggle
             </Label>
 
-            
+
           </div>
 
           {/* Panel Toggle Buttons */}
@@ -57,32 +57,32 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               variant={panels.files ? "default" : "outline"}
               size="sm"
               onClick={() => onTogglePanel('files')}
-              className={panels.files 
-                ? "bg-zinc-700 text-white border-0" 
+              className={panels.files
+                ? "bg-zinc-700 text-white border-0"
                 : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
               }
             >
               <Folder className="w-4 h-4" />
             </Button>
-            
+
             <Button
               variant={panels.editor ? "default" : "outline"}
               size="sm"
               onClick={() => onTogglePanel('editor')}
-              className={panels.editor 
-                ? "bg-zinc-700 text-white border-0" 
+              className={panels.editor
+                ? "bg-zinc-700 text-white border-0"
                 : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
               }
             >
               <Code className="w-4 h-4" />
             </Button>
-            
+
             <Button
               variant={panels.viewer ? "default" : "outline"}
               size="sm"
               onClick={() => onTogglePanel('viewer')}
-              className={panels.viewer 
-                ? "bg-zinc-700 text-white border-0" 
+              className={panels.viewer
+                ? "bg-zinc-700 text-white border-0"
                 : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
               }
             >
@@ -93,28 +93,29 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               variant={panels.chat ? "default" : "outline"}
               size="sm"
               onClick={() => onTogglePanel('chat')}
-              className={panels.chat 
-                ? "bg-zinc-700 text-white border-0" 
+              className={panels.chat
+                ? "bg-zinc-700 text-white border-0"
                 : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
               }
             >
               <MessageCircle className="w-4 h-4" />
             </Button>
+
+            {/* Evaluation Button */}
+            <Button
+              variant={panels.eval ? "default" : "outline"}
+              size="sm"
+              onClick={onOpenEval}
+              className={panels.eval
+                ? "bg-zinc-700 text-white border-0"
+                : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+              }
+            >
+              <BarChart3 className="w-4 h-4" />
+            </Button>
           </div>
 
-          {/* Evaluation Button */}
-          <Button
-            variant={panels.eval ? "default" : "outline"}
-            size="sm"
-            onClick={onOpenEval}
-            className={panels.eval 
-              ? "bg-zinc-700 text-white border-0" 
-              : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            }
-          >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Eval
-          </Button>
+
         </div>
       </div>
     </header>

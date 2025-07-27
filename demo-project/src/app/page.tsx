@@ -6,9 +6,9 @@ export default function PortfolioPage() {
       {/* Hero Section */}
       <section className="flex flex-col items-center justify-center text-center py-24 bg-white text-black rounded-xl px-8 mb-12 shadow-lg">
         <div className="w-32 h-32 rounded-full bg-secondary mb-6 flex items-center justify-center">
-          <Car className="w-16 h-16 text-primary" />
-        </div>
-        <h1 className="text-6xl font-bold mb-4 text-green-500">
+  <Car className="w-16 h-16 text-primary" />
+</div>
+        <h1 className="text-6xl font-bold mb-4 text-yellow-500">
           John Doe
         </h1>
         <p className="text-xl mb-6">

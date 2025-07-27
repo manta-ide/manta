@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, CheckCircle, Clock, TrendingUp, BarChart3, FileText, Play, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, TrendingUp, BarChart3, FileText, Play, RefreshCw, X, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/lib/store';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface EvaluationResult {
   testCaseId: string;
@@ -76,6 +77,12 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
   const [isStarting, setIsStarting] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const hasRefreshedRef = useRef<string | null>(null); // Track which job we've refreshed for
+  const lastResultCountRef = useRef<number>(0); // Track how many results we've processed
+  
+  // Resize functionality
+  const [width, setWidth] = useState(600);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   // Poll for job status updates
   useEffect(() => {
@@ -87,6 +94,28 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
           const response = await fetch(`/api/eval/status/${currentJob.jobId}`);
           if (response.ok) {
             const updatedJob = await response.json();
+            
+            // Check for new results since last update
+            const newResultCount = updatedJob.results.length;
+            const previousResultCount = lastResultCountRef.current;
+            
+            if (newResultCount > previousResultCount) {
+              // We have new results, check if any have file operations
+              const newResults = updatedJob.results.slice(previousResultCount);
+              const hasNewFileOperations = newResults.some((result: EvaluationResult) => 
+                result.fileOperations && result.fileOperations.length > 0
+              );
+              
+              if (hasNewFileOperations) {
+                console.log(`🔄 New test case completed with file operations, refreshing project files...`);
+                toast.info('Refreshing project files after test case completion...');
+                loadProjectFromFileSystem();
+              }
+              
+              // Update the count of processed results
+              lastResultCountRef.current = newResultCount;
+            }
+            
             setCurrentJob(updatedJob);
             
             if (updatedJob.isCompleted) {
@@ -107,28 +136,68 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [currentJob, isPolling]);
+  }, [currentJob, isPolling, loadProjectFromFileSystem]);
 
-  // Auto-refresh project files when evaluation completes with file operations
+  // Final refresh when evaluation completes (in case any file operations were missed during polling)
   useEffect(() => {
     if (currentJob && 
         currentJob.isCompleted && 
         currentJob.status === 'completed' &&
         hasRefreshedRef.current !== currentJob.jobId) {
       
-      // Check if any results have file operations
-      const hasFileOperations = currentJob.results.some(result => 
-        result.fileOperations && result.fileOperations.length > 0
-      );
-      
-      if (hasFileOperations) {
-        console.log('🔄 Evaluation completed with file operations, refreshing project files...');
-        toast.info('Refreshing project files after evaluation...');
-        loadProjectFromFileSystem();
-        hasRefreshedRef.current = currentJob.jobId; // Mark this job as refreshed
+      // Only do a final refresh if we haven't already processed all results
+      if (lastResultCountRef.current < currentJob.results.length) {
+        const remainingResults = currentJob.results.slice(lastResultCountRef.current);
+        const hasRemainingFileOperations = remainingResults.some(result => 
+          result.fileOperations && result.fileOperations.length > 0
+        );
+        
+        if (hasRemainingFileOperations) {
+          console.log('🔄 Final evaluation refresh for any missed file operations...');
+          loadProjectFromFileSystem();
+        }
       }
+      
+      hasRefreshedRef.current = currentJob.jobId; // Mark this job as refreshed
     }
   }, [currentJob, loadProjectFromFileSystem]);
+
+  // Resize handling
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !resizeRef.current) return;
+      
+      const rect = resizeRef.current.getBoundingClientRect();
+      const newWidth = rect.right - e.clientX;
+      setWidth(Math.max(400, Math.min(1200, newWidth))); // Min 400px, Max 1200px
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  // Chart data preparation
+  const chartData = currentJob?.results.map((result, index) => ({
+    testCase: result.testCaseId,
+    score: result.judgeScore,
+    index: index + 1,
+  })) || [];
 
   const startEvaluation = async () => {
     try {
@@ -155,6 +224,9 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
         results: [],
         isCompleted: false,
       });
+      
+      // Reset the result count tracker for the new job
+      lastResultCountRef.current = 0;
       
       setIsPolling(true);
       toast.success('Evaluation started!');
@@ -202,7 +274,20 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
   if (!isOpen) return null;
 
   return (
-    <div className="w-[600px] flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
+    <div 
+      ref={resizeRef}
+      className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700 relative"
+      style={{ width: `${width}px` }}
+    >
+      {/* Resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1 bg-zinc-600 hover:bg-zinc-500 cursor-col-resize z-10 group"
+        onMouseDown={startResize}
+      >
+        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <GripVertical className="h-4 w-4 text-zinc-400" />
+        </div>
+      </div>
       {/* Header */}
       <div className="p-4 border-b border-zinc-700 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -220,9 +305,9 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden pl-3 pr-2"> {/* Add padding for resize handle and right margin */}
         <Tabs defaultValue="setup" className="h-full flex flex-col">
-          <TabsList className="mx-4 mt-4 grid w-auto grid-cols-2 bg-zinc-800">
+          <TabsList className="mx-4 mt-4 grid w-auto grid-cols-3 bg-zinc-800">
             <TabsTrigger value="setup" className="data-[state=active]:bg-zinc-700">
               <FileText className="h-4 w-4 mr-2" />
               Setup
@@ -230,6 +315,10 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
             <TabsTrigger value="results" className="data-[state=active]:bg-zinc-700">
               <TrendingUp className="h-4 w-4 mr-2" />
               Results
+            </TabsTrigger>
+            <TabsTrigger value="chart" className="data-[state=active]:bg-zinc-700">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Chart
             </TabsTrigger>
           </TabsList>
 
@@ -357,25 +446,25 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                     <CardContent>
                       <div className="space-y-4">
                         {currentJob.results.map((result) => (
-                          <div key={result.testCaseId} className="p-4 rounded-lg border border-zinc-600 bg-zinc-900">
+                          <div key={result.testCaseId} className="p-4 rounded-lg border border-zinc-600 bg-zinc-900 overflow-hidden">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-medium text-white">{result.testCaseId}</h4>
+                              <h4 className="font-medium text-white break-words">{result.testCaseId}</h4>
                               <Badge className={getScoreColor(result.judgeScore)}>
                                 {result.judgeScore}/10
                               </Badge>
                             </div>
                             
-                            <div className="space-y-3">
+                            <div className="space-y-3 overflow-hidden">
                               <div>
                                 <div className="text-sm font-medium text-zinc-400 mb-1">Input:</div>
-                                <div className="text-sm bg-zinc-800 p-2 rounded text-zinc-200">
+                                <div className="text-sm bg-zinc-800 p-2 rounded text-zinc-200 break-words">
                                   {result.input}
                                 </div>
                               </div>
                               
                               <div>
                                 <div className="text-sm font-medium text-zinc-400 mb-1">AI Response:</div>
-                                <div className="text-sm bg-zinc-800 p-2 rounded max-h-32 overflow-y-auto text-zinc-200">
+                                <div className="text-sm bg-zinc-800 p-2 rounded max-h-32 overflow-y-auto text-zinc-200 break-words whitespace-pre-wrap">
                                   {result.aiResponse}
                                 </div>
                               </div>
@@ -387,8 +476,8 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                                   <div className="text-sm bg-zinc-800 p-2 rounded text-zinc-200 max-h-64 overflow-y-auto">
                                     {result.toolCalls.map((toolCall, i) => (
                                       <div key={i} className="mb-2 border-b border-zinc-700 pb-2 last:border-b-0 last:pb-0">
-                                        <span className="text-blue-400">{toolCall.toolName}</span>: {' '}
-                                        <pre className="text-xs mt-1 overflow-x-auto">
+                                        <span className="text-blue-400 break-words">{toolCall.toolName}</span>: {' '}
+                                        <pre className="text-xs mt-1 overflow-x-auto whitespace-pre-wrap break-words">
                                           {JSON.stringify(toolCall.args, null, 2)}
                                         </pre>
                                       </div>
@@ -410,11 +499,11 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                                           op.type === 'patch' ? 'text-yellow-400' : 'text-red-400'
                                         }>
                                           {op.type}
-                                        </span>: {op.path}
+                                        </span>: <span className="break-all">{op.path}</span>
                                         {(op.type === 'create' || op.type === 'update' || op.type === 'patch') && op.content && (
                                           <div className="mt-1">
                                             <div className="text-xs opacity-75">Content preview:</div>
-                                            <pre className="text-xs mt-1 overflow-x-auto max-h-20">
+                                            <pre className="text-xs mt-1 overflow-x-auto max-h-20 whitespace-pre-wrap break-words">
                                               {op.content.length > 500 
                                                 ? op.content.substring(0, 500) + '...' 
                                                 : op.content}
@@ -429,7 +518,7 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                               
                               <div>
                                 <div className="text-sm font-medium text-zinc-400 mb-1">Judge Reasoning:</div>
-                                <div className="text-sm bg-zinc-800 p-2 rounded text-zinc-200">
+                                <div className="text-sm bg-zinc-800 p-2 rounded text-zinc-200 break-words whitespace-pre-wrap">
                                   {result.judgeReasoning}
                                 </div>
                               </div>
@@ -447,6 +536,166 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                       <BarChart3 className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
                       <p className="text-zinc-400">No evaluation results yet</p>
                       <p className="text-zinc-500 text-sm">Start an evaluation to see results here</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="chart" className="flex-1 overflow-hidden m-4 mt-2">
+            <ScrollArea className="h-full">
+              <div className="space-y-4">
+                {currentJob?.results && currentJob.results.length > 0 ? (
+                  <>
+                    {/* Score Chart */}
+                    <Card className="bg-zinc-800 border-zinc-700">
+                      <CardHeader>
+                        <CardTitle className="text-white">Score Distribution</CardTitle>
+                        <CardDescription className="text-zinc-400">
+                          Judge scores for each test case
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                              <XAxis 
+                                dataKey="testCase" 
+                                stroke="#9CA3AF"
+                                fontSize={12}
+                                angle={-45}
+                                textAnchor="end"
+                                height={80}
+                              />
+                              <YAxis 
+                                stroke="#9CA3AF"
+                                fontSize={12}
+                                domain={[0, 10]}
+                              />
+                              <Tooltip 
+                                contentStyle={{
+                                  backgroundColor: '#1F2937',
+                                  border: '1px solid #374151',
+                                  borderRadius: '6px',
+                                  color: '#F3F4F6'
+                                }}
+                                formatter={(value: number) => [`${value}/10`, 'Score']}
+                              />
+                              <Bar 
+                                dataKey="score" 
+                                fill="#3B82F6"
+                                radius={[4, 4, 0, 0]}
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Score Trend */}
+                    <Card className="bg-zinc-800 border-zinc-700">
+                      <CardHeader>
+                        <CardTitle className="text-white">Score Trend</CardTitle>
+                        <CardDescription className="text-zinc-400">
+                          Performance across test cases over time
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                              <XAxis 
+                                dataKey="index" 
+                                stroke="#9CA3AF"
+                                fontSize={12}
+                                label={{ value: 'Test Case Order', position: 'insideBottom', offset: -5, style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
+                              />
+                              <YAxis 
+                                stroke="#9CA3AF"
+                                fontSize={12}
+                                domain={[0, 10]}
+                                label={{ value: 'Score', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
+                              />
+                              <Tooltip 
+                                contentStyle={{
+                                  backgroundColor: '#1F2937',
+                                  border: '1px solid #374151',
+                                  borderRadius: '6px',
+                                  color: '#F3F4F6'
+                                }}
+                                formatter={(value: number, name: string, props: any) => [
+                                  `${value}/10`,
+                                  'Score',
+                                  props.payload.testCase
+                                ]}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="score" 
+                                stroke="#10B981" 
+                                strokeWidth={2}
+                                dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                                activeDot={{ r: 6, stroke: '#10B981', strokeWidth: 2, fill: '#1F2937' }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Summary Stats */}
+                    {currentJob.statistics && (
+                      <Card className="bg-zinc-800 border-zinc-700">
+                        <CardHeader>
+                          <CardTitle className="text-white">Statistical Summary</CardTitle>
+                          <CardDescription className="text-zinc-400">
+                            Detailed performance metrics
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div className="flex justify-between">
+                                <span className="text-zinc-400">Average Score:</span>
+                                <span className="text-white font-mono">{currentJob.statistics.average.toFixed(2)}/10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-zinc-400">Median Score:</span>
+                                <span className="text-white font-mono">{currentJob.statistics.median.toFixed(2)}/10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-zinc-400">Standard Deviation:</span>
+                                <span className="text-white font-mono">{currentJob.statistics.standardDeviation.toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <div className="flex justify-between">
+                                <span className="text-zinc-400">Total Tests:</span>
+                                <span className="text-white font-mono">{currentJob.statistics.count}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-zinc-400">Best Score:</span>
+                                <span className="text-white font-mono">{Math.max(...chartData.map(d => d.score))}/10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-zinc-400">Worst Score:</span>
+                                <span className="text-white font-mono">{Math.min(...chartData.map(d => d.score))}/10</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                ) : (
+                  <Card className="bg-zinc-800 border-zinc-700">
+                    <CardContent className="text-center py-8">
+                      <BarChart3 className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+                      <p className="text-zinc-400">No evaluation data available</p>
+                      <p className="text-zinc-500 text-sm">Run an evaluation to see charts and analytics</p>
                     </CardContent>
                   </Card>
                 )}
