@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, CheckCircle, Clock, TrendingUp, BarChart3, FileText, Play, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useProjectStore } from '@/lib/store';
 
 interface EvaluationResult {
   testCaseId: string;
@@ -69,10 +70,12 @@ const defaultDataset = `{
 }`;
 
 export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowProps) {
+  const { loadProjectFromFileSystem } = useProjectStore();
   const [datasetInput, setDatasetInput] = useState(defaultDataset);
   const [currentJob, setCurrentJob] = useState<EvaluationJob | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  const hasRefreshedRef = useRef<string | null>(null); // Track which job we've refreshed for
 
   // Poll for job status updates
   useEffect(() => {
@@ -105,6 +108,27 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
       if (interval) clearInterval(interval);
     };
   }, [currentJob, isPolling]);
+
+  // Auto-refresh project files when evaluation completes with file operations
+  useEffect(() => {
+    if (currentJob && 
+        currentJob.isCompleted && 
+        currentJob.status === 'completed' &&
+        hasRefreshedRef.current !== currentJob.jobId) {
+      
+      // Check if any results have file operations
+      const hasFileOperations = currentJob.results.some(result => 
+        result.fileOperations && result.fileOperations.length > 0
+      );
+      
+      if (hasFileOperations) {
+        console.log('🔄 Evaluation completed with file operations, refreshing project files...');
+        toast.info('Refreshing project files after evaluation...');
+        loadProjectFromFileSystem();
+        hasRefreshedRef.current = currentJob.jobId; // Mark this job as refreshed
+      }
+    }
+  }, [currentJob, loadProjectFromFileSystem]);
 
   const startEvaluation = async () => {
     try {

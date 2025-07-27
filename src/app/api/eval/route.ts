@@ -242,8 +242,8 @@ async function judgeResponse(fullContext: any): Promise<{ score: number; reasoni
 // Async function to process all test cases
 async function processEvaluation(jobId: string, testCases: TestCase[]) {
   try {
-    // Load project files once for all test cases
-    const projectFiles = await loadProjectFiles();
+    // Load project files initially
+    let projectFiles = await loadProjectFiles();
     const results: EvalResult[] = [];
     
     for (let i = 0; i < testCases.length; i++) {
@@ -273,6 +273,12 @@ async function processEvaluation(jobId: string, testCases: TestCase[]) {
           };
         
         results.push(result);
+        
+        // If this test case performed file operations, reload project files for next test case
+        if (fullContext.toolContext.fileOperations && fullContext.toolContext.fileOperations.length > 0) {
+          console.log(`🔄 Reloading project files after test case ${testCaseId} (${fullContext.toolContext.fileOperations.length} file operations)`);
+          projectFiles = await loadProjectFiles();
+        }
         
         // Update progress
         const progress = Math.round(((i + 1) / testCases.length) * 100);
