@@ -96,4 +96,9 @@ body {
   color: hsl(var(--foreground));
   font-family: 'Inter', sans-serif;
   transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Style all header elements red */
+h1, h2, h3, h4, h5, h6 {
+  color: red;
 } 
