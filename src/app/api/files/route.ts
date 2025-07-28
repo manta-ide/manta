@@ -153,13 +153,20 @@ export async function PUT(request: NextRequest) {
 // DELETE: Delete file
 export async function DELETE(request: NextRequest) {
   try {
-    const { filePath } = await request.json();
+    const { filePath, isDirectory } = await request.json();
     const fullPath = path.join(PROJECT_ROOT, filePath);
-    await fs.unlink(fullPath);
+    
+    if (isDirectory) {
+      // Delete directory (only if empty)
+      await fs.rmdir(fullPath);
+    } else {
+      // Delete file
+      await fs.unlink(fullPath);
+    }
     
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting file:', error);
-    return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
+    console.error('Error deleting:', error);
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 } 

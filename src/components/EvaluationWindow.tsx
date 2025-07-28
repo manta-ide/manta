@@ -265,9 +265,9 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 9) return 'bg-green-100 text-green-800';
-    if (score >= 7) return 'bg-blue-100 text-blue-800';
-    if (score >= 5) return 'bg-yellow-100 text-yellow-800';
+    if (score >= 90) return 'bg-green-100 text-green-800';
+    if (score >= 70) return 'bg-blue-100 text-blue-800';
+    if (score >= 50) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -450,7 +450,7 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="font-medium text-white break-words">{result.testCaseId}</h4>
                               <Badge className={getScoreColor(result.judgeScore)}>
-                                {result.judgeScore}/10
+                                {result.judgeScore}/100
                               </Badge>
                             </div>
                             
@@ -572,7 +572,7 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                               <YAxis 
                                 stroke="#9CA3AF"
                                 fontSize={12}
-                                domain={[0, 10]}
+                                domain={[0, 100]}
                               />
                               <Tooltip 
                                 contentStyle={{
@@ -581,7 +581,7 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                                   borderRadius: '6px',
                                   color: '#F3F4F6'
                                 }}
-                                formatter={(value: number) => [`${value}/10`, 'Score']}
+                                formatter={(value: number) => [`${value}/100`, 'Score']}
                               />
                               <Bar 
                                 dataKey="score" 
@@ -616,7 +616,7 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                               <YAxis 
                                 stroke="#9CA3AF"
                                 fontSize={12}
-                                domain={[0, 10]}
+                                domain={[0, 100]}
                                 label={{ value: 'Score', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
                               />
                               <Tooltip 
@@ -627,7 +627,7 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                                   color: '#F3F4F6'
                                 }}
                                 formatter={(value: number, name: string, props: any) => [
-                                  `${value}/10`,
+                                  `${value}/100`,
                                   'Score',
                                   props.payload.testCase
                                 ]}
@@ -660,11 +660,11 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                             <div className="space-y-4">
                               <div className="flex justify-between">
                                 <span className="text-zinc-400">Average Score:</span>
-                                <span className="text-white font-mono">{currentJob.statistics.average.toFixed(2)}/10</span>
+                                <span className="text-white font-mono">{currentJob.statistics.average.toFixed(2)}/100</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-zinc-400">Median Score:</span>
-                                <span className="text-white font-mono">{currentJob.statistics.median.toFixed(2)}/10</span>
+                                <span className="text-white font-mono">{currentJob.statistics.median.toFixed(2)}/100</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-zinc-400">Standard Deviation:</span>
@@ -678,11 +678,11 @@ export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowPr
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-zinc-400">Best Score:</span>
-                                <span className="text-white font-mono">{Math.max(...chartData.map(d => d.score))}/10</span>
+                                <span className="text-white font-mono">{Math.max(...chartData.map(d => d.score))}/100</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-zinc-400">Worst Score:</span>
-                                <span className="text-white font-mono">{Math.min(...chartData.map(d => d.score))}/10</span>
+                                <span className="text-white font-mono">{Math.min(...chartData.map(d => d.score))}/100</span>
                               </div>
                             </div>
                           </div>

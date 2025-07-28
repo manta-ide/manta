@@ -1,4 +1,5 @@
 import { Mail, Github, Linkedin, Car } from 'lucide-react';
+import './globals.css';
 
 export default function PortfolioPage() {
   return (

@@ -21,6 +21,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const job = getJob(jobId);
     
     if (!job) {
+      console.error(`Job not found: ${jobId}`);
       return NextResponse.json(
         { error: 'Job not found' },
         { status: 404 }

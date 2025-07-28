@@ -20,7 +20,7 @@ import { isValidSelection } from '../lib/messageContextUtils';
 
 // Judge response schema for structured output
 const JudgeResponseSchema = z.object({
-  score: z.number().min(1).max(10),
+  score: z.number().min(1).max(100),
   reasoning: z.string(),
 });
 
@@ -44,6 +44,115 @@ async function loadProjectFiles(): Promise<Map<string, string>> {
   } catch (error) {
     console.error('Error loading project files:', error);
     return new Map();
+  }
+}
+
+// Function to restore project files to their original state
+async function restoreProjectFiles(originalFiles: Map<string, string>) {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
+    // Get current files to compare
+    const currentFiles = await loadProjectFiles();
+    
+    // Restore original files that were modified or deleted
+    for (const [filePath, originalContent] of originalFiles) {
+      const currentContent = currentFiles.get(filePath);
+      
+      if (!currentContent || currentContent !== originalContent) {
+        // File was deleted or modified, restore it
+        await fetch(`${baseUrl}/api/files`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filePath,
+            content: originalContent,
+          }),
+        });
+      }
+    }
+    
+    // Delete any new files that were created during testing
+    for (const [filePath] of currentFiles) {
+      if (!originalFiles.has(filePath)) {
+        // This is a new file, delete it
+        await fetch(`${baseUrl}/api/files`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ filePath }),
+        });
+      }
+    }
+    
+    // Clean up any empty directories that were created during testing
+    await cleanupEmptyDirectories(originalFiles, currentFiles, baseUrl);
+    
+    console.log('✅ Project files restored to original state');
+  } catch (error) {
+    console.error('Error restoring project files:', error);
+  }
+}
+
+// Helper function to extract unique directory paths from file paths
+function getDirectoryPaths(filePaths: string[]): Set<string> {
+  const directories = new Set<string>();
+  
+  for (const filePath of filePaths) {
+    const parts = filePath.split('/');
+    // Build nested directory paths (e.g., "a/b/c.txt" -> ["a", "a/b"])
+    for (let i = 1; i < parts.length; i++) {
+      const dirPath = parts.slice(0, i).join('/');
+      if (dirPath) {
+        directories.add(dirPath);
+      }
+    }
+  }
+  
+  return directories;
+}
+
+// Function to clean up empty directories created during testing
+async function cleanupEmptyDirectories(
+  originalFiles: Map<string, string>,
+  currentFiles: Map<string, string>,
+  baseUrl: string
+) {
+  try {
+    // Get directory paths from original and current file sets
+    const originalDirs = getDirectoryPaths(Array.from(originalFiles.keys()));
+    const currentDirs = getDirectoryPaths(Array.from(currentFiles.keys()));
+    
+    // Find directories that were created during testing
+    const newDirectories = Array.from(currentDirs).filter(dir => !originalDirs.has(dir));
+    
+    // Sort directories by depth (deepest first) to ensure we delete child dirs before parent dirs
+    newDirectories.sort((a, b) => b.split('/').length - a.split('/').length);
+    
+    // Try to delete each new directory (this will only succeed if they're empty after file cleanup)
+    for (const dirPath of newDirectories) {
+      try {
+        await fetch(`${baseUrl}/api/files`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            filePath: dirPath,
+            isDirectory: true 
+          }),
+        });
+        console.log(`🗑️ Cleaned up empty directory: ${dirPath}`);
+      } catch (error) {
+        // Directory might not be empty or might not exist, which is fine
+        // We only want to clean up truly empty directories
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up directories:', error);
   }
 }
 
@@ -241,9 +350,16 @@ async function judgeResponse(fullContext: any): Promise<{ score: number; reasoni
 
 // Async function to process all test cases
 async function processEvaluation(jobId: string, testCases: TestCase[]) {
+  // Save original file state for restoration after evaluation
+  let originalFiles: Map<string, string> | null = null;
+  
   try {
-    // Load project files initially
-    let projectFiles = await loadProjectFiles();
+    // Load and save original project files state
+    originalFiles = await loadProjectFiles();
+    console.log(`📁 Saved original state of ${originalFiles.size} files`);
+    
+    // Work with a copy of the files for the evaluation
+    let projectFiles = new Map(originalFiles);
     const results: EvalResult[] = [];
     
     for (let i = 0; i < testCases.length; i++) {
@@ -274,11 +390,12 @@ async function processEvaluation(jobId: string, testCases: TestCase[]) {
         
         results.push(result);
         
-        // If this test case performed file operations, reload project files for next test case
-        if (fullContext.toolContext.fileOperations && fullContext.toolContext.fileOperations.length > 0) {
-          console.log(`🔄 Reloading project files after test case ${testCaseId} (${fullContext.toolContext.fileOperations.length} file operations)`);
-          projectFiles = await loadProjectFiles();
-        }
+                 // If this test case performed file operations, restore original state for next test case
+         if (fullContext.toolContext.fileOperations && fullContext.toolContext.fileOperations.length > 0) {
+           console.log(`🔄 Restoring original state after test case ${testCaseId} (${fullContext.toolContext.fileOperations.length} file operations)`);
+           await restoreProjectFiles(originalFiles);
+           projectFiles = new Map(originalFiles); // Reset to original state
+         }
         
         // Update progress
         const progress = Math.round(((i + 1) / testCases.length) * 100);
@@ -324,6 +441,12 @@ async function processEvaluation(jobId: string, testCases: TestCase[]) {
       status: 'failed',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+  } finally {
+    // Always restore original file state after evaluation completes
+    if (originalFiles) {
+      console.log('🔄 Restoring project files to original state...');
+      await restoreProjectFiles(originalFiles);
+    }
   }
 }
 

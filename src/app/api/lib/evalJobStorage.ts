@@ -17,11 +17,14 @@ export function createJob(jobId: string, initialJob: Omit<EvalJob, 'jobId'>): Ev
   };
   
   jobStorage.set(jobId, job);
+  console.log(`✅ Created job: ${jobId}, storage size: ${jobStorage.size}`);
   return job;
 }
 
 export function getJob(jobId: string): EvalJob | undefined {
-  return jobStorage.get(jobId);
+  const job = jobStorage.get(jobId);
+  console.log(`🔍 Getting job: ${jobId}, found: ${!!job}, storage size: ${jobStorage.size}`);
+  return job;
 }
 
 export function updateJob(jobId: string, updates: Partial<EvalJob>): EvalJob | undefined {
