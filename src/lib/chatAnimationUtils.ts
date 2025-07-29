@@ -196,11 +196,15 @@ export async function processStreamLine(
   scrollRef: RefObject<HTMLDivElement | null>,
   onOperations: (operations: any[]) => Promise<void>,
   onComplete: () => void,
+  markActivity: () => void,
   onFullResponse?: (fullResponse: string) => void,
   onFileOperationCompleted?: () => Promise<void>
 ): Promise<void> {
   try {
     const evt = JSON.parse(line) as StreamEvent;
+
+    // Mark that we're actively receiving content for any stream event
+    markActivity();
 
     if (evt.t === 'token') {
       if (evt.d) {

@@ -23,11 +23,13 @@ import {
 export interface ChatServiceState {
   messages: Message[];
   loading: boolean;
+  activelyReceiving: boolean;
 }
 
 export interface ChatServiceActions {
   sendMessage: (input: string) => Promise<void>;
   clearMessages: () => void;
+  stopStream: () => void;
 }
 
 /**
@@ -39,6 +41,51 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activelyReceiving, setActivelyReceiving] = useState(false);
+
+  // Timer for managing actively receiving state
+  const activityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // AbortController for cancelling streams
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Function to mark activity and reset timer
+  const markStreamActivity = useCallback(() => {
+    setActivelyReceiving(true);
+    
+    // Clear existing timer
+    if (activityTimerRef.current) {
+      clearTimeout(activityTimerRef.current);
+    }
+    
+    // Set new timer to mark as not actively receiving after delay
+    activityTimerRef.current = setTimeout(() => {
+      setActivelyReceiving(false);
+    }, 2000); // 800ms delay - only show thinking during longer waits
+  }, []);
+
+  // Function to stop the current stream
+  const stopStream = useCallback(() => {
+    if (abortControllerRef.current) {
+      console.log('🛑 Stopping stream...');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Immediately stop typewriter animation and clear character queue
+    charQueueRef.current = [];
+    animatingRef.current = false;
+    streamIdxRef.current = null;
+    
+    setLoading(false);
+    setActivelyReceiving(false);
+    
+    // Clear any pending activity timer
+    if (activityTimerRef.current) {
+      clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = null;
+    }
+  }, []);
 
   // Streaming refs for animation state
   const charQueueRef = useRef<string[]>([]);
@@ -106,6 +153,9 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     setLoading(true);
 
     try {
+      // Create AbortController for this request
+      abortControllerRef.current = new AbortController();
+
       // Prepare API request with all files and current context
       const allFiles = getAllFiles();
       
@@ -132,6 +182,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),
+        signal: abortControllerRef.current.signal // Add abort signal to fetch
       });
 
       if (!res.ok || !res.body) throw new Error(await res.text());
@@ -161,79 +212,113 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       let buffered = '';
       let done = false;
 
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        if (readerDone) {
-          done = true;
-          if (buffered.length) {
-            await processStreamLine(
-              buffered,
-              streamingState,
-              setMessages,
-              scrollRef,
-              async () => {}, // No file operations - handled by backend
-              async () => {
-                // Clear selection only if it was valid and used
-                if (validSelection) {
-                  setSelection(null);
+      try {
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          if (readerDone) {
+            done = true;
+            if (buffered.length) {
+              await processStreamLine(
+                buffered,
+                streamingState,
+                setMessages,
+                scrollRef,
+                async () => {}, // No file operations - handled by backend
+                async () => {
+                  // Clear selection only if it was valid and used
+                  if (validSelection) {
+                    setSelection(null);
+                  }
+                },
+                markStreamActivity,
+                logResponse,
+                async () => {
+                  // Refresh project store when file operations complete
+                  console.log('🔄 Refreshing project store after file operation');
+                  await loadProjectFromFileSystem();
                 }
-              },
-              logResponse,
-              async () => {
-                // Refresh project store when file operations complete
-                console.log('🔄 Refreshing project store after file operation');
-                await loadProjectFromFileSystem();
-              }
-            );
+              );
+            }
+            break;
           }
-          break;
-        }
 
-        buffered += decoder.decode(value, { stream: true });
+          buffered += decoder.decode(value, { stream: true });
 
-        // Process NDJSON lines
-        let nl;
-        while ((nl = buffered.indexOf('\n')) >= 0) {
-          const line = buffered.slice(0, nl);
-          buffered = buffered.slice(nl + 1);
-          if (line.length) {
-            await processStreamLine(
-              line,
-              streamingState,
-              setMessages,
-              scrollRef,
-              async () => {}, // No file operations - handled by backend
-              async () => {
-                // Clear selection only if it was valid and used
-                if (validSelection) {
-                  setSelection(null);
+          // Process NDJSON lines
+          let nl;
+          while ((nl = buffered.indexOf('\n')) >= 0) {
+            const line = buffered.slice(0, nl);
+            buffered = buffered.slice(nl + 1);
+            if (line.length) {
+              await processStreamLine(
+                line,
+                streamingState,
+                setMessages,
+                scrollRef,
+                async () => {}, // No file operations - handled by backend
+                async () => {
+                  // Clear selection only if it was valid and used
+                  if (validSelection) {
+                    setSelection(null);
+                  }
+                },
+                markStreamActivity,
+                logResponse,
+                async () => {
+                  // Refresh project store when file operations complete
+                  console.log('🔄 Refreshing project store after file operation');
+                  await loadProjectFromFileSystem();
                 }
-              },
-              logResponse,
-              async () => {
-                // Refresh project store when file operations complete
-                console.log('🔄 Refreshing project store after file operation');
-                await loadProjectFromFileSystem();
-              }
-            );
+              );
+            }
           }
         }
+      } catch (streamErr) {
+        // Handle AbortError during stream reading
+        if (streamErr instanceof Error && streamErr.name === 'AbortError') {
+          console.log('🛑 Stream reading was cancelled');
+          return; // Exit early for aborted stream reading
+        }
+        throw streamErr; // Re-throw other errors
       }
     } catch (err) {
+      // Check if the error is due to abortion - don't treat as error
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('🛑 Stream was cancelled by user');
+        return; // Exit early for aborted requests
+      }
+      
       console.error('❌ Chat service error:', err);
     } finally {
       setLoading(false);
+      setActivelyReceiving(false);
+      
+      // Clear any pending activity timer
+      if (activityTimerRef.current) {
+        clearTimeout(activityTimerRef.current);
+        activityTimerRef.current = null;
+      }
+      
+      // Clean up abort controller
+      abortControllerRef.current = null;
     }
   }, [messages, currentFile, selection, getAllFiles, scrollRef, setSelection, loadProjectFromFileSystem]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
     setLoading(false);
+    setActivelyReceiving(false);
+    
+    // Clear any pending activity timer
+    if (activityTimerRef.current) {
+      clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = null;
+    }
   }, []);
 
   return {
-    state: { messages, loading },
-    actions: { sendMessage, clearMessages },
+    state: { messages, loading, activelyReceiving },
+    actions: { sendMessage, clearMessages, stopStream },
     streamIdxRef,
     streamingState
   };

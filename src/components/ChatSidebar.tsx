@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Send, Brain } from 'lucide-react';
+import { Send, Brain, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -47,8 +47,8 @@ export default function ChatSidebar() {
 
   // Use chat service for all chat logic
   const { state, actions, streamIdxRef, streamingState } = useChatService(scrollRef);
-  const { messages, loading } = state;
-  const { sendMessage } = actions;
+  const { messages, loading, activelyReceiving } = state;
+  const { sendMessage, stopStream } = actions;
 
   // Set up scroll event listener to track auto-scroll state
   useEffect(() => {
@@ -130,10 +130,10 @@ export default function ChatSidebar() {
           {messages.map((m, idx) => (
             <div key={idx} className="w-full">
               <div
-                className={`p-3 rounded-lg w-full text-sm ${
+                className={`rounded-lg w-full text-sm ${
                   m.role === 'user'
-                    ? 'bg-zinc-800 text-zinc-200'
-                    : 'bg-zinc-900 text-zinc-200'
+                    ? 'p-3 bg-zinc-800 text-zinc-200'
+                    : 'px-3 bg-zinc-900 text-zinc-200'
                 }`}
               >
                 {/* Display badges for context */}
@@ -154,6 +154,9 @@ export default function ChatSidebar() {
           
           {/* Show animated thinking indicator when loading and no stream started */}
           {loading && streamIdxRef.current === null && <ThinkingIndicator />}
+          
+          {/* Show thinking indicator during waiting periods between stream events */}
+          {loading && streamIdxRef.current !== null && !activelyReceiving && <ThinkingIndicator />}
         </div>
       </div>
       
@@ -175,9 +178,27 @@ export default function ChatSidebar() {
               placeholder="Ask AI to help with your project..."
               className="flex-1 resize-none text-sm field-sizing-content max-h-29.5 min-h-0 py-1.75 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400"
             />
-            <Button type="submit" size="icon" disabled={loading} className="shrink-0 bg-zinc-700 hover:bg-zinc-600">
-              <Send className="h-4 w-4" />
-            </Button>
+            {loading ? (
+              <Button 
+                type="button" 
+                size="icon" 
+                onClick={stopStream}
+                className="shrink-0 bg-zinc-700 hover:bg-zinc-600"
+                title="Stop generation"
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button 
+                type="submit" 
+                size="icon" 
+                disabled={!input.trim()}
+                className="shrink-0 bg-zinc-700 hover:bg-zinc-600"
+                title="Send message"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </form>
       </div>

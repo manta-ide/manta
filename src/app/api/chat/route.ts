@@ -186,12 +186,18 @@ export async function POST(req: NextRequest) {
       return { role: message.role, content };
     });
 
-    // Kick off model stream with tools
+    // Kick off model stream with tools and abort signal support
     const result = await streamText({
       model: azure('o4-mini'),
       messages: parsedMessages,
       tools: fileTools,
       maxSteps: 5, // Allow up to 5 steps for multi-step operations
+      abortSignal: req.signal, // Forward the abort signal for stream cancellation
+      providerOptions: {
+        azure: {
+          reasoning_effort: 'high'
+        }
+      }
     });
 
     const encoder = new TextEncoder();
