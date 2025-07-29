@@ -15,8 +15,8 @@ import {
   MessageVariablesSchema
 } from '../lib/schemas';
 
-// Project root for file operations (demo-project directory)
-const PROJECT_ROOT = join(process.cwd(), 'demo-project');
+// Project root for file operations (base-template directory)
+const PROJECT_ROOT = join(process.cwd(), 'base-template');
 
 // File operation tools
 const fileTools = {

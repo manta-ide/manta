@@ -10,7 +10,7 @@ interface FileNode {
   content?: string;
 }
 
-const PROJECT_ROOT = path.join(process.cwd(), 'demo-project');
+const PROJECT_ROOT = path.join(process.cwd(), 'base-template');
 
 // Directories and files to exclude from the editor
 const EXCLUDED_DIRS = new Set([
