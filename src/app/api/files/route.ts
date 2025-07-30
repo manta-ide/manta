@@ -106,12 +106,33 @@ async function readDirectoryStructure(dirPath: string, relativePath: string = ''
   return { files, fileTree };
 }
 
-// GET: Load all files
-export async function GET() {
+// GET: Load file list with lengths (for conversation storage)
+export async function GET(request: NextRequest) {
   try {
-    const { files, fileTree } = await readDirectoryStructure(PROJECT_ROOT);
-    const filesObj = Object.fromEntries(files);
-    return NextResponse.json({ files: filesObj, fileTree });
+    const url = new URL(request.url);
+    const listOnly = url.searchParams.get('list') === 'true';
+    const filePath = url.searchParams.get('path');
+    
+    if (filePath) {
+      // Return specific file content
+      const { files } = await readDirectoryStructure(PROJECT_ROOT);
+      const content = files.get(filePath) || '';
+      return NextResponse.json({ content, path: filePath });
+    } else if (listOnly) {
+      // Return just file list with lengths
+      const { files } = await readDirectoryStructure(PROJECT_ROOT);
+
+      const fileList = Array.from(files.entries()).map(([path, content]) => ({
+        route: path,
+        lines: content.split('\n').length
+      }));
+      return NextResponse.json({ files: fileList });
+    } else {
+      // Return full files and file tree
+      const { files, fileTree } = await readDirectoryStructure(PROJECT_ROOT);
+      const filesObj = Object.fromEntries(files);
+      return NextResponse.json({ files: filesObj, fileTree });
+    }
   } catch (error) {
     console.error('Error loading project:', error);
     return NextResponse.json({ error: 'Failed to load project' }, { status: 500 });

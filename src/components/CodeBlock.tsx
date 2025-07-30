@@ -285,6 +285,33 @@ function ToolStatusBlock({ code, language }: { code: string; language: string })
   const toolName = parts[1] || 'tool';
   const status = parts[2] || 'calling';
   
+  // Handle readFile tool specifically
+  if (toolName === 'readFile') {
+    const filename = parts[3] || 'file';
+    const displayName = filename.split('/').pop() || filename;
+    const isLoading = status === 'calling';
+    
+    return (
+      <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
+        <div className="bg-gradient-to-r from-zinc-800/80 to-zinc-700/80 px-4 py-2 flex items-center justify-between hover:from-zinc-700/80 hover:to-zinc-600/80 transition-all duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-zinc-400/80"></div>
+            <span className="text-sm font-medium text-zinc-200/70">
+              {isLoading ? `Reading ${displayName}` : `Read ${displayName}`}
+            </span>
+            {isLoading && (
+              <div className="flex items-center gap-1">
+                <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
+                <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1.5s' }}></div>
+                <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1.5s' }}></div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   const isCompleted = status === 'completed';
   const icon = isCompleted ? '✅' : '🔧';
   const statusText = isCompleted ? `${toolName} completed` : `Calling ${toolName}`;

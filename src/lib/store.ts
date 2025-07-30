@@ -15,7 +15,7 @@ interface ProjectStore {
   fileTree: FileNode[];
   selection: { x: number; y: number; width: number; height: number } | null;
   
-  loadProjectFromFileSystem: () => Promise<void>;
+  loadProject: () => Promise<void>;
   setFileContent: (path: string, content: string) => Promise<void>;
   deleteFile: (path: string) => Promise<void>;
   createFile: (path: string, content: string) => Promise<void>;
@@ -34,7 +34,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   fileTree: [],
   selection: null,
 
-  loadProjectFromFileSystem: async () => {
+  loadProject: async () => {
     try {
       console.log('📂 Loading project from filesystem...');
       const response = await fetch('/api/files');
@@ -97,7 +97,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         
         // Refresh the file tree to reflect the deletion
         console.log('🔄 Refreshing file tree after delete');
-        await get().loadProjectFromFileSystem();
+        await get().loadProject();
       } else {
         const data = await response.json();
         console.error('❌ Error deleting file:', data.error);
@@ -124,7 +124,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         
         // Refresh the file tree to reflect the new file
         console.log('🔄 Refreshing file tree after create');
-        await get().loadProjectFromFileSystem();
+        await get().loadProject();
       } else {
         const data = await response.json();
         console.error('❌ Error creating file:', data.error);

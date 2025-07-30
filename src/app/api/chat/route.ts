@@ -1,175 +1,20 @@
 import { NextRequest } from 'next/server';
-import { streamText, tool } from 'ai';
+import { streamText } from 'ai';
 import { azure, createAzure } from '@ai-sdk/azure';
-import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
-import { promises as fs } from 'fs';
-import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
-import { join } from 'path';
-import { applyAllDiffBlocks } from '@/app/diffHelpers';
+import { fileTools } from '@/app/api/lib/aiFileTools';
 import { 
   Message, 
   ParsedMessage, 
-  ChatRequestSchema,
+  ClientChatRequestSchema,
   MessageVariablesSchema
 } from '../lib/schemas';
-
-// Project root for file operations (base-template directory)
-const PROJECT_ROOT = join(process.cwd(), 'base-template');
-
-// File operation tools
-const fileTools = {
-  createFile: tool({
-    description: 'Create a new file with the given content',
-    parameters: z.object({
-      path: z.string().describe('The file path relative to the project root'),
-      content: z.string().describe('The content to write to the file'),
-    }),
-    execute: async ({ path, content }) => {
-      try {
-        const fullPath = join(PROJECT_ROOT, path);
-        const dir = dirname(fullPath);
-        
-        // Create directory if it doesn't exist
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
-        }
-        
-        writeFileSync(fullPath, content, 'utf-8');
-        return { 
-          success: true, 
-          message: `Created file: ${path}`,
-          operation: { type: 'create', path, content }
-        };
-      } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to create file: ${error}`,
-          operation: { type: 'create', path, content }
-        };
-      }
-    },
-  }),
-
-  updateFile: tool({
-    description: 'Update an existing file with new content',
-    parameters: z.object({
-      path: z.string().describe('The file path relative to the project root'),
-      content: z.string().describe('The new content for the file'),
-    }),
-    execute: async ({ path, content }) => {
-      try {
-        const fullPath = join(PROJECT_ROOT, path);
-        
-        if (!existsSync(fullPath)) {
-          return { 
-            success: false, 
-            message: `File does not exist: ${path}`,
-            operation: { type: 'update', path, content }
-          };
-        }
-        
-        writeFileSync(fullPath, content, 'utf-8');
-        return { 
-          success: true, 
-          message: `Updated file: ${path}`,
-          operation: { type: 'update', path, content }
-        };
-      } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to update file: ${error}`,
-          operation: { type: 'update', path, content }
-        };
-      }
-    },
-  }),
-
-  patchFile: tool({
-    description: 'Apply a patch to an existing file using unified diff format',
-    parameters: z.object({
-      path: z.string().describe('The file path relative to the project root'),
-      patch: z.string().describe('The unified diff patch to apply'),
-    }),
-    execute: async ({ path, patch }) => {
-      try {
-        const fullPath = join(PROJECT_ROOT, path);
-        
-        if (!existsSync(fullPath)) {
-          return { 
-            success: false, 
-            message: `File does not exist: ${path}`,
-            operation: { type: 'patch', path, content: patch }
-          };
-        }
-        
-        // Read current content and apply patch
-        const currentContent = readFileSync(fullPath, 'utf-8');
-        const newContent = applyAllDiffBlocks(currentContent, [patch]);
-        
-        if (newContent !== currentContent) {
-          writeFileSync(fullPath, newContent, 'utf-8');
-          return { 
-            success: true, 
-            message: `Patch applied successfully to: ${path}`,
-            operation: { type: 'patch', path, content: patch }
-          };
-        } else {
-          return { 
-            success: false, 
-            message: `Patch application failed - no changes made to: ${path}`,
-            operation: { type: 'patch', path, content: patch }
-          };
-        }
-      } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to patch file: ${error}`,
-          operation: { type: 'patch', path, content: patch }
-        };
-      }
-    },
-  }),
-
-  deleteFile: tool({
-    description: 'Delete an existing file',
-    parameters: z.object({
-      path: z.string().describe('The file path relative to the project root'),
-    }),
-    execute: async ({ path }) => {
-      try {
-        const fullPath = join(PROJECT_ROOT, path);
-        
-        if (!existsSync(fullPath)) {
-          return { 
-            success: false, 
-            message: `File does not exist: ${path}`,
-            operation: { type: 'delete', path }
-          };
-        }
-        
-        unlinkSync(fullPath);
-        return { 
-          success: true, 
-          message: `Deleted file: ${path}`,
-          operation: { type: 'delete', path }
-        };
-      } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to delete file: ${error}`,
-          operation: { type: 'delete', path }
-        };
-      }
-    },
-  }),
-};
+import { buildConversationForAI, addMessageToSession } from '../lib/conversationStorage';
 
 export async function POST(req: NextRequest) {
   try {
     // Parse and validate the request body using Zod
-    const { messages } = ChatRequestSchema.parse(await req.json());
+    const { userMessage, sessionId = 'default' } = ClientChatRequestSchema.parse(await req.json());
 
     const templates = {
       'user': await getTemplate('user-prompt-template'),
@@ -177,15 +22,19 @@ export async function POST(req: NextRequest) {
       'system': await getTemplate('system-prompt-template')
     };
 
+    // Build the complete conversation on the backend
+    const allMessages = await buildConversationForAI(sessionId, userMessage);
+
     // Parse all messages uniformly, with Zod validation on variables
-    const parsedMessages: ParsedMessage[] = messages.map(message => {
+    const parsedMessages: ParsedMessage[] = allMessages.map(message => {
       const template = templates[message.role];
       // Validate message variables against schema before using them
       const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
       const content = parseMessageWithTemplate(template, validatedVariables);
       return { role: message.role, content };
     });
-
+    console.log("PARSED MESSAGES");
+    console.log(JSON.stringify(allMessages.map(m => m.variables), null, 2));
     // Kick off model stream with tools and abort signal support
     const result = await streamText({
       model: azure('o4-mini'),
@@ -204,7 +53,6 @@ export async function POST(req: NextRequest) {
     let full = '';
     const toolCalls: any[] = [];
     const toolResults: any[] = [];
-    const fileOperations: any[] = [];
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -226,7 +74,9 @@ export async function POST(req: NextRequest) {
                   encoder.encode(JSON.stringify({ 
                     t: 'tool_call', 
                     toolName: chunk.toolName,
-                    args: chunk.args 
+                    args: chunk.args,
+                    // For readFile, include the filename in the language for proper display
+                    language: chunk.toolName === 'readFile' ? `tool-status:readFile:calling:${chunk.args.path}` : undefined
                   }) + '\n')
                 );
                 break;
@@ -234,9 +84,9 @@ export async function POST(req: NextRequest) {
               case 'tool-result':
                 toolResults.push(chunk);
                 
-                // Extract file operation from tool result
-                if (chunk.result?.operation) {
-                  fileOperations.push(chunk.result.operation);
+                // Extract file operation from tool result (only for tools that have operations)
+                if ((chunk.result as any)?.operation && ['createFile', 'updateFile', 'patchFile', 'deleteFile'].includes(chunk.toolName)) {
+                  // The file operations are now collected from toolResults
                 }
                 
                 // Send tool result to UI, including any file content for code blocks
@@ -254,6 +104,15 @@ export async function POST(req: NextRequest) {
                       language: chunk.toolName === 'createFile' ? `create:${toolCall.args.path}` : `update:${toolCall.args.path}`,
                       filename: toolCall.args.path,
                       content: toolCall.args.content
+                    };
+                  }
+                } else if (chunk.toolName === 'readFile') {
+                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
+                  if (toolCall && chunk.result?.success) {
+                    resultData.codeBlock = {
+                      language: `tool-status:readFile:completed:${toolCall.args.path}`,
+                      filename: toolCall.args.path,
+                      content: chunk.result.content
                     };
                   }
                 } else if (chunk.toolName === 'patchFile') {
@@ -291,13 +150,27 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          // Add assistant response to session
+          const assistantMessage: Message = {
+            role: 'assistant',
+            content: full,
+            variables: {
+              ASSISTANT_RESPONSE: full
+            }
+          };
+          addMessageToSession(sessionId, assistantMessage);
+
           // Send final completion with file operations for the old system compatibility
+          const allFileOperations = toolResults
+            .map(tr => (tr.result as any)?.operation)
+            .filter(Boolean);
+
           controller.enqueue(
             encoder.encode(
               JSON.stringify({ 
                 t: 'final', 
                 reply: full, 
-                operations: fileOperations,
+                operations: allFileOperations,
                 toolCalls: toolCalls.length,
                 toolResults: toolResults.length 
               }) + '\n'

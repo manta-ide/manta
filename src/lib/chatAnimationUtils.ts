@@ -232,6 +232,9 @@ export async function processStreamLine(
         } else if (evt.toolName === 'deleteFile') {
           const filePath = evt.args?.path || 'file';
           toolMessage = `\n\`\`\`delete:${filePath}:calling\nPreparing to delete file...\n\`\`\`\n`;
+        } else if (evt.toolName === 'readFile') {
+          const filePath = evt.args?.path || 'file';
+          toolMessage = `\n\`\`\`tool-status:readFile:calling:${filePath}\nReading file...\n\`\`\`\n`;
         } else {
           // Fallback for other tools
           toolMessage = `\n\`\`\`tool-status:${evt.toolName}:calling\n🔧 Calling ${evt.toolName}\n\`\`\`\n`;
@@ -294,6 +297,11 @@ export async function processStreamLine(
             const filePath = evt.codeBlock.filename;
             const callingPattern = `\`\`\`delete:${filePath}:calling\nPreparing to delete file...\n\`\`\``;
             const resultBlock = `\`\`\`${evt.codeBlock.language}\nFile deleted: ${filePath}\n\`\`\``;
+            newContent = newContent.replace(callingPattern, resultBlock);
+          } else if (evt.toolName === 'readFile') {
+            const filePath = evt.codeBlock.filename;
+            const callingPattern = `\`\`\`tool-status:readFile:calling:${filePath}\nReading file...\n\`\`\``;
+            const resultBlock = `\`\`\`${evt.codeBlock.language}\n${evt.codeBlock.content}\n\`\`\``;
             newContent = newContent.replace(callingPattern, resultBlock);
           }
         } else {

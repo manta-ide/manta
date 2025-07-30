@@ -71,7 +71,7 @@ const defaultDataset = `{
 }`;
 
 export default function EvaluationWindow({ isOpen, onClose }: EvaluationWindowProps) {
-  const { loadProjectFromFileSystem } = useProjectStore();
+  const { loadProject: loadProjectFromFileSystem } = useProjectStore();
   const [datasetInput, setDatasetInput] = useState(defaultDataset);
   const [currentJob, setCurrentJob] = useState<EvaluationJob | null>(null);
   const [isStarting, setIsStarting] = useState(false);

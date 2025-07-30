@@ -24,8 +24,9 @@ export async function getTemplate(templateName: string): Promise<string> {
  * Supports:
  * - {{variable}} - Simple variable replacement
  * - {{#variable}}content{{/variable}} - Conditional sections (show if variable has value)
+ * - Special handling for PROJECT_FILES array
  */
-export function parseTemplate(template: string, variables: Record<string, string>): string {
+export function parseTemplate(template: string, variables: Record<string, any>): string {
   let result = template;
   
   // Handle conditional sections first
@@ -41,11 +42,18 @@ export function parseTemplate(template: string, variables: Record<string, string
       return value ? content : '';
     });
   });
-  
   // Replace regular variables
   Object.entries(variables).forEach(([key, value]) => {
     const placeholder = `{{${key}}}`;
-    result = result.replace(new RegExp(placeholder, 'g'), value);
+    // Special handling for PROJECT_FILES array
+    if (key === 'PROJECT_FILES' && Array.isArray(value)) {
+      const fileList = value.map(file => `${file.route} (${file.lines} lines)`).join('\n');
+      result = result.replace(new RegExp(placeholder, 'g'), fileList);
+    } else {
+      // Convert any value to string for regular variables
+      const stringValue = value ? String(value) : '';
+      result = result.replace(new RegExp(placeholder, 'g'), stringValue);
+    }
   });
   
   return result;
@@ -54,6 +62,6 @@ export function parseTemplate(template: string, variables: Record<string, string
 /**
  * Convenience function for parsing message templates with variables
  */
-export function parseMessageWithTemplate(template: string, variables: Record<string, string>): string {
+export function parseMessageWithTemplate(template: string, variables: Record<string, any>): string {
   return parseTemplate(template, variables);
 } 

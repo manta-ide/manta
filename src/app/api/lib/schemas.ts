@@ -28,7 +28,10 @@ export type MessageContext = z.infer<typeof MessageContextSchema>;
 // Base variables schema containing all possible template variables
 export const MessageVariablesSchema = z.object({
   // System message variables
-  PROJECT_FILES: z.string().optional(),
+  PROJECT_FILES: z.array(z.object({
+    route: z.string(),
+    lines: z.number()
+  })).optional(),
   CURRENT_FILE: z.string().optional(),
   CURRENT_FILE_CONTENT: z.string().optional(),
   
@@ -94,6 +97,14 @@ export const ChatRequestSchema = z.object({
 });
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+// Simplified client request schema - only sends the latest user message
+export const ClientChatRequestSchema = z.object({
+  userMessage: MessageSchema,
+  sessionId: z.string().optional(), // For conversation continuity
+});
+
+export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 
 // Evaluation schemas
 export const TestCaseSchema = z.object({

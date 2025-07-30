@@ -20,7 +20,7 @@ export default function Home() {
   
   const [isEditMode, setIsEditMode] = useState(true);
 
-  const { loadProjectFromFileSystem } = useProjectStore();
+  const { loadProject: loadProjectFromFileSystem } = useProjectStore();
 
   // Load project from filesystem on mount
   useEffect(() => {

@@ -37,7 +37,7 @@ export interface ChatServiceActions {
  * Handles message sending, response streaming, and file operations
  */
 export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>) {
-  const { getAllFiles, currentFile, selection, setSelection, loadProjectFromFileSystem } = useProjectStore();
+  const { getAllFiles, currentFile, selection, setSelection, loadProject: loadProjectFromFileSystem } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -130,7 +130,8 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       content: input,
       messageContext
     };
-
+    console.log("USER MESSAGE");
+    console.log(JSON.stringify(userMessage, null, 2));
     // Add selection variables if selection is valid
     if (roundedSelection) {
       userMessage.variables = {
@@ -156,26 +157,11 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       // Create AbortController for this request
       abortControllerRef.current = new AbortController();
 
-      // Prepare API request with all files and current context
-      const allFiles = getAllFiles();
-      
-      // Create system message with project context
-      const systemMessage = {
-        role: 'system' as const,
-        variables: {
-          PROJECT_FILES: JSON.stringify(Object.fromEntries(allFiles), null, 2),
-          CURRENT_FILE: currentFile || '',
-          CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
-        }
-      };
-
       // Prepare API messages (system + conversation history)
       const requestPayload = {
-        messages: [systemMessage, ...messages, userMessage],
+        userMessage: userMessage,
+        sessionId: 'default'
       };
-
-      console.log('📤 SENT TO MODEL:');
-      console.log(JSON.stringify(requestPayload, null, 2));
 
       // Call API
       const res = await fetch('/api/chat', {
