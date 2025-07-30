@@ -233,47 +233,33 @@ function PatchBlock({ code, filename, isLoading }: { code: string; filename: str
             scrollbarColor: 'rgba(113, 113, 122, 0.4) transparent'
           }}
         >
-          {lines.map((line, index) => {
-            const isHunkHeader = line.startsWith('@@');
-            const isAddition = line.startsWith('+') && !isHunkHeader;
-            const isDeletion = line.startsWith('-') && !isHunkHeader;
-            
-            if (isHunkHeader) {
-              // Parse hunk header and show line count changes
-              const match = line.match(/@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@/);
-              if (match) {
-                const [, oldStart, oldCount, newStart, newCount] = match;
-                const deletedLines = parseInt(oldCount || '1');
-                const addedLines = parseInt(newCount || '1');
-                
-                return (
-                  <div key={index} className="px-4 py-1.5 bg-zinc-800/60 text-zinc-300 border-y border-zinc-700/30">
-                  </div>
-                );
-              }
-            }
-            
-            // Remove the +/- symbols from the beginning of lines
-            const cleanLine = isAddition || isDeletion ? line.substring(1) : line;
-            
-            // Simple syntax highlighting
-            const highlightedLine = highlightSyntax(cleanLine);
-            
-            return (
-              <div
-                key={index}
-                className={`px-4 py-0.5 leading-5 ${
-                  isAddition
-                    ? 'bg-emerald-500/10 border-l-2 border-emerald-400/40 text-emerald-200/90'
-                    : isDeletion
-                    ? 'bg-red-500/10 border-l-2 border-red-400/40 text-red-200/90'
-                    : 'text-zinc-300/80 hover:bg-zinc-800/30'
-                } transition-colors duration-150`}
-              >
-                <span className="whitespace-pre font-mono text-xs" dangerouslySetInnerHTML={{ __html: highlightedLine }} />
-              </div>
-            );
-          })}
+          {lines
+            .filter(line => !line.startsWith('@@')) // Filter out @@ lines
+            .map((line, index) => {
+              const isAddition = line.startsWith('+');
+              const isDeletion = line.startsWith('-');
+              
+              // Remove the +/- symbols from the beginning of lines
+              const cleanLine = isAddition || isDeletion ? line.substring(1) : line;
+              
+              // Simple syntax highlighting
+              const highlightedLine = highlightSyntax(cleanLine);
+              
+              return (
+                <div
+                  key={index}
+                  className={`px-4 py-0.5 leading-5 ${
+                    isAddition
+                      ? 'bg-emerald-500/10 border-l-2 border-emerald-400/40 text-emerald-200/90'
+                      : isDeletion
+                      ? 'bg-red-500/10 border-l-2 border-red-400/40 text-red-200/90'
+                      : 'text-zinc-300/80 hover:bg-zinc-800/30'
+                  } transition-colors duration-150`}
+                >
+                  <span className="whitespace-pre font-mono text-xs" dangerouslySetInnerHTML={{ __html: highlightedLine }} />
+                </div>
+              );
+            })}
         </div>
       )}
     </div>
