@@ -2,99 +2,91 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { LiveProvider, LivePreview, LiveError } from 'react-live';
 import SelectionOverlay, { useSelectionHandlers } from './SelectionOverlay';
+import { LoaderFive } from "@/components/ui/loader";
 
 interface AppViewerProps {
   isEditMode: boolean;
 }
 
 export default function AppViewer({ isEditMode }: AppViewerProps) {
-  const { getFileContent } = useProjectStore();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [isAppRunning, setIsAppRunning] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Use the selection handlers hook
   const { handleMouseDown, handleMouseMove, handleMouseUp, handleClick, isSelecting } = 
     useSelectionHandlers(isEditMode, containerRef);
 
-  // Always show the demo project's main page.tsx file
-  const pageContent = getFileContent('src/app/page.tsx');
+  // Check if the app is running on port 3001
+  useEffect(() => {
+    const checkAppStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:3001', { 
+          method: 'HEAD',
+          mode: 'no-cors'
+        });
+        setIsAppRunning(true);
+      } catch (error) {
+        setIsAppRunning(false);
+      }
+    };
 
-  // Process the code to make it work with react-live
-  const processCodeForLive = (code: string) => {
-    if (!code) return '';
-    
-    // Remove all import statements since react-live uses scope instead
-    let processedCode = code
-      .replace(/import\s+.*?from\s+['"].*?[''];?\s*/g, '')
-      .replace(/import\s+['"].*?[''];?\s*/g, '')
-      .trim();
+    checkAppStatus();
+    const interval = setInterval(checkAppStatus, 3000); // Check every 3 seconds
 
-    // Remove export default and just keep the function
-    processedCode = processedCode.replace(/export\s+default\s+/, '');
+    return () => clearInterval(interval);
+  }, []);
 
-    return processedCode;
+  // Refresh iframe when needed
+  const refreshIframe = () => {
+    setIframeKey(prev => prev + 1);
   };
 
-  const processedCode = processCodeForLive(pageContent);
-
-  // Auto-refresh when file content changes
-  useEffect(() => {
-    setRefreshKey(prev => prev + 1);
-  }, [pageContent]);
-
-  // If no content available, show loading
-  if (!pageContent) {
+  // If app is not running, show instructions
+  if (!isAppRunning) {
     return (
       <div className="flex flex-col h-full bg-background border-l">
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading project files...</p>
+          <div className="text-center max-w-md mx-auto p-6">
+            <div className="mb-4">
+                <LoaderFive text="Loading the app..." />
+            </div>
+            <p className="text-muted-foreground mb-4">
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Create a scope that includes commonly needed libraries
-  const scope = {
-    React,
-  };
-
-  // Dynamically add imports that are available
-  try {
-    // Add lucide-react icons if available
-    const lucideIcons = require('lucide-react');
-    Object.assign(scope, lucideIcons);
-  } catch (e) {
-    // lucide-react not available, skip
-  }
-
   return (
     <div className="flex flex-col h-full bg-background border-l">
+      {/* Status indicator */}
+      
       <div className="flex-1 relative min-h-0">
         <div 
           ref={containerRef}
-          className={`absolute inset-0 overflow-auto ${isEditMode && isSelecting ? 'cursor-crosshair' : ''}`}
+          className={`relative w-full h-full ${isEditMode && isSelecting ? 'cursor-crosshair' : ''}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onClick={handleClick}
         >
-          <div className="relative">
-            <LiveProvider 
-              key={refreshKey} 
-              code={processedCode}
-              scope={scope}
-            >
-              <LivePreview />
-              <LiveError className="m-4 p-4 bg-red-50 border border-red-200 rounded text-red-600 text-sm font-mono" />
-            </LiveProvider>
+          {/* iframe wrapper with relative positioning */}
+          <div className="relative w-full h-full">
+            <iframe
+              key={iframeKey}
+              src="http://localhost:3001"
+              className="w-full h-full border-0"
+              title="Demo App"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
             
-            {/* Selection overlay component - positioned inside the content area */}
-            <SelectionOverlay isEditMode={isEditMode} />
+            {/* Selection overlay positioned absolutely over the iframe */}
+            <div className="absolute inset-0 pointer-events-none z-[9999]">
+              <SelectionOverlay isEditMode={isEditMode} />
+            </div>
           </div>
         </div>
       </div>
