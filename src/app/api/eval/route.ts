@@ -47,6 +47,7 @@ async function loadProjectFiles(): Promise<Map<string, string>> {
   }
 }
 
+
 // Function to restore project files to their original state
 async function restoreProjectFiles(originalFiles: Map<string, string>) {
   try {
@@ -174,11 +175,13 @@ async function callChatAPI(
       height: Math.round(validSelection.height)
     } : null;
 
+    const projectStructure = await fetch('http://localhost:3000/api/files?list=true');
+    const projectStructureData = await projectStructure.json();
     // Create system message with project context
     const systemMessage: Message = {
       role: 'system',
       variables: {
-        PROJECT_FILES: JSON.stringify(Object.fromEntries(projectFiles), null, 2),
+        PROJECT_FILES: projectStructureData.files,
         CURRENT_FILE: currentFile || '',
         CURRENT_FILE_CONTENT: currentFile ? projectFiles.get(currentFile) || '' : ''
       },

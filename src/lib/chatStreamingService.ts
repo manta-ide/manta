@@ -37,7 +37,7 @@ export interface ChatServiceActions {
  * Handles message sending, response streaming, and file operations
  */
 export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>) {
-  const { getAllFiles, currentFile, selection, setSelection, loadProject: loadProjectFromFileSystem } = useProjectStore();
+  const { getAllFiles, currentFile, selection, setSelection, loadProject: loadProjectFromFileSystem, triggerRefresh } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -224,6 +224,10 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
                   // Refresh project store when file operations complete
                   console.log('🔄 Refreshing project store after file operation');
                   await loadProjectFromFileSystem();
+                  
+                  // Trigger iframe refresh after file operations
+                  console.log('🔄 Triggering iframe refresh after file operations');
+                  triggerRefresh();
                 }
               );
             }
@@ -256,6 +260,10 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
                   // Refresh project store when file operations complete
                   console.log('🔄 Refreshing project store after file operation');
                   await loadProjectFromFileSystem();
+                  
+                  // Trigger iframe refresh after file operations
+                  console.log('🔄 Triggering iframe refresh after file operations');
+                  triggerRefresh();
                 }
               );
             }
@@ -290,7 +298,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       // Clean up abort controller
       abortControllerRef.current = null;
     }
-  }, [messages, currentFile, selection, getAllFiles, scrollRef, setSelection, loadProjectFromFileSystem]);
+  }, [messages, currentFile, selection, getAllFiles, scrollRef, setSelection, loadProjectFromFileSystem, triggerRefresh]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);

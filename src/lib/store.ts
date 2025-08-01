@@ -15,6 +15,7 @@ interface ProjectStore {
   selectedFile: string | null;
   fileTree: FileNode[];
   selection: Selection | null;
+  refreshTrigger: number; // Add refresh trigger counter
   
   loadProject: () => Promise<void>;
   setFileContent: (path: string, content: string) => Promise<void>;
@@ -26,6 +27,7 @@ interface ProjectStore {
   getFileContent: (path: string) => string;
   getAllFiles: () => Map<string, string>;
   buildFileTree: () => void;
+  triggerRefresh: () => void; // Add method to trigger refresh
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -34,6 +36,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectedFile: null,
   fileTree: [],
   selection: null,
+  refreshTrigger: 0, // Initialize refresh trigger
 
   loadProject: async () => {
     try {
@@ -68,6 +71,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         files.set(filePath, content);
         set({ files });
         console.log(`✅ File updated in store: ${filePath}`);
+        
+        // Trigger iframe refresh after file update
+        get().triggerRefresh();
       } else {
         const data = await response.json();
         console.error('❌ Error updating file:', data.error);
@@ -99,6 +105,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         // Refresh the file tree to reflect the deletion
         console.log('🔄 Refreshing file tree after delete');
         await get().loadProject();
+        
+        // Trigger iframe refresh after file deletion
+        get().triggerRefresh();
       } else {
         const data = await response.json();
         console.error('❌ Error deleting file:', data.error);
@@ -126,6 +135,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         // Refresh the file tree to reflect the new file
         console.log('🔄 Refreshing file tree after create');
         await get().loadProject();
+        
+        // Trigger iframe refresh after file creation
+        get().triggerRefresh();
       } else {
         const data = await response.json();
         console.error('❌ Error creating file:', data.error);
@@ -149,5 +161,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   buildFileTree: () => {
     // This will be handled by loadProjectFromFileSystem
-  }
+  },
+  
+  triggerRefresh: () => set(state => ({ refreshTrigger: state.refreshTrigger + 1 })),
 })); 

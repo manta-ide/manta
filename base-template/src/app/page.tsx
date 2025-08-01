@@ -12,17 +12,19 @@ export default function Home() {
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white min-h-screen flex items-center">
         <div className="container mx-auto px-6 flex flex-col items-start space-y-8">
-          <h1 className="text-5xl font-bold leading-tight text-white">
-          Empower Your Software Engineering Journey
-         </h1>
-         <p className="text-lg max-w-xl">
-            Join a vibrant community of developers, access expert-led tutorials, and build real-world projects to showcase your skills.
+          <h1 className="text-5xl font-bold leading-tight bg-gradient-to-r from-gray-800 to-black bg-clip-text text-transparent">
+            Empower Your Software Engineering Journey
+          </h1>
+          <p className="text-lg text-white max-w-2xl">
+            Start your journey with tailored tutorials, expert mentorship, and an active community.
           </p>
           <div className="flex space-x-4">
-            <Button className="bg-white text-indigo-600 hover:bg-gray-100">
+            {/* Primary action as black background with white text */}
+            <Button className="bg-black text-white hover:bg-gray-800">
               Get Started
             </Button>
-            <Button className="border border-white text-white hover:bg-white hover:text-indigo-600">
+            {/* Secondary action as white background with black text */}
+            <Button className="bg-white text-black border border-black hover:bg-black hover:text-white">
               Learn More
             </Button>
           </div>
@@ -33,27 +35,27 @@ export default function Home() {
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6 space-y-12">
           <div className="text-center space-y-4">
-            <h2 className="text-3xl font-bold">Features</h2>
+            <h2 className="text-3xl font-bold text-black">Features</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Everything you need to grow as a software engineer, all in one place.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold mb-2">Curated Learning Paths</h3>
-              <p className="text-gray-600">
+            <div className="p-6 border border-black rounded-lg hover:shadow-lg transition-shadow bg-white">
+              <h3 className="text-xl font-semibold mb-2 text-black">Curated Learning Paths</h3>
+              <p className="text-black">
                 Follow structured tracks from frontend to backend, DevOps, and more, designed by industry experts.
               </p>
             </div>
-            <div className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold mb-2">Expert Community</h3>
-              <p className="text-gray-600">
+            <div className="p-6 border border-black rounded-lg hover:shadow-lg transition-shadow bg-white">
+              <h3 className="text-xl font-semibold mb-2 text-black">Expert Community</h3>
+              <p className="text-black">
                 Collaborate with mentors and peers, participate in code reviews, and share your knowledge.
               </p>
             </div>
-            <div className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold mb-2">Real-world Projects</h3>
-              <p className="text-gray-600">
+            <div className="p-6 border border-black rounded-lg hover:shadow-lg transition-shadow bg-white">
+              <h3 className="text-xl font-semibold mb-2 text-black">Real-world Projects</h3>
+              <p className="text-black">
                 Build a portfolio of practical applications that demonstrate your skills to potential employers.
               </p>
             </div>
@@ -75,9 +77,9 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-gray-400 py-8">
+      <footer className="bg-gray-800 text-white py-8">
         <div className="container mx-auto px-6 text-center">
-          <p>&copy; {new Date().getFullYear()} SWE Hub. All rights reserved.</p>
+          <p className="text-white">&copy; {new Date().getFullYear()} SWE Hub. All rights reserved.</p>
         </div>
       </footer>
     </main>

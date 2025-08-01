@@ -17,21 +17,23 @@ export default function SelectionOverlay({ isEditMode }: SelectionOverlayProps) 
   const ref = useRef<HTMLDivElement>(null);
   const [scrollOffset, setScrollOffset] = useState({ x: 0, y: 0 });
 
-  /* keep overlay in view while iframe scrolls */
+  /* keep overlay in view while iframe scrolls
+     (re-bind every time the iframe document changes) */
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
 
-    const win = node.ownerDocument.defaultView;
+    const win = node.ownerDocument?.defaultView;
     if (!win) return;
 
     const update = () =>
       setScrollOffset({ x: win.scrollX, y: win.scrollY });
 
-    update();                         // initial
-    win.addEventListener('scroll', update);
+    update();
+    win.addEventListener('scroll', update, { passive: true });
+
     return () => win.removeEventListener('scroll', update);
-  }, []);
+  }, [ref.current?.ownerDocument]);   // *** key change ***
 
   if (!isEditMode || !selection) return null;
 
@@ -90,10 +92,10 @@ export function useSelectionHandlers(
       y: Math.min(startPt.y, e.pageY),
       width,
       height,
-      selectedElements: "elements",     // will be filled on mouse-up
+      selectedElements: 'elements',
     });
 
-    e.preventDefault();         // block text selection
+    e.preventDefault(); // block text selection
   };
 
   /* ------------------------------- mouseup -------------------------------- */
@@ -185,8 +187,10 @@ const handleMouseUp = (e: MouseEvent) => {
 
       const pct = (interArea / elArea) * 100;
 
-      if (pct >= 80) selected.push(buildDescriptor(el, pct)); // keep only ≥80 %
+      if (pct >= 30) selected.push(buildDescriptor(el, pct)); // keep only ≥80 %
     });
+
+    console.log("selected", JSON.stringify(selected));
 
     setSelection({
       x: selLeft,

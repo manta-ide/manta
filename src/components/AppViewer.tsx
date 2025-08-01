@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import SelectionOverlay, { useSelectionHandlers } from './SelectionOverlay';
 import { LoaderFive } from '@/components/ui/loader';
+import { useProjectStore } from '@/lib/store';
 
 interface AppViewerProps {
   isEditMode: boolean;
@@ -15,9 +16,11 @@ const IFRAME_PATH = '/iframe';
 export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
   const [isAppRunning, setIsAppRunning] = useState(false);
-  const [iframeKey, setIframeKey] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { refreshTrigger } = useProjectStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const scrollPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   /* host element (inside iframe) that will receive the portal */
   const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
@@ -36,72 +39,35 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
 
   /* ── create / reuse host <div> inside the iframe once it loads ── */
   const handleIframeLoad = useCallback(() => {
+    setIsRefreshing(false);
+
+    /* restore scroll position captured before refresh */
+    if (scrollPositionRef.current && iframeRef.current?.contentWindow) {
+      const { x, y } = scrollPositionRef.current;
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.scrollTo(x, y);
+      }, 100);
+      scrollPositionRef.current = null;
+    }
+
     const doc =
       iframeRef.current?.contentDocument ??
       iframeRef.current?.contentWindow?.document;
     if (!doc) return;
 
-    // Cleanup previous host if it exists
-    const existingHost = doc.getElementById('selection-overlay-root') as any;
-    if (existingHost?.__cleanup) {
-      existingHost.__cleanup();
-    }
+    /* remove previous host if any */
+    doc.getElementById('selection-overlay-root')?.remove();
 
-    let host = doc.getElementById('selection-overlay-root') as HTMLElement | null;
-    if (!host) {
-      host = doc.createElement('div');
-      host.id = 'selection-overlay-root';
-      doc.body.appendChild(host);
-    }
-
+    /* (re)-create host */
+    const host = doc.createElement('div');
+    host.id = 'selection-overlay-root';
     Object.assign(host.style, {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      width: '100%',
-      height: '100%',
-      minHeight: '100vh', // ensure it covers at least the viewport
+      position: 'fixed', // *** key change ***
+      inset: '0',
       zIndex: '9999',
-      pointerEvents: 'none', // visual only – overlayRef toggles its own PE
+      pointerEvents: 'none',
     });
-
-    // Update overlay host size when document content changes
-    const updateHostSize = () => {
-      if (host) {
-        const docHeight = Math.max(
-          doc.documentElement.scrollHeight,
-          doc.documentElement.offsetHeight,
-          doc.body.scrollHeight,
-          doc.body.offsetHeight
-        );
-        host.style.height = `${docHeight}px`;
-      }
-    };
-
-    // Initial size update
-    updateHostSize();
-
-    // Monitor for content changes that might affect document height
-    const observer = new MutationObserver(updateHostSize);
-    observer.observe(doc.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-    });
-
-    // Also update on window resize
-    const win = doc.defaultView;
-    if (win) {
-      win.addEventListener('resize', updateHostSize);
-    }
-
-    // Store cleanup function
-    (host as any).__cleanup = () => {
-      observer.disconnect();
-      if (win) {
-        win.removeEventListener('resize', updateHostSize);
-      }
-    };
+    doc.body.appendChild(host);
 
     setOverlayHost(host);
   }, []);
@@ -109,16 +75,10 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── cleanup overlay host on unmount ───────────────────────── */
   useEffect(() => {
     return () => {
-      // Cleanup overlay host when component unmounts
-      const doc =
-        iframeRef.current?.contentDocument ??
-        iframeRef.current?.contentWindow?.document;
-      if (doc) {
-        const existingHost = doc.getElementById('selection-overlay-root') as any;
-        if (existingHost?.__cleanup) {
-          existingHost.__cleanup();
-        }
-      }
+      const host =
+        iframeRef.current
+          ?.contentDocument?.getElementById('selection-overlay-root');
+      host?.remove();
     };
   }, []);
 
@@ -137,6 +97,26 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     return () => clearInterval(id);
   }, []);
 
+  /* ── refresh iframe when file operations complete ───────────── */
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      setIsRefreshing(true);
+
+      /* remember where the user was */
+      const win = iframeRef.current?.contentWindow;
+      if (win) {
+        scrollPositionRef.current = { x: win.scrollX, y: win.scrollY };
+      }
+
+      /* cache-bust */
+      const iframe = iframeRef.current;
+      if (iframe) {
+        const base = iframe.src.split('?')[0];
+        iframe.src = `${base}?refresh=${refreshTrigger}`;
+      }
+    }
+  }, [refreshTrigger]);
+
   /* ── early fallback while the child isn’t running ───────────── */
   if (!isAppRunning) {
     return (
@@ -154,7 +134,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
       <div className="flex-1 relative min-h-0">
         <iframe
           ref={iframeRef}
-          key={iframeKey}
           src={IFRAME_PATH}
           className="w-full h-full border-0"
           title="Demo App"

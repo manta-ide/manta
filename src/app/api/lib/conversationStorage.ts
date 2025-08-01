@@ -70,7 +70,6 @@ async function getFileContent(filePath: string): Promise<string> {
  * Create a system message with project context
  */
 async function createSystemMessage(currentFile?: string): Promise<Message> {
-  const allFiles = await getAllProjectFiles();
   
   // Get file list with lengths from the API response
   const response = await fetch('http://localhost:3000/api/files?list=true');
