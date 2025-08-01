@@ -9,10 +9,8 @@
 
 import { RefObject } from 'react';
 import { 
-  Selection,
   Message
 } from '@/app/api/lib/schemas';
-import { isValidSelection } from '@/app/api/lib/messageContextUtils';
 
 /** Base typing speed: characters appended per animation frame. */
 export const BASE_CHARS_PER_FRAME = 2;

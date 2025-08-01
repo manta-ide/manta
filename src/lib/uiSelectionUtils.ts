@@ -8,7 +8,6 @@
  */
 
 import { Selection } from '@/app/api/lib/schemas';
-import { isValidSelection } from '@/app/api/lib/messageContextUtils';
 
 /**
  * Format selection dimensions for display in UI components

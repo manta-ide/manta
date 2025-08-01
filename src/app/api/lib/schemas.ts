@@ -13,6 +13,7 @@ export const SelectionSchema = z.object({
   y: z.number(),
   width: z.number(),
   height: z.number(),
+  selectedElements: z.string().optional(),
 });
 
 export type Selection = z.infer<typeof SelectionSchema>;
@@ -42,6 +43,7 @@ export const MessageVariablesSchema = z.object({
   SELECTION_Y: z.string().optional(),
   SELECTION_WIDTH: z.string().optional(),
   SELECTION_HEIGHT: z.string().optional(),
+  SELECTION_ELEMENTS: z.string().optional(),
   
   // Assistant message variables
   ASSISTANT_RESPONSE: z.string().optional(),

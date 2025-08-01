@@ -112,7 +112,8 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
         x: Math.round(validSelection.x),
         y: Math.round(validSelection.y),
         width: Math.round(validSelection.width),
-        height: Math.round(validSelection.height)
+        height: Math.round(validSelection.height),
+        selectedElements: validSelection.selectedElements
       } : null;
 
     // Store current selection context
@@ -140,7 +141,8 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
         SELECTION_X: roundedSelection.x.toString(),
         SELECTION_Y: roundedSelection.y.toString(),
         SELECTION_WIDTH: roundedSelection.width.toString(),
-        SELECTION_HEIGHT: roundedSelection.height.toString()
+        SELECTION_HEIGHT: roundedSelection.height.toString(),
+        SELECTION_ELEMENTS: roundedSelection.selectedElements
       };
     }
 

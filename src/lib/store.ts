@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Selection } from '@/app/api/lib/schemas';
 
 interface FileNode {
   name: string;
@@ -13,7 +14,7 @@ interface ProjectStore {
   currentFile: string | null;
   selectedFile: string | null;
   fileTree: FileNode[];
-  selection: { x: number; y: number; width: number; height: number } | null;
+  selection: Selection | null;
   
   loadProject: () => Promise<void>;
   setFileContent: (path: string, content: string) => Promise<void>;
@@ -21,7 +22,7 @@ interface ProjectStore {
   createFile: (path: string, content: string) => Promise<void>;
   setCurrentFile: (path: string | null) => void;
   setSelectedFile: (path: string | null) => void;
-  setSelection: (selection: { x: number; y: number; width: number; height: number } | null) => void;
+  setSelection: (selection: Selection | null) => void;
   getFileContent: (path: string) => string;
   getAllFiles: () => Map<string, string>;
   buildFileTree: () => void;

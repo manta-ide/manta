@@ -87,7 +87,8 @@ export function createUserMessage(
       SELECTION_X: selection.x.toString(),
       SELECTION_Y: selection.y.toString(),
       SELECTION_WIDTH: selection.width.toString(),
-      SELECTION_HEIGHT: selection.height.toString()
+      SELECTION_HEIGHT: selection.height.toString(),
+      SELECTION_ELEMENTS: selection.selectedElements
     });
   }
   

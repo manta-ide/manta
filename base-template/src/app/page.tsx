@@ -1,187 +1,85 @@
-"use client";
-import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetTrigger,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import React from 'react';
+import { Button } from '@/components/ui/button';
 
-// Initial sample user data
-const initialUsers = [
-  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', status: 'Active' },
-  { id: 2, name: 'Bob Smith', email: 'bob@example.com', status: 'Pending' },
-  { id: 3, name: 'Charlie Brown', email: 'charlie@example.com', status: 'Inactive' },
-  { id: 4, name: 'Diana Prince', email: 'diana@example.com', status: 'Active' },
-];
+export const metadata = {
+  title: 'SWE Hub - Empower Your Software Engineering Journey',
+  description: 'Join a community of passionate software engineers, access curated resources, and accelerate your career.',
+};
 
 export default function Home() {
-  // Manage users and sheet state
-  const [users, setUsers] = useState(initialUsers);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Dynamic statistics
-  const totalUsers = users.length;
-  const activeSessions = users.filter(u => u.status === 'Active').length;
-  const newSignups = users.length - initialUsers.length;
-
-  // Handlers
-  const handleAddUser = () => {
-    if (!newName.trim() || !newEmail.trim()) return;
-    const newUser = {
-      id: Date.now(),
-      name: newName.trim(),
-      email: newEmail.trim(),
-      status: 'Active',
-    };
-    setUsers(prev => [...prev, newUser]);
-    setNewName('');
-    setNewEmail('');
-    setIsOpen(false);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
-              New User
+    <main className="relative overflow-hidden">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white min-h-screen flex items-center">
+        <div className="container mx-auto px-6 flex flex-col items-start space-y-8">
+          <h1 className="text-5xl font-bold leading-tight text-white">
+          Empower Your Software Engineering Journey
+         </h1>
+         <p className="text-lg max-w-xl">
+            Join a vibrant community of developers, access expert-led tutorials, and build real-world projects to showcase your skills.
+          </p>
+          <div className="flex space-x-4">
+            <Button className="bg-white text-indigo-600 hover:bg-gray-100">
+              Get Started
             </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-full sm:w-96">
-            <SheetHeader>
-              <SheetTitle>Add New User</SheetTitle>
-              <SheetDescription>
-                Fill out the form below to create a new user.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  className="col-span-3"
-                  placeholder="Jane Doe"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  className="col-span-3"
-                  placeholder="jane@example.com"
-                />
-              </div>
+            <Button className="border border-white text-white hover:bg-white hover:text-indigo-600">
+              Learn More
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-6 space-y-12">
+          <div className="text-center space-y-4">
+            <h2 className="text-3xl font-bold">Features</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Everything you need to grow as a software engineer, all in one place.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
+              <h3 className="text-xl font-semibold mb-2">Curated Learning Paths</h3>
+              <p className="text-gray-600">
+                Follow structured tracks from frontend to backend, DevOps, and more, designed by industry experts.
+              </p>
             </div>
-            <SheetFooter>
-              <Button onClick={handleAddUser} className="w-full">
-                Add User
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-      </div>
+            <div className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
+              <h3 className="text-xl font-semibold mb-2">Expert Community</h3>
+              <p className="text-gray-600">
+                Collaborate with mentors and peers, participate in code reviews, and share your knowledge.
+              </p>
+            </div>
+            <div className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
+              <h3 className="text-xl font-semibold mb-2">Real-world Projects</h3>
+              <p className="text-gray-600">
+                Build a portfolio of practical applications that demonstrate your skills to potential employers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* Statistic Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Card className="p-6 text-white bg-gradient-to-r from-blue-500 to-blue-700">
-          <h2 className="text-sm font-medium text-gray-500">Total Users</h2>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">
-            {totalUsers}
+      {/* Call to Action */}
+      <section className="bg-indigo-50 py-20">
+        <div className="container mx-auto px-6 text-center space-y-6">
+          <h2 className="text-3xl font-bold">Ready to Level Up?</h2>
+          <p className="text-gray-700 max-w-lg mx-auto">
+            Start your software engineering adventure today and unlock exclusive resources.
           </p>
-        </Card>
-        <Card className="p-6 text-white bg-gradient-to-r from-green-500 to-green-700">
-          <h2 className="text-sm font-medium text-gray-500">Active Sessions</h2>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">
-            {activeSessions}
-          </p>
-        </Card>
-        <Card className="p-6 text-white bg-gradient-to-r from-purple-500 to-purple-700">
-          <h2 className="text-sm font-medium text-gray-500">New Signups</h2>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">
-            {newSignups >= 0 ? newSignups : 0}
-          </p>
-        </Card>
-      </div>
+          <Button className="bg-indigo-600 text-white hover:bg-indigo-700">
+            Join Now
+          </Button>
+        </div>
+      </section>
 
-      {/* Data Table */}
-      <Card className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {user.id}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {user.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {user.email}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span
-                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      user.status === 'Active'
-                        ? 'bg-green-100 text-green-800'
-                        : user.status === 'Pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {user.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Button className="bg-gradient-to-r from-pink-400 to-red-400 text-white hover:from-pink-500 hover:to-red-500 rounded px-3 py-1">
-                    View
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-    </div>
+      {/* Footer */}
+      <footer className="bg-gray-800 text-gray-400 py-8">
+        <div className="container mx-auto px-6 text-center">
+          <p>&copy; {new Date().getFullYear()} SWE Hub. All rights reserved.</p>
+        </div>
+      </footer>
+    </main>
   );
 }

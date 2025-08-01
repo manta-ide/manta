@@ -1,9 +1,12 @@
+// SelectionOverlay.tsx
 'use client';
 
-import { useState, useRef, MouseEvent } from 'react';
+import { useState, useRef, useEffect, MouseEvent } from 'react';
 import { useProjectStore } from '@/lib/store';
 
-type Pt = { x: number; y: number } | null;
+/* ------------------------------------------------------------------ */
+/*                            Overlay box                             */
+/* ------------------------------------------------------------------ */
 
 interface SelectionOverlayProps {
   isEditMode: boolean;
@@ -11,107 +14,213 @@ interface SelectionOverlayProps {
 
 export default function SelectionOverlay({ isEditMode }: SelectionOverlayProps) {
   const { selection } = useProjectStore();
+  const ref = useRef<HTMLDivElement>(null);
+  const [scrollOffset, setScrollOffset] = useState({ x: 0, y: 0 });
+
+  /* keep overlay in view while iframe scrolls */
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const win = node.ownerDocument.defaultView;
+    if (!win) return;
+
+    const update = () =>
+      setScrollOffset({ x: win.scrollX, y: win.scrollY });
+
+    update();                         // initial
+    win.addEventListener('scroll', update);
+    return () => win.removeEventListener('scroll', update);
+  }, []);
 
   if (!isEditMode || !selection) return null;
 
   return (
     <div
+      ref={ref}
       className="absolute z-[9999] border-2 border-blue-500 bg-blue-200/20 pointer-events-none"
       style={{
-        left: `${selection.x}px`,
-        top: `${selection.y}px`,
-        width: `${selection.width}px`,
+        left:   `${selection.x - scrollOffset.x}px`,
+        top:    `${selection.y - scrollOffset.y}px`,
+        width:  `${selection.width}px`,
         height: `${selection.height}px`,
       }}
     />
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*                       Drag-selection handlers                      */
+/* ------------------------------------------------------------------ */
+
+type Pt = { x: number; y: number } | null;
+
 export function useSelectionHandlers(
   isEditMode: boolean,
-  containerRef: React.RefObject<HTMLDivElement | null>,
+  layerRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const { selection, setSelection } = useProjectStore();
 
-  const [startPoint, setStartPoint] = useState<Pt>(null);
+  const [startPt,     setStartPt]     = useState<Pt>(null);
   const [isSelecting, setIsSelecting] = useState(false);
-  const [hasMoved, setHasMoved] = useState(false);
+  const [hasMoved,    setHasMoved]    = useState(false);
+  const suppressClick = useRef(false);
 
-  /** Ignore the synthetic click fired immediately after a drag-selection. */
-  const suppressClickRef = useRef(false);
+  const MIN = 4; // px
 
-  /** Small threshold so the rectangle appears almost immediately. */
-  const MIN_SELECTION_SIZE = 4;
+  /* ------------------------------- mousedown ------------------------------ */
+  const handleMouseDown = (e: MouseEvent) => {
+    if (!isEditMode || e.button !== 0) return;
 
-  /* ------------------------------ handlers ------------------------------ */
-
-  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (!isEditMode || !containerRef.current || e.button !== 0) return;
-
-    const { left, top } = containerRef.current.getBoundingClientRect();
-    setStartPoint({
-      x: e.clientX - left + containerRef.current.scrollLeft,
-      y: e.clientY - top + containerRef.current.scrollTop,
-    });
-
+    setStartPt({ x: e.pageX, y: e.pageY });
     setIsSelecting(true);
     setHasMoved(false);
   };
 
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (!isEditMode || !isSelecting || !startPoint || !containerRef.current) return;
+  /* ------------------------------- mousemove ------------------------------ */
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isEditMode || !isSelecting || !startPt) return;
 
-    const { left, top } = containerRef.current.getBoundingClientRect();
-    const currentX = e.clientX - left + containerRef.current.scrollLeft;
-    const currentY = e.clientY - top + containerRef.current.scrollTop;
+    const width  = Math.abs(startPt.x - e.pageX);
+    const height = Math.abs(startPt.y - e.pageY);
+    setHasMoved(width >= MIN || height >= MIN);
 
-    const width = Math.abs(startPoint.x - currentX);
-    const height = Math.abs(startPoint.y - currentY);
-
-    setHasMoved(width >= MIN_SELECTION_SIZE || height >= MIN_SELECTION_SIZE);
-
-    // Always update so the user sees the live outline.
     setSelection({
-      x: Math.min(startPoint.x, currentX),
-      y: Math.min(startPoint.y, currentY),
+      x: Math.min(startPt.x, e.pageX),
+      y: Math.min(startPt.y, e.pageY),
       width,
       height,
+      selectedElements: "elements",     // will be filled on mouse-up
     });
 
-    e.preventDefault(); // prevent unwanted text selection / scrolling
+    e.preventDefault();         // block text selection
   };
 
-  const handleMouseUp = (e: MouseEvent<HTMLDivElement>) => {
-    if (!isEditMode || !isSelecting) return;
+  /* ------------------------------- mouseup -------------------------------- */
+/**
+ * Utility: pick only the style properties we care about.
+ * Extend this list to capture more.
+ */
+/* ----------------------------------------------------------- */
+/* Helper constants / types – keep these near the component   */
+/* ----------------------------------------------------------- */
+const STYLE_KEYS = [
+  'display',
+  'position',
+  'color',
+  'backgroundColor',
+  'fontSize',
+  'fontWeight',
+] as const;
 
-    if (hasMoved) {
-      // We dragged → keep the rectangle and ignore the imminent click event.
-      suppressClickRef.current = true;
-      e.preventDefault();
-    } else {
-      // No drag → treat as a plain click, so clear any previous selection.
-      setSelection(null);
-    }
+type PickedStyle = { [K in (typeof STYLE_KEYS)[number]]: string };
 
-    setStartPoint(null);
-    setIsSelecting(false);
-    setHasMoved(false);
-  };
+interface SelectedDescriptor {
+  tag: string;
+  text: string;
+  style: PickedStyle;
+  coverage: number;
+}
 
-  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (!isEditMode) return;
+/* ----------------------------------------------------------- */
+/* handleMouseUp – now uses *intersection* instead of coverage */
+/* ----------------------------------------------------------- */
+const handleMouseUp = (e: MouseEvent) => {
+  if (!isEditMode) return;
 
-    // Ignore the click that immediately follows a drag.
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
+  if (hasMoved && startPt) {
+    const doc = layerRef.current?.ownerDocument;
+    if (!doc) return;
+
+    /* selection rectangle in page coordinates (inside iframe) */
+    const selLeft   = Math.min(startPt.x, e.pageX);
+    const selTop    = Math.min(startPt.y, e.pageY);
+    const selRight  = Math.max(startPt.x, e.pageX);
+    const selBottom = Math.max(startPt.y, e.pageY);
+
+    const view = doc.defaultView!;
+    const overlayRoot = doc.getElementById('selection-overlay-root');
+
+    /* quick overlap test */
+    const intersects = (rLeft: number, rTop: number, rRight: number, rBottom: number) =>
+      selLeft   < rRight  && selRight  > rLeft &&
+      selTop    < rBottom && selBottom > rTop;
+
+    /* build descriptor */
+    const buildDescriptor = (el: HTMLElement, coverage: number): SelectedDescriptor => {
+      const cs = view.getComputedStyle(el);
+      const picked: PickedStyle = {} as PickedStyle;
+      STYLE_KEYS.forEach(k => (picked[k] = cs[k as any] || ''));
+
+      const txt = el.innerText.trim().replace(/\s+/g, ' ').slice(0, 80);
+      return {
+        tag: el.tagName.toLowerCase(),
+        text: txt,
+        style: picked,
+        coverage: Number(coverage.toFixed(1)),
+      };
+    };
+
+    const selected: SelectedDescriptor[] = [];
+    doc.body.querySelectorAll<HTMLElement>('*').forEach(el => {
+      if (overlayRoot && overlayRoot.contains(el)) return; // skip overlay
+
+      const rect = el.getBoundingClientRect();
+      const rLeft   = rect.left   + view.scrollX;
+      const rTop    = rect.top    + view.scrollY;
+      const rRight  = rect.right  + view.scrollX;
+      const rBottom = rect.bottom + view.scrollY;
+
+      if (!intersects(rLeft, rTop, rRight, rBottom)) return;
+
+      /* intersection area */
+      const interLeft   = Math.max(selLeft,  rLeft);
+      const interTop    = Math.max(selTop,   rTop);
+      const interRight  = Math.min(selRight, rRight);
+      const interBottom = Math.min(selBottom,rBottom);
+      const interArea   =
+        Math.max(0, interRight - interLeft) *
+        Math.max(0, interBottom - interTop);
+      const elArea = rect.width * rect.height || 1;
+
+      const pct = (interArea / elArea) * 100;
+
+      if (pct >= 80) selected.push(buildDescriptor(el, pct)); // keep only ≥80 %
+    });
+
+    setSelection({
+      x: selLeft,
+      y: selTop,
+      width:  selRight  - selLeft,
+      height: selBottom - selTop,
+      selectedElements: JSON.stringify(selected),
+    });
+
+    suppressClick.current = true;
+    e.preventDefault();
+  } else {
+    setSelection(null);
+  }
+
+  setStartPt(null);
+  setIsSelecting(false);
+  setHasMoved(false);
+};
+
+
+  
+  
+
+  /* -------------------------------- click -------------------------------- */
+  const handleClick = () => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
       return;
     }
-
-    // A genuine click without dragging clears the existing selection.
-    if (selection) {
-      setSelection(null);
-    }
+    if (selection) setSelection(null);
   };
+
+  /* ---------------------------------------------------------------------- */
 
   return {
     handleMouseDown,

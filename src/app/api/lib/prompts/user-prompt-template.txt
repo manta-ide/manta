@@ -1,5 +1,6 @@
 {{#SELECTION}}
 User selected an area: {{SELECTION_WIDTH}}×{{SELECTION_HEIGHT}} at position ({{SELECTION_X}}, {{SELECTION_Y}}).
+Selected elements are: {{SELECTION_ELEMENTS}}
 
 {{/SELECTION}}
 {{USER_REQUEST}}
