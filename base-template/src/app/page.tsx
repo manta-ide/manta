@@ -50,13 +50,13 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button className="bg-blue-500 text-white hover:bg-blue-600">
+            <Button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
               New User
             </Button>
           </SheetTrigger>
@@ -105,19 +105,19 @@ export default function Home() {
 
       {/* Statistic Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Card className="p-6">
+        <Card className="p-6 text-white bg-gradient-to-r from-blue-500 to-blue-700">
           <h2 className="text-sm font-medium text-gray-500">Total Users</h2>
           <p className="mt-2 text-2xl font-semibold text-gray-900">
             {totalUsers}
           </p>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 text-white bg-gradient-to-r from-green-500 to-green-700">
           <h2 className="text-sm font-medium text-gray-500">Active Sessions</h2>
           <p className="mt-2 text-2xl font-semibold text-gray-900">
             {activeSessions}
           </p>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 text-white bg-gradient-to-r from-purple-500 to-purple-700">
           <h2 className="text-sm font-medium text-gray-500">New Signups</h2>
           <p className="mt-2 text-2xl font-semibold text-gray-900">
             {newSignups >= 0 ? newSignups : 0}
@@ -173,7 +173,7 @@ export default function Home() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Button className="text-blue-500 hover:underline bg-transparent p-0">
+                  <Button className="bg-gradient-to-r from-pink-400 to-red-400 text-white hover:from-pink-500 hover:to-red-500 rounded px-3 py-1">
                     View
                   </Button>
                 </td>

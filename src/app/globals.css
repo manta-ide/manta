@@ -114,6 +114,10 @@
   --sidebar-ring: oklch(0.442 0.017 285.786);
 }
 
+.select-none {
+  user-select: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

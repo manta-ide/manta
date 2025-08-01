@@ -74,11 +74,11 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
           onClick={handleClick}
         >
           {/* iframe wrapper with relative positioning */}
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-full select-none">
             <iframe
               key={iframeKey}
               src="http://localhost:3001"
-              className="w-full h-full border-0"
+              className={`w-full h-full border-0 ${isEditMode? 'pointer-events-none' : ''}`}
               title="Demo App"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
