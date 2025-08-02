@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Send, Brain, Square } from 'lucide-react';
+import { Send, Brain, Square, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -41,6 +41,7 @@ function ThinkingIndicator() {
 export default function ChatSidebar() {
   const { currentFile, selection, setSelection, setCurrentFile } = useProjectStore();
   const [input, setInput] = useState('');
+  const [clearing, setClearing] = useState(false);
 
   // scroll container
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -48,7 +49,7 @@ export default function ChatSidebar() {
   // Use chat service for all chat logic
   const { state, actions, streamIdxRef, streamingState } = useChatService(scrollRef);
   const { messages, loading, activelyReceiving } = state;
-  const { sendMessage, stopStream } = actions;
+  const { sendMessage, stopStream, clearMessages } = actions;
 
   // Set up scroll event listener to track auto-scroll state
   useEffect(() => {
@@ -112,6 +113,15 @@ export default function ChatSidebar() {
     await sendMessage(messageToSend);
   };
 
+  const handleClear = async () => {
+    setClearing(true);
+    try {
+      await clearMessages();
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -121,6 +131,23 @@ export default function ChatSidebar() {
 
   return (
     <div className="w-96 flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
+      {/* Header with clear button */}
+      {messages.length > 0 && (
+        <div className="flex justify-end p-2 border-b border-zinc-700">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            disabled={clearing}
+            className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+            title="Clear conversation"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {clearing ? 'Clearing...' : 'Clear'}
+          </Button>
+        </div>
+      )}
+      
       {/* scroll container ref */}
       <div 
         className="flex-1 overflow-y-auto p-3 chat-scrollbar" 

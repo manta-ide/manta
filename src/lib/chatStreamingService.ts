@@ -28,7 +28,7 @@ export interface ChatServiceState {
 
 export interface ChatServiceActions {
   sendMessage: (input: string) => Promise<void>;
-  clearMessages: () => void;
+  clearMessages: () => Promise<void>;
   stopStream: () => void;
 }
 
@@ -300,15 +300,33 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     }
   }, [messages, currentFile, selection, getAllFiles, scrollRef, setSelection, loadProjectFromFileSystem, triggerRefresh]);
 
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setLoading(false);
-    setActivelyReceiving(false);
-    
-    // Clear any pending activity timer
-    if (activityTimerRef.current) {
-      clearTimeout(activityTimerRef.current);
-      activityTimerRef.current = null;
+  const clearMessages = useCallback(async () => {
+    try {
+      // Clear frontend state immediately
+      setMessages([]);
+      setLoading(false);
+      setActivelyReceiving(false);
+      
+      // Clear any pending activity timer
+      if (activityTimerRef.current) {
+        clearTimeout(activityTimerRef.current);
+        activityTimerRef.current = null;
+      }
+      
+      // Clear backend conversation session
+      const response = await fetch('/api/chat/clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId: 'default' }),
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to clear conversation on backend');
+      }
+    } catch (error) {
+      console.error('Error clearing conversation:', error);
     }
   }, []);
 
