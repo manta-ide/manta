@@ -143,7 +143,6 @@ export default function ChatSidebar() {
             title="Clear conversation"
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            {clearing ? 'Clearing...' : 'Clear'}
           </Button>
         </div>
       )}
