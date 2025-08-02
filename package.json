@@ -28,6 +28,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "diff-match-patch": "^1.0.5",
+    "elkjs": "^0.10.0",
     "lucide-react": "^0.525.0",
     "motion": "^12.23.12",
     "next": "15.4.1",
@@ -42,6 +43,7 @@
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
+    "web-worker": "^1.5.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.6"
   },
