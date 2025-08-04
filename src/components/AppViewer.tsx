@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import SelectionOverlay, { useSelectionHandlers } from './SelectionOverlay';
+import IframeOverlay from './IframeOverlay';
 import { LoaderFive } from '@/components/ui/loader';
 import { useProjectStore } from '@/lib/store';
 
@@ -24,18 +24,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
 
   /* host element (inside iframe) that will receive the portal */
   const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
-
-  /* element that actually captures pointer events for selection */
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  /* selection logic works against the overlayRef (inside iframe) */
-  const {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    handleClick,
-    isSelecting,
-  } = useSelectionHandlers(isEditMode, overlayRef);
 
   /* ── create / reuse host <div> inside the iframe once it loads ── */
   const handleIframeLoad = useCallback(() => {
@@ -144,21 +132,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
         {/* All overlay UI is portalled INTO the iframe’s document */}
         {overlayHost &&
           createPortal(
-            <div
-              ref={overlayRef}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                pointerEvents: isEditMode ? 'auto' : 'none',
-                cursor: isEditMode && isSelecting ? 'crosshair' : 'default',
-              }}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onClick={handleClick}
-            >
-              <SelectionOverlay isEditMode={isEditMode} />
-            </div>,
+            <IframeOverlay isEditMode={isEditMode} />,
             overlayHost,
           )}
       </div>

@@ -35,6 +35,8 @@ export const MessageVariablesSchema = z.object({
   })).optional(),
   CURRENT_FILE: z.string().optional(),
   CURRENT_FILE_CONTENT: z.string().optional(),
+  // Graph context variable
+  GRAPH_CONTEXT: z.string().optional(),
   
   // User message variables
   USER_REQUEST: z.string().optional(),
@@ -47,9 +49,6 @@ export const MessageVariablesSchema = z.object({
   
   // Assistant message variables
   ASSISTANT_RESPONSE: z.string().optional(),
-  
-  // Graph context variable
-  GRAPH_CONTEXT: z.string().optional(),
 });
 
 export type MessageVariables = z.infer<typeof MessageVariablesSchema>;
@@ -107,6 +106,7 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export const ClientChatRequestSchema = z.object({
   userMessage: MessageSchema,
   sessionId: z.string().optional(), // For conversation continuity
+  parsedMessages: z.array(ParsedMessageSchema).optional(), // Pre-processed messages for AI
 });
 
 export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;

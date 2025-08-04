@@ -87,7 +87,7 @@ function slugify(input: string) {
     .replace(/^-+|-+$/g, '');
 }
 function deriveId(parentId: string | null, title: string, reserved: Set<string>) {
-  const base = parentId ? `${parentId}-${slugify(title)}` : slugify(title);
+  const base = parentId ? `${parentId}-${slugify(title)}` : `node-element-${slugify(title)}`;
   if (!reserved.has(base)) return base;
   let i = 2;
   while (reserved.has(`${base}-${i}`)) i++;

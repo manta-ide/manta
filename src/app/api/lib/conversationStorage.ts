@@ -1,4 +1,5 @@
 import { Message, ParsedMessage } from './schemas';
+import { getGraphSession } from './graphStorage';
 
 // In-memory storage for conversation sessions
 // In production, this should be replaced with a proper database
@@ -69,7 +70,7 @@ async function getFileContent(filePath: string): Promise<string> {
 /**
  * Create a system message with project context
  */
-async function createSystemMessage(currentFile?: string): Promise<Message> {
+async function createSystemMessage(currentFile?: string, sessionId?: string): Promise<Message> {
   
   // Get file list with lengths from the API response
   const response = await fetch('http://localhost:3000/api/files?list=true');
@@ -80,13 +81,27 @@ async function createSystemMessage(currentFile?: string): Promise<Message> {
   if (currentFile) {
     currentFileContent = await getFileContent(currentFile);
   }
+
+  // Get graph from storage if sessionId is provided
+  let graphContext = '';
+  if (sessionId) {
+    try {
+      const graph = getGraphSession(sessionId);
+      if (graph) {
+        graphContext = JSON.stringify(graph, null, 2);
+      }
+    } catch (error) {
+      console.warn('Failed to get graph from storage:', error);
+    }
+  }
   
   return {
     role: 'system',
     variables: {
       PROJECT_FILES: data.files || [],
       CURRENT_FILE: currentFile || '',
-      CURRENT_FILE_CONTENT: currentFileContent
+      CURRENT_FILE_CONTENT: currentFileContent,
+      GRAPH_CONTEXT: graphContext
     }
   };
 }
@@ -123,8 +138,8 @@ export async function buildConversationForAI(
   // Extract current file from user message context
   const currentFile = userMessage.messageContext?.currentFile || undefined;
   
-  // Create system message with current project state
-  const systemMessage = await createSystemMessage(currentFile);
+  // Create system message with current project state and graph context
+  const systemMessage = await createSystemMessage(currentFile, sessionId);
   
   // Add the new user message to the session
   addMessageToSession(sessionId, userMessage);

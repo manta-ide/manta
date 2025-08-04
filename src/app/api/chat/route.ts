@@ -1,44 +1,29 @@
 import { NextRequest } from 'next/server';
 import { streamText } from 'ai';
-import { azure, createAzure } from '@ai-sdk/azure';
-import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
+import { azure } from '@ai-sdk/azure';
 import { fileTools } from '@/app/api/lib/aiFileTools';
 import { 
   Message, 
   ParsedMessage, 
-  ClientChatRequestSchema,
-  MessageVariablesSchema
+  ClientChatRequestSchema
 } from '../lib/schemas';
-import { buildConversationForAI, addMessageToSession } from '../lib/conversationStorage';
+import { addMessageToSession } from '../lib/conversationStorage';
 
 export async function POST(req: NextRequest) {
   try {
     // Parse and validate the request body using Zod
-    const { userMessage, sessionId = 'default' } = ClientChatRequestSchema.parse(await req.json());
+    const { userMessage, sessionId = 'default', parsedMessages } = ClientChatRequestSchema.parse(await req.json());
 
-    const templates = {
-      'user': await getTemplate('user-prompt-template'),
-      'assistant': await getTemplate('assistant-prompt-template'),
-      'system': await getTemplate('system-prompt-template')
-    };
+    // Add user message to session
+    addMessageToSession(sessionId, userMessage);
 
-    // Build the complete conversation on the backend
-    const allMessages = await buildConversationForAI(sessionId, userMessage);
+    // If no parsedMessages provided, create a simple message array
+    const messages = parsedMessages || [{ role: 'user', content: userMessage.content || '' }];
 
-    // Parse all messages uniformly, with Zod validation on variables
-    const parsedMessages: ParsedMessage[] = allMessages.map(message => {
-      const template = templates[message.role];
-      // Validate message variables against schema before using them
-      const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
-      const content = parseMessageWithTemplate(template, validatedVariables);
-      return { role: message.role, content };
-    });
-    console.log("PARSED MESSAGES");
-    console.log(JSON.stringify(allMessages.map(m => m.variables), null, 2));
     // Kick off model stream with tools and abort signal support
     const result = await streamText({
       model: azure('o4-mini'),
-      messages: parsedMessages,
+      messages: messages,
       tools: fileTools,
       maxSteps: 5, // Allow up to 5 steps for multi-step operations
       abortSignal: req.signal, // Forward the abort signal for stream cancellation
@@ -83,11 +68,6 @@ export async function POST(req: NextRequest) {
 
               case 'tool-result':
                 toolResults.push(chunk);
-                
-                // Extract file operation from tool result (only for tools that have operations)
-                if ((chunk.result as any)?.operation && ['createFile', 'updateFile', 'patchFile', 'deleteFile'].includes(chunk.toolName)) {
-                  // The file operations are now collected from toolResults
-                }
                 
                 // Send tool result to UI, including any file content for code blocks
                 const resultData: any = { 

@@ -43,7 +43,6 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [activelyReceiving, setActivelyReceiving] = useState(false);
-  const [useGraphGeneration, setUseGraphGeneration] = useState(true);
 
   // Timer for managing actively receiving state
   const activityTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -168,9 +167,8 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       };
 
       console.log(JSON.stringify(requestPayload, null, 2));
-      console.log('useGraphGeneration', useGraphGeneration);
       // Call API - choose between regular chat and graph-code generation
-      const apiEndpoint = useGraphGeneration ? '/api/graph-code' : '/api/chat';
+      const apiEndpoint = '/api/graph-code';
       const res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,9 +316,8 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
   }, []);
 
   return {
-    state: { messages, loading, activelyReceiving, useGraphGeneration },
+    state: { messages, loading, activelyReceiving },
     actions: { sendMessage, clearMessages, stopStream },
-    setUseGraphGeneration,
     streamIdxRef,
     streamingState
   };

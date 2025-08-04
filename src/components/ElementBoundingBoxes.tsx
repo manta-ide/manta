@@ -36,7 +36,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       const overlayRoot = doc.getElementById('selection-overlay-root');
       
       const elementInfos: ElementInfo[] = [];
-      
+      console.log('doc.querySelectorAll', doc.querySelectorAll('[id^="node-element-"]'));
       
       
       // Find all elements with IDs starting with "node-element-"

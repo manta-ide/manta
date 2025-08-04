@@ -1,9 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { streamText } from 'ai';
-import { azure } from '@ai-sdk/azure';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
-import { fileTools } from '@/app/api/lib/aiFileTools';
 import { 
   Message, 
   ParsedMessage, 
@@ -11,7 +8,7 @@ import {
   MessageVariablesSchema
 } from '../lib/schemas';
 import { buildConversationForAI, addMessageToSession } from '../lib/conversationStorage';
-import { storeGraph, getGraphSession } from '../lib/graphStorage';
+import { storeGraph } from '../lib/graphStorage';
 
 // Request schema for graph-code generation
 const GraphCodeRequestSchema = z.object({
@@ -121,25 +118,16 @@ export async function POST(req: NextRequest) {
             }) + '\n')
           );
 
-          // Create a system message that includes the graph context
-          const systemMessage: Message = {
-            role: 'system',
-            variables: {
-              PROJECT_FILES: userMessage.messageContext?.currentFile ? [{
-                route: userMessage.messageContext.currentFile,
-                lines: 0
-              }] : [],
-              CURRENT_FILE: userMessage.messageContext?.currentFile || '',
-              CURRENT_FILE_CONTENT: '',
-              GRAPH_CONTEXT: JSON.stringify(graph, null, 2)
-            }
+          // Add the user message with graph context to the session
+          const userMessageWithGraph: Message = {
+            role: 'user',
+            content: userMessage.content,
+            variables: userMessage.variables
           };
+          addMessageToSession(sessionId, userMessageWithGraph);
 
-          // Add the system message to the session
-          addMessageToSession(sessionId, systemMessage);
-
-          // Build conversation with graph context
-          const allMessages = await buildConversationForAI(sessionId, userMessage as Message);
+          // Build the complete conversation with graph context
+          const allMessages = await buildConversationForAI(sessionId, userMessageWithGraph);
 
           // Get templates
           const templates = {
@@ -148,113 +136,94 @@ export async function POST(req: NextRequest) {
             'system': await getTemplate('system-prompt-template')
           };
 
-          // Parse messages with graph context
+          // Parse all messages uniformly, with Zod validation on variables
           const parsedMessages: ParsedMessage[] = allMessages.map(message => {
             const template = templates[message.role];
+            // Validate message variables against schema before using them
             const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
             const content = parseMessageWithTemplate(template, validatedVariables);
             return { role: message.role, content };
           });
 
-          // Generate code using the AI model
-          const result = await streamText({
-            model: azure('o4-mini'),
-            messages: parsedMessages,
-            tools: fileTools,
-            maxSteps: 5,
-            abortSignal: req.signal,
-            providerOptions: {
-              azure: {
-                reasoning_effort: 'high'
-              }
-            }
+          // Generate code using the main chat route
+          const chatResponse = await fetch('http://localhost:3000/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userMessage: userMessageWithGraph,
+              sessionId,
+              parsedMessages
+            }),
+            signal: req.signal
           });
+
+          if (!chatResponse.ok) {
+            throw new Error(`Chat generation failed: ${chatResponse.statusText}`);
+          }
+
+          const reader = chatResponse.body?.getReader();
+          if (!reader) {
+            throw new Error('No response body from chat route');
+          }
 
           let full = '';
           const toolCalls: any[] = [];
           const toolResults: any[] = [];
 
-          // Process the streaming response
-          for await (const chunk of result.fullStream) {
-            switch (chunk.type) {
-              case 'text-delta':
-                full += chunk.textDelta;
-                controller.enqueue(
-                  encoder.encode(JSON.stringify({ t: 'token', d: chunk.textDelta }) + '\n')
-                );
-                break;
+          // Process the streaming response from chat route
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-              case 'tool-call':
-                toolCalls.push(chunk);
-                controller.enqueue(
-                  encoder.encode(JSON.stringify({ 
-                    t: 'tool_call', 
-                    toolName: chunk.toolName,
-                    args: chunk.args,
-                    language: chunk.toolName === 'readFile' ? `tool-status:readFile:calling:${chunk.args.path}` : undefined
-                  }) + '\n')
-                );
-                break;
+              const chunk = new TextDecoder().decode(value);
+              const lines = chunk.split('\n').filter(line => line.trim());
 
-              case 'tool-result':
-                toolResults.push(chunk);
-                
-                const resultData: any = { 
-                  t: 'tool_result', 
-                  toolName: chunk.toolName,
-                  result: chunk.result 
-                };
+              for (const line of lines) {
+                try {
+                  const data = JSON.parse(line);
+                  
+                  switch (data.t) {
+                    case 'token':
+                      full += data.d;
+                      controller.enqueue(
+                        encoder.encode(JSON.stringify({ t: 'token', d: data.d }) + '\n')
+                      );
+                      break;
 
-                // Handle file operations
-                if (chunk.toolName === 'createFile' || chunk.toolName === 'updateFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
-                  if (toolCall) {
-                    resultData.codeBlock = {
-                      language: chunk.toolName === 'createFile' ? `create:${toolCall.args.path}` : `update:${toolCall.args.path}`,
-                      filename: toolCall.args.path,
-                      content: toolCall.args.content
-                    };
+                    case 'tool_call':
+                      toolCalls.push(data);
+                      controller.enqueue(
+                        encoder.encode(JSON.stringify({ 
+                          t: 'tool_call', 
+                          toolName: data.toolName,
+                          args: data.args,
+                          language: data.language
+                        }) + '\n')
+                      );
+                      break;
+
+                    case 'tool_result':
+                      toolResults.push(data);
+                      controller.enqueue(
+                        encoder.encode(JSON.stringify(data) + '\n')
+                      );
+                      break;
+
+                    case 'final':
+                      // Final response from chat route
+                      break;
+
+                    case 'error':
+                      throw new Error(data.error);
                   }
-                } else if (chunk.toolName === 'readFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
-                  if (toolCall && chunk.result?.success) {
-                    resultData.codeBlock = {
-                      language: `tool-status:readFile:completed:${toolCall.args.path}`,
-                      filename: toolCall.args.path,
-                      content: chunk.result.content
-                    };
-                  }
-                } else if (chunk.toolName === 'patchFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
-                  if (toolCall) {
-                    resultData.codeBlock = {
-                      language: `patch:${toolCall.args.path}`,
-                      filename: toolCall.args.path,
-                      content: toolCall.args.patch
-                    };
-                  }
-                } else if (chunk.toolName === 'deleteFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
-                  if (toolCall) {
-                    resultData.codeBlock = {
-                      language: `delete:${toolCall.args.path}`,
-                      filename: toolCall.args.path,
-                      content: `File deleted: ${toolCall.args.path}`
-                    };
-                  }
+                } catch (parseErr) {
+                  console.warn('Failed to parse chat response line:', line);
                 }
-
-                controller.enqueue(
-                  encoder.encode(JSON.stringify(resultData) + '\n')
-                );
-                break;
-
-              case 'step-finish':
-                break;
-
-              case 'finish':
-                break;
+              }
             }
+          } finally {
+            reader.releaseLock();
           }
 
           // Add assistant response to session
