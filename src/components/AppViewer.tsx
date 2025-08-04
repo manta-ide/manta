@@ -39,37 +39,38 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
 
   /* ── create / reuse host <div> inside the iframe once it loads ── */
   const handleIframeLoad = useCallback(() => {
-    setIsRefreshing(false);
+    // inside handleIframeLoad
+const doc =
+iframeRef.current?.contentDocument ??
+iframeRef.current?.contentWindow?.document;
+if (!doc) return;
 
-    /* restore scroll position captured before refresh */
-    if (scrollPositionRef.current && iframeRef.current?.contentWindow) {
-      const { x, y } = scrollPositionRef.current;
-      setTimeout(() => {
-        iframeRef.current?.contentWindow?.scrollTo(x, y);
-      }, 100);
-      scrollPositionRef.current = null;
-    }
+// remove previous host if any
+doc.getElementById('selection-overlay-root')?.remove();
 
-    const doc =
-      iframeRef.current?.contentDocument ??
-      iframeRef.current?.contentWindow?.document;
-    if (!doc) return;
+// pick a container that scrolls with content
+const appRoot =
+(doc.getElementById('app-root') as HTMLElement) || doc.body;
 
-    /* remove previous host if any */
-    doc.getElementById('selection-overlay-root')?.remove();
+// ensure positioned ancestor for absolute children
+if (getComputedStyle(appRoot).position === 'static') {
+appRoot.style.position = 'relative';
+}
 
-    /* (re)-create host */
-    const host = doc.createElement('div');
-    host.id = 'selection-overlay-root';
-    Object.assign(host.style, {
-      position: 'fixed', // *** key change ***
-      inset: '0',
-      zIndex: '9999',
-      pointerEvents: 'none',
-    });
-    doc.body.appendChild(host);
+// (re)-create host that scrolls with content
+const host = doc.createElement('div');
+host.id = 'selection-overlay-root';
+Object.assign(host.style, {
+position: 'absolute',  // <- NOT fixed
+inset: '0',
+zIndex: '9999',
+// Let the child overlay layer decide whether to capture events.
+pointerEvents: 'auto',
+});
+appRoot.appendChild(host);
 
-    setOverlayHost(host);
+setOverlayHost(host);
+
   }, []);
 
   /* ── cleanup overlay host on unmount ───────────────────────── */

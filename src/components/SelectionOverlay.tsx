@@ -14,36 +14,14 @@ interface SelectionOverlayProps {
 
 export default function SelectionOverlay({ isEditMode }: SelectionOverlayProps) {
   const { selection } = useProjectStore();
-  const ref = useRef<HTMLDivElement>(null);
-  const [scrollOffset, setScrollOffset] = useState({ x: 0, y: 0 });
-
-  /* keep overlay in view while iframe scrolls
-     (re-bind every time the iframe document changes) */
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-
-    const win = node.ownerDocument?.defaultView;
-    if (!win) return;
-
-    const update = () =>
-      setScrollOffset({ x: win.scrollX, y: win.scrollY });
-
-    update();
-    win.addEventListener('scroll', update, { passive: true });
-
-    return () => win.removeEventListener('scroll', update);
-  }, [ref.current?.ownerDocument]);   // *** key change ***
-
   if (!isEditMode || !selection) return null;
 
   return (
     <div
-      ref={ref}
       className="absolute z-[9999] border-2 border-blue-500 bg-blue-200/20 pointer-events-none"
       style={{
-        left:   `${selection.x - scrollOffset.x}px`,
-        top:    `${selection.y - scrollOffset.y}px`,
+        left:   `${selection.x}px`,
+        top:    `${selection.y}px`,
         width:  `${selection.width}px`,
         height: `${selection.height}px`,
       }}
