@@ -167,7 +167,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
 
       console.log(JSON.stringify(requestPayload, null, 2));
       // Call API
-      const res = await fetch('/api/chat-graph', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),

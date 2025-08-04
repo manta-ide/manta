@@ -64,7 +64,8 @@ const RequestSchema = z.object({
   maxDepth: z.number().int().min(0).max(12).optional(),           // default 3
   maxNodes: z.number().int().min(1).max(1000).optional(),         // default 120
   childLimit: z.number().int().min(0).max(20).optional(),         // default 3
-  concurrency: z.number().int().min(1).max(16).optional(),        // default 4
+  concurrency: z.number().int().min(1).max(16).optional(),        // default 4 (parallel batches)
+  batchSize: z.number().int().min(1).max(20).optional(),          // default 4 (nodes per LLM call)
   minChildComplexity: z.number().int().min(1).max(5).optional(),  // default 3
   allowPrimitiveExpansion: z.boolean().optional(),                // default false
   model: z.string().optional(),                                   // default 'gpt-4o'
@@ -110,37 +111,37 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, tries = 3): Pro
 }
 
 /* ================================
-   CORE: expandOne (non-streaming)
+   CORE: batched expand (single LLM call for N nodes)
    ================================ */
 
-async function expandOne({
-  nodePrompt,
-  rootTask,
-  parent,
-  ancestorPath,
-  depthRemaining,
-  childLimit,
-  minChildComplexity,
-  allowPrimitiveExpansion,
-  modelName,
-  temperature,
-  topP,
-  seed,
-}: {
-  nodePrompt: string;
-  rootTask: string;
-  parent: { id: string | null; title: string | null; kind: string | null };
-  ancestorPath: string[];
-  depthRemaining: number;
-  childLimit: number;
-  minChildComplexity: number;
-  allowPrimitiveExpansion: boolean;
-  modelName: string;
-  temperature: number;
-  topP: number;
-  seed?: number;
-}): Promise<NodeDetailT> {
-  const styleGuide = `
+/** One queued job to expand */
+type QueueItem = {
+  prompt: string;
+  depth: number;
+  parentId: string | null;
+  parentTitle: string | null;
+  parentKind: string | null;
+  ancestorTitles: string[];
+  expectedId?: string; // carry stub id forward to force exact match
+};
+
+/** Shape the model must echo back to match jobs 1:1 */
+const NodeDetailWithUid = NodeDetail.extend({
+  uid: z.string().describe('Echo back the job uid you are answering for.'),
+});
+type NodeDetailWithUidT = z.infer<typeof NodeDetailWithUid>;
+
+/**
+ * ⚠️ OpenAI/Azure function calling requires a schema with type "object".
+ * So we wrap the array in an object: { results: NodeDetailWithUid[] }.
+ */
+const BatchOutWrapper = z.object({
+  results: z.array(NodeDetailWithUid),
+});
+type BatchOutWrapperT = z.infer<typeof BatchOutWrapper>;
+
+/** static, reused */
+const styleGuide = `
 You are composing a UI graph. Be STRICTLY UI-focused.
 
 Valid kinds:
@@ -166,68 +167,105 @@ Children constraints:
 - Avoid synonyms that rename the same concept already present in the ancestorPath.
 `;
 
-  const instructions = [
-    'Return ONE node detail and its DIRECT children as stubs. No grandchildren.',
-    'JSON must strictly match the schema.',
+/**
+ * Ask the model to create multiple NodeDetail results in ONE call.
+ * Jobs are independent; the model MUST return an object { results: [...] }
+ * where results[i].uid matches the corresponding job uid.
+ */
+async function expandBatch({
+  jobs,
+  rootTask,
+  childLimit,
+  minChildComplexity,
+  allowPrimitiveExpansion,
+  modelName,
+  temperature,
+  topP,
+  seed,
+}: {
+  jobs: Array<{
+    uid: string;
+    nodePrompt: string;
+    parent: { id: string | null; title: string | null; kind: string | null };
+    ancestorPath: string[];
+    depthRemaining: number;
+    childLimitForThisJob: number;
+  }>;
+  rootTask: string;
+  childLimit: number;
+  minChildComplexity: number;
+  allowPrimitiveExpansion: boolean;
+  modelName: string;
+  temperature: number;
+  topP: number;
+  seed?: number;
+}): Promise<NodeDetailWithUidT[]> {
+  const header = [
+    'Return a SINGLE JSON object with this shape:',
+    '{ "results": NodeDetailWithUid[] }',
+    '- results.length MUST equal the number of jobs.',
+    '- Each results[i] MUST include "uid" that EXACTLY matches jobs[i].uid.',
+    'For each job, return ONE node detail and its DIRECT children as stubs. No grandchildren.',
+    'JSON must strictly match the provided schema.',
     styleGuide,
     '',
-    'Context:',
+    `Global Context:`,
     `rootTask: ${rootTask}`,
-    `parent: ${JSON.stringify(parent)}`,
-    `ancestorPath: ${JSON.stringify(ancestorPath)}`,
-    `nodePrompt: ${nodePrompt}`,
-    `depthRemaining: ${depthRemaining}`,
-    `childLimit: ${childLimit}`,
+    `Default childLimit: ${childLimit}`,
+    '',
+    'Jobs:',
   ].join('\n');
+
+  const jobsText = jobs.map((j, i) => {
+    return [
+      `- job[${i}]`,
+      `  uid: ${j.uid}`,
+      `  parent: ${JSON.stringify(j.parent)}`,
+      `  ancestorPath: ${JSON.stringify(j.ancestorPath)}`,
+      `  nodePrompt: ${j.nodePrompt}`,
+      `  depthRemaining: ${j.depthRemaining}`,
+      `  childLimitForThisJob: ${j.childLimitForThisJob}`,
+    ].join('\n');
+  }).join('\n');
+
+  const prompt = `${header}\n${jobsText}`;
 
   const t0 = Date.now();
   const { object } = await withRetry(
     () => generateObject({
       model: azure(modelName as any),
-      schema: NodeDetail,
-      prompt: instructions,
+      schema: BatchOutWrapper,
+      prompt,
       temperature,
       topP,
       seed,
     }),
-    'generateObject'
+    'generateObject(batch)'
   );
   const dt = Date.now() - t0;
+  console.log(`[graph] expandBatch ${dt}ms | jobs=${jobs.length}`);
 
-  let node = object as NodeDetailT;
-
-  // prune children based on rules + depth
-  let children = (node.children ?? []).slice(0, childLimit);
-  children = children.filter(c => {
-    const okKind = ['page','section','group','component'].includes(c.kind) ||
-                   (allowPrimitiveExpansion && c.kind === 'primitive');
-    const meetsComplexity = (c.complexity ?? 1) >= minChildComplexity;
-    const isExpandable = c.expandable === true;
-    return depthRemaining > 0 && okKind && isExpandable && meetsComplexity;
+  // prune children per job-specific depth + global rules
+  const results = (object as BatchOutWrapperT).results.map((node, idx) => {
+    const j = jobs[idx];
+    let children = (node.children ?? []).slice(0, j.childLimitForThisJob);
+    children = children.filter(c => {
+      const okKind = ['page','section','group','component'].includes(c.kind) ||
+                     (allowPrimitiveExpansion && c.kind === 'primitive');
+      const meetsComplexity = (c.complexity ?? 1) >= minChildComplexity;
+      const isExpandable = c.expandable === true;
+      return j.depthRemaining > 0 && okKind && isExpandable && meetsComplexity;
+    });
+    return { ...node, children };
   });
 
-  node = { ...node, children };
-  console.log(
-    `[graph] expandOne ${dt}ms | kind=${node.kind} | prunedChildren=${(object.children?.length ?? 0)}→${children.length} | depthRemaining=${depthRemaining}`
-  );
-
-  return node;
+  return results;
 }
 
 /* ================================
-   BFS with bounded concurrency
+   BFS with bounded concurrency + batching
    (stable IDs via expectedId)
    ================================ */
-
-type QueueItem = {
-  prompt: string;
-  depth: number;
-  parentId: string | null;
-  parentTitle: string | null;
-  parentKind: string | null;
-  ancestorTitles: string[];
-  expectedId?: string; // carry stub id forward to force exact match
-};
 
 async function buildGraphBFS({
   rootPrompt,
@@ -235,6 +273,7 @@ async function buildGraphBFS({
   maxNodes,
   childLimit,
   concurrency,
+  batchSize,
   minChildComplexity,
   allowPrimitiveExpansion,
   modelName,
@@ -247,6 +286,7 @@ async function buildGraphBFS({
   maxNodes: number;
   childLimit: number;
   concurrency: number;
+  batchSize: number;
   minChildComplexity: number;
   allowPrimitiveExpansion: boolean;
   modelName: string;
@@ -255,7 +295,7 @@ async function buildGraphBFS({
   seed?: number;
 }): Promise<GraphT> {
   console.log(
-    `[graph] START rootPrompt="${truncate(rootPrompt)}" | maxDepth=${maxDepth} | maxNodes=${maxNodes} | childLimit=${childLimit} | minChildComplexity=${minChildComplexity} | concurrency=${concurrency}`
+    `[graph] START rootPrompt="${truncate(rootPrompt)}" | maxDepth=${maxDepth} | maxNodes=${maxNodes} | childLimit=${childLimit} | minChildComplexity=${minChildComplexity} | concurrency=${concurrency} | batchSize=${batchSize}`
   );
 
   const nodesById = new Map<string, NodeDetailT>();
@@ -271,6 +311,7 @@ async function buildGraphBFS({
 
   let rootId: string | null = null;
   let total = 0;
+  let uidCounter = 0;
 
   async function worker(wid: number) {
     while (queue.length > 0) {
@@ -279,15 +320,24 @@ async function buildGraphBFS({
         return;
       }
 
-      const { prompt, depth, parentId, parentTitle, parentKind, ancestorTitles, expectedId } = queue.shift()!;
-      console.log(`[graph] [w${wid}] -> expand depth=${depth} | qlen=${queue.length} | reserved=${reserved.size} | prompt="${truncate(prompt)}"`);
+      // take a batch
+      const take = Math.max(1, Math.min(batchSize, queue.length, Math.max(0, maxNodes - total)));
+      const items = queue.splice(0, take);
+      const now = Date.now();
+      const jobs = items.map((it, idx) => ({
+        uid: `${wid}-${now}-${uidCounter++}-${idx}`,
+        nodePrompt: it.prompt,
+        parent: { id: it.parentId, title: it.parentTitle, kind: it.parentKind },
+        ancestorPath: it.ancestorTitles,
+        depthRemaining: Math.max(0, maxDepth - it.depth),
+        childLimitForThisJob: childLimit,
+      }));
 
-      const node = await expandOne({
-        nodePrompt: prompt,
+      console.log(`[graph] [w${wid}] -> expand batch size=${jobs.length} | qlen=${queue.length} | reserved=${reserved.size}`);
+
+      const results = await expandBatch({
+        jobs,
         rootTask: rootPrompt,
-        parent: { id: parentId, title: parentTitle, kind: parentKind },
-        ancestorPath: ancestorTitles,
-        depthRemaining: Math.max(0, maxDepth - depth),
         childLimit,
         minChildComplexity,
         allowPrimitiveExpansion,
@@ -297,47 +347,74 @@ async function buildGraphBFS({
         seed,
       });
 
-      // force-stable ID: use expectedId if provided, else derive
-      const computedId = expectedId ?? deriveId(parentId, node.title, reserved);
-      if (expectedId && expectedId !== computedId) {
-        console.warn(`[graph] expectedId mismatch: expected="${expectedId}" got="${computedId}"`);
-      }
+      // map uid => result
+      const byUid = new Map(results.map(r => [r.uid, r]));
 
-      // compute child IDs immediately (reserve them to avoid races)
-      const normalizedChildren = node.children.map(c => {
-        const childId = deriveId(computedId, c.title, reserved);
-        return { ...c, id: childId };
-      });
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const job = jobs[i];
+        const node = byUid.get(job.uid);
+        if (!node) {
+          console.warn(`[graph] [w${wid}] missing result for uid=${job.uid}; skipping`);
+          continue;
+        }
 
-      // reserve ids before enqueue to minimize collisions
-      reserved.add(computedId);
-      for (const c of normalizedChildren) reserved.add(c.id!);
+        // force-stable ID: use expectedId if provided, else derive
+        const computedId = it.expectedId ?? deriveId(it.parentId, node.title, reserved);
+        if (it.expectedId && it.expectedId !== computedId) {
+          console.warn(`[graph] expectedId mismatch: expected="${it.expectedId}" got="${computedId}"`);
+        }
 
-      const normalizedNode: NodeDetailT = { ...node, id: computedId, children: normalizedChildren };
-      nodesById.set(computedId, normalizedNode);
-      total++;
-      if (!rootId) rootId = computedId;
+        // compute child IDs immediately (reserve them to avoid races)
+        const normalizedChildren = node.children.map(c => {
+          const childId = deriveId(computedId, c.title, reserved);
+          return { ...c, id: childId };
+        });
 
-      if (depth >= maxDepth) {
-        console.log(`[graph] [w${wid}] depth cap @ id="${computedId}" -> children skipped`);
-        continue;
-      }
+        // reserve ids before enqueue to minimize collisions
+        reserved.add(computedId);
+        for (const c of normalizedChildren) reserved.add(c.id!);
 
-      // enqueue children; carry expectedId = child.id
-      for (const c of normalizedChildren) {
-        if (total + queue.length >= maxNodes) {
-          console.warn(`[graph] [w${wid}] HALT enqueue: maxNodes @ parent="${computedId}"`);
+        const normalizedNode: NodeDetailT = {
+          id: computedId,
+          title: node.title,
+          prompt: node.prompt,
+          kind: node.kind,
+          what: node.what,
+          how: node.how,
+          properties: node.properties,
+          children: normalizedChildren,
+        };
+
+        nodesById.set(computedId, normalizedNode);
+        total++;
+        if (!rootId) rootId = computedId;
+
+        // enqueue children if within depth
+        if (it.depth < maxDepth) {
+          for (const c of normalizedChildren) {
+            if (total + queue.length >= maxNodes) {
+              console.warn(`[graph] [w${wid}] HALT enqueue: maxNodes @ parent="${computedId}"`);
+              break;
+            }
+            queue.push({
+              prompt: c.prompt,
+              depth: it.depth + 1,
+              parentId: computedId,
+              parentTitle: normalizedNode.title,
+              parentKind: normalizedNode.kind,
+              ancestorTitles: [...it.ancestorTitles, normalizedNode.title],
+              expectedId: c.id, // critical for stable ids
+            });
+          }
+        } else {
+          console.log(`[graph] [w${wid}] depth cap @ id="${computedId}" -> children skipped`);
+        }
+
+        if (total >= maxNodes) {
+          console.warn('[graph] HALT: reached maxNodes while processing batch');
           break;
         }
-        queue.push({
-          prompt: c.prompt,
-          depth: depth + 1,
-          parentId: computedId,
-          parentTitle: normalizedNode.title,
-          parentKind: normalizedNode.kind,
-          ancestorTitles: [...ancestorTitles, normalizedNode.title],
-          expectedId: c.id, // critical for stable ids
-        });
       }
     }
   }
@@ -389,6 +466,7 @@ export async function POST(req: NextRequest) {
       maxNodes = 120,
       childLimit = 3,
       concurrency = 4,
+      batchSize = 4,                 // NEW: number of nodes per LLM call
       minChildComplexity = 3,
       allowPrimitiveExpansion = false,
       model = 'gpt-4o',
@@ -412,6 +490,7 @@ export async function POST(req: NextRequest) {
       maxNodes,
       childLimit,
       concurrency,
+      batchSize,
       minChildComplexity,
       allowPrimitiveExpansion,
       modelName: model,
