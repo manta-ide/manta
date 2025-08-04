@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Send, Brain, Square } from 'lucide-react';
+import { Send, Brain, Square, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
@@ -46,8 +48,8 @@ export default function ChatSidebar() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Use chat service for all chat logic
-  const { state, actions, streamIdxRef, streamingState } = useChatService(scrollRef);
-  const { messages, loading, activelyReceiving } = state;
+  const { state, actions, setUseGraphGeneration, streamIdxRef, streamingState } = useChatService(scrollRef);
+  const { messages, loading, activelyReceiving, useGraphGeneration } = state;
   const { sendMessage, stopStream } = actions;
 
   // Set up scroll event listener to track auto-scroll state
@@ -178,6 +180,25 @@ export default function ChatSidebar() {
               placeholder="Ask AI to help with your project..."
               className="flex-1 resize-none text-sm field-sizing-content max-h-29.5 min-h-0 py-1.75 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400"
             />
+          </div>
+          
+          {/* Graph generation toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Network className="h-4 w-4 text-zinc-400" />
+              <Label htmlFor="graph-mode" className="text-xs text-zinc-400">
+                Use Graph Generation
+              </Label>
+            </div>
+            <Switch
+              id="graph-mode"
+              checked={useGraphGeneration}
+              onCheckedChange={setUseGraphGeneration}
+              className="data-[state=checked]:bg-zinc-600"
+            />
+          </div>
+          
+          <div className="flex gap-2 items-end">
             {loading ? (
               <Button 
                 type="button" 

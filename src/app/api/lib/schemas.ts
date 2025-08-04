@@ -47,6 +47,9 @@ export const MessageVariablesSchema = z.object({
   
   // Assistant message variables
   ASSISTANT_RESPONSE: z.string().optional(),
+  
+  // Graph context variable
+  GRAPH_CONTEXT: z.string().optional(),
 });
 
 export type MessageVariables = z.infer<typeof MessageVariablesSchema>;
