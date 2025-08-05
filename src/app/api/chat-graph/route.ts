@@ -61,13 +61,13 @@ const RequestSchema = z.object({
     }),
   }),
   // Controls (all optional)
-  maxDepth: z.number().int().min(0).max(12).optional(),           // default 3
-  maxNodes: z.number().int().min(1).max(1000).optional(),         // default 120
-  childLimit: z.number().int().min(0).max(20).optional(),         // default 3
+  maxDepth: z.number().int().min(0).max(12).optional(),           // default 5 (increased for deeper expansion)
+  maxNodes: z.number().int().min(1).max(1000).optional(),         // default 200 (increased for more nodes)
+  childLimit: z.number().int().min(0).max(20).optional(),         // default 5 (increased for more children)
   concurrency: z.number().int().min(1).max(16).optional(),        // default 4 (parallel batches)
   batchSize: z.number().int().min(1).max(20).optional(),          // default 4 (nodes per LLM call)
-  minChildComplexity: z.number().int().min(1).max(5).optional(),  // default 3
-  allowPrimitiveExpansion: z.boolean().optional(),                // default false
+  minChildComplexity: z.number().int().min(1).max(5).optional(),  // default 1 (lowered to allow more expansion)
+  allowPrimitiveExpansion: z.boolean().optional(),                // default true (enabled for deeper expansion)
   model: z.string().optional(),                                   // default 'gpt-4o'
   temperature: z.number().min(0).max(2).optional(),               // default 0.2
   topP: z.number().min(0).max(1).optional(),                      // default 1
@@ -149,21 +149,23 @@ Valid kinds:
 - "section": top-level region (hero, footer, sidebar)
 - "group": a subsection grouping components (card grid, filter bar)
 - "component": concrete reusable UI (card, navbar, modal, gallery)
-- "primitive": atomic content (title text, icon, background, divider)
+- "primitive": atomic content (title text, icon, background, divider, button, input field)
 - "behavior": interactive facility tied to the UI (filtering, search, sort)
 
 Granularity rules:
-- Only "page|section|group|component" are typically expandable.
-- "primitive" and trivial "behavior" are LEAVES unless explicitly complex.
-- DO NOT create micro-leaves like "icons", "background", or "subtitle" unless they are actual components.
+- ALL kinds are expandable to create detailed UI hierarchies.
+- Expand "primitive" elements like buttons, icons, text labels, input fields, etc.
+- Expand "component" elements to show their internal structure (button groups, form fields, etc.)
 - Children must be cohesive UI parts of THEIR PARENT, not generic product features.
+- Go deep into individual UI elements: button text, icons, styling elements, etc.
 
 When depthRemaining=0, return children: [].
 
 Children constraints:
 - Provide AT MOST childLimit children.
 - Each child includes: title, prompt, kind, expandable, complexity (1-5).
-- expandable=true ONLY if kind ∈ {page,section,group,component} AND complexity≥3.
+- expandable=true for ANY kind if it has meaningful sub-elements to expand.
+- Include specific UI elements: "Submit Button", "Search Icon", "Email Input Field", "Navigation Menu Item", etc.
 - Avoid synonyms that rename the same concept already present in the ancestorPath.
 `;
 
@@ -250,8 +252,8 @@ async function expandBatch({
     const j = jobs[idx];
     let children = (node.children ?? []).slice(0, j.childLimitForThisJob);
     children = children.filter(c => {
-      const okKind = ['page','section','group','component'].includes(c.kind) ||
-                     (allowPrimitiveExpansion && c.kind === 'primitive');
+      // Allow all kinds to be expanded for deeper UI hierarchies
+      const okKind = ['page','section','group','component','primitive','behavior'].includes(c.kind);
       const meetsComplexity = (c.complexity ?? 1) >= minChildComplexity;
       const isExpandable = c.expandable === true;
       return j.depthRemaining > 0 && okKind && isExpandable && meetsComplexity;
@@ -462,13 +464,13 @@ export async function POST(req: NextRequest) {
 
     const {
       userMessage,
-      maxDepth = 3,
-      maxNodes = 120,
-      childLimit = 3,
+      maxDepth = 5,
+      maxNodes = 200,
+      childLimit = 5,
       concurrency = 4,
       batchSize = 4,                 // NEW: number of nodes per LLM call
-      minChildComplexity = 3,
-      allowPrimitiveExpansion = false,
+      minChildComplexity = 1,
+      allowPrimitiveExpansion = true,
       model = 'gpt-4o',
       temperature = 0.2,
       topP = 1,

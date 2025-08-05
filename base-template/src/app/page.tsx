@@ -1,137 +1,79 @@
+'use client';
 import React from 'react';
 import Link from 'next/link';
-import { Code, Zap, Lock, BarChart2, Twitter, Github, Linkedin } from 'lucide-react';
 
 export default function Home() {
-  const features = [
+  const projects = [
     {
-      icon: Code,
-      title: 'Modular Code',
-      description: 'Build scalable and maintainable codebases with modular architecture.',
+      image: '/project1.png',
+      title: 'Project One',
+      description: 'A modern web application built with React and Node.js.',
+      link: '#'
     },
     {
-      icon: Zap,
-      title: 'High Performance',
-      description: 'Optimize applications for speed and responsiveness.',
+      image: '/project2.png',
+      title: 'Project Two',
+      description: 'An e-commerce platform with real-time inventory management.',
+      link: '#'
     },
     {
-      icon: Lock,
-      title: 'Secure',
-      description: 'Implement robust security practices to protect your data.',
-    },
-    {
-      icon: BarChart2,
-      title: 'Analytics',
-      description: 'Gain insights through integrated analytics and monitoring.',
-    },
+      image: '/project3.png',
+      title: 'Project Three',
+      description: 'A mobile-first responsive design using Tailwind CSS.',
+      link: '#'
+    }
   ];
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    // TODO: Implement form submission (e.g., send to API or email service)
+    alert('Thank you for reaching out! I will get back to you soon.');
+  }
+
   return (
-    <main id="node-element-swe-landing-page" className="flex flex-col space-y-24">
+    <main id="node-element-swe-portfolio-landing-page" className="flex flex-col space-y-24 px-8 py-16 max-w-screen-lg mx-auto">
       {/* Hero Section */}
-      <section
-        id="node-element-swe-landing-page-hero-section"
-        className="min-h-screen flex flex-col justify-center items-center text-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white px-6"
-      >
-        <h1 className="text-5xl font-bold mb-4">
-          Empower Your Software Engineering Journey
-        </h1>
-        <p className="text-xl mb-6 max-w-2xl">
-          Build, scale, and innovate with our powerful suite of tools designed for modern developers.
-        </p>
-        <Link href="#node-element-swe-landing-page-features-section">
-            Explore Features
+      <section id="node-element-swe-portfolio-landing-page-hero-section" className="text-center space-y-4">
+        <h1 className="text-5xl font-bold">Hi, I&apos;m Your Name</h1>
+        <p className="text-xl text-gray-600">I build scalable web applications and modern interfaces.</p>
+        <Link href="#node-element-swe-portfolio-landing-page-contact-form">
+        Get in Touch
         </Link>
       </section>
 
-      {/* Features Section */}
-      <section
-        id="node-element-swe-landing-page-features-section"
-        className="max-w-6xl mx-auto px-6"
-      >
-        <h2 className="text-4xl font-semibold text-center mb-12">Features</h2>
-        <div
-          id="node-element-swe-landing-page-features-section-feature-card-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
-        >
-          {features.map((item) => (
-            <div
-              key={item.title}
-              className="p-6 bg-white rounded-lg shadow hover:shadow-md transition group"
-            >
-              <item.icon className="w-12 h-12 text-blue-600 mb-4 group-hover:text-indigo-600" />
-              <h3 className="text-2xl font-semibold mb-2">{item.title}</h3>
-              <p className="text-gray-600">{item.description}</p>
+      {/* Project Highlights Section */}
+      <section id="node-element-swe-portfolio-landing-page-project-highlights">
+        <h2 className="text-3xl font-semibold mb-8">Featured Projects</h2>
+        <div id="node-element-swe-portfolio-landing-page-project-highlights-grid-layout" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {projects.map((project, idx) => (
+            <div key={idx} id="node-element-swe-portfolio-landing-page-project-highlights-project-card" className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <img src={project.image} alt={project.title} className="w-full h-48 object-cover" />
+              <div className="p-4">
+                <h3 className="text-xl font-bold mb-2">{project.title}</h3>
+                <p className="text-gray-600">{project.description}</p>
+                <Link href={project.link}>
+                  View Project
+                </Link>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Footer Section */}
-      <footer
-        id="node-element-swe-landing-page-footer"
-        className="bg-gray-800 text-gray-200 py-12"
-      >
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <h4 className="font-semibold mb-4">Navigation</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link href="#node-element-swe-landing-page-features-section">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="/about">
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact">
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
+      {/* Contact Form Section */}
+      <section id="node-element-swe-portfolio-landing-page-contact-form" className="bg-gray-100 p-8 rounded-lg">
+        <h2 className="text-3xl font-semibold mb-6">Contact Me</h2>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <input type="text" name="name" placeholder="Name" required className="w-full px-4 py-2 border rounded-lg" />
+          <input type="email" name="email" placeholder="Email" required className="w-full px-4 py-2 border rounded-lg" />
+          <textarea name="message" rows={4} placeholder="Your message" required className="w-full px-4 py-2 border rounded-lg"></textarea>
+          <button id="node-element-swe-portfolio-landing-page-contact-form-submit-button" type="submit" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+            Send Message
+          </button>
+        </form>
+      </section>
 
-          <div>
-            <h4 className="font-semibold mb-4">Contact</h4>
-            <p>
-              123 Developer Lane
-              <br /> Code City, 45678
-            </p>
-            <p className="mt-2">
-              Email:{' '}
-              <a
-                href="mailto:hello@swe.com"
-                className="hover:text-white"
-              >
-                hello@swe.com
-              </a>
-            </p>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Follow Us</h4>
-            <div className="flex space-x-4">
-              <a href="#" className="hover:text-white">
-                <Twitter className="w-6 h-6" />
-              </a>
-              <a href="#" className="hover:text-white">
-                <Github className="w-6 h-6" />
-              </a>
-              <a href="#" className="hover:text-white">
-                <Linkedin className="w-6 h-6" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      
     </main>
   );
 }
