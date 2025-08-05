@@ -1,8 +1,10 @@
 import { tool } from 'ai';
-import { z } from 'zod';
+import { exec } from 'child_process';
+import * as z from 'zod';
 import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { applyAllDiffBlocks } from '@/app/diffHelpers';
+import { getLastError, clearLastError } from '@/lib/runtimeErrorStore';
 
 // Project root for file operations (base-template directory)
 const PROJECT_ROOT = join(process.cwd(), 'base-template');
@@ -10,6 +12,63 @@ const PROJECT_ROOT = join(process.cwd(), 'base-template');
 // Maximum file size to read (in lines) to prevent memory issues
 const MAX_FILE_LINES = 1000;
 
+function run(cmd: string) {
+  return new Promise<{ ok: boolean; out: string }>((res) =>
+    exec(
+      cmd,
+      { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
+      (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
+    ),
+  );
+}
+
+async function buildProject(filePath: string) {
+
+  const { exec } = await import('child_process');
+      const run = (cmd: string) =>
+        new Promise<{ ok: boolean; out: string }>((res) =>
+          exec(
+            cmd,
+            { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
+            (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
+          ),
+        );
+        const ext = (filePath.split('.').pop() || '').toLowerCase();
+        if (!['ts', 'tsx'].includes(ext)) {return { success: true };}
+      const { ok, out } = await run('npx tsc --noEmit --pretty false ' + filePath);
+
+      if (ok) return { success: true };
+
+      // strip ANSI colour codes
+      const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
+      const lines = plain.split('\n').filter((l) => l.trim());
+      const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
+      const errorLines =
+        (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
+
+      return { success: false, errorLines };
+}
+
+function getRuntimeError() {
+
+  const err = getLastError();
+  if (!err) {
+    return { success: true };
+  }
+
+  // Immediately clear so the same error isn’t reported twice.
+  clearLastError();
+
+  // Truncate to keep the payload modest
+  const stack = (err.componentStack ?? '').split('\n').slice(0, 6).join('\n');
+
+  return {
+    success: false,
+    message: err.message,
+    componentStack: stack,
+    ts: err.ts,
+  };
+}
 export const fileTools = {
   readFile: tool({
     description: 'Read a file and return its content. Returns error if file not found or too long.',
@@ -42,13 +101,19 @@ export const fileTools = {
           };
         }
         
-        return { 
-          success: true, 
-          message: `Successfully read file: ${path}`,
-          content: content,
-          lines: lines.length,
-          path: path
-        };
+        const runtimeError = await buildProject(fullPath);
+          if(runtimeError.success === true) {
+            return { 
+              success: true, 
+              message: `Successfully read file: ${path}`,
+              content: content,
+              lines: lines.length,
+              path: path
+            };
+          }
+          else {
+            return {success: true, message: "Error in file " + JSON.stringify(runtimeError) + "\n" + content, lines: lines.length, path: path};
+          }
       } catch (error) {
         return { 
           success: false, 
@@ -76,11 +141,17 @@ export const fileTools = {
         }
         
         writeFileSync(fullPath, content, 'utf-8');
-        return { 
-          success: true, 
-          message: `Created file: ${path}`,
-          operation: { type: 'create', path, content }
-        };
+        const runtimeError = await buildProject(fullPath);
+          if(runtimeError.success === true) {
+            return { 
+              success: true, 
+              message: `Created file: ${path}`,
+              operation: { type: 'create', path, content }
+            };
+          }
+          else {
+            return {success: false, message: "Error in create" + JSON.stringify(runtimeError), operation: { type: 'create', path, content }};
+          }
       } catch (error) {
         return { 
           success: false, 
@@ -110,11 +181,17 @@ export const fileTools = {
         }
         
         writeFileSync(fullPath, content, 'utf-8');
-        return { 
-          success: true, 
-          message: `Updated file: ${path}`,
-          operation: { type: 'update', path, content }
-        };
+        const runtimeError = await buildProject(fullPath);
+          if(runtimeError.success === true) {
+            return { 
+              success: true, 
+              message: `Updated file: ${path}`,
+              operation: { type: 'update', path, content }
+            };
+          }
+          else {
+            return {success: false, message: "Error in update" + JSON.stringify(runtimeError), operation: { type: 'update', path, content }};
+          }
       } catch (error) {
         return { 
           success: false, 
@@ -149,11 +226,17 @@ export const fileTools = {
         
         if (newContent !== currentContent) {
           writeFileSync(fullPath, newContent, 'utf-8');
-          return { 
-            success: true, 
-            message: `Patch applied successfully to: ${path}`,
-            operation: { type: 'patch', path, content: patch }
-          };
+          const runtimeError = await buildProject(fullPath);
+          if(runtimeError.success === true) {
+            return { 
+              success: true, 
+              message: `Patch applied successfully to: ${path}`,
+              operation: { type: 'patch', path, content: patch }
+            };
+          }
+          else {
+            return {success: false, message: "Error in patch" + JSON.stringify(runtimeError), operation: { type: 'patch', path, content: patch }};
+          }
         } else {
           return { 
             success: false, 
@@ -201,6 +284,49 @@ export const fileTools = {
           operation: { type: 'delete', path }
         };
       }
+    },
+  }),
+
+  buildProject: tool({
+    description:
+      'ALWAYS call this first when the user says “fix”, “debug” or similar but has not ' +
+      'pasted an error.  Runs `tsc --noEmit --pretty false` to surface syntax & type ' +
+      'errors (those are what show up in the red overlay). If it returns success:false, ' +
+      'inspect `errorLines`, patch the offending file, and call again until success:true.',
+    parameters: z.object({}), // no arguments
+    execute: async () => {
+      const { exec } = await import('child_process');
+      const run = (cmd: string) =>
+        new Promise<{ ok: boolean; out: string }>((res) =>
+          exec(
+            cmd,
+            { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
+            (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
+          ),
+        );
+
+      const { ok, out } = await run('npx tsc --noEmit --pretty false');
+
+      if (ok) return { success: true };
+
+      // strip ANSI colour codes
+      const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
+      const lines = plain.split('\n').filter((l) => l.trim());
+      const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
+      const errorLines =
+        (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
+
+      return { success: false, errorLines };
+    },
+  }),
+ 
+  getRuntimeError: tool({
+    description:
+      'Return the latest React runtime/rendering error captured by the global ErrorBoundary. ' +
+      'If none captured since last call, success:true.',
+    parameters: z.object({}), // no args
+    execute: async () => {
+      return getRuntimeError();
     },
   }),
 }; 

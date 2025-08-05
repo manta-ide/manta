@@ -1,7 +1,9 @@
-import React from 'react';
+"use client";
+
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 
-export const metadata = {
+const metadata = {
   title: 'SWE Hub - Empower Your Software Engineering Journey',
   description: 'Join a community of passionate software engineers, access curated resources, and accelerate your career.',
 };
