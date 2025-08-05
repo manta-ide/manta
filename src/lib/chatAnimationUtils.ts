@@ -32,7 +32,7 @@ export interface StreamingState {
  * @param scrollRef - Reference to the scroll container
  * @param bottomPercentage - Percentage of the bottom area considered "auto-scroll zone" (default 20%)
  */
-function isUserInBottomZone(scrollRef: RefObject<HTMLDivElement | null>, bottomPercentage = 2.5): boolean {
+function isUserInBottomZone(scrollRef: RefObject<HTMLDivElement | null>, bottomPercentage = 7.5): boolean {
   const el = scrollRef.current;
   if (!el) return true;
   
