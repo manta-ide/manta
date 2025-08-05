@@ -1,0 +1,183 @@
+{
+  "rootId": "node-element-swe-landing-page",
+  "nodes": [
+    {
+      "id": "node-element-swe-landing-page",
+      "title": "SWE Landing Page",
+      "prompt": "Create me an SWE landing page",
+      "kind": "page",
+      "what": "A landing page tailored for Software Engineers.",
+      "how": "Organize sections to highlight key features, benefits, and calls to action.",
+      "properties": [
+        "Responsive design",
+        "Modern aesthetics",
+        "Clear navigation"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-hero-section",
+          "title": "Hero Section",
+          "prompt": "Design a hero section for the SWE landing page.",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-swe-landing-page-features-section",
+          "title": "Features Section",
+          "prompt": "Showcase key features for Software Engineers.",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-swe-landing-page-call-to-action-section",
+          "title": "Call-to-Action Section",
+          "prompt": "Create a call-to-action section for the SWE landing page.",
+          "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-hero-section",
+      "title": "Hero Section",
+      "prompt": "Design a hero section for the SWE landing page.",
+      "kind": "section",
+      "what": "A visually striking hero section to capture attention.",
+      "how": "Use a large headline, supporting text, and a call-to-action button.",
+      "properties": [
+        "headline text",
+        "supporting text",
+        "call-to-action button"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-hero-section-call-to-action-button",
+          "title": "Call-to-Action Button",
+          "prompt": "Design a button for the hero section.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-features-section",
+      "title": "Key Features Section",
+      "prompt": "Showcase key features for Software Engineers.",
+      "kind": "section",
+      "what": "A section highlighting key features for software engineers.",
+      "how": "Use feature cards with icons and descriptions.",
+      "properties": [
+        "feature cards",
+        "icons",
+        "descriptions"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-features-section-feature-card-1",
+          "title": "Feature Card 1",
+          "prompt": "Design the first feature card.",
+          "kind": "component"
+        },
+        {
+          "id": "node-element-swe-landing-page-features-section-feature-card-2",
+          "title": "Feature Card 2",
+          "prompt": "Design the second feature card.",
+          "kind": "component"
+        },
+        {
+          "id": "node-element-swe-landing-page-features-section-feature-card-3",
+          "title": "Feature Card 3",
+          "prompt": "Design the third feature card.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-call-to-action-section",
+      "title": "Call-to-Action Section",
+      "prompt": "Create a call-to-action section for the SWE landing page.",
+      "kind": "section",
+      "what": "A section encouraging users to take action.",
+      "how": "Include a headline, supporting text, and a call-to-action button.",
+      "properties": [
+        "headline text",
+        "supporting text",
+        "call-to-action button"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-call-to-action-section-call-to-action-button",
+          "title": "Call-to-Action Button",
+          "prompt": "Design a button for the call-to-action section.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-hero-section-call-to-action-button",
+      "title": "Hero Section Button",
+      "prompt": "Design a button for the hero section.",
+      "kind": "primitive",
+      "what": "A call-to-action button for the hero section.",
+      "how": "Positioned centrally with bold text and vibrant color.",
+      "properties": [
+        "text: 'Get Started'",
+        "color: '#007BFF'",
+        "size: 'large'"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-features-section-feature-card-1",
+      "title": "Feature Card 1",
+      "prompt": "Design the first feature card.",
+      "kind": "component",
+      "what": "A card showcasing the first key feature.",
+      "how": "Includes an icon, title, and description.",
+      "properties": [
+        "icon: 'Feature Icon 1'",
+        "title: 'Feature Title 1'",
+        "description: 'Feature Description 1'"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-features-section-feature-card-2",
+      "title": "Feature Card 2",
+      "prompt": "Design the second feature card.",
+      "kind": "component",
+      "what": "A card showcasing the second key feature.",
+      "how": "Includes an icon, title, and description.",
+      "properties": [
+        "icon: 'Feature Icon 2'",
+        "title: 'Feature Title 2'",
+        "description: 'Feature Description 2'"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-features-section-feature-card-3",
+      "title": "Feature Card 3",
+      "prompt": "Design the third feature card.",
+      "kind": "component",
+      "what": "A card showcasing the third key feature.",
+      "how": "Includes an icon, title, and description.",
+      "properties": [
+        "icon: 'Feature Icon 3'",
+        "title: 'Feature Title 3'",
+        "description: 'Feature Description 3'"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-call-to-action-section-call-to-action-button",
+      "title": "Call-to-Action Button",
+      "prompt": "Design a button for the call-to-action section.",
+      "kind": "primitive",
+      "what": "A button designed to encourage user action in the call-to-action section.",
+      "how": "The button should be visually prominent, with clear text and styling that aligns with the section's theme.",
+      "properties": [
+        "text: 'Get Started'",
+        "style: prominent, rounded corners, gradient background",
+        "action: navigates to sign-up page"
+      ],
+      "children": []
+    }
+  ]
+}

@@ -27,7 +27,7 @@ const DEFAULT_CONFIG = {
   topP: 1,
   
   // Agent configuration
-  agentModel: 'o4-mini',
+  agentModel: 'gpt-4o',
   agentMaxSteps: 10,
   agentStreaming: true,
   agentProviderOptions: {
@@ -155,136 +155,220 @@ export async function POST(req: NextRequest) {
             }) + '\n')
           );
 
-          // Step 2: Generate code based on the graph using llm-agent/run
+          // Step 2: Generate code for each node individually, starting from root
           controller.enqueue(
             encoder.encode(JSON.stringify({ 
               t: 'status', 
-              message: 'Generating code based on UI structure...' 
+              message: 'Generating code for individual UI components...' 
             }) + '\n')
           );
 
-          addMessageToSession(sessionId, userMessage);
+          // Process nodes in breadth-first order for code generation
+          const processedNodes = new Set<string>();
+          const nodeQueue: string[] = [];
+          
+          // Start with root nodes (nodes with no parent or first nodes)
+          const rootNodes = graph.nodes.slice(0, 1); // Start with the first node as root
+          rootNodes.forEach(node => nodeQueue.push(node.id));
+          
+          let totalToolCalls = 0;
+          let totalToolResults = 0;
+          let allOperations: any[] = [];
+          let finalResponse = '';
+          
+          while (nodeQueue.length > 0) {
+            const nodeId = nodeQueue.shift()!;
+            if (processedNodes.has(nodeId)) continue;
+            
+            const node = graph.nodes.find(n => n.id === nodeId);
+            if (!node) continue;
+            
+            processedNodes.add(nodeId);
+            
+            // Generate code for this specific node
+            controller.enqueue(
+              encoder.encode(JSON.stringify({ 
+                t: 'status', 
+                message: `Generating code for: ${node.title}` 
+              }) + '\n')
+            );
 
-          // Build the complete conversation with graph context
-          const allMessages = await buildConversationForAI(sessionId, userMessage);
-
-          // Get templates
-          const templates = {
-            'user': await getTemplate('user-prompt-template'),
-            'assistant': await getTemplate('assistant-prompt-template'),
-            'system': await getTemplate('system-prompt-template')
-          };
-
-          // Parse all messages uniformly, with Zod validation on variables
-          const parsedMessages: ParsedMessage[] = allMessages.map(message => {
-            const template = templates[message.role];
-            // Validate message variables against schema before using them
-            const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
-            const content = parseMessageWithTemplate(template, validatedVariables);
-            return { role: message.role, content };
-          });
-          console.log(`[agent-orchestrator] Parsed messages:`, JSON.stringify(parsedMessages, null, 2));
-          // Generate code using the llm-agent/run with proper configuration
-          const chatResponse = await fetch('http://localhost:3000/api/llm-agent/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userMessage: userMessage,
-              sessionId,
-              parsedMessages,
-              config: {
-                model: agentModel,
-                maxSteps: agentMaxSteps,
-                tools: undefined, // Use default fileTools
-                streaming: agentStreaming,
-                structuredOutput: false,
-                providerOptions: agentProviderOptions,
+            // Create node-specific system message
+            const nodeSystemMessage: Message = {
+              role: 'system',
+              content: '',
+              variables: {
+                NODE_TITLE: node.title,
+                NODE_KIND: node.kind,
+                NODE_WHAT: node.what,
+                NODE_HOW: node.how,
+                NODE_PROPERTIES: node.properties.join(', '),
+                NODE_CHILDREN: node.children.map(child => `${child.title} (${child.kind})`).join(', ')
               }
-            }),
-            signal: req.signal
-          });
+            };
+            
+            // Create user message for this node
+            const nodeUserMessage: Message = {
+              role: 'user',
+              content: `Implement the ${node.kind} component: ${node.title}`,
+              variables: {
+                USER_REQUEST: `Create the ${node.kind} component "${node.title}" with the following specifications: ${node.what}. Implementation approach: ${node.how}. Properties: ${node.properties.join(', ')}. Child components: ${node.children.map(child => `${child.title} (${child.kind})`).join(', ')}`
+              }
+            };
 
-          if (!chatResponse.ok) {
-            throw new Error(`Chat generation failed: ${chatResponse.statusText}`);
-          }
+            // Create unique session ID for this node
+            const nodeSessionId = `${sessionId}-node-${nodeId}`;
 
-          const reader = chatResponse.body?.getReader();
-          if (!reader) {
-            throw new Error('No response body from chat route');
-          }
+            // Add messages to node-specific session
+            addMessageToSession(nodeSessionId, nodeSystemMessage);
+            addMessageToSession(nodeSessionId, nodeUserMessage);
 
-          let full = '';
-          const toolCalls: any[] = [];
-          const toolResults: any[] = [];
+            // Build conversation for this node using node-specific session
+            const nodeMessages = await buildConversationForAI(nodeSessionId, nodeUserMessage);
 
-          // Process the streaming response from chat route
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
+            // Get templates
+            const templates = {
+              'user': await getTemplate('user-prompt-template'),
+              'assistant': await getTemplate('assistant-prompt-template'),
+              'system': await getTemplate('node-code-generation-template') // Use node-specific template
+            };
 
-              const chunk = new TextDecoder().decode(value);
-              const lines = chunk.split('\n').filter(line => line.trim());
+            // Parse messages for this node
+            const parsedNodeMessages: ParsedMessage[] = nodeMessages.map(message => {
+              const template = templates[message.role];
+              const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
+              const content = parseMessageWithTemplate(template, validatedVariables);
+              return { role: message.role, content };
+            });
 
-              for (const line of lines) {
-                try {
-                  const data = JSON.parse(line);
-                  
-                  switch (data.t) {
-                    case 'token':
-                      full += data.d;
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify({ t: 'token', d: data.d }) + '\n')
-                      );
-                      break;
+            // Generate code for this node
+            const nodeResponse = await fetch('http://localhost:3000/api/llm-agent/run', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userMessage: nodeUserMessage,
+                sessionId: nodeSessionId, // Use node-specific session ID
+                parsedMessages: parsedNodeMessages,
+                config: {
+                  model: agentModel,
+                  maxSteps: agentMaxSteps,
+                  tools: undefined, // Use default fileTools
+                  streaming: agentStreaming,
+                  structuredOutput: false,
+                  providerOptions: agentProviderOptions,
+                }
+              }),
+              signal: req.signal
+            });
 
-                    case 'tool_call':
-                      toolCalls.push(data);
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify({ 
-                          t: 'tool_call', 
-                          toolName: data.toolName,
-                          args: data.args,
-                          language: data.language
-                        }) + '\n')
-                      );
-                      break;
+            if (!nodeResponse.ok) {
+              throw new Error(`Node code generation failed for ${node.title}: ${nodeResponse.statusText}`);
+            }
 
-                    case 'tool_result':
-                      toolResults.push(data);
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify(data) + '\n')
-                      );
-                      break;
+            // Process the streaming response for this node
+            const nodeReader = nodeResponse.body?.getReader();
+            if (!nodeReader) {
+              throw new Error('No response body from node generation');
+            }
 
-                    case 'final':
-                      // Final response from chat route
-                      break;
+            let nodeFull = '';
+            const nodeToolCalls: any[] = [];
+            const nodeToolResults: any[] = [];
 
-                    case 'error':
-                      throw new Error(data.error);
+            try {
+              while (true) {
+                const { done, value } = await nodeReader.read();
+                if (done) break;
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim());
+
+                for (const line of lines) {
+                  try {
+                    const data = JSON.parse(line);
+                    
+                    switch (data.t) {
+                      case 'token':
+                        nodeFull += data.d;
+                        controller.enqueue(
+                          encoder.encode(JSON.stringify({ t: 'token', d: data.d, nodeId }) + '\n')
+                        );
+                        break;
+
+                      case 'tool_call':
+                        nodeToolCalls.push(data);
+                        controller.enqueue(
+                          encoder.encode(JSON.stringify({ 
+                            t: 'tool_call', 
+                            toolName: data.toolName,
+                            args: data.args,
+                            language: data.language,
+                            nodeId
+                          }) + '\n')
+                        );
+                        break;
+
+                      case 'tool_result':
+                        nodeToolResults.push(data);
+                        controller.enqueue(
+                          encoder.encode(JSON.stringify({ ...data, nodeId }) + '\n')
+                        );
+                        break;
+
+                      case 'final':
+                        break;
+
+                      case 'error':
+                        throw new Error(data.error);
+                    }
+                  } catch (parseErr) {
+                    console.warn('Failed to parse node response line:', line);
                   }
-                } catch (parseErr) {
-                  console.warn('Failed to parse chat response line:', line);
                 }
               }
+            } finally {
+              nodeReader.releaseLock();
             }
-          } finally {
-            reader.releaseLock();
+
+            // Add assistant response for this node to session
+            const nodeAssistantMessage: Message = {
+              role: 'assistant',
+              content: nodeFull,
+              variables: {
+                ASSISTANT_RESPONSE: nodeFull
+              }
+            };
+            addMessageToSession(nodeSessionId, nodeAssistantMessage);
+
+            // Track totals for final response
+            totalToolCalls += nodeToolCalls.length;
+            totalToolResults += nodeToolResults.length;
+            allOperations.push(...nodeToolResults);
+            finalResponse += `\n\n--- ${node.title} ---\n${nodeFull}`;
+
+            // Add child nodes to queue for processing
+            node.children.forEach(child => {
+              if (child.id && !processedNodes.has(child.id)) {
+                nodeQueue.push(child.id);
+              }
+            });
+
+            // Send node completion
+            controller.enqueue(
+              encoder.encode(JSON.stringify({ 
+                t: 'node_completed', 
+                nodeId,
+                nodeTitle: node.title,
+                reply: nodeFull, 
+                operations: nodeToolResults.map(tr => (tr.result as any)?.operation).filter(Boolean),
+                toolCalls: nodeToolCalls.length,
+                toolResults: nodeToolResults.length
+              }) + '\n')
+            );
           }
 
-          // Add assistant response to session
-          const assistantMessage: Message = {
-            role: 'assistant',
-            content: full,
-            variables: {
-              ASSISTANT_RESPONSE: full
-            }
-          };
-          addMessageToSession(sessionId, assistantMessage);
-
           // Send final completion
-          const allFileOperations = toolResults
+          const allFileOperations = allOperations
             .map(tr => (tr.result as any)?.operation)
             .filter(Boolean);
 
@@ -292,10 +376,10 @@ export async function POST(req: NextRequest) {
             encoder.encode(
               JSON.stringify({ 
                 t: 'final', 
-                reply: full, 
+                reply: finalResponse, 
                 operations: allFileOperations,
-                toolCalls: toolCalls.length,
-                toolResults: toolResults.length,
+                toolCalls: totalToolCalls,
+                toolResults: totalToolResults,
                 graph: graph // Include the generated graph in final response
               }) + '\n'
             )

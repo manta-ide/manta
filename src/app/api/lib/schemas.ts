@@ -38,6 +38,14 @@ export const MessageVariablesSchema = z.object({
   // Graph context variable
   GRAPH_CONTEXT: z.string().optional(),
   
+  // Node-specific variables for individual node code generation
+  NODE_TITLE: z.string().optional(),
+  NODE_KIND: z.string().optional(),
+  NODE_WHAT: z.string().optional(),
+  NODE_HOW: z.string().optional(),
+  NODE_PROPERTIES: z.string().optional(),
+  NODE_CHILDREN: z.string().optional(),
+  
   // User message variables
   USER_REQUEST: z.string().optional(),
   SELECTION: z.enum(['true', 'false']).optional(),
