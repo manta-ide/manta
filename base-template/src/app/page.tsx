@@ -1,130 +1,97 @@
 import React from 'react';
 import Link from 'next/link';
-import { Code, Smartphone, Activity, Twitter, Linkedin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
 
 export default function Home() {
   return (
-    <main id="node-element-swe-landing-page" className="min-h-screen flex flex-col">
+    <main className="flex flex-col items-center bg-gray-50">
       {/* Hero Section */}
-      <section
-        id="node-element-swe-landing-page-hero-section"
-        className="flex-1 flex items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-20 px-6"
-      >
-        <div className="text-center max-w-2xl space-y-6">
-          <h1 className="text-4xl md:text-5xl font-bold">
-            Build the Future of Software
-          </h1>
-          <p className="text-lg md:text-xl opacity-90">
-            Empowering software engineers with tools and insights to ship amazing
-            products faster.
-          </p>
-          <Link
-            id="node-element-swe-landing-page-hero-section-call-to-action-button"
-            href="/signup"
-            className="inline-block px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg shadow-lg hover:bg-gray-100 transition"
-          >
-            Get Started
-          </Link>
+      <section className="w-full bg-white py-20 px-6 md:px-20 flex flex-col items-center text-center">
+        <h1 className="text-4xl md:text-6xl font-bold mb-6">
+          Hi, I&rsquo;m Jane Doe
+        </h1>
+        <p className="text-lg md:text-2xl text-gray-700 mb-8 max-w-2xl">
+          I&rsquo;m a Software Engineer specializing in building exceptional digital experiences. Welcome to my portfolio.
+        </p>
+        <Button asChild>
+          <Link href="#projects">View My Work</Link>
+        </Button>
+      </section>
+
+      {/* Projects Section */}
+      <section id="projects" className="w-full max-w-6xl py-20 px-6 md:px-0">
+        <h2 className="text-3xl font-semibold text-center mb-12">
+          Featured Projects
+        </h2>
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <Link href="https://github.com/janedoe/project-alpha" target="_blank">
+              <div className="h-40 bg-gray-200 rounded-t-lg"></div>
+              <div className="p-4">
+                <h3 className="text-xl font-medium mb-2">Project Alpha</h3>
+                <p className="text-gray-600 text-sm">
+                  A web application that leverages AI to optimize workflows and increase productivity.
+                </p>
+              </div>
+            </Link>
+          </Card>
+          <Card>
+            <Link href="https://github.com/janedoe/project-beta" target="_blank">
+              <div className="h-40 bg-gray-200 rounded-t-lg"></div>
+              <div className="p-4">
+                <h3 className="text-xl font-medium mb-2">Project Beta</h3>
+                <p className="text-gray-600 text-sm">
+                  A mobile-first social platform built with React Native and Firebase.
+                </p>
+              </div>
+            </Link>
+          </Card>
+          <Card>
+            <Link href="https://github.com/janedoe/project-gamma" target="_blank">
+              <div className="h-40 bg-gray-200 rounded-t-lg"></div>
+              <div className="p-4">
+                <h3 className="text-xl font-medium mb-2">Project Gamma</h3>
+                <p className="text-gray-600 text-sm">
+                  A real-time data visualization dashboard using D3.js and Next.js.
+                </p>
+              </div>
+            </Link>
+          </Card>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section
-        id="node-element-swe-landing-page-features-section"
-        className="py-20 px-6 bg-gray-50"
-      >
-        <div className="max-w-5xl mx-auto text-center mb-12">
-          <h2 className="text-3xl font-bold">Key Features</h2>
-          <p className="mt-2 text-gray-600">
-            Everything you need to streamline your development workflow.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[
-            {
-              icon: <Code className="w-12 h-12 text-blue-600 mb-4" />,
-              title: 'TypeScript Ready',
-              description:
-                'Full support for TypeScript with type-safe components and utilities.',
-            },
-            {
-              icon: <Smartphone className="w-12 h-12 text-blue-600 mb-4" />,
-              title: 'Responsive Design',
-              description:
-                'Built-in responsiveness ensures your app looks great on any device.',
-            },
-            {
-              icon: <Activity className="w-12 h-12 text-blue-600 mb-4" />,
-              title: 'Performance Monitoring',
-              description:
-                'Real-time metrics and insights help you optimize performance.',
-            },
-          ].map((feature, idx) => (
-            <div
-              key={idx}
-              id="node-element-swe-landing-page-features-section-feature-card"
-              className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition"
-            >
-              {feature.icon}
-              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
-            </div>
-          ))}
-        </div>
+      {/* Contact Section */}
+      <section id="contact" className="w-full max-w-3xl py-20 px-6 md:px-0">
+        <h2 className="text-3xl font-semibold text-center mb-8">
+          Get In Touch
+        </h2>
+        <form className="space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Name
+            </label>
+            <Input id="name" type="text" placeholder="Your Name" />
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <Input id="email" type="email" placeholder="you@example.com" />
+          </div>
+          <div>
+            <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+              Message
+            </label>
+            <Textarea id="message" placeholder="Say hello or describe your project..." rows={5} />
+          </div>
+          <Button type="submit" className="w-full justify-center">
+            Send Message
+          </Button>
+        </form>
       </section>
-
-      {/* Footer Section */}
-      <footer
-        id="node-element-swe-landing-page-footer-section"
-        className="bg-gray-800 text-gray-300 py-12 px-6 mt-auto"
-      >
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Navigation Links */}
-          <div id="node-element-swe-landing-page-footer-section-navigation-links">
-            <h4 className="text-white font-semibold mb-4">Navigate</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/" className="hover:text-white transition">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link href="/features" className="hover:text-white transition">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="hover:text-white transition">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-white transition">
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Social Media Icons */}
-          <div id="node-element-swe-landing-page-footer-section-social-media-icons">
-            <h4 className="text-white font-semibold mb-4">Follow Us</h4>
-            <div className="flex space-x-4">
-              <Link href="https://twitter.com" target="_blank" className="hover:text-white transition">
-                <Twitter className="w-6 h-6" />
-              </Link>
-              <Link href="https://linkedin.com" target="_blank" className="hover:text-white transition">
-                <Linkedin className="w-6 h-6" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="md:col-span-2 text-center md:text-right">
-            <p className="opacity-75">© {new Date().getFullYear()} YourCompany. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }

@@ -168,7 +168,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
 
       console.log(JSON.stringify(requestPayload, null, 2));
       // Call API - choose between regular chat and graph-code generation
-      const apiEndpoint = '/api/graph-code';
+      const apiEndpoint = '/api/agent-orchestrator/run';
       const res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

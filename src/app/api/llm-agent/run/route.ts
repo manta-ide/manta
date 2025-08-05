@@ -1,18 +1,44 @@
 import { NextRequest } from 'next/server';
 import { streamText } from 'ai';
 import { azure } from '@ai-sdk/azure';
+import { z } from 'zod';
 import { fileTools } from '@/app/api/lib/aiFileTools';
 import { 
   Message, 
   ParsedMessage, 
   ClientChatRequestSchema
-} from '../lib/schemas';
-import { addMessageToSession } from '../lib/conversationStorage';
+} from '../../lib/schemas';
+import { addMessageToSession } from '../../lib/conversationStorage';
+
+// Configuration schema for the agent
+const AgentConfigSchema = z.object({
+  model: z.string(),
+  maxSteps: z.number().int().min(1),
+  tools: z.any().optional(), // Allow any tool type
+  streaming: z.boolean(),
+  structuredOutput: z.boolean().optional(),
+  providerOptions: z.record(z.any()).optional(),
+});
+
+// Request schema with required configuration
+const AgentRequestSchema = z.object({
+  userMessage: z.object({
+    role: z.enum(['system', 'user', 'assistant']),
+    content: z.string(),
+    variables: z.record(z.any()).optional(),
+  }),
+  sessionId: z.string().optional(),
+  parsedMessages: z.array(z.object({
+    role: z.enum(['system', 'user', 'assistant']),
+    content: z.string(),
+  })).optional(),
+  config: AgentConfigSchema,
+});
 
 export async function POST(req: NextRequest) {
   try {
     // Parse and validate the request body using Zod
-    const { userMessage, sessionId = 'default', parsedMessages } = ClientChatRequestSchema.parse(await req.json());
+    const { userMessage, sessionId = 'default', parsedMessages, config } = AgentRequestSchema.parse(await req.json());
 
     // Add user message to session
     addMessageToSession(sessionId, userMessage);
@@ -20,19 +46,89 @@ export async function POST(req: NextRequest) {
     // If no parsedMessages provided, create a simple message array
     const messages = parsedMessages || [{ role: 'user', content: userMessage.content || '' }];
 
-    // Kick off model stream with tools and abort signal support
-    const result = await streamText({
-      model: azure('o4-mini'),
+    // Use the provided tools or default to fileTools
+    const tools = config.tools || fileTools;
+
+    // Prepare streamText options
+    const streamOptions: any = {
+      model: azure(config.model),
       messages: messages,
-      tools: fileTools,
-      maxSteps: 5, // Allow up to 5 steps for multi-step operations
-      abortSignal: req.signal, // Forward the abort signal for stream cancellation
-      providerOptions: {
-        azure: {
-          reasoning_effort: 'high'
-        }
-      }
-    });
+      tools: tools,
+      maxSteps: config.maxSteps,
+      abortSignal: req.signal,
+    };
+
+    // Add provider options if provided
+    if (config.providerOptions) {
+      streamOptions.providerOptions = config.providerOptions;
+    }
+
+    // If structured output is requested, use generateObject instead
+    if (config.structuredOutput) {
+      const { generateObject } = await import('ai');
+      const { z } = await import('zod');
+      
+      // Create a schema for graph generation results
+      const GraphResultSchema = z.object({
+        results: z.array(z.object({
+          uid: z.string(),
+          title: z.string(),
+          prompt: z.string(),
+          kind: z.enum(['page','section','group','component','primitive','behavior']),
+          what: z.string(),
+          how: z.string(),
+          properties: z.array(z.string()),
+          children: z.array(z.object({
+            id: z.string().optional(),
+            title: z.string(),
+            prompt: z.string(),
+            kind: z.enum(['page','section','group','component','primitive','behavior']),
+            expandable: z.boolean(),
+            complexity: z.number(),
+          })),
+        }))
+      });
+
+      const result = await generateObject({
+        model: azure(config.model),
+        messages: messages,
+        schema: GraphResultSchema,
+        abortSignal: req.signal,
+        providerOptions: config.providerOptions,
+      });
+
+      return new Response(JSON.stringify({
+        type: 'structured',
+        result: result
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // If streaming is disabled, use generateText instead
+    if (!config.streaming) {
+      const { generateText } = await import('ai');
+      const result = await generateText({
+        model: azure(config.model),
+        messages: messages,
+        tools: tools,
+        maxSteps: config.maxSteps,
+        abortSignal: req.signal,
+        providerOptions: config.providerOptions,
+      });
+
+      return new Response(JSON.stringify({
+        type: 'text',
+        result: result
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Kick off model stream with tools and abort signal support
+    const result = await streamText(streamOptions);
 
     const encoder = new TextEncoder();
     let full = '';
@@ -66,37 +162,37 @@ export async function POST(req: NextRequest) {
                 );
                 break;
 
-              case 'tool-result':
+              case 'tool-result' as any:
                 toolResults.push(chunk);
                 
                 // Send tool result to UI, including any file content for code blocks
                 const resultData: any = { 
                   t: 'tool_result', 
-                  toolName: chunk.toolName,
-                  result: chunk.result 
+                  toolName: (chunk as any).toolName,
+                  result: (chunk as any).result 
                 };
 
                 // For file operations, add code block data
-                if (chunk.toolName === 'createFile' || chunk.toolName === 'updateFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
+                if ((chunk as any).toolName === 'createFile' || (chunk as any).toolName === 'updateFile') {
+                  const toolCall = toolCalls.find(tc => tc.toolCallId === (chunk as any).toolCallId);
                   if (toolCall) {
                     resultData.codeBlock = {
-                      language: chunk.toolName === 'createFile' ? `create:${toolCall.args.path}` : `update:${toolCall.args.path}`,
+                      language: (chunk as any).toolName === 'createFile' ? `create:${toolCall.args.path}` : `update:${toolCall.args.path}`,
                       filename: toolCall.args.path,
                       content: toolCall.args.content
                     };
                   }
-                } else if (chunk.toolName === 'readFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
-                  if (toolCall && chunk.result?.success) {
+                } else if ((chunk as any).toolName === 'readFile') {
+                  const toolCall = toolCalls.find(tc => tc.toolCallId === (chunk as any).toolCallId);
+                  if (toolCall && (chunk as any).result?.success) {
                     resultData.codeBlock = {
                       language: `tool-status:readFile:completed:${toolCall.args.path}`,
                       filename: toolCall.args.path,
-                      content: chunk.result.content
+                      content: (chunk as any).result.content
                     };
                   }
-                } else if (chunk.toolName === 'patchFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
+                } else if ((chunk as any).toolName === 'patchFile') {
+                  const toolCall = toolCalls.find(tc => tc.toolCallId === (chunk as any).toolCallId);
                   if (toolCall) {
                     resultData.codeBlock = {
                       language: `patch:${toolCall.args.path}`,
@@ -104,8 +200,8 @@ export async function POST(req: NextRequest) {
                       content: toolCall.args.patch
                     };
                   }
-                } else if (chunk.toolName === 'deleteFile') {
-                  const toolCall = toolCalls.find(tc => tc.toolCallId === chunk.toolCallId);
+                } else if ((chunk as any).toolName === 'deleteFile') {
+                  const toolCall = toolCalls.find(tc => tc.toolCallId === (chunk as any).toolCallId);
                   if (toolCall) {
                     resultData.codeBlock = {
                       language: `delete:${toolCall.args.path}`,

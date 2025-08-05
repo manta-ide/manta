@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Graph schema based on the chat-graph route
+// Graph schema based on the build-prompt-graph route
 const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),

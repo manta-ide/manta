@@ -61,7 +61,7 @@ export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayPr
       for (const element of nodeElements) {
         const nodeId = element.id;//.replace('node-element-', '');
         try {
-          const response = await fetch(`/api/graph-node/${sessionId}/${nodeId}`);
+          const response = await fetch(`/api/storage/${sessionId}/${nodeId}`);
           if (response.ok) {
             const data = await response.json();
             nodesMap.set(element.id, data.node);

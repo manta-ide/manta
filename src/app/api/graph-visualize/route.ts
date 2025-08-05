@@ -3,7 +3,9 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import ELK from 'elkjs';
+import { getGraphSession } from '../lib/graphStorage';
 export const runtime = 'nodejs';
+
 /* ---------- Schemas matching your generator ---------- */
 const ChildStub = z.object({
   id: z.string(),
@@ -116,65 +118,21 @@ async function graphToSVG(graph: GraphT) {
   return svg.join('');
 }
 
-/* ---------- GET: proxy to /chat-graph then render ---------- */
+/* ---------- GET: get graph from storage and render ---------- */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const request = url.searchParams.get('request'); // user prompt (string)
+  const sessionId = url.searchParams.get('sessionId') ?? 'default';
   const format = url.searchParams.get('format');   // 'json' to return JSON
-  // pass-through optional controls
-  const maxDepth = url.searchParams.get('maxDepth') ?? '3';
-  const maxNodes = url.searchParams.get('maxNodes') ?? '120';
-  const childLimit = url.searchParams.get('childLimit') ?? '3';
-  const concurrency = url.searchParams.get('concurrency') ?? '4';
-  const minChildComplexity = url.searchParams.get('minChildComplexity') ?? '3';
-  const allowPrimitiveExpansion = url.searchParams.get('allowPrimitiveExpansion') ?? 'false';
-  const model = url.searchParams.get('model') ?? 'gpt-4o';
-  const temperature = url.searchParams.get('temperature') ?? '0.2';
-  const topP = url.searchParams.get('topP') ?? '1';
 
-  if (!request) {
+  // Get graph from storage
+  const graph = getGraphSession(sessionId);
+  if (!graph) {
     return new Response(
-      'Usage: /graph?request=Make%20me%20an%20SWE%20portfolio[&format=json][&maxDepth=3...]',
-      { status: 400, headers: { 'Content-Type': 'text/plain' } }
+      `No graph found for session: ${sessionId}`,
+      { status: 404, headers: { 'Content-Type': 'text/plain' } }
     );
   }
 
-  // Call your generator on the same host
-  const chatGraphURL = new URL('./chat-graph', req.url);
-  const payload = {
-    userMessage: {
-      role: 'user',
-      content: request,
-      variables: { USER_REQUEST: request }
-    },
-    maxDepth: Number(maxDepth),
-    maxNodes: Number(maxNodes),
-    childLimit: Number(childLimit),
-    concurrency: Number(concurrency),
-    minChildComplexity: Number(minChildComplexity),
-    allowPrimitiveExpansion: allowPrimitiveExpansion === 'true',
-    model,
-    temperature: Number(temperature),
-    topP: Number(topP),
-  };
-
-  const resp = await fetch(chatGraphURL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    // IMPORTANT: avoid Next.js fetch caching here
-    cache: 'no-store',
-    body: JSON.stringify(payload),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    return new Response(`chat-graph error: ${text}`, {
-      status: resp.status,
-      headers: { 'Content-Type': 'text/plain' },
-    });
-  }
-
-  const graph = await resp.json();
   const parsed = GraphSchema.safeParse(graph);
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
@@ -200,7 +158,7 @@ export async function GET(req: NextRequest) {
 /* ---------- POST: render a given graph JSON directly ---------- */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  // if a full graph is posted, render it; else proxy like GET
+  // if a full graph is posted, render it
   const maybeGraph = GraphSchema.safeParse(body);
   if (maybeGraph.success) {
     const svg = await graphToSVG(maybeGraph.data);
@@ -210,35 +168,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Fallback: treat POST body as generator payload and proxy to /chat-graph
-  const chatGraphURL = new URL('/chat-graph', req.url);
-  const resp = await fetch(chatGraphURL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    return new Response(`chat-graph error: ${text}`, {
-      status: resp.status,
-      headers: { 'Content-Type': 'text/plain' },
-    });
-  }
-
-  const graph = await resp.json();
-  const parsed = GraphSchema.safeParse(graph);
-  if (!parsed.success) {
-    return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const svg = await graphToSVG(parsed.data);
-  return new Response(svg, {
-    status: 200,
-    headers: { 'Content-Type': 'image/svg+xml' },
+  return new Response('Invalid graph format', {
+    status: 400,
+    headers: { 'Content-Type': 'text/plain' },
   });
 }

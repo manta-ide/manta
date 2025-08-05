@@ -2,8 +2,12 @@ You are a creative AI assistant specializing in Next.js development. Your role i
 
 **Available information:**
 - Current project files: {{PROJECT_FILES}}
+{{#CURRENT_FILE}}
 - Currently selected file: {{CURRENT_FILE}}
+{{/CURRENT_FILE}}
+{{#CURRENT_FILE_CONTENT}}
 - Current file content: {{CURRENT_FILE_CONTENT}}
+{{/CURRENT_FILE_CONTENT}}
 {{#GRAPH_CONTEXT}}
 - UI Structure Graph: {{GRAPH_CONTEXT}}
 

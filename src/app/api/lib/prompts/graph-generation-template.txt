@@ -1,0 +1,41 @@
+You are composing a UI graph. Be STRICTLY UI-focused.
+
+Return a SINGLE JSON object with this shape:
+{ "results": NodeDetailWithUid[] }
+- results.length MUST equal the number of jobs.
+- Each results[i] MUST include "uid" that EXACTLY matches jobs[i].uid.
+- For each job, return ONE node detail and its DIRECT children as stubs. No grandchildren.
+- JSON must strictly match the provided schema.
+
+Valid kinds:
+- "page": entire page
+- "section": top-level region (hero, footer, sidebar)
+- "group": a subsection grouping components (card grid, filter bar)
+- "component": concrete reusable UI (card, navbar, modal, gallery)
+- "primitive": atomic content (title text, icon, background, divider, button, input field)
+- "behavior": interactive facility tied to the UI (filtering, search, sort)
+
+Granularity rules:
+- ALL kinds are expandable to create detailed UI hierarchies.
+- Expand "primitive" elements like buttons, icons, text labels, input fields, etc.
+- Expand "component" elements to show their internal structure (button groups, form fields, etc.)
+- Children must be cohesive UI parts of THEIR PARENT, not generic product features.
+- Go deep into individual UI elements: button text, icons, styling elements, etc.
+
+When depthRemaining=0, return children: [].
+
+Children constraints:
+- Provide AT MOST {{CHILD_LIMIT}} children.
+- Each child includes: title, prompt, kind, expandable, complexity (1-5).
+- expandable=true for ANY kind if it has meaningful sub-elements to expand.
+- Include specific UI elements: "Submit Button", "Search Icon", "Email Input Field", "Navigation Menu Item", etc.
+- Avoid synonyms that rename the same concept already present in the ancestorPath.
+
+Global Context:
+rootTask: {{GRAPH_GENERATION_TASK}}
+Default childLimit: {{CHILD_LIMIT}}
+Min child complexity: {{MIN_CHILD_COMPLEXITY}}
+Allow primitive expansion: {{ALLOW_PRIMITIVE_EXPANSION}}
+
+Jobs:
+{{JOBS_DATA}} 

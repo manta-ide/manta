@@ -6,14 +6,41 @@ import {
   ParsedMessage, 
   ClientChatRequestSchema,
   MessageVariablesSchema
-} from '../lib/schemas';
-import { buildConversationForAI, addMessageToSession } from '../lib/conversationStorage';
-import { storeGraph } from '../lib/graphStorage';
+} from '../../lib/schemas';
+import { buildConversationForAI, addMessageToSession } from '../../lib/conversationStorage';
+import { storeGraph } from '../../lib/graphStorage';
+import { traverseGraph, GraphTraversalConfig } from '../../lib/graph-operations/graphTraversalUtils';
+import { AgentProcessor } from '../../lib/graph-operations/agentProcessor';
+
+// Default configuration
+const DEFAULT_CONFIG = {
+  // Graph generation parameters
+  maxDepth: 3,
+  maxNodes: 120,
+  childLimit: 3,
+  concurrency: 4,
+  batchSize: 4,
+  minChildComplexity: 3,
+  allowPrimitiveExpansion: false,
+  model: 'gpt-4o',
+  temperature: 0.2,
+  topP: 1,
+  
+  // Agent configuration
+  agentModel: 'o4-mini',
+  agentMaxSteps: 10,
+  agentStreaming: true,
+  agentProviderOptions: {
+    azure: {
+      reasoning_effort: 'high'
+    }
+  }
+} as const;
 
 // Request schema for graph-code generation
 const GraphCodeRequestSchema = z.object({
   userMessage: z.object({
-    role: z.string(),
+    role: z.enum(['user', 'assistant', 'system']),
     content: z.string(),
     variables: z.object({
       USER_REQUEST: z.string(),
@@ -21,7 +48,7 @@ const GraphCodeRequestSchema = z.object({
     messageContext: z.any().optional(),
   }),
   sessionId: z.string().optional(),
-  // Graph generation parameters
+  // Graph generation parameters (all optional with defaults)
   maxDepth: z.number().int().min(0).max(12).optional(),
   maxNodes: z.number().int().min(1).max(1000).optional(),
   childLimit: z.number().int().min(0).max(20).optional(),
@@ -33,6 +60,11 @@ const GraphCodeRequestSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   topP: z.number().min(0).max(1).optional(),
   seed: z.number().int().optional(),
+  // Agent configuration (all optional with defaults)
+  agentModel: z.string().optional(),
+  agentMaxSteps: z.number().int().min(1).optional(),
+  agentStreaming: z.boolean().optional(),
+  agentProviderOptions: z.record(z.any()).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -46,27 +78,37 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Merge with defaults
+    const config = {
+      ...DEFAULT_CONFIG,
+      ...parsed.data,
+    };
+
     const {
       userMessage,
       sessionId = 'default',
-      maxDepth = 3,
-      maxNodes = 120,
-      childLimit = 3,
-      concurrency = 4,
-      batchSize = 4,
-      minChildComplexity = 3,
-      allowPrimitiveExpansion = false,
-      model = 'gpt-4o',
-      temperature = 0.2,
-      topP = 1,
+      maxDepth,
+      maxNodes,
+      childLimit,
+      concurrency,
+      batchSize,
+      minChildComplexity,
+      allowPrimitiveExpansion,
+      model,
+      temperature,
+      topP,
       seed,
-    } = parsed.data;
+      agentModel,
+      agentMaxSteps,
+      agentStreaming,
+      agentProviderOptions,
+    } = config;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Step 1: Generate graph
+          // Step 1: Generate graph using graph traversal utilities
           controller.enqueue(
             encoder.encode(JSON.stringify({ 
               t: 'status', 
@@ -74,30 +116,33 @@ export async function POST(req: NextRequest) {
             }) + '\n')
           );
 
-          const graphResponse = await fetch('http://localhost:3000/api/chat-graph', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userMessage,
-              maxDepth,
-              maxNodes,
-              childLimit,
-              concurrency,
-              batchSize,
-              minChildComplexity,
-              allowPrimitiveExpansion,
-              model,
-              temperature,
-              topP,
-              seed,
-            }),
-          });
-          console.log('graphResponse', graphResponse);
-          if (!graphResponse.ok) {
-            throw new Error(`Graph generation failed: ${graphResponse.statusText}`);
-          }
+          // Create the graph traversal configuration
+          const graphConfig: GraphTraversalConfig = {
+            maxDepth,
+            maxNodes,
+            childLimit,
+            concurrency,
+            batchSize,
+            minChildComplexity,
+            allowPrimitiveExpansion,
+          };
+          // Create the agent processor for graph generation
+          const agentProcessor = new AgentProcessor();
 
-          const graph = await graphResponse.json();
+          const rootPrompt = userMessage.variables.USER_REQUEST.trim();
+          if (!rootPrompt) {
+            throw new Error('USER_REQUEST is empty');
+          }
+          const graph = await traverseGraph({
+            rootPrompt,
+            config: graphConfig,
+            agentProcessor,
+            model,
+            temperature,
+            topP,
+            seed,
+          });
+          
           
           // Store the graph
           await storeGraph(sessionId, graph);
@@ -110,7 +155,7 @@ export async function POST(req: NextRequest) {
             }) + '\n')
           );
 
-          // Step 2: Generate code based on the graph
+          // Step 2: Generate code based on the graph using llm-agent/run
           controller.enqueue(
             encoder.encode(JSON.stringify({ 
               t: 'status', 
@@ -118,16 +163,10 @@ export async function POST(req: NextRequest) {
             }) + '\n')
           );
 
-          // Add the user message with graph context to the session
-          const userMessageWithGraph: Message = {
-            role: 'user',
-            content: userMessage.content,
-            variables: userMessage.variables
-          };
-          addMessageToSession(sessionId, userMessageWithGraph);
+          addMessageToSession(sessionId, userMessage);
 
           // Build the complete conversation with graph context
-          const allMessages = await buildConversationForAI(sessionId, userMessageWithGraph);
+          const allMessages = await buildConversationForAI(sessionId, userMessage);
 
           // Get templates
           const templates = {
@@ -144,15 +183,23 @@ export async function POST(req: NextRequest) {
             const content = parseMessageWithTemplate(template, validatedVariables);
             return { role: message.role, content };
           });
-
-          // Generate code using the main chat route
-          const chatResponse = await fetch('http://localhost:3000/api/chat', {
+          console.log(`[agent-orchestrator] Parsed messages:`, JSON.stringify(parsedMessages, null, 2));
+          // Generate code using the llm-agent/run with proper configuration
+          const chatResponse = await fetch('http://localhost:3000/api/llm-agent/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userMessage: userMessageWithGraph,
+              userMessage: userMessage,
               sessionId,
-              parsedMessages
+              parsedMessages,
+              config: {
+                model: agentModel,
+                maxSteps: agentMaxSteps,
+                tools: undefined, // Use default fileTools
+                streaming: agentStreaming,
+                structuredOutput: false,
+                providerOptions: agentProviderOptions,
+              }
             }),
             signal: req.signal
           });

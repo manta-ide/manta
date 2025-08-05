@@ -53,7 +53,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         if (data.graphs && data.graphs.length > 0) {
           console.log(`📊 Loaded ${data.graphs.length} graphs from files`);
                   // Initialize graphs in the backend storage
-        await fetch('http://localhost:3000/api/graph-storage/initialize', {
+        await fetch('http://localhost:3000/api/storage/initialize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ graphs: data.graphs })

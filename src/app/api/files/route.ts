@@ -70,7 +70,6 @@ async function saveGraphToFile(sessionId: string, graph: Graph): Promise<void> {
   try {
     const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
     await fs.writeFile(graphFilePath, JSON.stringify(graph, null, 2), 'utf-8');
-    console.log(`Graph saved to: ${graphFilePath}`);
   } catch (error) {
     console.error('Error saving graph to file:', error);
     throw error;
