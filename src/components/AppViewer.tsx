@@ -130,10 +130,10 @@ setOverlayHost(host);
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         />
 
-        {/* All overlay UI is portalled INTO the iframe’s document */}
+        {/* All overlay UI is portalled INTO the iframe's document */}
         {overlayHost &&
           createPortal(
-            <IframeOverlay isEditMode={isEditMode} />,
+            <IframeOverlay isEditMode={isEditMode} sessionId="default" />,
             overlayHost,
           )}
       </div>

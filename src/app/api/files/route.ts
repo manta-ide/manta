@@ -10,6 +10,27 @@ interface FileNode {
   content?: string;
 }
 
+interface GraphNode {
+  id: string;
+  title: string;
+  prompt: string;
+  kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
+  what: string;
+  how: string;
+  properties: string[];
+  children: Array<{
+    id: string;
+    title: string;
+    prompt: string;
+    kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
+  }>;
+}
+
+interface Graph {
+  rootId: string;
+  nodes: GraphNode[];
+}
+
 const PROJECT_ROOT = path.join(process.cwd(), 'base-template');
 
 // Directories and files to exclude from the editor
@@ -43,6 +64,53 @@ const EXCLUDED_FILES = new Set([
   '.DS_Store',
   'Thumbs.db'
 ]);
+
+// Function to save graph data to JSON file
+async function saveGraphToFile(sessionId: string, graph: Graph): Promise<void> {
+  try {
+    const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
+    await fs.writeFile(graphFilePath, JSON.stringify(graph, null, 2), 'utf-8');
+    console.log(`Graph saved to: ${graphFilePath}`);
+  } catch (error) {
+    console.error('Error saving graph to file:', error);
+    throw error;
+  }
+}
+
+// Function to load graph data from JSON file
+async function loadGraphFromFile(sessionId: string): Promise<Graph | null> {
+  try {
+    const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
+    const content = await fs.readFile(graphFilePath, 'utf-8');
+    return JSON.parse(content) as Graph;
+  } catch (error) {
+    console.error('Error loading graph from file:', error);
+    return null;
+  }
+}
+
+// Function to get all graph files
+async function getAllGraphFiles(): Promise<{ sessionId: string; graph: Graph }[]> {
+  try {
+    const files = await fs.readdir(PROJECT_ROOT);
+    const graphFiles = files.filter(file => file.startsWith('graph-') && file.endsWith('.json'));
+    
+    const graphs: { sessionId: string; graph: Graph }[] = [];
+    
+    for (const file of graphFiles) {
+      const sessionId = file.replace('graph-', '').replace('.json', '');
+      const graph = await loadGraphFromFile(sessionId);
+      if (graph) {
+        graphs.push({ sessionId, graph });
+      }
+    }
+    
+    return graphs;
+  } catch (error) {
+    console.error('Error getting all graph files:', error);
+    return [];
+  }
+}
 
 // Function to recursively read directory structure
 async function readDirectoryStructure(dirPath: string, relativePath: string = ''): Promise<{ files: Map<string, string>, fileTree: FileNode[] }> {
@@ -112,6 +180,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const listOnly = url.searchParams.get('list') === 'true';
     const filePath = url.searchParams.get('path');
+    const loadGraphs = url.searchParams.get('graphs') === 'true';
     
     if (filePath) {
       // Return specific file content
@@ -131,7 +200,17 @@ export async function GET(request: NextRequest) {
       // Return full files and file tree
       const { files, fileTree } = await readDirectoryStructure(PROJECT_ROOT);
       const filesObj = Object.fromEntries(files);
-      return NextResponse.json({ files: filesObj, fileTree });
+      
+      let graphs: { sessionId: string; graph: Graph }[] = [];
+      if (loadGraphs) {
+        graphs = await getAllGraphFiles();
+      }
+      
+      return NextResponse.json({ 
+        files: filesObj, 
+        fileTree,
+        graphs 
+      });
     }
   } catch (error) {
     console.error('Error loading project:', error);
@@ -142,7 +221,17 @@ export async function GET(request: NextRequest) {
 // POST: Create new file
 export async function POST(request: NextRequest) {
   try {
-    const { filePath, content } = await request.json();
+    const body = await request.json();
+    
+    // Check if this is a graph save request
+    if (body.type === 'graph') {
+      const { sessionId, graph } = body;
+      await saveGraphToFile(sessionId, graph);
+      return NextResponse.json({ success: true, message: 'Graph saved successfully' });
+    }
+    
+    // Regular file creation
+    const { filePath, content } = body;
     const fullPath = path.join(PROJECT_ROOT, filePath);
     const dir = path.dirname(fullPath);
     
@@ -160,7 +249,17 @@ export async function POST(request: NextRequest) {
 // PUT: Update existing file
 export async function PUT(request: NextRequest) {
   try {
-    const { filePath, content } = await request.json();
+    const body = await request.json();
+    
+    // Check if this is a graph save request
+    if (body.type === 'graph') {
+      const { sessionId, graph } = body;
+      await saveGraphToFile(sessionId, graph);
+      return NextResponse.json({ success: true, message: 'Graph updated successfully' });
+    }
+    
+    // Regular file update
+    const { filePath, content } = body;
     const fullPath = path.join(PROJECT_ROOT, filePath);
     await fs.writeFile(fullPath, content, 'utf-8');
     
@@ -174,7 +273,18 @@ export async function PUT(request: NextRequest) {
 // DELETE: Delete file
 export async function DELETE(request: NextRequest) {
   try {
-    const { filePath, isDirectory } = await request.json();
+    const body = await request.json();
+    
+    // Check if this is a graph delete request
+    if (body.type === 'graph') {
+      const { sessionId } = body;
+      const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
+      await fs.unlink(graphFilePath);
+      return NextResponse.json({ success: true, message: 'Graph deleted successfully' });
+    }
+    
+    // Regular file/directory deletion
+    const { filePath, isDirectory } = body;
     const fullPath = path.join(PROJECT_ROOT, filePath);
     
     if (isDirectory) {

@@ -7,11 +7,29 @@ import ElementBoundingBoxes from '@/components/ElementBoundingBoxes';
 
 interface IframeOverlayProps {
   isEditMode: boolean;
+  sessionId?: string;
 }
 
-export default function IframeOverlay({ isEditMode }: IframeOverlayProps) {
+interface GraphNode {
+  id: string;
+  title: string;
+  prompt: string;
+  kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
+  what: string;
+  how: string;
+  properties: string[];
+  children: Array<{
+    id: string;
+    title: string;
+    prompt: string;
+    kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
+  }>;
+}
+
+export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayProps) {
   const [document, setDocument] = useState<Document | null>(null);
   const [window, setWindow] = useState<Window | null>(null);
+  const [graphNodes, setGraphNodes] = useState<Map<string, GraphNode>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +50,33 @@ export default function IframeOverlay({ isEditMode }: IframeOverlayProps) {
     return () => clearTimeout(timer);
   }, []);
 
+  // Fetch graph node data for elements
+  useEffect(() => {
+    if (!isEditMode || !sessionId || !document) return;
+
+    const fetchGraphNodes = async () => {
+      const nodeElements = document.querySelectorAll<HTMLElement>('[id^="node-element-"]');
+      const nodesMap = new Map<string, GraphNode>();
+
+      for (const element of nodeElements) {
+        const nodeId = element.id;//.replace('node-element-', '');
+        try {
+          const response = await fetch(`/api/graph-node/${sessionId}/${nodeId}`);
+          if (response.ok) {
+            const data = await response.json();
+            nodesMap.set(element.id, data.node);
+          }
+        } catch (error) {
+          console.error(`Error fetching node data for ${nodeId}:`, error);
+        }
+      }
+
+      setGraphNodes(nodesMap);
+    };
+
+    fetchGraphNodes();
+  }, [isEditMode, sessionId, document]);
+
   return (
     <div
       ref={containerRef}
@@ -45,6 +90,7 @@ export default function IframeOverlay({ isEditMode }: IframeOverlayProps) {
         isEditMode={isEditMode} 
         document={document}
         window={window}
+        graphNodes={graphNodes}
       />
       <SelectionBox 
         isEditMode={isEditMode} 

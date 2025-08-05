@@ -41,13 +41,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadProject: async () => {
     try {
       console.log('📂 Loading project from filesystem...');
-      const response = await fetch('/api/files');
+      const response = await fetch('http://localhost:3000/api/files?graphs=true');
       const data = await response.json();
       
       if (response.ok) {
         const files = new Map(Object.entries(data.files as Record<string, string>));
         console.log(`✅ Loaded ${files.size} files from backend`);
         console.log('📁 File tree structure:', data.fileTree);
+        
+        // Load graphs from files
+        if (data.graphs && data.graphs.length > 0) {
+          console.log(`📊 Loaded ${data.graphs.length} graphs from files`);
+                  // Initialize graphs in the backend storage
+        await fetch('http://localhost:3000/api/graph-storage/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ graphs: data.graphs })
+        });
+        }
+        
         set({ files, fileTree: data.fileTree });
       } else {
         console.error('❌ Error loading project:', data.error);
@@ -60,7 +72,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setFileContent: async (filePath, content) => {
     try {
       console.log(`📝 Updating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch('/api/files', {
+      const response = await fetch('http://localhost:3000/api/files', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content })
@@ -86,7 +98,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   deleteFile: async (filePath) => {
     try {
       console.log(`🗑️ Deleting file: ${filePath}`);
-      const response = await fetch('/api/files', {
+      const response = await fetch('http://localhost:3000/api/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath })
@@ -120,7 +132,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   createFile: async (filePath, content) => {
     try {
       console.log(`➕ Creating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch('/api/files', {
+      const response = await fetch('http://localhost:3000/api/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content })

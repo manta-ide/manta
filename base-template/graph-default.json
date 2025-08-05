@@ -1,0 +1,166 @@
+{
+  "rootId": "node-element-swe-landing-page",
+  "nodes": [
+    {
+      "id": "node-element-swe-landing-page",
+      "title": "SWE Landing Page",
+      "prompt": "Create a landing page tailored for Software Engineers, showcasing relevant features and content.",
+      "kind": "page",
+      "what": "A landing page for Software Engineers.",
+      "how": "Structure the page with sections like hero, features, testimonials, and footer.",
+      "properties": [
+        "responsive",
+        "accessible",
+        "modern",
+        "engaging"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-hero-section",
+          "title": "Hero Section",
+          "prompt": "Design a hero section with a headline, subheadline, and call-to-action button.",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-swe-landing-page-features-section",
+          "title": "Features Section",
+          "prompt": "Create a section highlighting key features with icons and descriptions.",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-swe-landing-page-footer-section",
+          "title": "Footer Section",
+          "prompt": "Design a footer with navigation links, social media icons, and copyright information.",
+          "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-hero-section",
+      "title": "Hero Section",
+      "prompt": "Design a hero section with a headline, subheadline, and call-to-action button.",
+      "kind": "section",
+      "what": "A hero section with headline, subheadline, and call-to-action.",
+      "how": "The hero section prominently displays a headline, subheadline, and a call-to-action button to engage users.",
+      "properties": [
+        "headline",
+        "subheadline",
+        "call-to-action button"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-hero-section-call-to-action-button",
+          "title": "Call-to-Action Button",
+          "prompt": "Design a call-to-action button for the hero section.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-features-section",
+      "title": "Key Features Section",
+      "prompt": "Create a section highlighting key features with icons and descriptions.",
+      "kind": "section",
+      "what": "A section showcasing key features with icons and descriptions.",
+      "how": "This section includes multiple feature cards, each with an icon and a description to highlight product benefits.",
+      "properties": [
+        "feature cards",
+        "icons",
+        "descriptions"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-features-section-feature-card",
+          "title": "Feature Card",
+          "prompt": "Design a feature card with an icon and description.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-footer-section",
+      "title": "Footer Section",
+      "prompt": "Design a footer with navigation links, social media icons, and copyright information.",
+      "kind": "section",
+      "what": "A footer section with navigation links, social media icons, and copyright info.",
+      "how": "The footer includes navigation links for site sections, social media icons for engagement, and copyright text for legal compliance.",
+      "properties": [
+        "navigation links",
+        "social media icons",
+        "copyright text"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-landing-page-footer-section-navigation-links",
+          "title": "Navigation Links",
+          "prompt": "Create navigation links for the footer.",
+          "kind": "group"
+        },
+        {
+          "id": "node-element-swe-landing-page-footer-section-social-media-icons",
+          "title": "Social Media Icons",
+          "prompt": "Design social media icons for the footer.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-landing-page-hero-section-call-to-action-button",
+      "title": "Call-to-Action Button",
+      "prompt": "Design a call-to-action button for the hero section.",
+      "kind": "component",
+      "what": "A button designed to drive user action.",
+      "how": "The button should be visually prominent and styled to match the hero section.",
+      "properties": [
+        "text",
+        "color",
+        "size",
+        "hoverEffect"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-features-section-feature-card",
+      "title": "Feature Card",
+      "prompt": "Design a feature card with an icon and description.",
+      "kind": "component",
+      "what": "A card showcasing a feature with an icon and description.",
+      "how": "The card should include an icon, a title, and a brief description.",
+      "properties": [
+        "icon",
+        "title",
+        "description",
+        "layout"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-footer-section-navigation-links",
+      "title": "Footer Navigation Links",
+      "prompt": "Create navigation links for the footer.",
+      "kind": "group",
+      "what": "A set of links for navigating the site from the footer.",
+      "how": "The links should be styled to fit the footer and include hover effects.",
+      "properties": [
+        "linkText",
+        "url",
+        "hoverEffect"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-landing-page-footer-section-social-media-icons",
+      "title": "Social Media Icons",
+      "prompt": "Design social media icons for the footer.",
+      "kind": "group",
+      "what": "A set of icons linking to social media platforms.",
+      "how": "The icons should be styled to match the footer and include hover effects.",
+      "properties": [
+        "platform",
+        "iconStyle",
+        "hoverEffect"
+      ],
+      "children": []
+    }
+  ]
+}

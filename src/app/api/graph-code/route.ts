@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
           const graph = await graphResponse.json();
           
           // Store the graph
-          storeGraph(sessionId, graph);
+          await storeGraph(sessionId, graph);
 
           controller.enqueue(
             encoder.encode(JSON.stringify({ 
