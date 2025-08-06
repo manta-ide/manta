@@ -6,10 +6,50 @@ import { createPortal } from 'react-dom';
 import IframeOverlay from './IframeOverlay';
 import { LoaderFive } from '@/components/ui/loader';
 import { useProjectStore } from '@/lib/store';
+import { getLastError, setLastError } from '@/lib/runtimeErrorStore';
 
 interface AppViewerProps {
   isEditMode: boolean;
 }
+  
+/** Isolates runtime errors thrown by the preview iframe. */
+class PreviewBoundary extends React.Component<{ children: React.ReactNode, iframeRef: React.RefObject<HTMLIFrameElement | null> }> {
+  state = { hasError: false };
+  componentDidMount() {
+    this.props.iframeRef.current?.contentWindow?.addEventListener('error', function(event) {
+      setLastError(
+        event.error instanceof Error ? event.error.message : String(event.error),
+        undefined,
+      );
+    });
+  }
+    
+    override componentDidCatch(error: unknown, info: React.ErrorInfo) {
+      setLastError(
+        error instanceof Error ? error.message : String(error),
+        info.componentStack ?? undefined,
+      );
+      this.setState({ hasError: true });
+    }
+    override render() {
+      return this.state.hasError ? null : this.props.children;
+    }
+  }
+
+  class PreviewBoundaryTest extends React.Component<{ children: React.ReactNode }> {
+    state = { crash: false };
+    render() {
+      if (this.state.crash) throw new Error('Boom from render');
+      return (
+          <button onClick={() => {
+            this.setState({ crash: true });
+          }}>
+            TEST ERROR
+          </button>
+      );
+    }
+  }
+  
 
 const IFRAME_PATH = '/iframe';
 
@@ -119,24 +159,28 @@ setOverlayHost(host);
 
   /* ── render ─────────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col h-full bg-background border-l">
-      <div className="flex-1 relative min-h-0">
-        <iframe
-          ref={iframeRef}
-          src={IFRAME_PATH}
-          className="w-full h-full border-0"
-          title="Demo App"
-          onLoad={handleIframeLoad}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        />
+    <PreviewBoundary iframeRef={iframeRef}  >
+    
+      <div className="flex flex-col h-full bg-background border-l">
+        <div className="flex-1 relative min-h-0">
+          <iframe
+            ref={iframeRef}
+            src={IFRAME_PATH}
+            className="w-full h-full border-0"
+            title="Demo App"
+            onLoad={handleIframeLoad}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          />
 
-        {/* All overlay UI is portalled INTO the iframe's document */}
-        {overlayHost &&
-          createPortal(
-            <IframeOverlay isEditMode={isEditMode} sessionId="default" />,
-            overlayHost,
-          )}
+          {/* All overlay UI is portalled INTO the iframe’s document */}
+          {overlayHost &&
+            createPortal(
+              <IframeOverlay isEditMode={isEditMode} sessionId="default" />,
+              overlayHost,
+            )}
+        </div>
       </div>
-    </div>
+    </PreviewBoundary>
+
   );
 }

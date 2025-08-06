@@ -1,101 +1,111 @@
 'use client';
-import React from 'react';
-import HeroSection from '@/components/ui/HeroSection';
-import ProjectsShowcase, { Project } from '@/components/ui/ProjectsShowcase';
-import ContactSection from '@/components/ui/ContactSection';
 
-const projectsData: Project[] = [
+import HeroSection from '@/components/HeroSection';
+import ProjectsShowcase from '@/components/ProjectsShowcase';
+import ContactSection from '@/components/ContactSection';
+import { Project } from '@/components/DynamicFilteringBehavior';
+import React from 'react';
+
+// Sample data for projects
+const projects: Project[] = [
   {
-    id: '1',
-    category: 'Web Development',
-    date: '2023-07-01',
-    image: 'https://via.placeholder.com/400x300',
-    title: 'Portfolio Website',
-    description: 'A responsive personal portfolio built with Next.js and Tailwind CSS.',
+    id: 1,
+    title: 'Project One',
+    description: 'A web application built with React and Node.js.',
+    image: 'https://source.unsplash.com/400x300/?web,app',
+    category: 'Web',
+    technologies: ['React', 'Node.js', 'TypeScript'],
   },
   {
-    id: '2',
-    category: 'Open Source',
-    date: '2023-05-15',
-    image: 'https://via.placeholder.com/400x300',
-    title: 'UI Component Library',
-    description: 'A reusable React UI library with customizable components.',
+    id: 2,
+    title: 'Project Two',
+    description: 'A mobile app developed using React Native.',
+    image: 'https://source.unsplash.com/400x300/?mobile,app',
+    category: 'Mobile',
+    technologies: ['React Native', 'Expo', 'JavaScript'],
   },
   {
-    id: '3',
-    category: 'Fullstack',
-    date: '2022-11-20',
-    image: 'https://via.placeholder.com/400x300',
-    title: 'E-commerce Platform',
-    description: 'An e-commerce app with Node.js backend and React frontend.',
+    id: 3,
+    title: 'Project Three',
+    description: 'A data visualization dashboard using D3.js.',
+    image: 'https://source.unsplash.com/400x300/?data,chart',
+    category: 'Data',
+    technologies: ['D3.js', 'JavaScript', 'HTML'],
   },
 ];
 
-const skills = [
+// Sample skills list
+const skills: string[] = [
   'JavaScript',
   'TypeScript',
   'React',
-  'Next.js',
-  'Tailwind CSS',
   'Node.js',
-  'Express',
+  'Tailwind CSS',
+  'Next.js',
+  'D3.js',
   'GraphQL',
-  'Git',
 ];
 
 export default function Home() {
-  const handleContactSubmit = async (data: any) => {
-    // Placeholder submit handler
-    console.log('Contact form data:', data);
-    alert('Thank you for reaching out!');
+  const scrollToProjects = () => {
+    const section = document.getElementById('projects-showcase');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
     <main className="flex flex-col bg-gray-50 text-gray-800">
-      {/* Navigation */}
-      <nav className="sticky top-0 bg-white shadow-md z-20">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <span className="text-xl font-bold">My Portfolio</span>
-          <ul className="flex space-x-6">
-            <li><a href="#about" className="hover:text-primary">About</a></li>
-            <li><a href="#projects" className="hover:text-primary">Projects</a></li>
-            <li><a href="#skills" className="hover:text-primary">Skills</a></li>
-            <li><a href="#contact" className="hover:text-primary">Contact</a></li>
-          </ul>
-        </div>
-      </nav>
-
       {/* Hero Section */}
-      <div id="hero">
-        <HeroSection
-          backgroundImage="https://via.placeholder.com/1600x900"
-          headline="Software Engineer & Problem Solver"
-          ctaButton={{ text: 'Get in Touch', onClick: () => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }) }}
-        />
-      </div>
+      <HeroSection
+        backgroundImage="https://source.unsplash.com/1600x900/?coding,programming"
+        headline="Hi, I'm John Doe, a Software Engineer"
+        buttonText="View My Work"
+        onButtonClick={scrollToProjects}
+        className="mb-16"
+      />
 
       {/* About Me Section */}
-      <section id="about" className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">About Me</h2>
-          <p className="text-lg leading-relaxed">
-            Hi! I'm Jane Doe, a passionate software engineer with over 5 years of experience building scalable web applications. I love crafting intuitive user experiences and writing clean, maintainable code.
+      <section
+        id="about-me"
+        className="bg-white py-16"
+        aria-labelledby="about-me-heading"
+      >
+        <div className="container mx-auto px-4 max-w-3xl">
+          <h2
+            id="about-me-heading"
+            className="text-3xl font-semibold text-gray-900 mb-4 text-center"
+          >
+            About Me
+          </h2>
+          <p className="text-gray-700 leading-relaxed text-center">
+            I'm a passionate software engineer with experience building scalable web and mobile applications. I love turning complex problems into simple, beautiful, and intuitive designs.
           </p>
         </div>
       </section>
 
       {/* Projects Section */}
-      <section id="projects" className="py-16 bg-gray-50">
-        <ProjectsShowcase projects={projectsData} />
-      </section>
+      <ProjectsShowcase projects={projects} />
 
       {/* Skills Section */}
-      <section id="skills" className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">Skills</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <section
+        id="skills"
+        className="bg-white py-16"
+        aria-labelledby="skills-heading"
+      >
+        <div className="container mx-auto px-4 max-w-3xl">
+          <h2
+            id="skills-heading"
+            className="text-3xl font-semibold text-gray-900 mb-6 text-center"
+          >
+            Skills
+          </h2>
+          <div className="flex flex-wrap justify-center gap-4">
             {skills.map((skill) => (
-              <span key={skill} className="px-4 py-2 bg-gray-100 rounded-full text-center text-sm font-medium">
+              <span
+                key={skill}
+                className="px-4 py-2 bg-gray-200 rounded-full text-gray-800"
+              >
                 {skill}
               </span>
             ))}
@@ -104,21 +114,7 @@ export default function Home() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact">
-        <ContactSection
-          linkedinUrl="https://linkedin.com/in/your-profile"
-          githubUrl="https://github.com/your-username"
-          twitterUrl="https://twitter.com/your-handle"
-          onSubmit={handleContactSubmit}
-        />
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 bg-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-600">
-          &copy; {new Date().getFullYear()} Jane Doe. All rights reserved.
-        </div>
-      </footer>
+      <ContactSection />
     </main>
   );
 }

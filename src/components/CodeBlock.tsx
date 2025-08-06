@@ -299,29 +299,42 @@ function ToolStatusBlock({ code, language }: { code: string; language: string })
   }
   
   const isCompleted = status === 'completed';
-  const icon = isCompleted ? '✅' : '🔧';
-  const statusText = isCompleted ? `${toolName} completed` : `Calling ${toolName}`;
+  const statusText =
+  toolName === 'buildProject'
+    ? 'Build Project'                    
+    : isCompleted
+        ? `${toolName} completed`
+        : `Calling ${toolName}`;
+
   
   return (
     <div className="my-3 rounded-lg overflow-hidden border border-zinc-800/50 bg-gradient-to-br from-zinc-900/90 to-zinc-800/90 shadow-sm">
-      <div className={`px-4 py-2 flex items-center gap-3 transition-all duration-200 ${
-        isCompleted 
-          ? 'bg-gradient-to-r from-emerald-800/80 to-emerald-700/80 hover:from-emerald-700/80 hover:to-emerald-600/80' 
-          : 'bg-gradient-to-r from-blue-800/80 to-blue-700/80 hover:from-blue-700/80 hover:to-blue-600/80'
-      }`}>
-        <div className={`w-2 h-2 rounded-full ${
-          isCompleted ? 'bg-emerald-400/80' : 'bg-blue-400/80'
-        }`}></div>
-        <span className="text-base">{icon}</span>
-        <span className="text-sm font-medium text-zinc-200">{statusText}</span>
-        {!isCompleted ? (
-          <div className="flex items-center gap-1 ml-auto">
-            <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1.5s' }}></div>
-            <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1.5s' }}></div>
-            <div className="w-1 h-1 bg-current rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1.5s' }}></div>
-          </div>
+      <div
+        className={`bg-gradient-to-r ${
+          isCompleted
+            ? 'from-zinc-800/70 to-zinc-700/70 hover:from-zinc-700/70 hover:to-zinc-600/70'
+            : 'from-zinc-800/80 to-zinc-700/80 hover:from-zinc-700/80 hover:to-zinc-600/80'
+        } px-4 py-2 flex items-center justify-between transition-all duration-200`}
+      >
+        {/* left group (dot + icon + label) */}
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-zinc-400/80" />
+          <span className="text-sm font-medium text-zinc-200/70">{statusText}</span>
+        </div>
+  
+        {/* right-hand loader / done dot */}
+        {isCompleted ? (
+          <div className="w-2 h-2 rounded-full bg-zinc-400/60" />
         ) : (
-          <div className="w-2 h-2 rounded-full bg-emerald-400/60 ml-auto"></div>
+          <div className="flex items-center gap-1">
+            {['0ms', '300ms', '600ms'].map((d) => (
+              <div
+                key={d}
+                className="w-1 h-1 bg-current rounded-full animate-pulse"
+                style={{ animationDelay: d, animationDuration: '1.5s' }}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

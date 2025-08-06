@@ -10,7 +10,7 @@
       "how": "Organized into sections like About Me, Projects, Skills, and Contact.",
       "properties": [
         "Responsive design",
-        "Modern aesthetics",
+        "Professional aesthetic",
         "Easy navigation"
       ],
       "children": [
@@ -29,7 +29,7 @@
         {
           "id": "node-element-swe-portfolio-page-contact-section",
           "title": "Contact Section",
-          "prompt": "Provide a way to contact the portfolio owner.",
+          "prompt": "Provide a way to contact the software engineer.",
           "kind": "section"
         }
       ]
@@ -75,19 +75,25 @@
           "kind": "component"
         },
         {
+          "id": "node-element-swe-portfolio-page-projects-section-grid-layout",
+          "title": "Grid Layout",
+          "prompt": "Create a grid layout for displaying project cards.",
+          "kind": "group"
+        },
+        {
           "id": "node-element-swe-portfolio-page-projects-section-filter-bar",
           "title": "Filter Bar",
-          "prompt": "Add a filter bar to sort and filter projects.",
-          "kind": "group"
+          "prompt": "Add filtering options for the projects showcase.",
+          "kind": "behavior"
         }
       ]
     },
     {
       "id": "node-element-swe-portfolio-page-contact-section",
       "title": "Contact Section",
-      "prompt": "Provide a way to contact the portfolio owner.",
+      "prompt": "Provide a way to contact the software engineer.",
       "kind": "section",
-      "what": "A contact section for users to reach out.",
+      "what": "A contact section for reaching out to the software engineer.",
       "how": "Include a contact form and social media links.",
       "properties": [
         "contact form",
@@ -100,12 +106,6 @@
           "title": "Contact Form",
           "prompt": "Design a contact form for the contact section.",
           "kind": "component"
-        },
-        {
-          "id": "node-element-swe-portfolio-page-contact-section-social-media-links",
-          "title": "Social Media Links",
-          "prompt": "Add social media links to the contact section.",
-          "kind": "group"
         }
       ]
     },
@@ -114,12 +114,12 @@
       "title": "Call-to-Action Button",
       "prompt": "Design a call-to-action button for the hero section.",
       "kind": "component",
-      "what": "A button designed to encourage user interaction, such as signing up or learning more.",
+      "what": "A button designed to encourage user interaction, typically leading to a key action.",
       "how": "Use bold colors, clear text, and hover effects to make the button stand out.",
       "properties": [
         "text: 'Get Started'",
-        "color: primary",
-        "hoverEffect: true"
+        "style: bold and vibrant",
+        "hoverEffect: color change"
       ],
       "children": []
     },
@@ -128,115 +128,115 @@
       "title": "Project Card",
       "prompt": "Design a project card to showcase individual projects.",
       "kind": "component",
-      "what": "A card layout to display project details like title, description, and image.",
-      "how": "Include a project image, title, and a brief description in a visually appealing layout.",
+      "what": "A card element to display project details.",
+      "how": "Include project title, description, and an image.",
       "properties": [
-        "image: project thumbnail",
         "title: project name",
-        "description: brief summary"
+        "description: brief summary",
+        "image: project thumbnail"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-projects-section-grid-layout",
+      "title": "Project Grid Layout",
+      "prompt": "Create a grid layout for displaying project cards.",
+      "kind": "group",
+      "what": "A structured layout to organize project cards.",
+      "how": "Use a responsive grid system with consistent spacing.",
+      "properties": [
+        "gridType: responsive",
+        "spacing: uniform",
+        "alignment: center"
       ],
       "children": []
     },
     {
       "id": "node-element-swe-portfolio-page-projects-section-filter-bar",
-      "title": "Filter Bar",
-      "prompt": "Add a filter bar to sort and filter projects.",
-      "kind": "group",
-      "what": "A UI element to allow users to filter and sort projects based on criteria.",
-      "how": "Provide dropdowns, checkboxes, or input fields for filtering options.",
+      "title": "Project Filtering Options",
+      "prompt": "Add filtering options for the projects showcase.",
+      "kind": "behavior",
+      "what": "Interactive filters to refine project display.",
+      "how": "Provide dropdowns or checkboxes for filtering by category or technology.",
       "properties": [
-        "filterOptions: category, date",
-        "sortOptions: ascending, descending",
-        "interactive: true"
+        "filterType: dropdown",
+        "filterOptions: categories, technologies",
+        "interaction: dynamic update"
       ],
-      "children": []
+      "children": [
+        {
+          "id": "node-element-swe-portfolio-page-projects-section-filter-bar-filter-dropdown",
+          "title": "Filter Dropdown",
+          "prompt": "Design a dropdown for selecting filter categories.",
+          "kind": "component"
+        },
+        {
+          "id": "node-element-swe-portfolio-page-projects-section-filter-bar-filter-checkbox",
+          "title": "Filter Checkbox",
+          "prompt": "Add checkboxes for filtering by technology.",
+          "kind": "component"
+        },
+        {
+          "id": "node-element-swe-portfolio-page-projects-section-filter-bar-filter-interaction",
+          "title": "Filter Interaction",
+          "prompt": "Define the behavior for dynamic filtering updates.",
+          "kind": "behavior"
+        }
+      ]
     },
     {
       "id": "node-element-swe-portfolio-page-contact-section-contact-form",
       "title": "Contact Form",
       "prompt": "Design a contact form for the contact section.",
       "kind": "component",
-      "what": "A form for users to submit their contact information and message.",
-      "how": "Include fields for name, email, and message, along with a submit button.",
+      "what": "A form for users to send messages or inquiries.",
+      "how": "Includes fields for name, email, message, and a submit button.",
       "properties": [
-        "fields: name, email, message",
-        "button: submit",
-        "validation: required"
+        "Responsive layout",
+        "Validation for required fields",
+        "Accessible design"
       ],
       "children": []
     },
     {
-      "id": "node-element-swe-portfolio-page-contact-section-social-media-links",
-      "title": "Social Media Links",
-      "prompt": "Add social media links to the contact section.",
-      "kind": "group",
-      "what": "A grouping of social media link components within the contact section.",
-      "how": "Organize links for platforms like LinkedIn, GitHub, and Twitter.",
-      "properties": [
-        "LinkedIn link",
-        "GitHub link",
-        "Twitter link"
-      ],
-      "children": [
-        {
-          "id": "node-element-swe-portfolio-page-contact-section-social-media-links-linkedin-link",
-          "title": "LinkedIn Link",
-          "prompt": "Create a LinkedIn link with an icon and label.",
-          "kind": "component"
-        },
-        {
-          "id": "node-element-swe-portfolio-page-contact-section-social-media-links-github-link",
-          "title": "GitHub Link",
-          "prompt": "Create a GitHub link with an icon and label.",
-          "kind": "component"
-        },
-        {
-          "id": "node-element-swe-portfolio-page-contact-section-social-media-links-twitter-link",
-          "title": "Twitter Link",
-          "prompt": "Create a Twitter link with an icon and label.",
-          "kind": "component"
-        }
-      ]
-    },
-    {
-      "id": "node-element-swe-portfolio-page-contact-section-social-media-links-linkedin-link",
-      "title": "LinkedIn Link",
-      "prompt": "Create a LinkedIn link with an icon and label.",
+      "id": "node-element-swe-portfolio-page-projects-section-filter-bar-filter-dropdown",
+      "title": "Filter Category Dropdown",
+      "prompt": "Design a dropdown for selecting filter categories.",
       "kind": "component",
-      "what": "A LinkedIn link with an icon and label.",
-      "how": "Use a LinkedIn logo icon alongside a text label styled for visibility.",
+      "what": "A dropdown menu for selecting project categories.",
+      "how": "Allows users to filter projects by predefined categories.",
       "properties": [
-        "LinkedIn icon",
-        "Label text",
-        "Link URL"
+        "Interactive dropdown",
+        "Smooth animations",
+        "Accessible keyboard navigation"
       ],
       "children": []
     },
     {
-      "id": "node-element-swe-portfolio-page-contact-section-social-media-links-github-link",
-      "title": "GitHub Link",
-      "prompt": "Create a GitHub link with an icon and label.",
+      "id": "node-element-swe-portfolio-page-projects-section-filter-bar-filter-checkbox",
+      "title": "Technology Filter Checkboxes",
+      "prompt": "Add checkboxes for filtering by technology.",
       "kind": "component",
-      "what": "A GitHub link with an icon and label.",
-      "how": "Use a GitHub logo icon alongside a text label styled for visibility.",
+      "what": "Checkboxes for filtering projects by technology.",
+      "how": "Users can select multiple technologies to refine project results.",
       "properties": [
-        "GitHub icon",
-        "Label text",
-        "Link URL"
+        "Multi-select capability",
+        "Clear selection option",
+        "Accessible design"
       ],
       "children": []
     },
     {
-      "id": "node-element-swe-portfolio-page-contact-section-social-media-links-twitter-link",
-      "title": "Twitter Link",
-      "prompt": "Create a Twitter link with an icon and label.",
-      "kind": "component",
-      "what": "A Twitter link with an icon and label.",
-      "how": "Use a Twitter logo icon alongside a text label styled for visibility.",
+      "id": "node-element-swe-portfolio-page-projects-section-filter-bar-filter-interaction",
+      "title": "Dynamic Filtering Behavior",
+      "prompt": "Define the behavior for dynamic filtering updates.",
+      "kind": "behavior",
+      "what": "Real-time updates to project list based on filters.",
+      "how": "Filters trigger dynamic changes without page reload.",
       "properties": [
-        "Twitter icon",
-        "Label text",
-        "Link URL"
+        "Efficient data handling",
+        "Smooth user experience",
+        "Responsive design"
       ],
       "children": []
     }
