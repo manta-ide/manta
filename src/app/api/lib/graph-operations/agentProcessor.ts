@@ -36,7 +36,7 @@ export class AgentProcessor implements AgentProcessorInterface {
     seed?: number;
   }): Promise<NodeDetailWithUidT[]> {
     // Get the graph generation template
-    const graphTemplate = await getTemplate('graph-generation-template');
+    const graphTemplate = await getTemplate('node-prompt-generation-template');
     
     // Format jobs data for the template
     const jobsText = jobs.map((j, i) => {

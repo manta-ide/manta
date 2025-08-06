@@ -27,7 +27,7 @@ const DEFAULT_CONFIG = {
   topP: 1,
   
   // Agent configuration
-  agentModel: 'gpt-4o',
+  agentModel: 'o4-mini',
   agentMaxSteps: 10,
   agentStreaming: true,
   agentProviderOptions: {
@@ -163,13 +163,36 @@ export async function POST(req: NextRequest) {
             }) + '\n')
           );
 
-          // Process nodes in breadth-first order for code generation
+          // Process nodes from leaves to root for code generation
           const processedNodes = new Set<string>();
           const nodeQueue: string[] = [];
           
-          // Start with root nodes (nodes with no parent or first nodes)
-          const rootNodes = graph.nodes.slice(0, 1); // Start with the first node as root
-          rootNodes.forEach(node => nodeQueue.push(node.id));
+          // Build a map of node dependencies (parent -> children)
+          const nodeDependencies = new Map<string, string[]>();
+          const reverseDependencies = new Map<string, string[]>();
+          
+          // Initialize dependency maps
+          graph.nodes.forEach(node => {
+            nodeDependencies.set(node.id, node.children.map(child => child.id));
+            node.children.forEach(child => {
+              if (!reverseDependencies.has(child.id)) {
+                reverseDependencies.set(child.id, []);
+              }
+              reverseDependencies.get(child.id)!.push(node.id);
+            });
+          });
+          
+          // Find leaf nodes (nodes with no children or no unprocessed children)
+          const findLeafNodes = () => {
+            return graph.nodes.filter(node => {
+              const children = nodeDependencies.get(node.id) || [];
+              return children.length === 0 || children.every(childId => processedNodes.has(childId));
+            }).filter(node => !processedNodes.has(node.id));
+          };
+          
+          // Start with leaf nodes
+          const leafNodes = findLeafNodes();
+          leafNodes.forEach(node => nodeQueue.push(node.id));
           
           let totalToolCalls = 0;
           let totalToolResults = 0;
@@ -346,10 +369,14 @@ export async function POST(req: NextRequest) {
             allOperations.push(...nodeToolResults);
             finalResponse += `\n\n--- ${node.title} ---\n${nodeFull}`;
 
-            // Add child nodes to queue for processing
-            node.children.forEach(child => {
-              if (child.id && !processedNodes.has(child.id)) {
-                nodeQueue.push(child.id);
+            // Add parent nodes to queue for processing when all their children are processed
+            const parents = reverseDependencies.get(nodeId) || [];
+            parents.forEach(parentId => {
+              const parentChildren = nodeDependencies.get(parentId) || [];
+              const allChildrenProcessed = parentChildren.every(childId => processedNodes.has(childId));
+              
+              if (allChildrenProcessed && !processedNodes.has(parentId) && !nodeQueue.includes(parentId)) {
+                nodeQueue.push(parentId);
               }
             });
 

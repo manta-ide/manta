@@ -1,181 +1,242 @@
 {
-  "rootId": "node-element-swe-landing-page",
+  "rootId": "node-element-swe-portfolio-page",
   "nodes": [
     {
-      "id": "node-element-swe-landing-page",
-      "title": "SWE Landing Page",
-      "prompt": "Create me an SWE landing page",
+      "id": "node-element-swe-portfolio-page",
+      "title": "SWE Portfolio Page",
+      "prompt": "Create me an SWE portfolio page",
       "kind": "page",
-      "what": "A landing page tailored for Software Engineers.",
-      "how": "Organize sections to highlight key features, benefits, and calls to action.",
+      "what": "A personal portfolio page for showcasing software engineering projects and skills.",
+      "how": "Organized into sections like About Me, Projects, Skills, and Contact.",
       "properties": [
         "Responsive design",
         "Modern aesthetics",
-        "Clear navigation"
+        "Easy navigation"
       ],
       "children": [
         {
-          "id": "node-element-swe-landing-page-hero-section",
+          "id": "node-element-swe-portfolio-page-hero-section",
           "title": "Hero Section",
-          "prompt": "Design a hero section for the SWE landing page.",
+          "prompt": "Design the hero section for the portfolio page.",
           "kind": "section"
         },
         {
-          "id": "node-element-swe-landing-page-features-section",
-          "title": "Features Section",
-          "prompt": "Showcase key features for Software Engineers.",
+          "id": "node-element-swe-portfolio-page-projects-section",
+          "title": "Projects Section",
+          "prompt": "Showcase software engineering projects.",
           "kind": "section"
         },
         {
-          "id": "node-element-swe-landing-page-call-to-action-section",
-          "title": "Call-to-Action Section",
-          "prompt": "Create a call-to-action section for the SWE landing page.",
+          "id": "node-element-swe-portfolio-page-contact-section",
+          "title": "Contact Section",
+          "prompt": "Provide a way to contact the portfolio owner.",
           "kind": "section"
         }
       ]
     },
     {
-      "id": "node-element-swe-landing-page-hero-section",
+      "id": "node-element-swe-portfolio-page-hero-section",
       "title": "Hero Section",
-      "prompt": "Design a hero section for the SWE landing page.",
+      "prompt": "Design the hero section for the portfolio page.",
       "kind": "section",
-      "what": "A visually striking hero section to capture attention.",
-      "how": "Use a large headline, supporting text, and a call-to-action button.",
+      "what": "A visually striking hero section to introduce the portfolio.",
+      "how": "Use a large background image, a headline, and a call-to-action button.",
       "properties": [
+        "background image",
         "headline text",
-        "supporting text",
         "call-to-action button"
       ],
       "children": [
         {
-          "id": "node-element-swe-landing-page-hero-section-call-to-action-button",
+          "id": "node-element-swe-portfolio-page-hero-section-call-to-action-button",
           "title": "Call-to-Action Button",
-          "prompt": "Design a button for the hero section.",
+          "prompt": "Design a call-to-action button for the hero section.",
           "kind": "component"
         }
       ]
     },
     {
-      "id": "node-element-swe-landing-page-features-section",
-      "title": "Key Features Section",
-      "prompt": "Showcase key features for Software Engineers.",
+      "id": "node-element-swe-portfolio-page-projects-section",
+      "title": "Projects Showcase",
+      "prompt": "Showcase software engineering projects.",
       "kind": "section",
-      "what": "A section highlighting key features for software engineers.",
-      "how": "Use feature cards with icons and descriptions.",
+      "what": "A section to display software engineering projects.",
+      "how": "Use a grid layout with project cards.",
       "properties": [
-        "feature cards",
-        "icons",
-        "descriptions"
+        "grid layout",
+        "project cards",
+        "filtering options"
       ],
       "children": [
         {
-          "id": "node-element-swe-landing-page-features-section-feature-card-1",
-          "title": "Feature Card 1",
-          "prompt": "Design the first feature card.",
+          "id": "node-element-swe-portfolio-page-projects-section-project-card",
+          "title": "Project Card",
+          "prompt": "Design a project card to showcase individual projects.",
           "kind": "component"
         },
         {
-          "id": "node-element-swe-landing-page-features-section-feature-card-2",
-          "title": "Feature Card 2",
-          "prompt": "Design the second feature card.",
-          "kind": "component"
-        },
-        {
-          "id": "node-element-swe-landing-page-features-section-feature-card-3",
-          "title": "Feature Card 3",
-          "prompt": "Design the third feature card.",
-          "kind": "component"
+          "id": "node-element-swe-portfolio-page-projects-section-filter-bar",
+          "title": "Filter Bar",
+          "prompt": "Add a filter bar to sort and filter projects.",
+          "kind": "group"
         }
       ]
     },
     {
-      "id": "node-element-swe-landing-page-call-to-action-section",
-      "title": "Call-to-Action Section",
-      "prompt": "Create a call-to-action section for the SWE landing page.",
+      "id": "node-element-swe-portfolio-page-contact-section",
+      "title": "Contact Section",
+      "prompt": "Provide a way to contact the portfolio owner.",
       "kind": "section",
-      "what": "A section encouraging users to take action.",
-      "how": "Include a headline, supporting text, and a call-to-action button.",
+      "what": "A contact section for users to reach out.",
+      "how": "Include a contact form and social media links.",
       "properties": [
-        "headline text",
-        "supporting text",
-        "call-to-action button"
+        "contact form",
+        "social media links",
+        "background styling"
       ],
       "children": [
         {
-          "id": "node-element-swe-landing-page-call-to-action-section-call-to-action-button",
-          "title": "Call-to-Action Button",
-          "prompt": "Design a button for the call-to-action section.",
+          "id": "node-element-swe-portfolio-page-contact-section-contact-form",
+          "title": "Contact Form",
+          "prompt": "Design a contact form for the contact section.",
           "kind": "component"
+        },
+        {
+          "id": "node-element-swe-portfolio-page-contact-section-social-media-links",
+          "title": "Social Media Links",
+          "prompt": "Add social media links to the contact section.",
+          "kind": "group"
         }
       ]
     },
     {
-      "id": "node-element-swe-landing-page-hero-section-call-to-action-button",
-      "title": "Hero Section Button",
-      "prompt": "Design a button for the hero section.",
-      "kind": "primitive",
-      "what": "A call-to-action button for the hero section.",
-      "how": "Positioned centrally with bold text and vibrant color.",
-      "properties": [
-        "text: 'Get Started'",
-        "color: '#007BFF'",
-        "size: 'large'"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-swe-landing-page-features-section-feature-card-1",
-      "title": "Feature Card 1",
-      "prompt": "Design the first feature card.",
-      "kind": "component",
-      "what": "A card showcasing the first key feature.",
-      "how": "Includes an icon, title, and description.",
-      "properties": [
-        "icon: 'Feature Icon 1'",
-        "title: 'Feature Title 1'",
-        "description: 'Feature Description 1'"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-swe-landing-page-features-section-feature-card-2",
-      "title": "Feature Card 2",
-      "prompt": "Design the second feature card.",
-      "kind": "component",
-      "what": "A card showcasing the second key feature.",
-      "how": "Includes an icon, title, and description.",
-      "properties": [
-        "icon: 'Feature Icon 2'",
-        "title: 'Feature Title 2'",
-        "description: 'Feature Description 2'"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-swe-landing-page-features-section-feature-card-3",
-      "title": "Feature Card 3",
-      "prompt": "Design the third feature card.",
-      "kind": "component",
-      "what": "A card showcasing the third key feature.",
-      "how": "Includes an icon, title, and description.",
-      "properties": [
-        "icon: 'Feature Icon 3'",
-        "title: 'Feature Title 3'",
-        "description: 'Feature Description 3'"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-swe-landing-page-call-to-action-section-call-to-action-button",
+      "id": "node-element-swe-portfolio-page-hero-section-call-to-action-button",
       "title": "Call-to-Action Button",
-      "prompt": "Design a button for the call-to-action section.",
-      "kind": "primitive",
-      "what": "A button designed to encourage user action in the call-to-action section.",
-      "how": "The button should be visually prominent, with clear text and styling that aligns with the section's theme.",
+      "prompt": "Design a call-to-action button for the hero section.",
+      "kind": "component",
+      "what": "A button designed to encourage user interaction, such as signing up or learning more.",
+      "how": "Use bold colors, clear text, and hover effects to make the button stand out.",
       "properties": [
         "text: 'Get Started'",
-        "style: prominent, rounded corners, gradient background",
-        "action: navigates to sign-up page"
+        "color: primary",
+        "hoverEffect: true"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-projects-section-project-card",
+      "title": "Project Card",
+      "prompt": "Design a project card to showcase individual projects.",
+      "kind": "component",
+      "what": "A card layout to display project details like title, description, and image.",
+      "how": "Include a project image, title, and a brief description in a visually appealing layout.",
+      "properties": [
+        "image: project thumbnail",
+        "title: project name",
+        "description: brief summary"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-projects-section-filter-bar",
+      "title": "Filter Bar",
+      "prompt": "Add a filter bar to sort and filter projects.",
+      "kind": "group",
+      "what": "A UI element to allow users to filter and sort projects based on criteria.",
+      "how": "Provide dropdowns, checkboxes, or input fields for filtering options.",
+      "properties": [
+        "filterOptions: category, date",
+        "sortOptions: ascending, descending",
+        "interactive: true"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-contact-section-contact-form",
+      "title": "Contact Form",
+      "prompt": "Design a contact form for the contact section.",
+      "kind": "component",
+      "what": "A form for users to submit their contact information and message.",
+      "how": "Include fields for name, email, and message, along with a submit button.",
+      "properties": [
+        "fields: name, email, message",
+        "button: submit",
+        "validation: required"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-contact-section-social-media-links",
+      "title": "Social Media Links",
+      "prompt": "Add social media links to the contact section.",
+      "kind": "group",
+      "what": "A grouping of social media link components within the contact section.",
+      "how": "Organize links for platforms like LinkedIn, GitHub, and Twitter.",
+      "properties": [
+        "LinkedIn link",
+        "GitHub link",
+        "Twitter link"
+      ],
+      "children": [
+        {
+          "id": "node-element-swe-portfolio-page-contact-section-social-media-links-linkedin-link",
+          "title": "LinkedIn Link",
+          "prompt": "Create a LinkedIn link with an icon and label.",
+          "kind": "component"
+        },
+        {
+          "id": "node-element-swe-portfolio-page-contact-section-social-media-links-github-link",
+          "title": "GitHub Link",
+          "prompt": "Create a GitHub link with an icon and label.",
+          "kind": "component"
+        },
+        {
+          "id": "node-element-swe-portfolio-page-contact-section-social-media-links-twitter-link",
+          "title": "Twitter Link",
+          "prompt": "Create a Twitter link with an icon and label.",
+          "kind": "component"
+        }
+      ]
+    },
+    {
+      "id": "node-element-swe-portfolio-page-contact-section-social-media-links-linkedin-link",
+      "title": "LinkedIn Link",
+      "prompt": "Create a LinkedIn link with an icon and label.",
+      "kind": "component",
+      "what": "A LinkedIn link with an icon and label.",
+      "how": "Use a LinkedIn logo icon alongside a text label styled for visibility.",
+      "properties": [
+        "LinkedIn icon",
+        "Label text",
+        "Link URL"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-contact-section-social-media-links-github-link",
+      "title": "GitHub Link",
+      "prompt": "Create a GitHub link with an icon and label.",
+      "kind": "component",
+      "what": "A GitHub link with an icon and label.",
+      "how": "Use a GitHub logo icon alongside a text label styled for visibility.",
+      "properties": [
+        "GitHub icon",
+        "Label text",
+        "Link URL"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-swe-portfolio-page-contact-section-social-media-links-twitter-link",
+      "title": "Twitter Link",
+      "prompt": "Create a Twitter link with an icon and label.",
+      "kind": "component",
+      "what": "A Twitter link with an icon and label.",
+      "how": "Use a Twitter logo icon alongside a text label styled for visibility.",
+      "properties": [
+        "Twitter icon",
+        "Label text",
+        "Link URL"
       ],
       "children": []
     }
