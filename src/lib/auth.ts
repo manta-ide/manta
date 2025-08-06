@@ -6,6 +6,7 @@ import { Pool } from "pg";
 // Better Auth configuration
 export const auth = betterAuth({
   database: new Pool({
+    ssl: true,
     connectionString: "postgres://pgadmin:wsvCmTjMYssg9tm@hyperhub-db-prod-pgsql.postgres.database.azure.com:5432/manta-editor-dev",
   }),
   emailAndPassword: {
@@ -22,7 +23,7 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       name: { type: "string" },
-      avatar: { type: "string" },
+      avatar: { type: "string", required: false },
     },
   },
 });
