@@ -1,11 +1,14 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, MessageCircle, Edit3, Eye, Monitor, BarChart3 } from 'lucide-react';
-import { useProjectStore } from '@/lib/store';
+import { Folder, Code, MessageCircle, Edit3, Eye, Monitor, BarChart3, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import AuthModal from '@/components/auth/AuthModal';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface TopBarProps {
   panels: {
@@ -23,10 +26,22 @@ interface TopBarProps {
 
 export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMode, onOpenEval }: TopBarProps) {
   const switchId = useId();
+  const { user, signOut, loading } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <header className="border-b border-zinc-700 bg-zinc-800 px-4 py-3">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+        {/* Left side - App title */}
+        <div className="flex items-center">
+          <h1 className="text-lg font-semibold text-white">Manta Editor</h1>
+        </div>
+
+        {/* Right side - Controls and Auth */}
         <div className="flex items-center gap-3">
           {/* Edit/Preview Switch */}
           <div className="flex items-center gap-2">
@@ -115,9 +130,47 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
             </Button>
           </div>
 
-
+          {/* Authentication Section */}
+          <div className="flex items-center gap-2">
+            {loading ? (
+              <div className="w-8 h-8 rounded-full border-2 border-zinc-600 border-t-white animate-spin"></div>
+            ) : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.avatar || ''} alt={user.name || ''} />
+                      <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bg-zinc-800 text-zinc-300 border-zinc-600 hover:bg-zinc-700"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+      />
     </header>
   );
 } 

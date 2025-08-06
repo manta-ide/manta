@@ -31,7 +31,7 @@ export function parseFileOperations(response: string): FileOperation[] {
     const trimmedContent = content.trim();
     
     // Use the path as provided by the LLM, just clean whitespace
-    let cleanPath = pathRaw.trim();
+    const cleanPath = pathRaw.trim();
     
     console.log(`📝 Parsed operation: ${type} on "${cleanPath}"`);
     

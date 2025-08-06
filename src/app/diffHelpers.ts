@@ -136,7 +136,7 @@ function parseDiffBlock(diffText: string): { oldText: string; newText: string } 
   const newLines: string[] = [];
   
   let inHunk = false;
-  let currentSection = '';
+      const currentSection = '';
   
   for (const line of lines) {
     // Auto-detect if we should be in a hunk (no @@ headers present)

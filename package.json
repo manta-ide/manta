@@ -11,7 +11,8 @@
     "build:app": "cd base-template && npm run build",
     "start:app": "cd base-template && npm run start -- --port 3001",
     "dev:both": "concurrently \"npm run dev\" \"npm run dev:app\"",
-    "start:both": "concurrently \"npm run start\" \"npm run start:app\""
+    "start:both": "concurrently \"npm run start\" \"npm run start:app\"",
+    "setup-db": "tsx scripts/setup-db.ts"
   },
   "dependencies": {
     "@ai-sdk/azure": "^1.3.24",
@@ -23,15 +24,20 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@remixicon/react": "^4.6.0",
     "@types/diff-match-patch": "^1.0.36",
+    "@types/pg": "^8.15.5",
     "ai": "^4.3.19",
+    "better-auth": "^1.3.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "diff-match-patch": "^1.0.5",
+    "drizzle-orm": "^0.44.4",
     "lucide-react": "^0.525.0",
     "motion": "^12.23.12",
     "next": "15.4.1",
     "next-themes": "^0.4.6",
+    "pg": "^8.16.3",
+    "postgres": "^3.4.7",
     "radix-ui": "^1.4.2",
     "react": "19.1.0",
     "react-aria-components": "^1.10.1",
@@ -55,6 +61,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.4.1",
     "tailwindcss": "^4",
+    "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   }
