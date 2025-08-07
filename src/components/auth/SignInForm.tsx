@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { authClient } from '@/lib/auth-client';
 
 interface SignInFormProps {
   onSuccess?: () => void;
@@ -15,34 +16,29 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user, session, loading, signOut, setAuthState } = useAuth();
+  const { refreshSession } = useAuth();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/sign-in/email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+      const { data, error } = await authClient.signIn.email({
+        email,
+        password,
+        rememberMe: true, // This ensures persistent sessions
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAuthState(data.user, data); // update context with user and session
+      if (error) {
+        toast.error(error.message || 'Sign in failed');
+      } else {
+        // Refresh the session in context after successful sign in
+        await refreshSession();
         toast.success('Signed in successfully!');
         onSuccess?.();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Sign in failed');
       }
-    } catch {
+    } catch (err) {
+      console.error('Sign in error:', err);
       toast.error('An error occurred during sign in');
     } finally {
       setIsLoading(false);

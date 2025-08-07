@@ -230,8 +230,8 @@ async function callChatAPI(
     }
 
          let fullResponse = '';
-     const toolCalls: any[] = [];
-     const toolResults: any[] = [];
+     let toolCalls: any[] = [];
+     let toolResults: any[] = [];
      let fileOperations: any[] = [];
      const decoder = new TextDecoder();
 

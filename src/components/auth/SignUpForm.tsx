@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { authClient } from '@/lib/auth-client';
 
 interface SignUpFormProps {
   onSuccess?: () => void;
@@ -17,7 +18,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { setAuthState } = useAuth();
+  const { refreshSession } = useAuth();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,28 +31,22 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     }
 
     try {
-      const response = await fetch('/api/auth/sign-up/email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+      const { data, error } = await authClient.signUp.email({
+        name,
+        email,
+        password,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAuthState(data.user, data); // update context with user and session
+      if (error) {
+        toast.error(error.message || 'Sign up failed');
+      } else {
+        // Refresh the session in context after successful sign up
+        await refreshSession();
         toast.success('Account created successfully!');
         onSuccess?.();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Sign up failed');
       }
-    } catch {
+    } catch (err) {
+      console.error('Sign up error:', err);
       toast.error('An error occurred during sign up');
     } finally {
       setIsLoading(false);

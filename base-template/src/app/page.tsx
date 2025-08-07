@@ -14,7 +14,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white min-h-screen flex items-center">
         <div className="container mx-auto px-6 flex flex-col items-start space-y-8">
-          <h1 className="text-5xl font-bold leading-tight text-white">
+          <h1 className="text-5xl font-bold leading-tight text-red-500">
             Empower Your Software Engineering Journey
           </h1>
           <p className="text-lg text-white max-w-2xl">

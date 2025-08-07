@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from './auth';
+import { authClient } from './auth-client';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  setAuthState: (user: User | null, session: Session | null) => void;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,41 +21,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for existing session on mount
-    checkSession();
+    initializeAuth();
   }, []);
 
-  const checkSession = async () => {
+  const initializeAuth = async () => {
     try {
-      const response = await fetch('/api/auth/session');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        setSession(data);
+      // Use Better Auth client to get current session
+      const { data } = await authClient.getSession();
+      
+      if (data?.session && data?.user) {
+        setUser(data.user as User);
+        setSession(data as Session);
+      } else {
+        // If no session, clear any stale state
+        setUser(null);
+        setSession(null);
       }
     } catch (error) {
       console.error('Error checking session:', error);
+      // Clear state on error
+      setUser(null);
+      setSession(null);
     } finally {
       setLoading(false);
     }
   };
 
+  const refreshSession = async () => {
+    try {
+      const { data } = await authClient.getSession();
+      
+      if (data?.session && data?.user) {
+        setUser(data.user as User);
+        setSession(data as Session);
+      } else {
+        setUser(null);
+        setSession(null);
+      }
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+      setUser(null);
+      setSession(null);
+    }
+  };
+
   const signOut = async () => {
     try {
-      await fetch('/api/auth/sign-out', { method: 'POST' });
+      await authClient.signOut();
       setUser(null);
       setSession(null);
     } catch (error) {
       console.error('Error signing out:', error);
+      // Clear state even if signout fails
+      setUser(null);
+      setSession(null);
     }
   };
 
-  const setAuthState = (user: User | null, session: Session | null) => {
-    setUser(user);
-    setSession(session);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut, setAuthState }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
