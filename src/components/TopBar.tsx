@@ -137,29 +137,23 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
             ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar || ''} alt={user.name || ''} />
-                      <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                  <Button variant="ghost" className="flex items-center gap-2 px-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={user.avatar || undefined} />
+                      <AvatarFallback>{user.name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
+                    <span className="hidden sm:inline text-white">{user.name || user.email}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
+                    <LogOut size={16} /> Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAuthModalOpen(true)}
-                className="bg-zinc-800 text-zinc-300 border-zinc-600 hover:bg-zinc-700"
-              >
-                <User className="w-4 h-4 mr-2" />
-                Sign In
+              <Button variant="outline" onClick={() => setIsAuthModalOpen(true)}>
+                <User className="mr-2 h-4 w-4" /> Sign In
               </Button>
             )}
           </div>
