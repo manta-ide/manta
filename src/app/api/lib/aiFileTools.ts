@@ -5,6 +5,7 @@ import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from '
 import { dirname, join } from 'path';
 import { applyAllDiffBlocks } from '@/app/diffHelpers';
 import { getLastError, clearLastError } from '@/lib/runtimeErrorStore';
+import path from 'node:path';
 
 // Project root for file operations (base-template directory)
 const PROJECT_ROOT = join(process.cwd(), 'base-template');
@@ -22,32 +23,78 @@ function run(cmd: string) {
   );
 }
 
-async function buildProject(filePath: string) {
+async function findTsConfig(start: string): Promise<string | null> {
+  const { promises: fs } = await import("node:fs");
+  let dir = path.resolve(start);
 
-  const { exec } = await import('child_process');
-      const run = (cmd: string) =>
-        new Promise<{ ok: boolean; out: string }>((res) =>
-          exec(
-            cmd,
-            { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
-            (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
-          ),
-        );
-        const ext = (filePath.split('.').pop() || '').toLowerCase();
-        if (!['ts', 'tsx'].includes(ext)) {return { success: true };}
-      const { ok, out } = await run('npx tsc --noEmit --pretty false ' + filePath);
-
-      if (ok) return { success: true };
-
-      // strip ANSI colour codes
-      const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
-      const lines = plain.split('\n').filter((l) => l.trim());
-      const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
-      const errorLines =
-        (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
-
-      return { success: false, errorLines };
+  while (true) {
+    const candidate = path.join(dir, "tsconfig.json");
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      /* not here – go up one folder */
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break; // reached the root
+    dir = parent;
+  }
+  return null;
 }
+
+export async function buildProject(filePath: string) {
+  const { exec } = await import("child_process");
+  const run = (cmd: string) =>
+    new Promise<{ ok: boolean; out: string }>((res) =>
+      exec(
+        cmd,
+        { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
+        (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
+      ),
+    );
+
+  const ext = (filePath.split(".").pop() || "").toLowerCase();
+  if (!["ts", "tsx"].includes(ext)) return { success: true };
+
+  /* ─── 1 ▪ syntax-only guard (cheap) ─── */
+  const tsNodeCmd =
+    `npx ts-node --transpile-only ` +
+    `--compiler-options '${JSON.stringify({
+      jsx: "react-jsx",
+      esModuleInterop: true,
+      module: "ESNext",
+    })}' ${filePath}`;
+  let { ok, out } = await run(tsNodeCmd);
+  if (ok) return { success: true };
+
+  /* ─── 2 ▪ project-aware tsc (resolves @/ aliases) ─── */
+  const tsConfig = await findTsConfig(path.dirname(filePath));
+  const tscCmd = tsConfig
+    ? // respect baseUrl / paths / strictness the project already defines
+      `npx tsc --noEmit --pretty false -p ${tsConfig}`
+    : // fall back to the relaxed per-file compile we used before
+      `npx tsc --noEmit --pretty false --jsx react-jsx --esModuleInterop --skipLibCheck ${filePath}`;
+
+  ({ ok, out } = await run(tscCmd));
+  if (ok) return { success: true };
+
+  /* ─── 3 ▪ diagnostic filter ─── */
+  const IGNORE = new Set(["1259", "17004"]);
+  // if we *didn’t* find a tsconfig we also ignore TS2307 that starts with '@/'
+  if (!tsConfig) IGNORE.add("2307");
+
+  const plain = out.replace(/\x1b\[[0-9;]*m/g, "");
+  const lines = plain.split("\n").filter(Boolean);
+  const keep = lines.filter((l) => {
+    const m = l.match(/TS(\d+):/);
+    return !m || !IGNORE.has(m[1]);
+  });
+
+  return keep.length
+    ? { success: false, errorLines: keep.slice(0, 30) }
+    : { success: true };
+}
+
 
 function getRuntimeError() {
 
@@ -142,6 +189,7 @@ export const fileTools = {
         
         writeFileSync(fullPath, content, 'utf-8');
         const runtimeError = await buildProject(fullPath);
+        console.log(">>>>>>>>>>createFile buildProject", runtimeError);
           if(runtimeError.success === true) {
             return { 
               success: true, 

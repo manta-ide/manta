@@ -15,7 +15,7 @@ import { AgentProcessor } from '../../lib/graph-operations/agentProcessor';
 // Default configuration
 const DEFAULT_CONFIG = {
   // Graph generation parameters
-  maxDepth: 3,
+  maxDepth: 1,
   maxNodes: 120,
   childLimit: 3,
   concurrency: 4,
