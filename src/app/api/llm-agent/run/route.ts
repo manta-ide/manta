@@ -18,6 +18,7 @@ const AgentConfigSchema = z.object({
   streaming: z.boolean(),
   structuredOutput: z.boolean().optional(),
   providerOptions: z.record(z.any()).optional(),
+  temperature: z.number().optional(),
 });
 
 // Request schema with required configuration
@@ -48,10 +49,6 @@ export async function POST(req: NextRequest) {
     console.log(JSON.stringify(parsedMessages, null, 2));
     // Use the provided tools or default to fileTools
     const tools = config.tools || fileTools;
-    console.log('>>>>>>>>>>>>>>>>>>>>>>> Tools');
-    console.log(JSON.stringify(tools, null, 2));
-    console.log('>>>>>>>>>>>>>>>>>>>>>>> File Tools');
-    console.log(fileTools);
     // Prepare streamText options
     const streamOptions: any = {
       model: azure(config.model),
@@ -59,6 +56,7 @@ export async function POST(req: NextRequest) {
       tools: fileTools,
       maxSteps: config.maxSteps,
       abortSignal: req.signal,
+      temperature: config.temperature
     };
 
     // Add provider options if provided
@@ -95,6 +93,7 @@ export async function POST(req: NextRequest) {
         schema: GraphResultSchema,
         abortSignal: req.signal,
         providerOptions: config.providerOptions,
+        temperature: config.temperature
       });
 
       return new Response(JSON.stringify({
@@ -125,6 +124,7 @@ export async function POST(req: NextRequest) {
         maxSteps: config.maxSteps,
         abortSignal: req.signal,
         providerOptions: config.providerOptions,
+        temperature: config.temperature
       });
 
       return new Response(JSON.stringify({
@@ -150,6 +150,11 @@ export async function POST(req: NextRequest) {
           // Consume full stream including tool calls
           for await (const chunk of result.fullStream) {
             switch (chunk.type) {
+              case 'error':
+                controller.enqueue(
+                  encoder.encode(JSON.stringify({ t: 'error', error: String(chunk.error) }) + '\n')
+                );
+                break;
               case 'text-delta':
                 full += chunk.textDelta;
                 controller.enqueue(

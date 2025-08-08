@@ -335,7 +335,7 @@ export const fileTools = {
     },
   }),
 
-  buildProject: tool({
+  /* buildProject: tool({
     description:
       'ALWAYS call this first when the user says “fix”, “debug” or similar but has not ' +
       'pasted an error.  Runs `tsc --noEmit --pretty false` to surface syntax & type ' +
@@ -366,9 +366,9 @@ export const fileTools = {
 
       return { success: false, errorLines };
     },
-  }),
+  }), */
  
-  getRuntimeError: tool({
+  /* getRuntimeError: tool({
     description:
       'Return the latest React runtime/rendering error captured by the global ErrorBoundary. ' +
       'If none captured since last call, success:true.',
@@ -376,5 +376,5 @@ export const fileTools = {
     execute: async () => {
       return getRuntimeError();
     },
-  }),
+  }), */
 }; 

@@ -1,44 +1,92 @@
 {
-  "rootId": "node-element-swe-portfolio-page",
+  "rootId": "node-element-portfolio-page",
   "nodes": [
     {
-      "id": "node-element-swe-portfolio-page",
-      "title": "SWE Portfolio Page",
+      "id": "node-element-portfolio-page",
+      "title": "SWE Portfolio Landing Page",
       "kind": "page",
-      "what": "A portfolio page showcasing software engineering skills, projects, and contact information.",
-      "how": "Single-page layout with sections for introduction, skills, projects, and contact.",
+      "what": "A single-page portfolio showcasing a software engineer’s skills, projects, and contact information.",
+      "how": "Built with Next.js 14, TypeScript, and Tailwind CSS. Uses a responsive flex/grid layout and dark-mode support via the existing use-theme hook.",
       "properties": [
         "responsive",
-        "accessible",
-        "seo-optimized"
+        "dark-mode",
+        "SEO-ready",
+        "a11y"
       ],
       "children": [
         {
-          "id": "node-element-header",
-          "title": "Header",
+          "id": "node-element-header-section",
+          "title": "Header Section",
           "kind": "section"
         },
         {
-          "id": "node-element-introduction",
-          "title": "Introduction Section",
+          "id": "node-element-hero-section",
+          "title": "Hero Section",
           "kind": "section"
         },
         {
-          "id": "node-element-skills",
-          "title": "Skills Section",
-          "kind": "section"
-        },
-        {
-          "id": "node-element-projects",
+          "id": "node-element-projects-section",
           "title": "Projects Section",
           "kind": "section"
         },
         {
-          "id": "node-element-contact",
-          "title": "Contact Section",
+          "id": "node-element-contact-footer-section",
+          "title": "Contact & Footer Section",
           "kind": "section"
         }
       ]
+    },
+    {
+      "id": "node-element-header-section",
+      "title": "Header Section",
+      "kind": "section",
+      "what": "Sticky top bar displaying the engineer’s name/logo and site navigation.",
+      "how": "Flex container with a left-aligned logo text and right-aligned scroll-link buttons (About, Projects, Contact). Collapses into a hamburger Sheet component on small screens.",
+      "properties": [
+        "sticky",
+        "shadow",
+        "mobile-nav"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-hero-section",
+      "title": "Hero Section",
+      "kind": "section",
+      "what": "Above-the-fold introduction with headline, short bio, and call-to-action button.",
+      "how": "Two-column grid: text stack on the left and an SVG/3D illustration on the right. Uses Button component for the CTA linking to the Projects section.",
+      "properties": [
+        "grid",
+        "animated-entry",
+        "cta"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-projects-section",
+      "title": "Projects Section",
+      "kind": "section",
+      "what": "Gallery of highlighted projects with images, descriptions, and links to GitHub/live demos.",
+      "how": "Responsive CSS grid of Card components; each card contains project screenshot, tech badge stack, description, and action buttons.",
+      "properties": [
+        "filterable",
+        "lazy-load",
+        "cards"
+      ],
+      "children": []
+    },
+    {
+      "id": "node-element-contact-footer-section",
+      "title": "Contact & Footer Section",
+      "kind": "section",
+      "what": "Contact form and social links followed by footer credits.",
+      "how": "Two rows: 1) Form component using Input, Textarea, and Button primitives that POSTs to /api/contact; 2) centered social icon buttons and copyright text.",
+      "properties": [
+        "form-validation",
+        "social-links",
+        "dark-bg"
+      ],
+      "children": []
     }
   ]
 }

@@ -14,9 +14,10 @@ import { fileTools } from '../../lib/aiFileTools';
 // Default configuration
 const DEFAULT_CONFIG = {
   // Agent configuration
-  agentModel: 'gpt-4o',
-  agentMaxSteps: 20,
+  agentModel: 'o3',
+  agentMaxSteps: 50,
   agentStreaming: true,
+  agentTemperature: 1,
   agentProviderOptions: {
     azure: {
       reasoning_effort: 'high'
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
                 streaming: false, // Use non-streaming for structured output
                 structuredOutput: true, // Enable structured output
                 providerOptions: DEFAULT_CONFIG.agentProviderOptions,
+                temperature: DEFAULT_CONFIG.agentTemperature
               }
             }),
             signal: req.signal
@@ -138,6 +140,7 @@ export async function POST(req: NextRequest) {
                 streaming: DEFAULT_CONFIG.agentStreaming,
                 structuredOutput: false,
                 providerOptions: DEFAULT_CONFIG.agentProviderOptions,
+                temperature: DEFAULT_CONFIG.agentTemperature
               }
             }),
             signal: req.signal
