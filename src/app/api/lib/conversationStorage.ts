@@ -70,17 +70,11 @@ async function getFileContent(filePath: string): Promise<string> {
 /**
  * Create a system message with project context
  */
-async function createSystemMessage(currentFile?: string, sessionId?: string): Promise<Message> {
+export async function createSystemMessage(sessionId?: string): Promise<Message> {
   
   // Get file list with lengths from the API response
   const response = await fetch('http://localhost:3000/api/files?list=true');
   const data = await response.json();
-  
-  // Get current file content only if needed
-  let currentFileContent = '';
-  if (currentFile) {
-    currentFileContent = await getFileContent(currentFile);
-  }
 
   // Get graph from storage if sessionId is provided
   let graphContext = '';
@@ -99,9 +93,8 @@ async function createSystemMessage(currentFile?: string, sessionId?: string): Pr
     role: 'system',
     variables: {
       PROJECT_FILES: data.files || [],
-      CURRENT_FILE: currentFile || '',
-      CURRENT_FILE_CONTENT: currentFileContent,
-      GRAPH_CONTEXT: graphContext
+      GRAPH_CONTEXT: graphContext,
+      MAX_NODES: 7
     }
   };
 }
@@ -135,11 +128,8 @@ export async function buildConversationForAI(
   // Get or create session
   const session = getConversationSession(sessionId);
   
-  // Extract current file from user message context
-  const currentFile = userMessage.messageContext?.currentFile || undefined;
-  
   // Create system message with current project state and graph context
-  const systemMessage = await createSystemMessage(currentFile, sessionId);
+  const systemMessage = await createSystemMessage(sessionId);
   
   // Add the new user message to the session
   addMessageToSession(sessionId, userMessage);

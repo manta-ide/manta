@@ -22,11 +22,6 @@ const AgentConfigSchema = z.object({
 
 // Request schema with required configuration
 const AgentRequestSchema = z.object({
-  userMessage: z.object({
-    role: z.enum(['system', 'user', 'assistant']),
-    content: z.string(),
-    variables: z.record(z.any()).optional(),
-  }),
   sessionId: z.string().optional(),
   parsedMessages: z.array(z.object({
     role: z.enum(['system', 'user', 'assistant']),
@@ -37,23 +32,31 @@ const AgentRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Parse and validate the request body using Zod
-    const { userMessage, sessionId = 'default', parsedMessages, config } = AgentRequestSchema.parse(await req.json());
 
-    // Add user message to session
-    addMessageToSession(sessionId, userMessage);
-
+    // Parse and valida
+    // te the request body using Zod
+    const {sessionId = 'default', parsedMessages, config } = AgentRequestSchema.parse(await req.json());
     // If no parsedMessages provided, create a simple message array
-    const messages = parsedMessages || [{ role: 'user', content: userMessage.content || '' }];
-
+    const messages = parsedMessages;
+    console.log('>>>>>>>>>>>>>>>>>>>>>>> Messages');
+    console.log(JSON.stringify(messages, null, 2));
+    console.log('>>>>>>>>>>>>>>>>>>>>>>> Config');
+    console.log(JSON.stringify(config, null, 2));
+    console.log('>>>>>>>>>>>>>>>>>>>>>>> Session ID');
+    console.log(sessionId);
+    console.log('>>>>>>>>>>>>>>>>>>>>>>> Parsed Messages');
+    console.log(JSON.stringify(parsedMessages, null, 2));
     // Use the provided tools or default to fileTools
     const tools = config.tools || fileTools;
-
+    console.log('>>>>>>>>>>>>>>>>>>>>>>> Tools');
+    console.log(JSON.stringify(tools, null, 2));
+    console.log('>>>>>>>>>>>>>>>>>>>>>>> File Tools');
+    console.log(fileTools);
     // Prepare streamText options
     const streamOptions: any = {
       model: azure(config.model),
       messages: messages,
-      tools: tools,
+      tools: fileTools,
       maxSteps: config.maxSteps,
       abortSignal: req.signal,
     };
@@ -70,21 +73,18 @@ export async function POST(req: NextRequest) {
       
       // Create a schema for graph generation results
       const GraphResultSchema = z.object({
-        results: z.array(z.object({
-          uid: z.string(),
+        rootId: z.string(),
+        nodes: z.array(z.object({
+          id: z.string(),
           title: z.string(),
-          prompt: z.string(),
           kind: z.enum(['page','section','group','component','primitive','behavior']),
           what: z.string(),
           how: z.string(),
           properties: z.array(z.string()),
           children: z.array(z.object({
-            id: z.string().optional(),
+            id: z.string(),
             title: z.string(),
-            prompt: z.string(),
             kind: z.enum(['page','section','group','component','primitive','behavior']),
-            expandable: z.boolean(),
-            complexity: z.number(),
           })),
         }))
       });
@@ -99,7 +99,16 @@ export async function POST(req: NextRequest) {
 
       return new Response(JSON.stringify({
         type: 'structured',
-        result: result
+        result: {
+          object: result.object,
+          finishReason: result.finishReason,
+          usage: result.usage,
+          warnings: result.warnings,
+          providerMetadata: result.providerMetadata,
+          experimental_providerMetadata: result.experimental_providerMetadata,
+          response: result.response,
+          request: result.request
+        }
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

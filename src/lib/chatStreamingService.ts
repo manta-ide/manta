@@ -138,7 +138,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
     if (roundedSelection) {
       userMessage.variables = {
         ...userMessage.variables,
-        SELECTION: 'true',
+        SELECTION: '1',
         SELECTION_X: roundedSelection.x.toString(),
         SELECTION_Y: roundedSelection.y.toString(),
         SELECTION_WIDTH: roundedSelection.width.toString(),
@@ -163,7 +163,6 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       // Prepare API messages (system + conversation history)
       const requestPayload = {
         userMessage: userMessage,
-        sessionId: 'default'
       };
 
       console.log(JSON.stringify(requestPayload, null, 2));

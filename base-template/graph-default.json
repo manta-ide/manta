@@ -1,0 +1,44 @@
+{
+  "rootId": "node-element-swe-portfolio-page",
+  "nodes": [
+    {
+      "id": "node-element-swe-portfolio-page",
+      "title": "SWE Portfolio Page",
+      "kind": "page",
+      "what": "A portfolio page showcasing software engineering skills, projects, and contact information.",
+      "how": "Single-page layout with sections for introduction, skills, projects, and contact.",
+      "properties": [
+        "responsive",
+        "accessible",
+        "seo-optimized"
+      ],
+      "children": [
+        {
+          "id": "node-element-header",
+          "title": "Header",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-introduction",
+          "title": "Introduction Section",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-skills",
+          "title": "Skills Section",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-projects",
+          "title": "Projects Section",
+          "kind": "section"
+        },
+        {
+          "id": "node-element-contact",
+          "title": "Contact Section",
+          "kind": "section"
+        }
+      ]
+    }
+  ]
+}

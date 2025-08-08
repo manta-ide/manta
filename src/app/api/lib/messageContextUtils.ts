@@ -83,7 +83,7 @@ export function createUserMessage(
   // Add selection variables to user message only if selection is valid
   if (validSelection && selection) {
     Object.assign(variables, {
-      SELECTION: 'true',
+      SELECTION: '1',
       SELECTION_X: selection.x.toString(),
       SELECTION_Y: selection.y.toString(),
       SELECTION_WIDTH: selection.width.toString(),

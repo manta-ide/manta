@@ -4,4 +4,8 @@ Selected elements are: {{SELECTION_ELEMENTS}}
 Use coverage as weight, so try to understand which element was truly selected and edit only it. 
 
 {{/SELECTION}}
+
+{{#CURRENT_FILE}}
+- Currently selected file: {{CURRENT_FILE}}
+{{/CURRENT_FILE}}
 {{USER_REQUEST}}

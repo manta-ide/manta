@@ -10,13 +10,11 @@ export const runtime = 'nodejs';
 const ChildStub = z.object({
   id: z.string(),
   title: z.string(),
-  prompt: z.string(),
   kind: z.enum(['page','section','group','component','primitive','behavior']),
 });
 const NodeDetail = z.object({
   id: z.string(),
   title: z.string(),
-  prompt: z.string(),
   kind: z.enum(['page','section','group','component','primitive','behavior']),
   what: z.string(),
   how: z.string(),

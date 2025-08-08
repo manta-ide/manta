@@ -37,6 +37,8 @@ export const MessageVariablesSchema = z.object({
   CURRENT_FILE_CONTENT: z.string().optional(),
   // Graph context variable
   GRAPH_CONTEXT: z.string().optional(),
+  GRAPH_DATA: z.string().optional(),
+  MAX_NODES: z.number().optional(),
   
   // Node-specific variables for individual node code generation
   NODE_TITLE: z.string().optional(),
@@ -48,7 +50,7 @@ export const MessageVariablesSchema = z.object({
   
   // User message variables
   USER_REQUEST: z.string().optional(),
-  SELECTION: z.enum(['true', 'false']).optional(),
+  SELECTION: z.string().optional(),
   SELECTION_X: z.string().optional(),
   SELECTION_Y: z.string().optional(),
   SELECTION_WIDTH: z.string().optional(),
@@ -66,6 +68,8 @@ export const SystemVariablesSchema = MessageVariablesSchema.pick({
   PROJECT_FILES: true,
   CURRENT_FILE: true,
   CURRENT_FILE_CONTENT: true,
+  GRAPH_DATA: true,
+  MAX_NODES: true,
 });
 
 export const UserVariablesSchema = MessageVariablesSchema.pick({
