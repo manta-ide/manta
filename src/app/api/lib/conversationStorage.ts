@@ -118,29 +118,6 @@ export function addMessageToSession(sessionId: string, message: Message): void {
 }
 
 /**
- * Build the complete conversation for the AI model
- * Includes system message with project context and conversation history
- */
-export async function buildConversationForAI(
-  sessionId: string, 
-  userMessage: Message
-): Promise<Message[]> {
-  // Get or create session
-  const session = getConversationSession(sessionId);
-  
-  // Create system message with current project state and graph context
-  const systemMessage = await createSystemMessage(sessionId);
-  
-  // Add the new user message to the session
-  addMessageToSession(sessionId, userMessage);
-  
-  // Build the complete conversation: system + history + new message
-  const allMessages = [systemMessage, ...session];
-  
-  return allMessages;
-}
-
-/**
  * Clear a conversation session
  */
 export function clearConversationSession(sessionId: string): void {

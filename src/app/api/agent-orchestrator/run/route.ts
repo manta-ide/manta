@@ -1,34 +1,166 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
-import { 
-  Message, 
-  ParsedMessage, 
+import {
+  Message,
+  ParsedMessage,
   MessageVariablesSchema,
   MessageSchema
 } from '../../lib/schemas';
-import { buildConversationForAI, createSystemMessage, addMessageToSession } from '../../lib/conversationStorage';
+import { addMessageToSession, createSystemMessage, getConversationSession } from '../../lib/conversationStorage';
 import { storeGraph } from '../../lib/graphStorage';
-import { fileTools } from '../../lib/aiFileTools';
 
 // Default configuration
-const DEFAULT_CONFIG = {
+const GRAPH_GEN_CONFIG = {
   // Agent configuration
-  agentModel: 'o3',
-  agentMaxSteps: 50,
-  agentStreaming: true,
-  agentTemperature: 1,
-  agentProviderOptions: {
+  model: 'gpt-4o',
+  maxSteps: 50,
+  streaming: true,
+  temperature: 1,
+  providerOptions: {
     azure: {
       reasoning_effort: 'high'
     }
-  }
+  },
+  promptTemplates: {
+    'user': 'user-prompt-template',
+    'assistant': 'assistant-prompt-template',
+    'system': 'graph-generation-template',
+  },
+  structuredOutput:true
+} as const;
+
+// Default configuration
+const CODE_GEN_CONFIG = {
+  // Agent configuration
+  model: 'o3',
+  maxSteps: 50,
+  streaming: true,
+  temperature: 1,
+  providerOptions: {
+    azure: {
+      reasoning_effort: 'high'
+    }
+  },
+  promptTemplates: {
+    'user': 'user-prompt-template',
+    'assistant': 'assistant-prompt-template',
+    'system': 'graph-code-generation-template',
+  },
+  structuredOutput:false
 } as const;
 
 // Request schema for graph-code generation
 const GraphCodeRequestSchema = z.object({
   userMessage: MessageSchema
 });
+
+// Constants
+const LLM_AGENT_RUN_URL = 'http://localhost:3000/api/llm-agent/run';
+
+type ToolTokenEvent = { t: 'token'; d: string };
+type ToolCallEvent = { t: 'tool_call'; toolName: string; args: unknown; language?: string };
+type ToolResultEvent = { t: 'tool_result'; result: unknown; [key: string]: unknown };
+type ToolFinalEvent = { t: 'final'; [key: string]: unknown };
+type ToolErrorEvent = { t: 'error'; error: string };
+type ToolEvent = ToolTokenEvent | ToolCallEvent | ToolResultEvent | ToolFinalEvent | ToolErrorEvent;
+
+async function buildParsedMessages(
+  sessionId: string,
+  userMessage: Message,
+  promptTemplates: Record<'system' | 'user' | 'assistant', string>,
+  extraVariables?: Record<string, unknown>
+): Promise<ParsedMessage[]> {
+  const session = getConversationSession(sessionId);
+  const systemMessage = await createSystemMessage(sessionId);
+  addMessageToSession(sessionId, userMessage);
+  const allMessages = [systemMessage, ...session];
+
+  const parsed: ParsedMessage[] = await Promise.all(
+    allMessages.map(async (message) => {
+      const template = await getTemplate(promptTemplates[message.role]);
+      const validatedVariables = MessageVariablesSchema.parse({
+        ...(message.variables || {}),
+        ...(extraVariables || {}),
+      });
+      const content = parseMessageWithTemplate(template, validatedVariables);
+      return { role: message.role, content };
+    })
+  );
+  return parsed;
+}
+
+async function callAgent(
+  request: NextRequest,
+  body: unknown
+): Promise<Response> {
+  return fetch(LLM_AGENT_RUN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: request.signal,
+  });
+}
+
+async function streamAgentResponse(
+  response: Response,
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder
+): Promise<{ fullText: string; toolCalls: ToolCallEvent[]; toolResults: ToolResultEvent[] }> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body from agent');
+  }
+
+  let fullText = '';
+  const toolCalls: ToolCallEvent[] = [];
+  const toolResults: ToolResultEvent[] = [];
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = new TextDecoder().decode(value);
+      const lines = chunk.split('\n').filter((line) => line.trim());
+
+      for (const line of lines) {
+        try {
+          const data: ToolEvent = JSON.parse(line);
+          switch (data.t) {
+            case 'token':
+              fullText += data.d;
+              controller.enqueue(encoder.encode(JSON.stringify({ t: 'token', d: data.d }) + '\n'));
+              break;
+            case 'tool_call':
+              toolCalls.push(data);
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({ t: 'tool_call', toolName: data.toolName, args: data.args, language: (data as any).language }) + '\n'
+                )
+              );
+              break;
+            case 'tool_result':
+              toolResults.push(data);
+              controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
+              break;
+            case 'final':
+              // no-op; final summary is constructed below
+              break;
+            case 'error':
+              throw new Error((data as ToolErrorEvent).error);
+          }
+        } catch (parseErr) {
+          console.warn('Failed to parse agent response line:', line);
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { fullText, toolCalls, toolResults };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,108 +174,49 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage } = parsed.data;
-    console.log('User Message');
-    console.log(JSON.stringify(userMessage, null, 2));
     const sessionId = 'default';
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Get templates
-          const graphTemplates = {
-            'user': await getTemplate('user-prompt-template'),
-            'assistant': await getTemplate('assistant-prompt-template'),
-            'system': await getTemplate('graph-generation-template') // Use graph generation template
-          };
+          // Generate Graph
+          const parsedGraphGenMessages = await buildParsedMessages(
+            sessionId,
+            userMessage,
+            GRAPH_GEN_CONFIG.promptTemplates
+          );
 
-          const graphMessages = await buildConversationForAI(sessionId, userMessage);
-
-          // Parse messages for graph generation
-          const parsedGraphGenMessages: ParsedMessage[] = graphMessages.map(message => {
-            const template = graphTemplates[message.role];
-            const validatedVariables = MessageVariablesSchema.parse(message.variables || {});
-            const content = parseMessageWithTemplate(template, validatedVariables);
-            return { role: message.role, content };
-          });
-
-          // Generate graph using structured output
-          const graphGenResponse = await fetch('http://localhost:3000/api/llm-agent/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: sessionId,
-              parsedMessages: parsedGraphGenMessages,
-              config: {
-                model: DEFAULT_CONFIG.agentModel,
-                maxSteps: DEFAULT_CONFIG.agentMaxSteps,
-                tools: undefined, // No tools needed for graph generation
-                streaming: false, // Use non-streaming for structured output
-                structuredOutput: true, // Enable structured output
-                providerOptions: DEFAULT_CONFIG.agentProviderOptions,
-                temperature: DEFAULT_CONFIG.agentTemperature
-              }
-            }),
-            signal: req.signal
+          const graphGenResponse = await callAgent(req, {
+            sessionId,
+            parsedMessages: parsedGraphGenMessages,
+            config: GRAPH_GEN_CONFIG
           });
 
           if (!graphGenResponse.ok) {
             throw new Error(`Graph generation failed: ${graphGenResponse.statusText}`);
           }
 
-          // Parse the structured graph response
           const graphGenResult = await graphGenResponse.json();
-          const graph = graphGenResult.result.object || graphGenResult.result;
+          const graph = graphGenResult.result.object;
           
-          // Store the graph
           await storeGraph(sessionId, graph);
-        
-
-          // Create unique session ID for graph code generation
+          
+          //Generate Code
           const graphSessionId = `${sessionId}-graph-code`;
 
-          // Build conversation for graph code generation (only user messages)
-          const graphCodeMessages = await buildConversationForAI(graphSessionId, userMessage);
-          // Get templates
-          const templates = {
-            'user': await getTemplate('user-prompt-template'),
-            'assistant': await getTemplate('assistant-prompt-template'),
-            'system': await getTemplate('graph-code-generation-template') // Use graph-based template
-          };
-
-          // Parse messages for graph code generation
-          const parsedGraphMessages: ParsedMessage[] = graphCodeMessages.map(message => {
-            const template = templates[message.role];
-            const validatedVariables = MessageVariablesSchema.parse({
-              ...message.variables || {},
-              GRAPH_DATA: JSON.stringify(graph, null, 2) // Pass the graph data to the code generation template
-            });
-            const content = parseMessageWithTemplate(template, validatedVariables);
-            return { role: message.role, content };
-          });
-          console.log('>>>>>>>>>>>>>>>>>>>>>>> Parsed Graph Messages');
-          console.log(JSON.stringify(parsedGraphMessages, null, 2));
-          // Ensure a tool-capable chat model is used for codegen (reasoning models may not support tools)
-          const codeGenModel = DEFAULT_CONFIG.agentModel;
+          const parsedGraphCodeMessages = await buildParsedMessages(
+            graphSessionId,
+            userMessage,
+            CODE_GEN_CONFIG.promptTemplates,
+            { GRAPH_DATA: JSON.stringify(graph, null, 2) }
+          );
 
           // Generate code for the entire graph
-          const graphResponse = await fetch('http://localhost:3000/api/llm-agent/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: graphSessionId,
-              parsedMessages: parsedGraphMessages,
-              config: {
-                model: codeGenModel,
-                maxSteps: DEFAULT_CONFIG.agentMaxSteps,
-                tools: fileTools, // Use fileTools for code generation
-                streaming: DEFAULT_CONFIG.agentStreaming,
-                structuredOutput: false,
-                providerOptions: DEFAULT_CONFIG.agentProviderOptions,
-                temperature: DEFAULT_CONFIG.agentTemperature
-              }
-            }),
-            signal: req.signal
+          const graphResponse = await callAgent(req, {
+            sessionId: graphSessionId,
+            parsedMessages: parsedGraphCodeMessages,
+            config: CODE_GEN_CONFIG,
           });
 
           if (!graphResponse.ok) {
@@ -151,68 +224,8 @@ export async function POST(req: NextRequest) {
           }
 
           // Process the streaming response for graph code generation
-          const graphReader = graphResponse.body?.getReader();
-          if (!graphReader) {
-            throw new Error('No response body from graph generation');
-          }
-
-          let graphFull = '';
-          const graphToolCalls: any[] = [];
-          const graphToolResults: any[] = [];
-
-          try {
-            while (true) {
-              const { done, value } = await graphReader.read();
-              if (done) break;
-
-              const chunk = new TextDecoder().decode(value);
-              const lines = chunk.split('\n').filter(line => line.trim());
-
-              for (const line of lines) {
-                try {
-                  const data = JSON.parse(line);
-                  
-                  switch (data.t) {
-                    case 'token':
-                      graphFull += data.d;
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify({ t: 'token', d: data.d }) + '\n')
-                      );
-                      break;
-
-                    case 'tool_call':
-                      graphToolCalls.push(data);
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify({ 
-                          t: 'tool_call', 
-                          toolName: data.toolName,
-                          args: data.args,
-                          language: data.language
-                        }) + '\n')
-                      );
-                      break;
-
-                    case 'tool_result':
-                      graphToolResults.push(data);
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify(data) + '\n')
-                      );
-                      break;
-
-                    case 'final':
-                      break;
-
-                    case 'error':
-                      throw new Error(data.error);
-                  }
-                } catch (parseErr) {
-                  console.warn('Failed to parse graph response line:', line);
-                }
-              }
-            }
-          } finally {
-            graphReader.releaseLock();
-          }
+          const { fullText: graphFull, toolCalls: graphToolCalls, toolResults: graphToolResults } =
+            await streamAgentResponse(graphResponse, controller, encoder);
 
           // Add assistant response for graph to session
           const graphAssistantMessage: Message = {
@@ -226,7 +239,7 @@ export async function POST(req: NextRequest) {
 
           // Send final completion
           const allFileOperations = graphToolResults
-            .map(tr => (tr.result as any)?.operation)
+            .map((tr) => (tr.result as any)?.operation)
             .filter(Boolean);
 
           controller.enqueue(
@@ -237,7 +250,7 @@ export async function POST(req: NextRequest) {
                 operations: allFileOperations,
                 toolCalls: graphToolCalls.length,
                 toolResults: graphToolResults.length,
-                graph: graph // Include the generated graph in final response
+                graph: graph
               }) + '\n'
             )
           );

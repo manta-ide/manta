@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { streamText } from 'ai';
+import { streamText, generateObject, zodSchema } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { z } from 'zod';
 import { fileTools } from '@/app/api/lib/aiFileTools';
@@ -10,16 +10,37 @@ import {
 } from '../../lib/schemas';
 import { addMessageToSession } from '../../lib/conversationStorage';
 
+
 // Configuration schema for the agent
 const AgentConfigSchema = z.object({
   model: z.string(),
   maxSteps: z.number().int().min(1),
   tools: z.any().optional(), // Allow any tool type
   streaming: z.boolean(),
-  structuredOutput: z.boolean().optional(),
-  providerOptions: z.record(z.any()).optional(),
+  providerOptions: z.any().optional(),
   temperature: z.number().optional(),
+  structuredOutput: z.boolean()
 });
+
+// Create a schema for graph generation results
+export const GraphResultSchema = z.object({
+  rootId: z.string(),
+  nodes: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    kind: z.enum(['page','section','group','component','primitive','behavior']),
+    what: z.string(),
+    how: z.string(),
+    properties: z.array(z.string()),
+    children: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      kind: z.enum(['page','section','group','component','primitive','behavior']),
+    })),
+  }))
+});
+
+
 
 // Request schema with required configuration
 const AgentRequestSchema = z.object({
@@ -39,14 +60,6 @@ export async function POST(req: NextRequest) {
     const {sessionId = 'default', parsedMessages, config } = AgentRequestSchema.parse(await req.json());
     // If no parsedMessages provided, create a simple message array
     const messages = parsedMessages;
-    console.log('>>>>>>>>>>>>>>>>>>>>>>> Messages');
-    console.log(JSON.stringify(messages, null, 2));
-    console.log('>>>>>>>>>>>>>>>>>>>>>>> Config');
-    console.log(JSON.stringify(config, null, 2));
-    console.log('>>>>>>>>>>>>>>>>>>>>>>> Session ID');
-    console.log(sessionId);
-    console.log('>>>>>>>>>>>>>>>>>>>>>>> Parsed Messages');
-    console.log(JSON.stringify(parsedMessages, null, 2));
     // Use the provided tools or default to fileTools
     const tools = config.tools || fileTools;
     // Prepare streamText options
@@ -66,35 +79,19 @@ export async function POST(req: NextRequest) {
 
     // If structured output is requested, use generateObject instead
     if (config.structuredOutput) {
-      const { generateObject } = await import('ai');
-      const { z } = await import('zod');
-      
-      // Create a schema for graph generation results
-      const GraphResultSchema = z.object({
-        rootId: z.string(),
-        nodes: z.array(z.object({
-          id: z.string(),
-          title: z.string(),
-          kind: z.enum(['page','section','group','component','primitive','behavior']),
-          what: z.string(),
-          how: z.string(),
-          properties: z.array(z.string()),
-          children: z.array(z.object({
-            id: z.string(),
-            title: z.string(),
-            kind: z.enum(['page','section','group','component','primitive','behavior']),
-          })),
-        }))
-      });
 
+      console.log(GraphResultSchema);
       const result = await generateObject({
         model: azure(config.model),
         messages: messages,
+        // Force JSON mode and ensure the schema is treated as an object JSON Schema
+        mode: 'json',
         schema: GraphResultSchema,
         abortSignal: req.signal,
         providerOptions: config.providerOptions,
-        temperature: config.temperature
+        temperature: config.temperature,
       });
+
 
       return new Response(JSON.stringify({
         type: 'structured',
