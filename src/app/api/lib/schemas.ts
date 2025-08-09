@@ -39,6 +39,10 @@ export const MessageVariablesSchema = z.object({
   GRAPH_CONTEXT: z.string().optional(),
   GRAPH_DATA: z.string().optional(),
   MAX_NODES: z.number().optional(),
+  // Partial code generation control
+  STRICT_EDIT_MODE: z.string().optional(),
+  EDIT_HINTS: z.string().optional(),
+  SELECTED_NODE_IDS: z.string().optional(),
   
   // Node-specific variables for individual node code generation
   NODE_TITLE: z.string().optional(),

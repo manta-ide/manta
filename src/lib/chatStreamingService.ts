@@ -166,16 +166,86 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       };
 
       console.log(JSON.stringify(requestPayload, null, 2));
-      // Call API - choose between regular chat and graph-code generation
-      const apiEndpoint = '/api/agent-orchestrator/run';
-      const res = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
-        signal: abortControllerRef.current.signal // Add abort signal to fetch
-      });
+      // Decide flow: if a graph exists -> edit graph, else -> generate full graph
+      const sessionId = 'default';
 
-      if (!res.ok || !res.body) throw new Error(await res.text());
+      const graphExists = async () => {
+        try {
+          const res = await fetch('/api/files?graphs=true');
+          if (!res.ok) return false;
+          const data = await res.json();
+          const graphs = Array.isArray(data?.graphs) ? data.graphs : [];
+          return graphs.some((g: any) => g?.sessionId === sessionId);
+        } catch {
+          return false;
+        }
+      };
+
+      const hasGraph = await graphExists();
+
+      // This will hold the streaming response for code generation
+      let streamSource: Response | null = null;
+
+      if (hasGraph) {
+        // Edit the existing graph first (non-streaming)
+        const editRes = await fetch('/api/agent-orchestrator/edit-graph', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userMessage, sessionId }),
+        });
+        if (!editRes.ok) {
+          console.warn('Graph edit failed, falling back to full graph generation');
+          const genRes = await fetch('/api/agent-orchestrator/generate-graph', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userMessage, sessionId }),
+          });
+          if (!genRes.ok) throw new Error(await genRes.text());
+        }
+
+        // After editing, generate code for only the unbuilt nodes
+        const unbuiltNodeIds = await (async () => {
+          try {
+            const res = await fetch('/api/files?graphs=true');
+            if (!res.ok) return [] as string[];
+            const data = await res.json();
+            const graphRec = (data.graphs || []).find((g: any) => g.sessionId === sessionId);
+            const nodeIds = (graphRec?.graph?.nodes || []).filter((n: any) => !n.built).map((n: any) => n.id);
+            return nodeIds as string[];
+          } catch { return [] as string[]; }
+        })();
+
+        if (unbuiltNodeIds.length > 0) {
+          // Partial code generation for specific nodes (streaming)
+          streamSource = await fetch('/api/agent-orchestrator/generate-partial-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userMessage, sessionId, nodeIds: unbuiltNodeIds }),
+            signal: abortControllerRef.current.signal
+          });
+          if (!streamSource.ok || !streamSource.body) throw new Error(await streamSource.text());
+        } else {
+          // Nothing to build
+          return;
+        }
+      } else {
+        // No graph: generate a full graph (non-streaming)
+        const genRes = await fetch('/api/agent-orchestrator/generate-graph', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userMessage, sessionId }),
+        });
+        if (!genRes.ok) throw new Error(await genRes.text());
+
+        // Now trigger code generation for the full graph (streaming)
+        streamSource = await fetch('/api/agent-orchestrator/generate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userMessage, sessionId }),
+          signal: abortControllerRef.current.signal
+        });
+        if (!streamSource.ok || !streamSource.body) throw new Error(await streamSource.text());
+      }
 
       // Create placeholder for streaming response
       setMessages((prev) => {
@@ -197,7 +267,7 @@ export function useChatService(scrollRef: React.RefObject<HTMLDivElement | null>
       };
 
       // Process streaming response
-      const reader = res.body.getReader();
+      const reader = streamSource!.body!.getReader();
       const decoder = new TextDecoder();
       let buffered = '';
       let done = false;

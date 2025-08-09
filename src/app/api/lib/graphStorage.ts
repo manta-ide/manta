@@ -1,23 +1,19 @@
 import { z } from 'zod';
 
 // Graph schema based on the build-prompt-graph route
-const GraphNodeSchema = z.object({
+export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
   prompt: z.string(),
-  kind: z.enum(['page','section','group','component','primitive','behavior']),
-  what: z.string(),
-  how: z.string(),
-  properties: z.array(z.string()),
   children: z.array(z.object({
     id: z.string(),
     title: z.string(),
-    prompt: z.string(),
-    kind: z.enum(['page','section','group','component','primitive','behavior']),
   })),
+  // Tracks whether code for this node has been generated
+  built: z.boolean().optional(),
 });
 
-const GraphSchema = z.object({
+export const GraphSchema = z.object({
   rootId: z.string(),
   nodes: z.array(GraphNodeSchema),
 });
@@ -38,27 +34,55 @@ export function getGraphSession(sessionId: string): Graph | null {
  * Store a graph in a session and save to file
  */
 export async function storeGraph(sessionId: string, graph: Graph): Promise<void> {
+  // Merge with existing graph to preserve built flags when nodes are unchanged
+  const prev = graphSessions.get(sessionId) || null;
+  let merged: Graph = graph;
+
+  if (prev) {
+    const prevById = new Map(prev.nodes.map(n => [n.id, n]));
+    const nodes = graph.nodes.map(n => {
+      const before = prevById.get(n.id);
+      if (!before) {
+        return { ...n, built: false };
+      }
+      const isSame = nodesEqual(before, n);
+      const built = isSame ? !!before.built : false;
+      return { ...n, built };
+    });
+    merged = { ...graph, nodes };
+  } else {
+    merged = { ...graph, nodes: graph.nodes.map(n => ({ ...n, built: false })) };
+  }
+
   // Store in memory
-  graphSessions.set(sessionId, graph);
-  
+  graphSessions.set(sessionId, merged);
+
   // Save to file
   try {
     const response = await fetch('http://localhost:3000/api/files', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'graph',
-        sessionId,
-        graph
-      })
+      body: JSON.stringify({ type: 'graph', sessionId, graph: merged })
     });
-    
     if (!response.ok) {
       console.error('Failed to save graph to file');
     }
   } catch (error) {
     console.error('Error saving graph to file:', error);
   }
+}
+
+function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boolean {
+  // Compare core fields; ignore built flag
+  if (a.title !== b.title) return false;
+  if (a.prompt !== b.prompt) return false;
+  if (a.children.length !== b.children.length) return false;
+  for (let i = 0; i < a.children.length; i++) {
+    const ca = a.children[i];
+    const cb = b.children[i];
+    if (ca.id !== cb.id || ca.title !== cb.title) return false;
+  }
+  return true;
 }
 
 /**
@@ -135,6 +159,41 @@ export function getGraphNode(sessionId: string, nodeId: string): z.infer<typeof 
   }
   
   return graph.nodes.find(node => node.id === nodeId) || null;
+}
+
+/**
+ * Get ids of nodes that are not yet built
+ */
+export function getUnbuiltNodeIds(sessionId: string): string[] {
+  const graph = getGraphSession(sessionId);
+  if (!graph) return [];
+  return graph.nodes.filter(n => !n.built).map(n => n.id);
+}
+
+/**
+ * Mark nodes as built and persist to file
+ */
+export async function markNodesBuilt(sessionId: string, nodeIds: string[]): Promise<void> {
+  const graph = getGraphSession(sessionId);
+  if (!graph) return;
+  const idSet = new Set(nodeIds);
+  const updated: Graph = {
+    ...graph,
+    nodes: graph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: true } : n)),
+  };
+  graphSessions.set(sessionId, updated);
+  try {
+    const response = await fetch('http://localhost:3000/api/files', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'graph', sessionId, graph: updated })
+    });
+    if (!response.ok) {
+      console.error('Failed to persist built flags to file');
+    }
+  } catch (error) {
+    console.error('Error persisting built flags:', error);
+  }
 }
 
 /**

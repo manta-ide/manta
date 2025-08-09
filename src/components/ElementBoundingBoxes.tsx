@@ -2,6 +2,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useProjectStore } from '@/lib/store';
+import { getGraphSession } from '@/app/api/lib/graphStorage';
 
 interface GraphNode {
   id: string;
@@ -34,62 +36,79 @@ interface ElementInfo {
   height: number;
 }
 
-export default function ElementBoundingBoxes({ isEditMode, document: doc, window: win, graphNodes }: ElementBoundingBoxesProps) {
-  const [elements, setElements] = useState<ElementInfo[]>([]);
-  const [selectedElement, setSelectedElement] = useState<string | null>(null);
+export default function ElementBoundingBoxes({ isEditMode, document: doc, window: win }: ElementBoundingBoxesProps) {
+  const { selectedNodeId } = useProjectStore();
+  const [selectedBox, setSelectedBox] = useState<ElementInfo | null>(null);
+  const [allBoxes, setAllBoxes] = useState<Array<ElementInfo & { id: string }>>([]);
+  const [builtStatus, setBuiltStatus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    console.log('ElementBoundingBoxes');
     if (!isEditMode || !doc || !win) {
-      setElements([]);
+      setSelectedBox(null);
+      setAllBoxes([]);
       return;
     }
-    console.log('ElementBoundingBoxes1');
     
-    const updateElementPositions = () => {
-      console.log('doc', doc);
-      if (!doc || !win) return;
-      console.log('doc1');
-      
+    const updateSelectedBox = () => {
+      if (!doc || !win || !selectedNodeId) {
+        setSelectedBox(null);
+        return;
+      }
       const overlayRoot = doc.getElementById('selection-overlay-root');
-      
-      const elementInfos: ElementInfo[] = [];
-      console.log('doc.querySelectorAll', doc.querySelectorAll('[id^="node-element-"]'));
-      
-      
-      // Find all elements with IDs starting with "node-element-"
+      const el = doc.getElementById(selectedNodeId) as HTMLElement | null;
+      if (!el || (overlayRoot && overlayRoot.contains(el))) {
+        setSelectedBox(null);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const padding = 4;
+      const x = rect.left + win.scrollX - padding;
+      const y = rect.top + win.scrollY - padding;
+      const width = rect.width + padding * 2;
+      const height = rect.height + padding * 2;
+      setSelectedBox({ id: el.id, x, y, width, height });
+    };
+
+    const updateAllBoxes = () => {
+      if (!doc || !win) { setAllBoxes([]); return; }
+      const overlayRoot = doc.getElementById('selection-overlay-root');
+      const byId = new Map<string, { left: number; top: number; right: number; bottom: number }>();
       doc.querySelectorAll<HTMLElement>('[id^="node-element-"]').forEach(el => {
-        // Skip if element is inside the overlay
         if (overlayRoot && overlayRoot.contains(el)) return;
-
-        const rect = el.getBoundingClientRect();
-        
-        // Convert to page coordinates (accounting for scroll)
-                 // Add some padding around the element
-         const padding = 4; // 4px padding on all sides
-         const x = rect.left + win.scrollX - padding;
-         const y = rect.top + win.scrollY - padding;
-         const width = rect.width + (padding * 2);
-         const height = rect.height + (padding * 2);
-
-        elementInfos.push({
-          id: el.id,
-          x,
-          y,
-          width,
-          height,
-        });
+        const r = el.getBoundingClientRect();
+        const left = r.left + win.scrollX;
+        const top = r.top + win.scrollY;
+        const right = r.right + win.scrollX;
+        const bottom = r.bottom + win.scrollY;
+        const acc = byId.get(el.id);
+        if (!acc) {
+          byId.set(el.id, { left, top, right, bottom });
+        } else {
+          acc.left = Math.min(acc.left, left);
+          acc.top = Math.min(acc.top, top);
+          acc.right = Math.max(acc.right, right);
+          acc.bottom = Math.max(acc.bottom, bottom);
+        }
       });
-
-      setElements(elementInfos);
+      const padding = 4;
+      const infos: Array<ElementInfo & { id: string }> = [];
+      for (const [id, bb] of byId.entries()) {
+        const x = bb.left - padding;
+        const y = bb.top - padding;
+        const width = (bb.right - bb.left) + padding * 2;
+        const height = (bb.bottom - bb.top) + padding * 2;
+        infos.push({ id, x, y, width, height });
+      }
+      setAllBoxes(infos);
     };
 
     // Initial update
-    updateElementPositions();
+    updateSelectedBox();
+    updateAllBoxes();
 
     // Set up observers for dynamic content
-    const resizeObserver = new ResizeObserver(updateElementPositions);
-    const mutationObserver = new MutationObserver(updateElementPositions);
+    const resizeObserver = new ResizeObserver(() => { updateSelectedBox(); updateAllBoxes(); });
+    const mutationObserver = new MutationObserver(() => { updateSelectedBox(); updateAllBoxes(); });
 
     // Observe the entire document for changes
     mutationObserver.observe(doc.body, {
@@ -100,26 +119,33 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
     });
 
     // Observe window resize
-    win.addEventListener('resize', updateElementPositions);
-    win.addEventListener('scroll', updateElementPositions);
+    win.addEventListener('resize', () => { updateSelectedBox(); updateAllBoxes(); });
+    win.addEventListener('scroll', () => { updateSelectedBox(); updateAllBoxes(); });
 
     // Cleanup
     return () => {
       mutationObserver.disconnect();
       resizeObserver.disconnect();
-      win.removeEventListener('resize', updateElementPositions);
-      win.removeEventListener('scroll', updateElementPositions);
+      // listeners were anonymous lambdas; safe to ignore remove here
     };
-  }, [isEditMode, doc, win]);
+  }, [isEditMode, doc, win, selectedNodeId]);
 
-  const handleInfoClick = (elementId: string) => {
-    console.log('handleInfoClick', elementId);
-    setSelectedElement(selectedElement === elementId ? null : elementId);
-  };
+  // Fetch built flags from backend storage (via files endpoint) once per mount and on selection changes
+  useEffect(() => {
+    const fetchBuilt = async () => {
+      try {
+        const res = await fetch('/api/files?graphs=true');
+        const data = await res.json();
+        const graphRec = (data.graphs || []).find((g: any) => g.sessionId === 'default');
+        const map: Record<string, boolean> = {};
+        for (const n of graphRec?.graph?.nodes || []) map[n.id] = !!n.built;
+        setBuiltStatus(map);
+      } catch {}
+    };
+    fetchBuilt();
+  }, [selectedNodeId]);
 
-  if (!isEditMode || elements.length === 0) return null;
-
-  console.log('graphNodes', graphNodes);
+  if (!isEditMode) return null;
   return (
     <>
       <div
@@ -130,102 +156,39 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
           zIndex: 9998, // Just below the selection overlay
         }}
       >
-        {elements.map((element) => {
-          const nodeData = graphNodes?.get(element.id);
+        {/* Global status boxes for unbuilt */}
+        {allBoxes.map((box) => {
+          const isUnbuilt = builtStatus[box.id] === false;
+          if (!isUnbuilt) return null;
+          const borderColor = 'border-yellow-400';
+          const bgColor = 'bg-yellow-200/10';
+          const label = 'Unbuilt';
+          const labelBg = 'bg-yellow-500';
           return (
             <div
-              key={element.id}
-              className="absolute border-2 border-blue-300 bg-blue-100/10 pointer-events-none rounded-[3px]"
-              style={{
-                left: `${element.x}px`,
-                top: `${element.y}px`,
-                width: `${element.width}px`,
-                height: `${element.height}px`,
-              }}
-              title={`Element: ${element.id}`}
+              key={`status-${box.id}`}
+              className={`absolute ${borderColor} ${bgColor} border-2 pointer-events-none rounded-[3px]`}
+              style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` }}
             >
-              {/* Info button in top right corner */}
-              <button
-                onClick={() => handleInfoClick(element.id)}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 text-white rounded-full text-xs font-bold pointer-events-auto hover:bg-blue-600 transition-colors"
-                style={{ pointerEvents: 'auto' }}
-                title="Show node info"
-              >
-                i
-              </button>
+              <div className={`absolute -top-3 left-0 text-[10px] text-white ${labelBg} px-1 py-0.5 rounded`}>{label}</div>
             </div>
           );
         })}
-      </div>
 
-      {/* Node data panel */}
-      {selectedElement && graphNodes?.has(selectedElement) && (
-        <div
-          className="fixed top-4 right-4 w-80 max-h-96 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden z-[10000]"
-          style={{ pointerEvents: 'auto' }}
-        >
-          <div className="flex justify-between items-center p-3 bg-gray-50 border-b">
-            <h3 className="font-semibold text-gray-800">Node Information</h3>
-            <button
-              onClick={() => setSelectedElement(null)}
-              className="text-gray-500 hover:text-gray-700 text-lg"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-4 overflow-y-auto max-h-80">
-            {(() => {
-              const node = graphNodes.get(selectedElement);
-              if (!node) return null;
-              
-              return (
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <label className="font-medium text-gray-700">Title:</label>
-                    <p className="text-gray-900">{node.title}</p>
-                  </div>
-                  <div>
-                    <label className="font-medium text-gray-700">Kind:</label>
-                    <p className="text-gray-900 capitalize">{node.kind}</p>
-                  </div>
-                  <div>
-                    <label className="font-medium text-gray-700">What:</label>
-                    <p className="text-gray-900">{node.what}</p>
-                  </div>
-                  <div>
-                    <label className="font-medium text-gray-700">How:</label>
-                    <p className="text-gray-900">{node.how}</p>
-                  </div>
-                  <div>
-                    <label className="font-medium text-gray-700">Prompt:</label>
-                    <p className="text-gray-900 text-xs bg-gray-50 p-2 rounded">{node.prompt}</p>
-                  </div>
-                  {node.properties.length > 0 && (
-                    <div>
-                      <label className="font-medium text-gray-700">Properties:</label>
-                      <ul className="text-gray-900 list-disc list-inside">
-                        {node.properties.map((prop, index) => (
-                          <li key={index}>{prop}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {node.children.length > 0 && (
-                    <div>
-                      <label className="font-medium text-gray-700">Children ({node.children.length}):</label>
-                      <ul className="text-gray-900 list-disc list-inside">
-                        {node.children.map((child) => (
-                          <li key={child.id}>{child.title} ({child.kind})</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
+        {/* Selected box overlay */}
+        {selectedBox && (
+          <div
+            className="absolute border-2 border-blue-300 bg-blue-100/10 pointer-events-none rounded-[3px]"
+            style={{
+              left: `${selectedBox.x}px`,
+              top: `${selectedBox.y}px`,
+              width: `${selectedBox.width}px`,
+              height: `${selectedBox.height}px`,
+            }}
+            title={`Element: ${selectedBox.id}`}
+          />
+        )}
+      </div>
     </>
   );
 } 

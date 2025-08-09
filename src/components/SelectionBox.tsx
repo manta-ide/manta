@@ -8,10 +8,11 @@ interface SelectionBoxProps {
   isEditMode: boolean;
   document: Document | null;
   window: Window | null;
+  sessionId?: string;
 }
 
-export default function SelectionBox({ isEditMode, document: doc, window: win }: SelectionBoxProps) {
-  const { selection, setSelection } = useProjectStore();
+export default function SelectionBox({ isEditMode, document: doc, window: win, sessionId }: SelectionBoxProps) {
+  const { selection, setSelection, setSelectedNode } = useProjectStore();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Selection state
@@ -48,7 +49,7 @@ export default function SelectionBox({ isEditMode, document: doc, window: win }:
     e.preventDefault();
   };
 
-  const handleMouseUp = (e: MouseEvent) => {
+  const handleMouseUp = async (e: MouseEvent) => {
     if (!isEditMode || !doc || !win) return;
 
     if (hasMoved && startPt) {
@@ -134,7 +135,34 @@ export default function SelectionBox({ isEditMode, document: doc, window: win }:
       suppressClick.current = true;
       e.preventDefault();
     } else {
-      setSelection(null);
+      // No drag selection: interpret as click selection of a single node element
+      try {
+        const overlayRoot = doc.getElementById('selection-overlay-root');
+        const elementsAtPoint = doc.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[];
+        const target = elementsAtPoint.find(el => {
+          if (!el || (overlayRoot && overlayRoot.contains(el))) return false;
+          return (el as HTMLElement).id?.startsWith?.('node-element-');
+        }) as HTMLElement | undefined;
+
+        if (target) {
+          const nodeId = target.id;
+          let nodeData: any = null;
+          if (sessionId) {
+            try {
+              const res = await fetch(`/api/storage/${sessionId}/${nodeId}`);
+              if (res.ok) {
+                const data = await res.json();
+                nodeData = data.node ?? null;
+              }
+            } catch (_) {}
+          }
+          setSelectedNode(nodeId, nodeData ?? undefined);
+        } else {
+          setSelectedNode(null, null);
+        }
+      } finally {
+        setSelection(null);
+      }
     }
 
     setStartPt(null);
@@ -165,7 +193,7 @@ export default function SelectionBox({ isEditMode, document: doc, window: win }:
       onClick={handleClick}
     >
       {/* Visual selection box */}
-      {isEditMode && selection && (
+      {isEditMode && isSelecting && selection && (
         <div
           className="absolute z-[9999] border-2 border-blue-500 bg-blue-200/20 pointer-events-none"
           style={{

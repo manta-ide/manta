@@ -1,281 +1,150 @@
 {
-  "rootId": "node-element-startup-landing-page",
+  "rootId": "node-element-swe-portfolio-page",
   "nodes": [
     {
-      "id": "node-element-startup-landing-page",
-      "title": "Startup Landing Page",
-      "kind": "page",
-      "what": "A landing page designed for showcasing startup features and attracting visitors.",
-      "how": "Modern layout with header, hero, features section, testimonial section, and footer.",
-      "properties": [
-        "responsive",
-        "accessible",
-        "animated"
-      ],
+      "id": "node-element-swe-portfolio-page",
+      "title": "Software Engineer Portfolio Page",
+      "prompt": "Kind: page. What: A portfolio page to showcase a software engineer's skills, experience, and projects. How: Organized layout with a hero section, skills section, projects section, and contact section. Properties: responsive, accessible, modern design.",
       "children": [
         {
-          "id": "node-element-header",
-          "title": "Header",
-          "kind": "section"
+          "id": "node-element-hero-section",
+          "title": "Hero Section"
         },
         {
-          "id": "node-element-hero",
-          "title": "Hero Section",
-          "kind": "section"
+          "id": "node-element-skills-section",
+          "title": "Skills Section"
         },
         {
-          "id": "node-element-features",
-          "title": "Features Section",
-          "kind": "section"
+          "id": "node-element-projects-section",
+          "title": "Projects Section"
         },
         {
-          "id": "node-element-testimonials",
-          "title": "Testimonials Section",
-          "kind": "section"
-        },
-        {
-          "id": "node-element-footer",
-          "title": "Footer",
-          "kind": "section"
+          "id": "node-element-contact-section",
+          "title": "Contact Section"
         }
-      ]
-    },
-    {
-      "id": "node-element-header",
-      "title": "Header",
-      "kind": "section",
-      "what": "The top section of the page containing logo and navigation.",
-      "how": "Fixed header bar with a logo on the left and navigation items on the right.",
-      "properties": [
-        "fixed",
-        "responsive"
       ],
-      "children": [
-        {
-          "id": "node-element-logo",
-          "title": "Logo",
-          "kind": "component"
-        },
-        {
-          "id": "node-element-navigation-menu",
-          "title": "Navigation Menu",
-          "kind": "component"
-        }
-      ]
+      "built": true
     },
     {
-      "id": "node-element-hero",
+      "id": "node-element-hero-section",
       "title": "Hero Section",
-      "kind": "section",
-      "what": "Main attention-grabbing section with a call-to-action.",
-      "how": "Prominent text area with a headline, subheading, and call-to-action button. Background image or gradient.",
-      "properties": [
-        "large-heading",
-        "animated"
-      ],
+      "prompt": "Kind: section. What: Introduction section with a title, subtitle, and profile image. How: Hero layout with large text and an image, highlighting the SWE's name and profession. Properties: centered, responsive, visually appealing.",
       "children": [
         {
-          "id": "node-element-headline",
-          "title": "Headline",
-          "kind": "primitive"
+          "id": "node-element-hero-title",
+          "title": "Hero Title"
         },
         {
-          "id": "node-element-subheading",
-          "title": "Subheading",
-          "kind": "primitive"
+          "id": "node-element-hero-subtitle",
+          "title": "Hero Subtitle"
         },
         {
-          "id": "node-element-call-to-action-button",
-          "title": "Call-to-Action Button",
-          "kind": "primitive"
+          "id": "node-element-profile-image",
+          "title": "Profile Image"
         }
-      ]
+      ],
+      "built": true
     },
     {
-      "id": "node-element-features",
-      "title": "Features Section",
-      "kind": "section",
-      "what": "Section displaying key features of the startup.",
-      "how": "Grid layout with feature cards including icons, headings, and descriptions.",
-      "properties": [
-        "grid-layout",
-        "responsive"
-      ],
+      "id": "node-element-skills-section",
+      "title": "Skills Section",
+      "prompt": "Kind: section. What: Lists technical skills and proficiencies. How: Grid layout with cards or badges for individual skills. Properties: interactive, organized, accessible.",
       "children": [
         {
-          "id": "node-element-feature-card",
-          "title": "Feature Card",
-          "kind": "component"
+          "id": "node-element-skill-badge",
+          "title": "Skill Badge"
         }
-      ]
+      ],
+      "built": true
     },
     {
-      "id": "node-element-testimonials",
-      "title": "Testimonials Section",
-      "kind": "section",
-      "what": "Section showcasing customer feedback to build credibility.",
-      "how": "Carousel or grid layout with testimonial cards containing quotes, names, and profile pictures.",
-      "properties": [
-        "carousel",
-        "responsive"
-      ],
+      "id": "node-element-projects-section",
+      "title": "Projects Section",
+      "prompt": "Kind: section. What: Displays software engineering projects. How: Grid layout with cards showcasing project name, description, and links. Properties: responsive, informative, clickable.",
       "children": [
         {
-          "id": "node-element-testimonial-card",
-          "title": "Testimonial Card",
-          "kind": "component"
+          "id": "node-element-project-card",
+          "title": "Project Card"
         }
-      ]
+      ],
+      "built": true
     },
     {
-      "id": "node-element-footer",
-      "title": "Footer",
-      "kind": "section",
-      "what": "Bottom section containing additional navigation and copyright information.",
-      "how": "Simple footer with links to privacy, terms, and social media icons.",
-      "properties": [
-        "minimalistic",
-        "responsive"
-      ],
+      "id": "node-element-contact-section",
+      "title": "Contact Section",
+      "prompt": "Kind: section. What: Provides methods to contact the SWE. How: Contact form with fields for name, email, and message, and social media links. Properties: functional, accessible, responsive.",
       "children": [
         {
-          "id": "node-element-footer-links",
-          "title": "Footer Links",
-          "kind": "component"
+          "id": "node-element-contact-form",
+          "title": "Contact Form"
         },
         {
-          "id": "node-element-social-links",
-          "title": "Social Links",
-          "kind": "component"
+          "id": "node-element-social-links-group",
+          "title": "Social Links Group"
         }
-      ]
+      ],
+      "built": true
     },
     {
-      "id": "node-element-logo",
-      "title": "Logo",
-      "kind": "component",
-      "what": "Display the company's logo.",
-      "how": "SVG or image file with accessibility features like alt text.",
-      "properties": [
-        "clickable",
-        "accessible"
-      ],
-      "children": []
+      "id": "node-element-hero-title",
+      "title": "Hero Title",
+      "prompt": "Kind: component. What: Displays the software engineer's name and title. How: Large, bold, and prominent text element for easy recognition, styled with black text for emphasis. Properties: readable, responsive, attention-grabbing.",
+      "children": [],
+      "built": true
     },
     {
-      "id": "node-element-navigation-menu",
-      "title": "Navigation Menu",
-      "kind": "component",
-      "what": "Menu items for navigating different sections of the page.",
-      "how": "Horizontal list of links with hover and active states.",
-      "properties": [
-        "clickable",
-        "responsive"
-      ],
+      "id": "node-element-hero-subtitle",
+      "title": "Hero Subtitle",
+      "prompt": "Kind: component. What: Provides a brief tagline or summary of the SWE's expertise. How: Smaller secondary text styled with proper spacing and typography. Properties: descriptive, readable.",
+      "children": [],
+      "built": true
+    },
+    {
+      "id": "node-element-profile-image",
+      "title": "Profile Image",
+      "prompt": "Kind: component. What: Displays the SWE's profile picture. How: Circular or square image format with alt text for accessibility. Properties: accessible, responsive, visually appealing.",
+      "children": [],
+      "built": true
+    },
+    {
+      "id": "node-element-skill-badge",
+      "title": "Skill Badge",
+      "prompt": "Kind: component. What: Represents individual technical skills. How: Styled badge with hover effects and accessible labels. Properties: interactive, reusable.",
+      "children": [],
+      "built": true
+    },
+    {
+      "id": "node-element-project-card",
+      "title": "Project Card",
+      "prompt": "Kind: component. What: Displays project title, description, and a green button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.",
+      "children": [],
+      "built": true
+    },
+    {
+      "id": "node-element-contact-form",
+      "title": "Contact Form",
+      "prompt": "Kind: component. What: Form to collect user messages. How: Styled inputs and buttons with validation for name, email, and message fields. Properties: functional, accessible.",
+      "children": [],
+      "built": true
+    },
+    {
+      "id": "node-element-social-links-group",
+      "title": "Social Links Group",
+      "prompt": "Kind: group. What: Displays social media icons with links. How: Horizontal layout of clickable icons for LinkedIn, GitHub, Twitter, etc. Properties: interactive, responsive, accessible.",
       "children": [
         {
-          "id": "node-element-nav-item",
-          "title": "Nav Item",
-          "kind": "primitive"
+          "id": "node-element-social-link",
+          "title": "Social Link"
         }
-      ]
+      ],
+      "built": true
     },
     {
-      "id": "node-element-nav-item",
-      "title": "Nav Item",
-      "kind": "primitive",
-      "what": "Individual navigation menu item.",
-      "how": "Link element styled with hover effects.",
-      "properties": [
-        "hover-effects",
-        "clickable"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-headline",
-      "title": "Headline",
-      "kind": "primitive",
-      "what": "Large heading text in the hero section.",
-      "how": "Text element styled with large typography for emphasis.",
-      "properties": [
-        "bold",
-        "attention-grabbing"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-subheading",
-      "title": "Subheading",
-      "kind": "primitive",
-      "what": "Supporting text under the headline.",
-      "how": "Smaller text element with secondary information.",
-      "properties": [
-        "readable",
-        "accessible"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-call-to-action-button",
-      "title": "Call-to-Action Button",
-      "kind": "primitive",
-      "what": "Button to direct users to take action.",
-      "how": "Styled button element with hover effects and a prominent color.",
-      "properties": [
-        "clickable",
-        "animated"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-feature-card",
-      "title": "Feature Card",
-      "kind": "component",
-      "what": "Individual card showing a specific feature.",
-      "how": "Card with an icon, heading, and brief description.",
-      "properties": [
-        "icon",
-        "text",
-        "responsive"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-testimonial-card",
-      "title": "Testimonial Card",
-      "kind": "component",
-      "what": "Card with user feedback, profile picture, and name.",
-      "how": "Container with quote text, image, and subtitle.",
-      "properties": [
-        "grid-item",
-        "accessible"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-footer-links",
-      "title": "Footer Links",
-      "kind": "component",
-      "what": "Navigation links in the footer.",
-      "how": "Horizontal or vertical list with links to company-related resources.",
-      "properties": [
-        "clickable",
-        "minimal"
-      ],
-      "children": []
-    },
-    {
-      "id": "node-element-social-links",
-      "title": "Social Links",
-      "kind": "component",
-      "what": "Icons linking to social media profiles.",
-      "how": "Clickable icons styled for accessibility.",
-      "properties": [
-        "hover-effects",
-        "clickable"
-      ],
-      "children": []
+      "id": "node-element-social-link",
+      "title": "Social Link",
+      "prompt": "Kind: primitive. What: Individual social media link. How: Clickable icon with alt text and hover effects. Properties: accessible, clickable.",
+      "children": [],
+      "built": true
     }
   ]
 }

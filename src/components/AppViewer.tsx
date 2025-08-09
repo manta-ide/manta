@@ -89,17 +89,17 @@ appRoot.style.position = 'relative';
 const host = doc.createElement('div');
 host.id = 'selection-overlay-root';
 Object.assign(host.style, {
-position: 'absolute',  // <- NOT fixed
-inset: '0',
-zIndex: '9999',
-// Let the child overlay layer decide whether to capture events.
-pointerEvents: 'auto',
+ position: 'absolute',  // <- NOT fixed
+ inset: '0',
+ zIndex: '9999',
+ // Let the child overlay layer decide whether to capture events.
+ pointerEvents: isEditMode ? 'auto' : 'none',
 });
 appRoot.appendChild(host);
 
 setOverlayHost(host);
 
-  }, []);
+  }, [isEditMode]);
 
   /* ── cleanup overlay host on unmount ───────────────────────── */
   useEffect(() => {
@@ -110,6 +110,13 @@ setOverlayHost(host);
       host?.remove();
     };
   }, []);
+
+  // Toggle click-through behavior when edit mode changes
+  useEffect(() => {
+    if (overlayHost) {
+      overlayHost.style.pointerEvents = isEditMode ? 'auto' : 'none';
+    }
+  }, [overlayHost, isEditMode]);
 
   /* ── liveness probe for the child app ───────────────────────── */
   useEffect(() => {

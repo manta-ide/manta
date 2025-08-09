@@ -96,6 +96,7 @@ export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayPr
         isEditMode={isEditMode} 
         document={document}
         window={window}
+        sessionId={sessionId}
       />
     </div>
   );

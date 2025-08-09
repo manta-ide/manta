@@ -10,6 +10,7 @@ import {
 } from '../../lib/schemas';
 import { addMessageToSession } from '../../lib/conversationStorage';
 
+import { GraphSchema } from '@/app/api/lib/graphStorage';
 
 // Configuration schema for the agent
 const AgentConfigSchema = z.object({
@@ -21,26 +22,6 @@ const AgentConfigSchema = z.object({
   temperature: z.number().optional(),
   structuredOutput: z.boolean()
 });
-
-// Create a schema for graph generation results
-export const GraphResultSchema = z.object({
-  rootId: z.string(),
-  nodes: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    kind: z.enum(['page','section','group','component','primitive','behavior']),
-    what: z.string(),
-    how: z.string(),
-    properties: z.array(z.string()),
-    children: z.array(z.object({
-      id: z.string(),
-      title: z.string(),
-      kind: z.enum(['page','section','group','component','primitive','behavior']),
-    })),
-  }))
-});
-
-
 
 // Request schema with required configuration
 const AgentRequestSchema = z.object({
@@ -80,13 +61,12 @@ export async function POST(req: NextRequest) {
     // If structured output is requested, use generateObject instead
     if (config.structuredOutput) {
 
-      console.log(GraphResultSchema);
       const result = await generateObject({
         model: azure(config.model),
         messages: messages,
         // Force JSON mode and ensure the schema is treated as an object JSON Schema
         mode: 'json',
-        schema: GraphResultSchema,
+        schema: GraphSchema,
         abortSignal: req.signal,
         providerOptions: config.providerOptions,
         temperature: config.temperature,
