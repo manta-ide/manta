@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import SelectionOverlay, { useSelectionHandlers } from './SelectionOverlay';
+import IframeOverlay from './IframeOverlay';
 import { LoaderFive } from '@/components/ui/loader';
 import { useProjectStore } from '@/lib/store';
 import { getLastError, setLastError } from '@/lib/runtimeErrorStore';
@@ -65,18 +65,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* host element (inside iframe) that will receive the portal */
   const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
 
-  /* element that actually captures pointer events for selection */
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  /* selection logic works against the overlayRef (inside iframe) */
-  const {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    handleClick,
-    isSelecting,
-  } = useSelectionHandlers(isEditMode, overlayRef);
-
   /* ── create / reuse host <div> inside the iframe once it loads ── */
   const handleIframeLoad = useCallback(() => {
     // inside handleIframeLoad
@@ -101,17 +89,17 @@ appRoot.style.position = 'relative';
 const host = doc.createElement('div');
 host.id = 'selection-overlay-root';
 Object.assign(host.style, {
-position: 'absolute',  // <- NOT fixed
-inset: '0',
-zIndex: '9999',
-// Let the child overlay layer decide whether to capture events.
-pointerEvents: 'auto',
+ position: 'absolute',  // <- NOT fixed
+ inset: '0',
+ zIndex: '9999',
+ // Let the child overlay layer decide whether to capture events.
+ pointerEvents: isEditMode ? 'auto' : 'none',
 });
 appRoot.appendChild(host);
 
 setOverlayHost(host);
 
-  }, []);
+  }, [isEditMode]);
 
   /* ── cleanup overlay host on unmount ───────────────────────── */
   useEffect(() => {
@@ -122,6 +110,13 @@ setOverlayHost(host);
       host?.remove();
     };
   }, []);
+
+  // Toggle click-through behavior when edit mode changes
+  useEffect(() => {
+    if (overlayHost) {
+      overlayHost.style.pointerEvents = isEditMode ? 'auto' : 'none';
+    }
+  }, [overlayHost, isEditMode]);
 
   /* ── liveness probe for the child app ───────────────────────── */
   useEffect(() => {
@@ -187,25 +182,12 @@ setOverlayHost(host);
           {/* All overlay UI is portalled INTO the iframe’s document */}
           {overlayHost &&
             createPortal(
-              <div
-                ref={overlayRef}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: isEditMode ? 'auto' : 'none',
-                  cursor: isEditMode && isSelecting ? 'crosshair' : 'default',
-                }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onClick={handleClick}
-              >
-                <SelectionOverlay isEditMode={isEditMode} />
-              </div>,
+              <IframeOverlay isEditMode={isEditMode} sessionId="default" />,
               overlayHost,
             )}
         </div>
       </div>
     </PreviewBoundary>
+
   );
 }

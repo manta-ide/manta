@@ -1,4 +1,5 @@
 import { Message, ParsedMessage } from './schemas';
+import { getGraphSession } from './graphStorage';
 
 // In-memory storage for conversation sessions
 // In production, this should be replaced with a proper database
@@ -69,24 +70,31 @@ async function getFileContent(filePath: string): Promise<string> {
 /**
  * Create a system message with project context
  */
-async function createSystemMessage(currentFile?: string): Promise<Message> {
+export async function createSystemMessage(sessionId?: string): Promise<Message> {
   
   // Get file list with lengths from the API response
   const response = await fetch('http://localhost:3000/api/files?list=true');
   const data = await response.json();
-  
-  // Get current file content only if needed
-  let currentFileContent = '';
-  if (currentFile) {
-    currentFileContent = await getFileContent(currentFile);
+
+  // Get graph from storage if sessionId is provided
+  let graphContext = '';
+  if (sessionId) {
+    try {
+      const graph = getGraphSession(sessionId);
+      if (graph) {
+        graphContext = JSON.stringify(graph, null, 2);
+      }
+    } catch (error) {
+      console.warn('Failed to get graph from storage:', error);
+    }
   }
   
   return {
     role: 'system',
     variables: {
       PROJECT_FILES: data.files || [],
-      CURRENT_FILE: currentFile || '',
-      CURRENT_FILE_CONTENT: currentFileContent
+      GRAPH_CONTEXT: graphContext,
+      MAX_NODES: 7
     }
   };
 }
@@ -107,32 +115,6 @@ export function getConversationSession(sessionId: string): Message[] {
 export function addMessageToSession(sessionId: string, message: Message): void {
   const session = getConversationSession(sessionId);
   session.push(message);
-}
-
-/**
- * Build the complete conversation for the AI model
- * Includes system message with project context and conversation history
- */
-export async function buildConversationForAI(
-  sessionId: string, 
-  userMessage: Message
-): Promise<Message[]> {
-  // Get or create session
-  const session = getConversationSession(sessionId);
-  
-  // Extract current file from user message context
-  const currentFile = userMessage.messageContext?.currentFile || undefined;
-  
-  // Create system message with current project state
-  const systemMessage = await createSystemMessage(currentFile);
-  
-  // Add the new user message to the session
-  addMessageToSession(sessionId, userMessage);
-  
-  // Build the complete conversation: system + history + new message
-  const allMessages = [systemMessage, ...session];
-  
-  return allMessages;
 }
 
 /**

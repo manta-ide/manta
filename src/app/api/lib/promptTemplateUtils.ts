@@ -20,44 +20,42 @@ export async function getTemplate(templateName: string): Promise<string> {
 
 /**
  * Parses a template string by replacing variables and handling conditional sections
- * 
- * Supports:
- * - {{variable}} - Simple variable replacement
- * - {{#variable}}content{{/variable}} - Conditional sections (show if variable has value)
- * - Special handling for PROJECT_FILES array
+ *
+ * Supported syntax
+ *  - {{variable}}                         – simple replacement
+ *  - {{#variable}} ... {{/variable}}      – section shown only when `variables[variable]` is truthy
+ *  - Special handling for PROJECT_FILES   – pretty prints array of {route, lines}
  */
-export function parseTemplate(template: string, variables: Record<string, any>): string {
-  let result = template;
-  
-  // Handle conditional sections first
+export function parseTemplate(
+  template: string,
+  variables: Record<string, any>
+): string {
+  // 1) Resolve conditional sections first
+  let result = template.replace(
+    /{{#(\w+)}}([\s\S]*?){{\/\1}}/g,
+    (_, key: string, content: string) => {
+      const value = variables[key];
+      return value ? content : ''; // hides block if key is missing or value is falsy
+    }
+  );
+
+  // 2) Replace simple placeholders
   Object.entries(variables).forEach(([key, value]) => {
-    // Find conditional sections for this variable
-    const sectionRegex = new RegExp(
-      `\\{\\{#${key}\\}\\}([\\s\\S]*?)\\{\\{\\/${key}\\}\\}`, 
-      'g'
-    );
-    
-    result = result.replace(sectionRegex, (match, content) => {
-      // If variable has a value, include the section content, otherwise remove it
-      return value ? content : '';
-    });
-  });
-  // Replace regular variables
-  Object.entries(variables).forEach(([key, value]) => {
-    const placeholder = `{{${key}}}`;
-    // Special handling for PROJECT_FILES array
+    const placeholder = new RegExp(`{{${key}}}`, 'g');
+
     if (key === 'PROJECT_FILES' && Array.isArray(value)) {
-      const fileList = value.map(file => `${file.route} (${file.lines} lines)`).join('\n');
-      result = result.replace(new RegExp(placeholder, 'g'), fileList);
+      const fileList = value
+        .map((file) => `${file.route} (${file.lines} lines)`)
+        .join('\n');
+      result = result.replace(placeholder, fileList);
     } else {
-      // Convert any value to string for regular variables
-      const stringValue = value ? String(value) : '';
-      result = result.replace(new RegExp(placeholder, 'g'), stringValue);
+      result = result.replace(placeholder, value ? String(value) : '');
     }
   });
-  
+
   return result;
 }
+
 
 /**
  * Convenience function for parsing message templates with variables

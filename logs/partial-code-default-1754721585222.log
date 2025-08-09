@@ -1,0 +1,179 @@
+[partial-code] session=default
+[partial-code] nodeIds=["node-element-project-card"]
+[partial-code] editHints={"node-element-project-card":{"previousPrompt":"Kind: component. What: Displays project title, description, execution time, and a button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.","newPrompt":"Kind: component. What: Displays project title, description, and a green button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable."}}
+[partial-code] messages:
+--- message[0] role=system ---
+You are a precise Next.js code editor specializing in **surgical updates** to existing applications. Modify only the specified nodes from the provided partial graph and their descendants, strictly avoiding unrelated files, components, or routes. Your primary goal is to apply the requested changes to the selected nodes’ rendered output using **patchFile** wherever possible for minimal, targeted edits.  
+
+**Available Information:**  
+- Current project files: components.json (21 lines)
+eslint.config.mjs (17 lines)
+graph-default.json (150 lines)
+next-env.d.ts (6 lines)
+next.config.ts (17 lines)
+package.json (60 lines)
+postcss.config.mjs (6 lines)
+public/file.svg (1 lines)
+public/globe.svg (1 lines)
+public/next.svg (1 lines)
+public/vercel.svg (1 lines)
+public/window.svg (1 lines)
+src/app/app.css (138 lines)
+src/app/contact.tsx (13 lines)
+src/app/favicon.ico (31 lines)
+src/app/globals.css (133 lines)
+src/app/layout.tsx (35 lines)
+src/app/page.tsx (235 lines)
+src/components/ui/accordion.tsx (67 lines)
+src/components/ui/badge.tsx (47 lines)
+src/components/ui/button.tsx (59 lines)
+src/components/ui/card.tsx (93 lines)
+src/components/ui/carousel.tsx (242 lines)
+src/components/ui/chart.tsx (354 lines)
+src/components/ui/checkbox.tsx (33 lines)
+src/components/ui/collapsible.tsx (34 lines)
+src/components/ui/context-menu.tsx (253 lines)
+src/components/ui/form.tsx (168 lines)
+src/components/ui/hover-card.tsx (45 lines)
+src/components/ui/input.tsx (22 lines)
+src/components/ui/label.tsx (25 lines)
+src/components/ui/menubar.tsx (277 lines)
+src/components/ui/navigation-menu.tsx (169 lines)
+src/components/ui/radio-group.tsx (46 lines)
+src/components/ui/separator.tsx (29 lines)
+src/components/ui/sheet.tsx (140 lines)
+src/components/ui/sidebar.tsx (727 lines)
+src/components/ui/skeleton.tsx (14 lines)
+src/components/ui/slider.tsx (64 lines)
+src/components/ui/switch.tsx (32 lines)
+src/components/ui/table.tsx (117 lines)
+src/components/ui/textarea.tsx (19 lines)
+src/components/ui/toggle-group.tsx (74 lines)
+src/components/ui/toggle.tsx (48 lines)
+src/components/ui/tooltip.tsx (62 lines)
+src/hooks/use-mobile.ts (20 lines)
+src/hooks/use-theme.ts (29 lines)
+src/lib/utils.ts (7 lines)
+tsconfig.json (41 lines)
+tsconfig.tsbuildinfo (1 lines)  
+  
+  
+- Graph (partial): {
+  "rootId": "node-element-swe-portfolio-page",
+  "nodes": [
+    {
+      "id": "node-element-project-card",
+      "title": "Project Card",
+      "prompt": "Kind: component. What: Displays project title, description, and a green button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.",
+      "children": [],
+      "built": false
+    }
+  ]
+}  
+- Selected Node IDs: ["node-element-project-card"]  
+- Explicit Edit Hints (JSON keyed by node id): {"node-element-project-card":{"previousPrompt":"Kind: component. What: Displays project title, description, execution time, and a button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.","newPrompt":"Kind: component. What: Displays project title, description, and a green button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable."}}  
+- STRICT EDIT MODE: Only touch the selected nodes (and descendants if included). Do NOT add new pages/routes unless strictly necessary to reflect the change in the selected nodes.  
+
+**Key Rules:**  
+1. Only modify or implement components corresponding to nodes included in the partial graph. No unrelated edits.  
+2. Each graph node → an HTML element with an id exactly matching the node ID, prefixed with `node-element-`.  
+3. Use Tailwind CSS, shadcn components, and Next.js best practices.  
+4. Apply changes as **patches** to existing files whenever possible; use updateFile only when a full replacement is unavoidable.  
+5. Maintain TypeScript type safety and correct imports.  
+6. Ensure that the selected nodes render correctly and the application remains runnable.  
+7. If EDIT_HINTS contains `{previousPrompt, newPrompt}`, ensure that changes reflect the differences faithfully. For style or property updates (e.g., color red → green), modify the existing element’s styles/classes instead of replacing the structure.  
+
+**Tool Usage:**  
+- **readFile:** inspect existing files  
+- **patchFile:** apply targeted edits (primary tool)  
+- **updateFile:** replace file entirely (only if necessary)  
+- **createFile:** add new files (only when required by the edit)  
+- **deleteFile:** remove obsolete files (rarely needed)  
+
+**Goal:**  
+Produce minimal, focused changes to reflect the requested updates for the selected nodes and their descendants. When complete, end with a concise explanation of what changed in the selected nodes only.
+--- end message[0] ---
+--- message[1] role=user ---
+
+
+
+Rebuild selected node
+--- end message[1] ---
+--- message[2] role=assistant ---
+{{#ASSISTANT_RESPONSE}}
+Updated node-element-hero-title:
+• Replaced red text color with dynamic black (light) and white (dark mode) for better readability and emphasis.
+• No structural changes; only updated class names within the same <h1> element.
+--- end message[2] ---
+--- message[3] role=user ---
+
+
+
+Rebuild selected node
+--- end message[3] ---
+{"t":"tool_call","toolName":"readFile","args":{"path":"src/app/page.tsx"},"language":"tool-status:readFile:calling:src/app/page.tsx"}
+{"t":"tool_result","toolName":"readFile","result":{"success":true,"message":"Successfully read file: src/app/page.tsx","content":"\"use client\"\n\nimport React from \"react\"\nimport Image from \"next/image\"\nimport Link from \"next/link\"\nimport { Badge } from \"@/components/ui/badge\"\nimport { Card, CardContent, CardDescription, CardHeader, CardTitle } from \"@/components/ui/card\"\nimport { Input } from \"@/components/ui/input\"\nimport { Textarea } from \"@/components/ui/textarea\"\nimport { Button } from \"@/components/ui/button\"\n\n// Dummy data – in a real application this could come from a CMS or an API\nconst skills = [\n  \"TypeScript\",\n  \"React & Next.js\",\n  \"Node.js\",\n  \"GraphQL\",\n  \"PostgreSQL\",\n  \"AWS\",\n  \"Docker\",\n  \"CI/CD\",\n] as const\n\nconst projects = [\n  {\n    title: \"Realtime Collaboration Tool\",\n    description:\n      \"A web-based collaborative editor enabling teams to edit documents concurrently with operational-transforms and WebSockets.\",\n    href: \"https://github.com/example/realtime-editor\",\n    tech: [\"Next.js\", \"tRPC\", \"WebSockets\"],\n    executionTime: \"6 months\",\n  },\n  {\n    title: \"E-commerce Platform\",\n    description:\n      \"Scalable multi-tenant e-commerce solution supporting thousands of stores, built with a micro-services architecture.\",\n    href: \"https://github.com/example/commerce\",\n    tech: [\"NestJS\", \"PostgreSQL\", \"Redis\"],\n    executionTime: \"1 year\",\n  },\n  {\n    title: \"Automated Trading Bot\",\n    description:\n      \"High-frequency crypto trading bot executing strategies with sub-second latency, written in Rust and TypeScript.\",\n    href: \"https://github.com/example/trading-bot\",\n    tech: [\"Rust\", \"TypeScript\", \"gRPC\"],\n    executionTime: \"3 months\",\n  },\n] as const\n\nexport default function Home() {\n  return (\n    <main\n      id=\"node-element-swe-portfolio-page\"\n      className=\"flex flex-col items-center gap-24 px-4 pt-20 md:px-8 lg:px-24\"\n    >\n      {/* Hero Section */}\n      <section\n        id=\"node-element-hero-section\"\n        className=\"flex w-full max-w-5xl flex-col items-center gap-6 text-center\"\n      >\n        {/* Profile Image */}\n        <div id=\"node-element-profile-image\" className=\"relative size-40 rounded-full shadow-lg\">\n          {/* Using an inline SVG placeholder to avoid missing asset warnings */}\n          <svg\n            viewBox=\"0 0 100 100\"\n            xmlns=\"http://www.w3.org/2000/svg\"\n            className=\"h-full w-full rounded-full bg-gradient-to-br from-primary to-purple-600 text-white\"\n          >\n            <text\n              x=\"50%\"\n              y=\"54%\"\n              dominantBaseline=\"middle\"\n              textAnchor=\"middle\"\n              fontSize=\"42\"\n              fontWeight=\"700\"\n              className=\"fill-white\"\n            >\n              JD\n            </text>\n          </svg>\n        </div>\n\n        {/* Title */}\n        <h1\n          id=\"node-element-hero-title\"\n          className=\"text-4xl font-extrabold tracking-tight text-black dark:text-white sm:text-5xl md:text-6xl\"\n        >\n          John Doe\n        </h1>\n\n        {/* Subtitle */}\n        <p\n          id=\"node-element-hero-subtitle\"\n          className=\"max-w-2xl text-lg text-muted-foreground sm:text-xl\"\n        >\n          Building delightful developer experiences and scalable infrastructure.\n        </p>\n      </section>\n\n      {/* Skills Section */}\n      <section\n        id=\"node-element-skills-section\"\n        className=\"flex w-full max-w-5xl flex-col gap-8\"\n      >\n        <h2 className=\"text-2xl font-semibold\">Skills</h2>\n        <ul className=\"flex flex-wrap gap-3\">\n          {skills.map((skill) => (\n            <li key={skill} id=\"node-element-skill-badge\">\n              <Badge variant=\"secondary\" className=\"text-sm\">\n                {skill}\n              </Badge>\n            </li>\n          ))}\n        </ul>\n      </section>\n\n      {/* Projects Section */}\n      <section\n        id=\"node-element-projects-section\"\n        className=\"flex w-full max-w-5xl flex-col gap-8\"\n      >\n        <h2 className=\"text-2xl font-semibold\">Projects</h2>\n        <div className=\"grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3\">\n          {projects.map((project) => (\n            <Card\n              key={project.title}\n              id=\"node-element-project-card\"\n              className=\"group h-full transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg\"\n            >\n              <CardHeader>\n                <CardTitle>{project.title}</CardTitle>\n                <CardDescription className=\"flex flex-wrap gap-1 pt-2\">\n                  {project.tech.map((t) => (\n                    <Badge key={t} variant=\"outline\" className=\"text-xs\">\n                      {t}\n                    </Badge>\n                  ))}\n                </CardDescription>\n              </CardHeader>\n              <CardContent className=\"flex flex-1 flex-col justify-between gap-4 pb-6\">\n                <p className=\"text-sm leading-relaxed text-muted-foreground\">\n                  {project.description}\n                </p>\n\n                {/* Execution Time */}\n                {project.executionTime && (\n                  <span\n                    id=\"node-element-project-execution-time\"\n                    className=\"text-xs font-medium text-foreground/70\"\n                  >\n                    ⏱️ Built in {project.executionTime}\n                  </span>\n                )}\n                <Button\n                  asChild\n                  size=\"sm\"\n                  className=\"mt-2 self-start transition-colors group-hover:bg-primary/90\"\n                >\n                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n                    View on GitHub →\n                  </Link>\n                </Button>\n              </CardContent>\n            </Card>\n          ))}\n        </div>\n      </section>\n\n      {/* Contact Section */}\n      <section\n        id=\"node-element-contact-section\"\n        className=\"flex w-full max-w-3xl flex-col gap-8\"\n      >\n        <h2 className=\"text-2xl font-semibold\">Get in touch</h2>\n\n        {/* Contact Form */}\n        <form\n          id=\"node-element-contact-form\"\n          className=\"flex flex-col gap-4 rounded-xl border p-6 shadow-sm\"\n          onSubmit={(e) => {\n            e.preventDefault()\n            // In a real product this would post to an API route.\n            alert(\"Thanks for reaching out! I'll get back to you soon.\")\n          }}\n        >\n          <div className=\"grid grid-cols-1 gap-4 md:grid-cols-2\">\n            <label className=\"flex flex-col gap-1\">\n              <span className=\"text-sm font-medium\">Name</span>\n              <Input name=\"name\" placeholder=\"Your name\" required />\n            </label>\n            <label className=\"flex flex-col gap-1\">\n              <span className=\"text-sm font-medium\">Email</span>\n              <Input\n                type=\"email\"\n                name=\"email\"\n                placeholder=\"you@example.com\"\n                required\n                aria-describedby=\"email-help\"\n              />\n            </label>\n          </div>\n          <label className=\"flex flex-col gap-1\">\n            <span className=\"text-sm font-medium\">Message</span>\n            <Textarea name=\"message\" rows={5} placeholder=\"Let's build something great together...\" required />\n          </label>\n          <div className=\"flex justify-end\">\n            <Button type=\"submit\">Send message</Button>\n          </div>\n        </form>\n\n        {/* Social Links Group */}\n        <div id=\"node-element-social-links-group\" className=\"flex items-center gap-4\">\n          {[\n            { href: \"https://github.com/example\", label: \"GitHub\" },\n            { href: \"https://linkedin.com/in/example\", label: \"LinkedIn\" },\n            { href: \"https://twitter.com/example\", label: \"Twitter\" },\n          ].map((link) => (\n            <Link\n              id=\"node-element-social-link\"\n              key={link.href}\n              href={link.href}\n              className=\"text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2\"\n              target=\"_blank\"\n              rel=\"noopener noreferrer\"\n            >\n              {link.label}\n            </Link>\n          ))}\n        </div>\n      </section>\n    </main>\n  )\n}\n","lines":235,"path":"src/app/page.tsx"},"codeBlock":{"language":"tool-status:readFile:completed:src/app/page.tsx","filename":"src/app/page.tsx","content":"\"use client\"\n\nimport React from \"react\"\nimport Image from \"next/image\"\nimport Link from \"next/link\"\nimport { Badge } from \"@/components/ui/badge\"\nimport { Card, CardContent, CardDescription, CardHeader, CardTitle } from \"@/components/ui/card\"\nimport { Input } from \"@/components/ui/input\"\nimport { Textarea } from \"@/components/ui/textarea\"\nimport { Button } from \"@/components/ui/button\"\n\n// Dummy data – in a real application this could come from a CMS or an API\nconst skills = [\n  \"TypeScript\",\n  \"React & Next.js\",\n  \"Node.js\",\n  \"GraphQL\",\n  \"PostgreSQL\",\n  \"AWS\",\n  \"Docker\",\n  \"CI/CD\",\n] as const\n\nconst projects = [\n  {\n    title: \"Realtime Collaboration Tool\",\n    description:\n      \"A web-based collaborative editor enabling teams to edit documents concurrently with operational-transforms and WebSockets.\",\n    href: \"https://github.com/example/realtime-editor\",\n    tech: [\"Next.js\", \"tRPC\", \"WebSockets\"],\n    executionTime: \"6 months\",\n  },\n  {\n    title: \"E-commerce Platform\",\n    description:\n      \"Scalable multi-tenant e-commerce solution supporting thousands of stores, built with a micro-services architecture.\",\n    href: \"https://github.com/example/commerce\",\n    tech: [\"NestJS\", \"PostgreSQL\", \"Redis\"],\n    executionTime: \"1 year\",\n  },\n  {\n    title: \"Automated Trading Bot\",\n    description:\n      \"High-frequency crypto trading bot executing strategies with sub-second latency, written in Rust and TypeScript.\",\n    href: \"https://github.com/example/trading-bot\",\n    tech: [\"Rust\", \"TypeScript\", \"gRPC\"],\n    executionTime: \"3 months\",\n  },\n] as const\n\nexport default function Home() {\n  return (\n    <main\n      id=\"node-element-swe-portfolio-page\"\n      className=\"flex flex-col items-center gap-24 px-4 pt-20 md:px-8 lg:px-24\"\n    >\n      {/* Hero Section */}\n      <section\n        id=\"node-element-hero-section\"\n        className=\"flex w-full max-w-5xl flex-col items-center gap-6 text-center\"\n      >\n        {/* Profile Image */}\n        <div id=\"node-element-profile-image\" className=\"relative size-40 rounded-full shadow-lg\">\n          {/* Using an inline SVG placeholder to avoid missing asset warnings */}\n          <svg\n            viewBox=\"0 0 100 100\"\n            xmlns=\"http://www.w3.org/2000/svg\"\n            className=\"h-full w-full rounded-full bg-gradient-to-br from-primary to-purple-600 text-white\"\n          >\n            <text\n              x=\"50%\"\n              y=\"54%\"\n              dominantBaseline=\"middle\"\n              textAnchor=\"middle\"\n              fontSize=\"42\"\n              fontWeight=\"700\"\n              className=\"fill-white\"\n            >\n              JD\n            </text>\n          </svg>\n        </div>\n\n        {/* Title */}\n        <h1\n          id=\"node-element-hero-title\"\n          className=\"text-4xl font-extrabold tracking-tight text-black dark:text-white sm:text-5xl md:text-6xl\"\n        >\n          John Doe\n        </h1>\n\n        {/* Subtitle */}\n        <p\n          id=\"node-element-hero-subtitle\"\n          className=\"max-w-2xl text-lg text-muted-foreground sm:text-xl\"\n        >\n          Building delightful developer experiences and scalable infrastructure.\n        </p>\n      </section>\n\n      {/* Skills Section */}\n      <section\n        id=\"node-element-skills-section\"\n        className=\"flex w-full max-w-5xl flex-col gap-8\"\n      >\n        <h2 className=\"text-2xl font-semibold\">Skills</h2>\n        <ul className=\"flex flex-wrap gap-3\">\n          {skills.map((skill) => (\n            <li key={skill} id=\"node-element-skill-badge\">\n              <Badge variant=\"secondary\" className=\"text-sm\">\n                {skill}\n              </Badge>\n            </li>\n          ))}\n        </ul>\n      </section>\n\n      {/* Projects Section */}\n      <section\n        id=\"node-element-projects-section\"\n        className=\"flex w-full max-w-5xl flex-col gap-8\"\n      >\n        <h2 className=\"text-2xl font-semibold\">Projects</h2>\n        <div className=\"grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3\">\n          {projects.map((project) => (\n            <Card\n              key={project.title}\n              id=\"node-element-project-card\"\n              className=\"group h-full transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg\"\n            >\n              <CardHeader>\n                <CardTitle>{project.title}</CardTitle>\n                <CardDescription className=\"flex flex-wrap gap-1 pt-2\">\n                  {project.tech.map((t) => (\n                    <Badge key={t} variant=\"outline\" className=\"text-xs\">\n                      {t}\n                    </Badge>\n                  ))}\n                </CardDescription>\n              </CardHeader>\n              <CardContent className=\"flex flex-1 flex-col justify-between gap-4 pb-6\">\n                <p className=\"text-sm leading-relaxed text-muted-foreground\">\n                  {project.description}\n                </p>\n\n                {/* Execution Time */}\n                {project.executionTime && (\n                  <span\n                    id=\"node-element-project-execution-time\"\n                    className=\"text-xs font-medium text-foreground/70\"\n                  >\n                    ⏱️ Built in {project.executionTime}\n                  </span>\n                )}\n                <Button\n                  asChild\n                  size=\"sm\"\n                  className=\"mt-2 self-start transition-colors group-hover:bg-primary/90\"\n                >\n                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n                    View on GitHub →\n                  </Link>\n                </Button>\n              </CardContent>\n            </Card>\n          ))}\n        </div>\n      </section>\n\n      {/* Contact Section */}\n      <section\n        id=\"node-element-contact-section\"\n        className=\"flex w-full max-w-3xl flex-col gap-8\"\n      >\n        <h2 className=\"text-2xl font-semibold\">Get in touch</h2>\n\n        {/* Contact Form */}\n        <form\n          id=\"node-element-contact-form\"\n          className=\"flex flex-col gap-4 rounded-xl border p-6 shadow-sm\"\n          onSubmit={(e) => {\n            e.preventDefault()\n            // In a real product this would post to an API route.\n            alert(\"Thanks for reaching out! I'll get back to you soon.\")\n          }}\n        >\n          <div className=\"grid grid-cols-1 gap-4 md:grid-cols-2\">\n            <label className=\"flex flex-col gap-1\">\n              <span className=\"text-sm font-medium\">Name</span>\n              <Input name=\"name\" placeholder=\"Your name\" required />\n            </label>\n            <label className=\"flex flex-col gap-1\">\n              <span className=\"text-sm font-medium\">Email</span>\n              <Input\n                type=\"email\"\n                name=\"email\"\n                placeholder=\"you@example.com\"\n                required\n                aria-describedby=\"email-help\"\n              />\n            </label>\n          </div>\n          <label className=\"flex flex-col gap-1\">\n            <span className=\"text-sm font-medium\">Message</span>\n            <Textarea name=\"message\" rows={5} placeholder=\"Let's build something great together...\" required />\n          </label>\n          <div className=\"flex justify-end\">\n            <Button type=\"submit\">Send message</Button>\n          </div>\n        </form>\n\n        {/* Social Links Group */}\n        <div id=\"node-element-social-links-group\" className=\"flex items-center gap-4\">\n          {[\n            { href: \"https://github.com/example\", label: \"GitHub\" },\n            { href: \"https://linkedin.com/in/example\", label: \"LinkedIn\" },\n            { href: \"https://twitter.com/example\", label: \"Twitter\" },\n          ].map((link) => (\n            <Link\n              id=\"node-element-social-link\"\n              key={link.href}\n              href={link.href}\n              className=\"text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2\"\n              target=\"_blank\"\n              rel=\"noopener noreferrer\"\n            >\n              {link.label}\n            </Link>\n          ))}\n        </div>\n      </section>\n    </main>\n  )\n}\n"}}
+{"t":"tool_call","toolName":"patchFile","args":{"path":"src/app/page.tsx","patch":"@@\n-                {/* Execution Time */}\n-                {project.executionTime && (\n-                  <span\n-                    id=\"node-element-project-execution-time\"\n-                    className=\"text-xs font-medium text-foreground/70\"\n-                  >\n-                    ⏱️ Built in {project.executionTime}\n-                  </span>\n-                )}\n-                <Button\n-                  asChild\n-                  size=\"sm\"\n-                  className=\"mt-2 self-start transition-colors group-hover:bg-primary/90\"\n-                >\n-                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n-                    View on GitHub →\n-                  </Link>\n-                </Button>\n+                <Button\n+                  asChild\n+                  size=\"sm\"\n+                  className=\"mt-2 self-start bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-700\"\n+                >\n+                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n+                    View on GitHub →\n+                  </Link>\n+                </Button>\n"}}
+{"t":"tool_result","toolName":"patchFile","result":{"success":true,"message":"Patch applied successfully to: src/app/page.tsx","operation":{"type":"patch","path":"src/app/page.tsx","content":"@@\n-                {/* Execution Time */}\n-                {project.executionTime && (\n-                  <span\n-                    id=\"node-element-project-execution-time\"\n-                    className=\"text-xs font-medium text-foreground/70\"\n-                  >\n-                    ⏱️ Built in {project.executionTime}\n-                  </span>\n-                )}\n-                <Button\n-                  asChild\n-                  size=\"sm\"\n-                  className=\"mt-2 self-start transition-colors group-hover:bg-primary/90\"\n-                >\n-                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n-                    View on GitHub →\n-                  </Link>\n-                </Button>\n+                <Button\n+                  asChild\n+                  size=\"sm\"\n+                  className=\"mt-2 self-start bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-700\"\n+                >\n+                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n+                    View on GitHub →\n+                  </Link>\n+                </Button>\n"}},"codeBlock":{"language":"patch:src/app/page.tsx","filename":"src/app/page.tsx","content":"@@\n-                {/* Execution Time */}\n-                {project.executionTime && (\n-                  <span\n-                    id=\"node-element-project-execution-time\"\n-                    className=\"text-xs font-medium text-foreground/70\"\n-                  >\n-                    ⏱️ Built in {project.executionTime}\n-                  </span>\n-                )}\n-                <Button\n-                  asChild\n-                  size=\"sm\"\n-                  className=\"mt-2 self-start transition-colors group-hover:bg-primary/90\"\n-                >\n-                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n-                    View on GitHub →\n-                  </Link>\n-                </Button>\n+                <Button\n+                  asChild\n+                  size=\"sm\"\n+                  className=\"mt-2 self-start bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-700\"\n+                >\n+                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n+                    View on GitHub →\n+                  </Link>\n+                </Button>\n"}}
+{"t":"token","d":"node"}
+{"t":"token","d":"-element"}
+{"t":"token","d":"-project"}
+{"t":"token","d":"-card"}
+{"t":"token","d":":\n\n"}
+{"t":"token","d":"•"}
+{"t":"token","d":" Removed"}
+{"t":"token","d":" the"}
+{"t":"token","d":" execution"}
+{"t":"token","d":"-"}
+{"t":"token","d":"time"}
+{"t":"token","d":" bl"}
+{"t":"token","d":"urb"}
+{"t":"token","d":".\n"}
+{"t":"token","d":"•"}
+{"t":"token","d":" Changed"}
+{"t":"token","d":" the"}
+{"t":"token","d":" Git"}
+{"t":"token","d":"Hub"}
+{"t":"token","d":" button"}
+{"t":"token","d":" to"}
+{"t":"token","d":" use"}
+{"t":"token","d":" a"}
+{"t":"token","d":" green"}
+{"t":"token","d":" palette"}
+{"t":"token","d":" (`"}
+{"t":"token","d":"bg"}
+{"t":"token","d":"-green"}
+{"t":"token","d":"-"}
+{"t":"token","d":"600"}
+{"t":"token","d":"`,"}
+{"t":"token","d":" `"}
+{"t":"token","d":"hover"}
+{"t":"token","d":":bg"}
+{"t":"token","d":"-green"}
+{"t":"token","d":"-"}
+{"t":"token","d":"700"}
+{"t":"token","d":"`)"}
+{"t":"token","d":" rather"}
+{"t":"token","d":" than"}
+{"t":"token","d":" the"}
+{"t":"token","d":" previous"}
+{"t":"token","d":" primary"}
+{"t":"token","d":" color"}
+{"t":"token","d":","}
+{"t":"token","d":" matching"}
+{"t":"token","d":" the"}
+{"t":"token","d":" new"}
+{"t":"token","d":" prompt"}
+{"t":"token","d":" requirement"}
+{"t":"token","d":" for"}
+{"t":"token","d":" a"}
+{"t":"token","d":" “"}
+{"t":"token","d":"green"}
+{"t":"token","d":" button"}
+{"t":"token","d":" that"}
+{"t":"token","d":" leads"}
+{"t":"token","d":" to"}
+{"t":"token","d":" github"}
+{"t":"token","d":".”"}
+{"t":"final","reply":"node-element-project-card:\n\n• Removed the execution-time blurb.\n• Changed the GitHub button to use a green palette (`bg-green-600`, `hover:bg-green-700`) rather than the previous primary color, matching the new prompt requirement for a “green button that leads to github.”","operations":[{"type":"patch","path":"src/app/page.tsx","content":"@@\n-                {/* Execution Time */}\n-                {project.executionTime && (\n-                  <span\n-                    id=\"node-element-project-execution-time\"\n-                    className=\"text-xs font-medium text-foreground/70\"\n-                  >\n-                    ⏱️ Built in {project.executionTime}\n-                  </span>\n-                )}\n-                <Button\n-                  asChild\n-                  size=\"sm\"\n-                  className=\"mt-2 self-start transition-colors group-hover:bg-primary/90\"\n-                >\n-                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n-                    View on GitHub →\n-                  </Link>\n-                </Button>\n+                <Button\n+                  asChild\n+                  size=\"sm\"\n+                  className=\"mt-2 self-start bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-700\"\n+                >\n+                  <Link href={project.href} target=\"_blank\" rel=\"noopener noreferrer\">\n+                    View on GitHub →\n+                  </Link>\n+                </Button>\n"}],"toolCalls":2,"toolResults":2}
+[partial-code] end of stream

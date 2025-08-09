@@ -5,6 +5,7 @@ import ChatSidebar from "@/components/ChatSidebar";
 import FileTree from "@/components/FileTree";
 import FileEditor from "@/components/FileEditor";
 import AppViewer from "@/components/AppViewer";
+import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
 import EvaluationWindow from "@/components/EvaluationWindow";
 import { useProjectStore } from "@/lib/store";
@@ -20,8 +21,11 @@ export default function Home() {
   
   const [isEditMode, setIsEditMode] = useState(true);
 
-  const { loadProject: loadProjectFromFileSystem } = useProjectStore();
+  const { loadProject: loadProjectFromFileSystem, selectedNodeId, selectedNode, setSelectedNode } = useProjectStore();
 
+  console.log('selectedNodeId');
+  console.log(selectedNodeId);
+  console.log(selectedNode);
   // Load project from filesystem on mount
   useEffect(() => {
     console.log('🚀 Loading project on mount');
@@ -58,6 +62,9 @@ export default function Home() {
               <FileEditor />
             </div>
           )}
+
+          {/* Node Details Sidebar (appears when an element is selected) */}
+          {selectedNodeId && <SelectedNodeSidebar />}
           
           {/* App Viewer Panel - expands to fill remaining space */}
           {panels.viewer && (

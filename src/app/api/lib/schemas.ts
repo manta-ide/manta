@@ -35,10 +35,26 @@ export const MessageVariablesSchema = z.object({
   })).optional(),
   CURRENT_FILE: z.string().optional(),
   CURRENT_FILE_CONTENT: z.string().optional(),
+  // Graph context variable
+  GRAPH_CONTEXT: z.string().optional(),
+  GRAPH_DATA: z.string().optional(),
+  MAX_NODES: z.number().optional(),
+  // Partial code generation control
+  STRICT_EDIT_MODE: z.string().optional(),
+  EDIT_HINTS: z.string().optional(),
+  SELECTED_NODE_IDS: z.string().optional(),
+  
+  // Node-specific variables for individual node code generation
+  NODE_TITLE: z.string().optional(),
+  NODE_KIND: z.string().optional(),
+  NODE_WHAT: z.string().optional(),
+  NODE_HOW: z.string().optional(),
+  NODE_PROPERTIES: z.string().optional(),
+  NODE_CHILDREN: z.string().optional(),
   
   // User message variables
   USER_REQUEST: z.string().optional(),
-  SELECTION: z.enum(['true', 'false']).optional(),
+  SELECTION: z.string().optional(),
   SELECTION_X: z.string().optional(),
   SELECTION_Y: z.string().optional(),
   SELECTION_WIDTH: z.string().optional(),
@@ -56,6 +72,8 @@ export const SystemVariablesSchema = MessageVariablesSchema.pick({
   PROJECT_FILES: true,
   CURRENT_FILE: true,
   CURRENT_FILE_CONTENT: true,
+  GRAPH_DATA: true,
+  MAX_NODES: true,
 });
 
 export const UserVariablesSchema = MessageVariablesSchema.pick({
@@ -104,6 +122,7 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export const ClientChatRequestSchema = z.object({
   userMessage: MessageSchema,
   sessionId: z.string().optional(), // For conversation continuity
+  parsedMessages: z.array(ParsedMessageSchema).optional(), // Pre-processed messages for AI
 });
 
 export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;

@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { Selection } from '@/app/api/lib/schemas';
+import { GraphNodeSchema } from '@/app/api/lib/graphStorage';
+import { z } from 'zod';
 
 interface FileNode {
   name: string;
@@ -16,6 +18,9 @@ interface ProjectStore {
   fileTree: FileNode[];
   selection: Selection | null;
   refreshTrigger: number; // Add refresh trigger counter
+  // Selected node (graph element) state
+  selectedNodeId: string | null;
+  selectedNode: z.infer<typeof GraphNodeSchema> | null;
   
   loadProject: () => Promise<void>;
   setFileContent: (path: string, content: string) => Promise<void>;
@@ -24,6 +29,7 @@ interface ProjectStore {
   setCurrentFile: (path: string | null) => void;
   setSelectedFile: (path: string | null) => void;
   setSelection: (selection: Selection | null) => void;
+  setSelectedNode: (id: string | null, node?: z.infer<typeof GraphNodeSchema> | null) => void;
   getFileContent: (path: string) => string;
   getAllFiles: () => Map<string, string>;
   buildFileTree: () => void;
@@ -37,17 +43,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   fileTree: [],
   selection: null,
   refreshTrigger: 0, // Initialize refresh trigger
+  selectedNodeId: null,
+  selectedNode: null,
 
   loadProject: async () => {
     try {
       console.log('📂 Loading project from filesystem...');
-      const response = await fetch('/api/files');
+      const response = await fetch('http://localhost:3000/api/files?graphs=true');
       const data = await response.json();
       
       if (response.ok) {
         const files = new Map(Object.entries(data.files as Record<string, string>));
         console.log(`✅ Loaded ${files.size} files from backend`);
         console.log('📁 File tree structure:', data.fileTree);
+        
+        // Initialize in-memory graph storage from filesystem as source of truth
+        await fetch('http://localhost:3000/api/storage/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
         set({ files, fileTree: data.fileTree });
       } else {
         console.error('❌ Error loading project:', data.error);
@@ -60,7 +75,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setFileContent: async (filePath, content) => {
     try {
       console.log(`📝 Updating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch('/api/files', {
+      const response = await fetch('http://localhost:3000/api/files', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content })
@@ -86,7 +101,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   deleteFile: async (filePath) => {
     try {
       console.log(`🗑️ Deleting file: ${filePath}`);
-      const response = await fetch('/api/files', {
+      const response = await fetch('http://localhost:3000/api/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath })
@@ -120,7 +135,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   createFile: async (filePath, content) => {
     try {
       console.log(`➕ Creating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch('/api/files', {
+      const response = await fetch('http://localhost:3000/api/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content })
@@ -150,6 +165,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setCurrentFile: (path) => set({ currentFile: path }),
   setSelectedFile: (path) => set({ selectedFile: path }),
   setSelection: (selection) => set({ selection }),
+  setSelectedNode: (id, node = null) => set({ selectedNodeId: id, selectedNode: node ?? null }),
   
   getFileContent: (path) => {
     return get().files.get(path) || '';

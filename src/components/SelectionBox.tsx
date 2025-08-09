@@ -1,0 +1,209 @@
+// SelectionBox.tsx
+'use client';
+
+import React, { useRef, MouseEvent } from 'react';
+import { useProjectStore } from '@/lib/store';
+
+interface SelectionBoxProps {
+  isEditMode: boolean;
+  document: Document | null;
+  window: Window | null;
+  sessionId?: string;
+}
+
+export default function SelectionBox({ isEditMode, document: doc, window: win, sessionId }: SelectionBoxProps) {
+  const { selection, setSelection, setSelectedNode } = useProjectStore();
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Selection state
+  const [startPt, setStartPt] = React.useState<{ x: number; y: number } | null>(null);
+  const [isSelecting, setIsSelecting] = React.useState(false);
+  const [hasMoved, setHasMoved] = React.useState(false);
+  const suppressClick = useRef(false);
+
+  const MIN = 4; // px
+
+  const handleMouseDown = (e: MouseEvent) => {
+    if (!isEditMode || e.button !== 0) return;
+
+    setStartPt({ x: e.pageX, y: e.pageY });
+    setIsSelecting(true);
+    setHasMoved(false);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isEditMode || !isSelecting || !startPt) return;
+
+    const width = Math.abs(startPt.x - e.pageX);
+    const height = Math.abs(startPt.y - e.pageY);
+    setHasMoved(width >= MIN || height >= MIN);
+
+    setSelection({
+      x: Math.min(startPt.x, e.pageX),
+      y: Math.min(startPt.y, e.pageY),
+      width,
+      height,
+      selectedElements: 'elements',
+    });
+
+    e.preventDefault();
+  };
+
+  const handleMouseUp = async (e: MouseEvent) => {
+    if (!isEditMode || !doc || !win) return;
+
+    if (hasMoved && startPt) {
+      const selLeft = Math.min(startPt.x, e.pageX);
+      const selTop = Math.min(startPt.y, e.pageY);
+      const selRight = Math.max(startPt.x, e.pageX);
+      const selBottom = Math.max(startPt.y, e.pageY);
+
+      const overlayRoot = doc.getElementById('selection-overlay-root');
+
+      const intersects = (rLeft: number, rTop: number, rRight: number, rBottom: number) =>
+        selLeft < rRight && selRight > rLeft &&
+        selTop < rBottom && selBottom > rTop;
+
+      const STYLE_KEYS = [
+        'display',
+        'position',
+        'color',
+        'backgroundColor',
+        'fontSize',
+        'fontWeight',
+      ] as const;
+
+      type PickedStyle = { [K in (typeof STYLE_KEYS)[number]]: string };
+
+      interface SelectedDescriptor {
+        tag: string;
+        text: string;
+        style: PickedStyle;
+        coverage: number;
+      }
+
+      const buildDescriptor = (el: HTMLElement, coverage: number): SelectedDescriptor => {
+        const cs = win.getComputedStyle(el);
+        const picked: PickedStyle = {} as PickedStyle;
+        STYLE_KEYS.forEach(k => (picked[k] = cs[k as any] || ''));
+
+        const txt = el.innerText.trim().replace(/\s+/g, ' ').slice(0, 80);
+        return {
+          tag: el.tagName.toLowerCase(),
+          text: txt,
+          style: picked,
+          coverage: Number(coverage.toFixed(1)),
+        };
+      };
+
+      const selected: SelectedDescriptor[] = [];
+      doc.body.querySelectorAll<HTMLElement>('*').forEach(el => {
+        if (overlayRoot && overlayRoot.contains(el)) return;
+
+        const rect = el.getBoundingClientRect();
+        const rLeft = rect.left + win.scrollX;
+        const rTop = rect.top + win.scrollY;
+        const rRight = rect.right + win.scrollX;
+        const rBottom = rect.bottom + win.scrollY;
+
+        if (!intersects(rLeft, rTop, rRight, rBottom)) return;
+
+        const interLeft = Math.max(selLeft, rLeft);
+        const interTop = Math.max(selTop, rTop);
+        const interRight = Math.min(selRight, rRight);
+        const interBottom = Math.min(selBottom, rBottom);
+        const interArea =
+          Math.max(0, interRight - interLeft) *
+          Math.max(0, interBottom - interTop);
+        const elArea = rect.width * rect.height || 1;
+
+        const pct = (interArea / elArea) * 100;
+
+        if (pct >= 30) selected.push(buildDescriptor(el, pct));
+      });
+
+      console.log("selected", JSON.stringify(selected));
+
+      setSelection({
+        x: selLeft,
+        y: selTop,
+        width: selRight - selLeft,
+        height: selBottom - selTop,
+        selectedElements: JSON.stringify(selected),
+      });
+
+      suppressClick.current = true;
+      e.preventDefault();
+    } else {
+      // No drag selection: interpret as click selection of a single node element
+      try {
+        const overlayRoot = doc.getElementById('selection-overlay-root');
+        const elementsAtPoint = doc.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[];
+        const target = elementsAtPoint.find(el => {
+          if (!el || (overlayRoot && overlayRoot.contains(el))) return false;
+          return (el as HTMLElement).id?.startsWith?.('node-element-');
+        }) as HTMLElement | undefined;
+
+        if (target) {
+          const nodeId = target.id;
+          let nodeData: any = null;
+          if (sessionId) {
+            try {
+              const res = await fetch(`/api/storage/${sessionId}/${nodeId}`);
+              if (res.ok) {
+                const data = await res.json();
+                nodeData = data.node ?? null;
+              }
+            } catch (_) {}
+          }
+          setSelectedNode(nodeId, nodeData ?? undefined);
+        } else {
+          setSelectedNode(null, null);
+        }
+      } finally {
+        setSelection(null);
+      }
+    }
+
+    setStartPt(null);
+    setIsSelecting(false);
+    setHasMoved(false);
+  };
+
+  const handleClick = () => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    if (selection) setSelection(null);
+  };
+
+  return (
+    <div
+      ref={overlayRef}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: isEditMode ? 'auto' : 'none',
+        cursor: isEditMode && isSelecting ? 'crosshair' : 'default',
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onClick={handleClick}
+    >
+      {/* Visual selection box */}
+      {isEditMode && isSelecting && selection && (
+        <div
+          className="absolute z-[9999] border-2 border-blue-500 bg-blue-200/20 pointer-events-none"
+          style={{
+            left: `${selection.x}px`,
+            top: `${selection.y}px`,
+            width: `${selection.width}px`,
+            height: `${selection.height}px`,
+          }}
+        />
+      )}
+    </div>
+  );
+} 
