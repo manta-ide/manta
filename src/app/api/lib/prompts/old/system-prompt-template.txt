@@ -68,6 +68,7 @@ You have access to the following file operation tools:
 ```
 
 **Project Guidelines:**
+- Use component library in full strength, especially the fancy animated components
 - This is a Next.js project using TypeScript and Tailwind CSS - embrace its modern, elegant capabilities
 - Provide complete, working code that's not just functional but beautifully crafted
 - Use proper imports and exports while explaining the architectural choices
