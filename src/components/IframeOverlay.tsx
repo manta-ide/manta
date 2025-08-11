@@ -83,10 +83,7 @@ export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayPr
       style={{
         position: 'absolute',
         inset: 0,
-        // Allow children to control pointer event behavior. The parent host
-        // in the iframe is toggled between click-through and interactive
-        // by `AppViewer` using `pointer-events` on the host element.
-        pointerEvents: 'auto',
+        pointerEvents: 'none',
       }}
     >
       <ElementBoundingBoxes 
