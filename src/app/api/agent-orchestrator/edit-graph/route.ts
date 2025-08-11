@@ -7,7 +7,7 @@ import { getGraphSession, storeGraph } from '@/app/api/lib/graphStorage';
 
 // New prompt for editing graph
 const EDIT_GRAPH_CONFIG = {
-  model: 'gpt-4o',
+  model: 'gpt-5-nano',
   maxSteps: 50,
   streaming: false,
   temperature: 1,

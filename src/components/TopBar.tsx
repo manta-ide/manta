@@ -38,7 +38,6 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
       <div className="flex items-center justify-between">
         {/* Left side - App title */}
         <div className="flex items-center">
-          <h1 className="text-lg font-semibold text-white">Manta Editor</h1>
         </div>
 
         {/* Right side - Controls and Auth */}
