@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { streamText, generateObject, zodSchema } from 'ai';
 import { azure } from '@ai-sdk/azure';
+import { google } from '@ai-sdk/google';
 import { z } from 'zod';
 import { fileTools } from '@/app/api/lib/aiFileTools';
 import { 
@@ -23,7 +24,9 @@ const AgentConfigSchema = z.object({
   streaming: z.boolean(),
   providerOptions: z.any().optional(),
   temperature: z.number().optional(),
-  structuredOutput: z.boolean()
+  structuredOutput: z.boolean(),
+  // Optional explicit provider selector to override auto-detection
+  provider: z.enum(['azure', 'google']).optional(),
 });
 
 // Request schema with required configuration
@@ -47,9 +50,29 @@ export async function POST(req: NextRequest) {
     const messages = parsedMessages;
     // Use the provided tools or default to fileTools
     const tools = config.tools || null;
+    // Provider/model selection helpers
+    const detectProvider = (modelId: string): 'azure' | 'google' => {
+      const id = modelId.toLowerCase();
+      if (
+        id.includes('gemini') ||
+        id.includes('gemma') ||
+        id.includes('imagen') ||
+        id.includes('text-embedding') ||
+        id.includes('gemini-embedding')
+      ) {
+        return 'google';
+      }
+      return 'azure';
+    };
+
+    const selectModel = (modelId: string, provider?: 'azure' | 'google') => {
+      const p = provider ?? detectProvider(modelId);
+      return p === 'google' ? google(modelId) : azure(modelId);
+    };
+
     // Prepare streamText options
     const streamOptions: any = {
-      model: azure(config.model),
+      model: selectModel(config.model, config.provider) as any,
       messages: messages,
       tools: fileTools,
       maxSteps: config.maxSteps,
@@ -86,7 +109,7 @@ export async function POST(req: NextRequest) {
     if (config.structuredOutput) {
 
       const result = await generateObject({
-        model: azure(config.model),
+        model: selectModel(config.model, config.provider) as any,
         messages: messages,
         // Force JSON mode and ensure the schema is treated as an object JSON Schema
         mode: 'json',
@@ -131,7 +154,7 @@ export async function POST(req: NextRequest) {
     if (!config.streaming) {
       const { generateText } = await import('ai');
       const result = await generateText({
-        model: azure(config.model),
+        model: selectModel(config.model, config.provider) as any,
         messages: messages,
         tools: tools,
         maxSteps: config.maxSteps,

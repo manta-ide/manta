@@ -3,9 +3,19 @@ import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 
 const QuickPatchConfig = {
-  model: 'gpt-5-nano',
+  model: 'gemini-2.5-flash',
   temperature: 1,
   promptTemplate: 'quick-patch-template',
+  // optional: provider override; if undefined, provider auto-detected by model id
+  provider: 'google',
+  providerOptions: {
+    google: {
+      temperature: 1,
+      thinking_config: {
+        thinking_budget:0
+      }
+    }
+  }
 } as const;
 
 const RequestSchema = z.object({
@@ -47,6 +57,7 @@ export async function POST(req: NextRequest) {
           structuredOutput: false,
           tools: null,
           maxSteps: 1,
+          provider: QuickPatchConfig.provider,
         },
         operationName: 'quick-patch',
         metadata: {
