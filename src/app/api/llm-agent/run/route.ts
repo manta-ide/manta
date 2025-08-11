@@ -11,6 +11,9 @@ import {
 import { addMessageToSession } from '../../lib/conversationStorage';
 
 import { GraphSchema } from '@/app/api/lib/graphStorage';
+import { promises as fsp } from 'fs';
+import { createWriteStream } from 'fs';
+import path from 'path';
 
 // Configuration schema for the agent
 const AgentConfigSchema = z.object({
@@ -31,18 +34,19 @@ const AgentRequestSchema = z.object({
     content: z.string(),
   })).optional(),
   config: AgentConfigSchema,
+  operationName: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
 });
 
 export async function POST(req: NextRequest) {
   try {
 
-    // Parse and valida
-    // te the request body using Zod
-    const {sessionId = 'default', parsedMessages, config } = AgentRequestSchema.parse(await req.json());
+    // Parse and validate the request body using Zod
+    const {sessionId = 'default', parsedMessages, config, operationName = 'agent', metadata } = AgentRequestSchema.parse(await req.json());
     // If no parsedMessages provided, create a simple message array
     const messages = parsedMessages;
     // Use the provided tools or default to fileTools
-    const tools = config.tools || fileTools;
+    const tools = config.tools || null;
     // Prepare streamText options
     const streamOptions: any = {
       model: azure(config.model),
@@ -58,6 +62,26 @@ export async function POST(req: NextRequest) {
       streamOptions.providerOptions = config.providerOptions;
     }
 
+    // Prepare logging (shared across all modes)
+    const logsDir = path.join(process.cwd(), 'logs');
+    await fsp.mkdir(logsDir, { recursive: true });
+    const logFilePath = path.join(
+      logsDir,
+      `${operationName}-${sessionId}-${Date.now()}.log`
+    );
+    const logStream = createWriteStream(logFilePath, { flags: 'a' });
+    const writeLog = (s: string) => logStream.write(s.endsWith('\n') ? s : s + '\n');
+
+    // Header
+    writeLog(`[${operationName}] session=${sessionId}`);
+    if (metadata) writeLog(`[${operationName}] metadata=${JSON.stringify(metadata)}`);
+    writeLog(`[${operationName}] messages:`);
+    (messages || []).forEach((m, i) => {
+      writeLog(`--- message[${i}] role=${m.role} ---`);
+      writeLog(m.content);
+      writeLog(`--- end message[${i}] ---`);
+    });
+
     // If structured output is requested, use generateObject instead
     if (config.structuredOutput) {
 
@@ -72,6 +96,18 @@ export async function POST(req: NextRequest) {
         temperature: config.temperature,
       });
 
+
+      // Log structured result
+      writeLog(`[${operationName}] structured-result:`);
+      writeLog(JSON.stringify({
+        object: result.object,
+        finishReason: result.finishReason,
+        usage: result.usage,
+        warnings: result.warnings,
+        providerMetadata: result.providerMetadata,
+        experimental_providerMetadata: result.experimental_providerMetadata,
+      }));
+      logStream.end();
 
       return new Response(JSON.stringify({
         type: 'structured',
@@ -104,6 +140,11 @@ export async function POST(req: NextRequest) {
         temperature: config.temperature
       });
 
+      // Log non-streaming result
+      writeLog(`[${operationName}] text-result:`);
+      writeLog(JSON.stringify(result));
+      logStream.end();
+
       return new Response(JSON.stringify({
         type: 'text',
         result: result
@@ -134,6 +175,7 @@ export async function POST(req: NextRequest) {
                 break;
               case 'text-delta':
                 full += chunk.textDelta;
+                writeLog(JSON.stringify({ t: 'token', d: chunk.textDelta }));
                 controller.enqueue(
                   encoder.encode(JSON.stringify({ t: 'token', d: chunk.textDelta }) + '\n')
                 );
@@ -141,6 +183,7 @@ export async function POST(req: NextRequest) {
 
               case 'tool-call':
                 toolCalls.push(chunk);
+                writeLog(JSON.stringify({ t: 'tool_call', toolName: chunk.toolName, args: chunk.args }));
                 // Send tool call info to UI for display
                 controller.enqueue(
                   encoder.encode(JSON.stringify({ 
@@ -155,6 +198,7 @@ export async function POST(req: NextRequest) {
 
               case 'tool-result' as any:
                 toolResults.push(chunk);
+                writeLog(JSON.stringify({ t: 'tool_result', toolName: (chunk as any).toolName, result: (chunk as any).result }));
                 
                 // Send tool result to UI, including any file content for code blocks
                 const resultData: any = { 
@@ -232,6 +276,9 @@ export async function POST(req: NextRequest) {
             .map(tr => (tr.result as any)?.operation)
             .filter(Boolean);
 
+          writeLog(`[${operationName}] end of stream`);
+          logStream.end();
+
           controller.enqueue(
             encoder.encode(
               JSON.stringify({ 
@@ -244,6 +291,7 @@ export async function POST(req: NextRequest) {
             )
           );
         } catch (err: any) {
+          writeLog(`[${operationName}] error: ${String(err?.message || err)}`);
           controller.enqueue(
             encoder.encode(
               JSON.stringify({ t: 'error', error: String(err?.message || err) }) + '\n'

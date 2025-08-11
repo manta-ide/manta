@@ -12,6 +12,8 @@
 !.yarn/releases
 !.yarn/versions
 
+/logs
+
 # testing
 /coverage
 

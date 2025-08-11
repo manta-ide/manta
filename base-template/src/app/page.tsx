@@ -146,7 +146,7 @@ export default function Home() {
                 <Button
                   asChild
                   size="sm"
-                  className="mt-2 self-start bg-green-600 text-white hover:bg-green-700 focus-visible:ring-green-700"
+                  className="mt-2 self-start bg-orange-600 text-white hover:bg-orange-700 focus-visible:ring-orange-700"
                 >
                   <Link href={project.href} target="_blank" rel="noopener noreferrer">
                     View on GitHub →

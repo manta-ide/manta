@@ -161,7 +161,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
         {/* Global status boxes for unbuilt */}
         {allBoxes.map((box) => {
           const isUnbuilt = builtStatus[box.id] === false;
-          if (!isUnbuilt) return null;
+          if (true) return null;
           const label = 'Unbuilt';
           return (
             <div

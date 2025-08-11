@@ -4,13 +4,11 @@ import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTempl
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
 import { getGraphSession, loadGraphFromFile, markNodesBuilt } from '@/app/api/lib/graphStorage';
-import { promises as fsp } from 'fs';
-import { createWriteStream } from 'fs';
 import path from 'path';
 
 // New prompt for partial code generation
 const PARTIAL_CODE_CONFIG = {
-  model: 'o3',
+  model: 'gpt-5-mini',
   maxSteps: 50,
   streaming: true,
   temperature: 1,
@@ -126,30 +124,16 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Prepare logging to file (system prompts, tool calls/results, agent text)
-    const logsDir = path.join(process.cwd(), 'logs');
-    await fsp.mkdir(logsDir, { recursive: true });
-    const logFilePath = path.join(
-      logsDir,
-      `partial-code-${sessionId}-${Date.now()}.log`
-    );
-    const logStream = createWriteStream(logFilePath, { flags: 'a' });
-    const writeLog = (s: string) => logStream.write(s.endsWith('\n') ? s : s + '\n');
-
-    writeLog(`[partial-code] session=${sessionId}`);
-    writeLog(`[partial-code] nodeIds=${JSON.stringify(Array.from(idSet))}`);
-    if (editHints) writeLog(`[partial-code] editHints=${JSON.stringify(editHints)}`);
-    writeLog(`[partial-code] messages:`);
-    parsedMessages.forEach((m, i) => {
-      writeLog(`--- message[${i}] role=${m.role} ---`);
-      writeLog(m.content);
-      writeLog(`--- end message[${i}] ---`);
-    });
-
+    // Call agent with centralized logging
     const response = await callAgent(req, {
       sessionId: graphSessionId,
       parsedMessages,
       config: PARTIAL_CODE_CONFIG,
+      operationName: 'partial-code',
+      metadata: {
+        nodeIds: Array.from(idSet),
+        editHints: editHints ?? null
+      }
     });
 
     if (!response.ok) {
@@ -173,14 +157,10 @@ export async function POST(req: NextRequest) {
             if (done) break;
             const chunk = decoder.decode(value);
             controller.enqueue(encoder.encode(chunk));
-            // Log raw NDJSON chunk for full fidelity
-            writeLog(chunk);
             buffered += chunk;
           }
         } finally {
           controller.close();
-          writeLog('[partial-code] end of stream');
-          logStream.end();
           // After streaming completes, mark nodes as built
           try { await markNodesBuilt(sessionId, nodeIds); } catch {}
         }

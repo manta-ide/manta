@@ -3,7 +3,6 @@ import { exec } from 'child_process';
 import * as z from 'zod';
 import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
-import { applyAllDiffBlocks } from '@/app/diffHelpers';
 import { getLastError, clearLastError } from '@/lib/runtimeErrorStore';
 import path from 'node:path';
 
@@ -42,7 +41,7 @@ async function findTsConfig(start: string): Promise<string | null> {
   return null;
 }
 
-export async function buildProject(filePath: string) {
+export async function buildProject(filePath?: string) {
   const { exec } = await import("child_process");
   const run = (cmd: string) =>
     new Promise<{ ok: boolean; out: string }>((res) =>
@@ -52,6 +51,22 @@ export async function buildProject(filePath: string) {
         (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
       ),
     );
+
+  // If no file path provided, do full build
+  if (!filePath) {
+    const { ok, out } = await run('npx tsc --noEmit --pretty false');
+    
+    if (ok) return { success: true };
+
+    // strip ANSI colour codes
+    const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
+    const lines = plain.split('\n').filter((l) => l.trim());
+    const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
+    const errorLines =
+      (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
+
+    return { success: false, errorLines };
+  }
 
   const ext = (filePath.split(".").pop() || "").toLowerCase();
   if (!["ts", "tsx"].includes(ext)) return { success: true };
@@ -120,6 +135,7 @@ export const fileTools = {
   readFile: tool({
     description: 'Read a file and return its content. Returns error if file not found or too long.',
     parameters: z.object({
+      explanation: z.string().describe('Short explanation of why you want to read this file'),
       path: z.string().describe('The file path relative to the project root'),
     }),
     execute: async ({ path }) => {
@@ -174,10 +190,11 @@ export const fileTools = {
   createFile: tool({
     description: 'Create a new file with the given content',
     parameters: z.object({
+      explanation: z.string().describe('Short explanation of why you want to create this file'),
       path: z.string().describe('The file path relative to the project root'),
       content: z.string().describe('The content to write to the file'),
     }),
-    execute: async ({ path, content }) => {
+    execute: async ({ path, content, explanation }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         const dir = dirname(fullPath);
@@ -213,10 +230,11 @@ export const fileTools = {
   updateFile: tool({
     description: 'Update an existing file with new content',
     parameters: z.object({
+      explanation: z.string().describe('Short explanation of why you want to update this file'),
       path: z.string().describe('The file path relative to the project root'),
       content: z.string().describe('The new content for the file'),
     }),
-    execute: async ({ path, content }) => {
+    execute: async ({ path, content, explanation }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
@@ -251,12 +269,13 @@ export const fileTools = {
   }),
 
   patchFile: tool({
-    description: 'Apply a patch to an existing file using unified diff format',
+    description: 'Apply contextual edits to an existing file using edit_file-style format with // ... existing code ... markers',
     parameters: z.object({
+      explanation: z.string().describe('Short explanation of why you want to patch this file'),
       path: z.string().describe('The file path relative to the project root'),
-      patch: z.string().describe('The unified diff patch to apply'),
+      patchDescription: z.string().describe('Edit specification using minimal contextual snippets separated by // ... existing code ...'),
     }),
-    execute: async ({ path, patch }) => {
+    execute: async ({ path, patchDescription, explanation }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
@@ -264,39 +283,126 @@ export const fileTools = {
           return { 
             success: false, 
             message: `File does not exist: ${path}`,
-            operation: { type: 'patch', path, content: patch }
+            operation: { type: 'patch', path, patchDescription }
           };
         }
         
-        // Read current content and apply patch
+        // Read current content
         const currentContent = readFileSync(fullPath, 'utf-8');
-        const newContent = applyAllDiffBlocks(currentContent, [patch]);
         
-        if (newContent !== currentContent) {
-          writeFileSync(fullPath, newContent, 'utf-8');
-          const runtimeError = await buildProject(fullPath);
-          if(runtimeError.success === true) {
-            return { 
-              success: true, 
-              message: `Patch applied successfully to: ${path}`,
-              operation: { type: 'patch', path, content: patch }
-            };
-          }
-          else {
-            return {success: false, message: "Error in patch" + JSON.stringify(runtimeError), operation: { type: 'patch', path, content: patch }};
-          }
-        } else {
+        // Call the quick patch API
+        const response = await fetch('http://localhost:3000/api/agent-orchestrator/quick-patch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileContent: currentContent,
+            patchDescription: patchDescription,
+          }),
+        });
+
+        if (!response.ok) {
           return { 
             success: false, 
-            message: `Patch application failed - no changes made to: ${path}`,
-            operation: { type: 'patch', path, content: patch }
+            message: `Patch API failed: ${response.statusText}`,
+            operation: { type: 'patch', path, patchDescription }
+          };
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+          return { 
+            success: false, 
+            message: `Patch failed: ${result.error}`,
+            operation: { type: 'patch', path, patchDescription }
+          };
+        }
+        console.log(">>>>>>>>>>patchFile result", result);
+
+        // Helper: strip surrounding markdown code fences if present
+        const stripFences = (s: string): string => {
+          if (!s) return s;
+          const fenceMatch = s.match(/^```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```\s*$/);
+          if (fenceMatch) return fenceMatch[1];
+          const fenceMatchNoLang = s.match(/^```\n([\s\S]*?)\n```\s*$/);
+          return fenceMatchNoLang ? fenceMatchNoLang[1] : s;
+        };
+
+        // Helper: preserve quoted top-of-file directives from the original file
+        const preserveTopDirective = (original: string, patched: string): string => {
+          const isCommentOrEmpty = (line: string) =>
+            /^\s*$/.test(line) || /^\s*\/\//.test(line) || /^\s*\/\*/.test(line);
+
+          const originalLines = original.split('\n');
+          const patchedLines = patched.split('\n');
+
+          // Find first non-empty, non-comment line in original
+          let origIdx = 0;
+          while (origIdx < originalLines.length && isCommentOrEmpty(originalLines[origIdx])) origIdx++;
+          const originalFirst = originalLines[origIdx] ?? '';
+
+          // Regex for quoted directive like 'use client' or "use server"
+          const quotedDirectiveRe = /^\s*(["'])use\s+[a-zA-Z-]+\1;?\s*$/;
+          const hasQuotedDirective = quotedDirectiveRe.test(originalFirst);
+
+          if (!hasQuotedDirective) return patched; // nothing to enforce
+
+          const directiveLine = originalFirst; // preserve exactly as-is
+
+          // Find first non-empty, non-comment line in patched
+          let patIdx = 0;
+          while (patIdx < patchedLines.length && isCommentOrEmpty(patchedLines[patIdx])) patIdx++;
+          const patchedFirst = patchedLines[patIdx] ?? '';
+
+          // Bare directive (missing quotes) like: use client
+          const bareDirectiveRe = /^\s*use\s+[a-zA-Z-]+;?\s*$/;
+          const patchedHasBareDirective = bareDirectiveRe.test(patchedFirst);
+          const patchedHasQuotedDirective = quotedDirectiveRe.test(patchedFirst);
+
+          if (patchedHasQuotedDirective) {
+            // Already fine
+            return patched;
+          }
+
+          if (patchedHasBareDirective) {
+            // Replace bare with original quoted directive
+            patchedLines[patIdx] = directiveLine;
+            return patchedLines.join('\n');
+          }
+
+          // If original had a quoted directive but patched lost it, insert it at the very top
+          // Ensure it becomes the first meaningful statement
+          return [directiveLine, '', ...patchedLines].join('\n');
+        };
+
+        // Prepare final content with safety adjustments
+        const rawPatched = String(result.patchedContent ?? '');
+        const noFences = stripFences(rawPatched);
+        const adjusted = preserveTopDirective(currentContent, noFences);
+
+        // Write the patched content
+        writeFileSync(fullPath, adjusted, 'utf-8');
+        writeFileSync("patchlog.txt", adjusted, 'utf-8');
+        const runtimeError = await buildProject(fullPath);
+        
+        if(runtimeError.success === true) {
+          return { 
+            success: true, 
+            message: `Patch applied successfully to: ${path}`,
+            operation: { type: 'patch', path, patchDescription }
+          };
+        } else {
+          return {
+            success: false, 
+            message: "Error in patch: " + JSON.stringify(runtimeError), 
+            operation: { type: 'patch', path, patchDescription }
           };
         }
       } catch (error) {
         return { 
           success: false, 
           message: `Failed to patch file: ${error}`,
-          operation: { type: 'patch', path, content: patch }
+          operation: { type: 'patch', path, patchDescription }
         };
       }
     },
@@ -305,9 +411,10 @@ export const fileTools = {
   deleteFile: tool({
     description: 'Delete an existing file',
     parameters: z.object({
+      explanation: z.string().describe('Short explanation of why you want to delete this file'),
       path: z.string().describe('The file path relative to the project root'),
     }),
-    execute: async ({ path }) => {
+    execute: async ({ path, explanation }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
