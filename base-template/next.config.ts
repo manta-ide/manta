@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  basePath: '/iframe',
 };
 
 export default nextConfig;
