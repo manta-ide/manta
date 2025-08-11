@@ -193,7 +193,7 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
       onClick={handleClick}
     >
       {/* Visual selection box */}
-      {isEditMode && isSelecting && selection && (
+      {isEditMode && selection && (
         <div
           style={{
             position: 'absolute',

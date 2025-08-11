@@ -116,7 +116,7 @@
     {
       "id": "node-element-project-card",
       "title": "Project Card",
-      "prompt": "Kind: component. What: Displays project title, description, and a green button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.",
+      "prompt": "Kind: component. What: Displays project title, description, and a red button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.",
       "children": [],
       "built": true
     },
