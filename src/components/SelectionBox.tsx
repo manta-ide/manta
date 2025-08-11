@@ -195,8 +195,12 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
       {/* Visual selection box */}
       {isEditMode && isSelecting && selection && (
         <div
-          className="absolute z-[9999] border-2 border-blue-500 bg-blue-200/20 pointer-events-none"
           style={{
+            position: 'absolute',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            border: '2px solid #3b82f6',
+            backgroundColor: 'rgba(191, 219, 254, 0.2)',
             left: `${selection.x}px`,
             top: `${selection.y}px`,
             width: `${selection.width}px`,

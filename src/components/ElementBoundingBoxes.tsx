@@ -160,17 +160,36 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
         {allBoxes.map((box) => {
           const isUnbuilt = builtStatus[box.id] === false;
           if (!isUnbuilt) return null;
-          const borderColor = 'border-yellow-400';
-          const bgColor = 'bg-yellow-200/10';
           const label = 'Unbuilt';
-          const labelBg = 'bg-yellow-500';
           return (
             <div
               key={`status-${box.id}`}
-              className={`absolute ${borderColor} ${bgColor} border-2 pointer-events-none rounded-[3px]`}
-              style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, height: `${box.height}px` }}
+              style={{
+                position: 'absolute',
+                pointerEvents: 'none',
+                border: '2px solid #facc15', // yellow-400
+                backgroundColor: 'rgba(254, 240, 138, 0.1)', // yellow-200/10
+                borderRadius: 3,
+                left: `${box.x}px`,
+                top: `${box.y}px`,
+                width: `${box.width}px`,
+                height: `${box.height}px`,
+              }}
             >
-              <div className={`absolute -top-3 left-0 text-[10px] text-white ${labelBg} px-1 py-0.5 rounded`}>{label}</div>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -12,
+                  left: 0,
+                  fontSize: 10,
+                  color: '#fff',
+                  backgroundColor: '#eab308', // yellow-500
+                  padding: '2px 4px',
+                  borderRadius: 3,
+                }}
+              >
+                {label}
+              </div>
             </div>
           );
         })}
@@ -178,8 +197,12 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
         {/* Selected box overlay */}
         {selectedBox && (
           <div
-            className="absolute border-2 border-blue-300 bg-blue-100/10 pointer-events-none rounded-[3px]"
             style={{
+              position: 'absolute',
+              pointerEvents: 'none',
+              border: '2px solid #93c5fd', // blue-300
+              backgroundColor: 'rgba(219, 234, 254, 0.1)', // blue-100/10
+              borderRadius: 3,
               left: `${selectedBox.x}px`,
               top: `${selectedBox.y}px`,
               width: `${selectedBox.width}px`,
