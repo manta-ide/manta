@@ -75,6 +75,8 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       const byId = new Map<string, { left: number; top: number; right: number; bottom: number }>();
       doc.querySelectorAll<HTMLElement>('[id^="node-element-"]').forEach(el => {
         if (overlayRoot && overlayRoot.contains(el)) return;
+        // Exclude the root node from bounding boxes
+        if (el.id === 'node-element-swe-portfolio-page') return;
         const r = el.getBoundingClientRect();
         const left = r.left + win.scrollX;
         const top = r.top + win.scrollY;
@@ -201,7 +203,6 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
               position: 'absolute',
               pointerEvents: 'none',
               border: '2px solid #93c5fd', // blue-300
-              backgroundColor: 'rgba(219, 234, 254, 0.1)', // blue-100/10
               borderRadius: 3,
               left: `${selectedBox.x}px`,
               top: `${selectedBox.y}px`,
