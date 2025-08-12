@@ -102,11 +102,16 @@ export const WavyBackground = ({
   const [isSafari, setIsSafari] = useState(false);
   useEffect(() => {
     // I'm sorry but i have got to support it on safari.
-    setIsSafari(
-      typeof window !== "undefined" &&
-        navigator.userAgent.includes("Safari") &&
-        !navigator.userAgent.includes("Chrome")
-    );
+    // Use setTimeout to defer this check until after hydration
+    const timer = setTimeout(() => {
+      setIsSafari(
+        typeof window !== "undefined" &&
+          navigator.userAgent.includes("Safari") &&
+          !navigator.userAgent.includes("Chrome")
+      );
+    }, 0);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return (

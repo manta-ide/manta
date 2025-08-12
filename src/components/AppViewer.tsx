@@ -63,38 +63,42 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
 
   /* ── create / reuse host <div> inside the iframe once it loads ── */
   const handleIframeLoad = useCallback(() => {
-    // inside handleIframeLoad
-const doc =
-iframeRef.current?.contentDocument ??
-iframeRef.current?.contentWindow?.document;
-if (!doc) return;
+    // Give iframe time to fully hydrate before manipulating DOM
+    setTimeout(() => {
+      const doc =
+        iframeRef.current?.contentDocument ??
+        iframeRef.current?.contentWindow?.document;
+      if (!doc) return;
 
-// remove previous host if any
-doc.getElementById('selection-overlay-root')?.remove();
+      // Wait for iframe's React to fully hydrate before DOM manipulation
+      setTimeout(() => {
+        // remove previous host if any
+        doc.getElementById('selection-overlay-root')?.remove();
 
-// pick a container that scrolls with content
-const appRoot =
-(doc.getElementById('app-root') as HTMLElement) || doc.body;
+        // pick a container that scrolls with content
+        const appRoot =
+          (doc.getElementById('app-root') as HTMLElement) || doc.body;
 
-// ensure positioned ancestor for absolute children
-if (getComputedStyle(appRoot).position === 'static') {
-appRoot.style.position = 'relative';
-}
+        // ensure positioned ancestor for absolute children
+        if (getComputedStyle(appRoot).position === 'static') {
+          appRoot.style.position = 'relative';
+        }
 
-// (re)-create host that scrolls with content
-const host = doc.createElement('div');
-host.id = 'selection-overlay-root';
-Object.assign(host.style, {
- position: 'absolute',  // <- NOT fixed
- inset: '0',
- zIndex: '9999',
- // Let the child overlay layer decide whether to capture events.
- pointerEvents: isEditMode ? 'auto' : 'none',
-});
-appRoot.appendChild(host);
+        // (re)-create host that scrolls with content
+        const host = doc.createElement('div');
+        host.id = 'selection-overlay-root';
+        Object.assign(host.style, {
+          position: 'absolute',  // <- NOT fixed
+          inset: '0',
+          zIndex: '9999',
+          // Let the child overlay layer decide whether to capture events.
+          pointerEvents: isEditMode ? 'auto' : 'none',
+        });
+        appRoot.appendChild(host);
 
-setOverlayHost(host);
-
+        setOverlayHost(host);
+      }, 100); // Additional delay for iframe hydration
+    }, 0);
   }, [isEditMode]);
 
   /* ── cleanup overlay host on unmount ───────────────────────── */

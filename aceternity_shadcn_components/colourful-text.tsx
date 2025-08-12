@@ -21,13 +21,18 @@ export default function ColourfulText({ text }: { text: string }) {
 
   React.useEffect(() => {
     const interval = setInterval(() => {
-      const shuffled = [...colors].sort(() => Math.random() - 0.5);
+      // Use deterministic shuffling based on count to prevent hydration issues
+      const shuffled = [...colors].sort((a, b) => {
+        const aHash = a.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const bHash = b.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return ((aHash + count) % 2) - ((bHash + count) % 2);
+      });
       setCurrentColors(shuffled);
       setCount((prev) => prev + 1);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [count]);
 
   return text.split("").map((char, index) => (
     <motion.span

@@ -70,11 +70,15 @@ export const ModalBody = ({
   const { open } = useModal();
 
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
+    // Defer body style changes to avoid hydration mismatches
+    const timer = setTimeout(() => {
+      if (open) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "auto";
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [open]);
 
   const modalRef = useRef(null);
