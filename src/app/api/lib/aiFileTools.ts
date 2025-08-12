@@ -135,7 +135,7 @@ export const fileTools = {
   readFile: tool({
     description: 'Read a file and return its content. Returns error if file not found or too long.',
     parameters: z.object({
-      explanation: z.string().describe('Short explanation of why you want to read this file'),
+      /* explanation: z.string().describe('Short explanation of why you want to read this file'), */
       path: z.string().describe('The file path relative to the project root'),
     }),
     execute: async ({ path }) => {
@@ -190,11 +190,11 @@ export const fileTools = {
   createFile: tool({
     description: 'Create a new file with the given content',
     parameters: z.object({
-      explanation: z.string().describe('Short explanation of why you want to create this file'),
+      /* explanation: z.string().describe('Short explanation of why you want to create this file'), */
       path: z.string().describe('The file path relative to the project root'),
       content: z.string().describe('The content to write to the file'),
     }),
-    execute: async ({ path, content, explanation }) => {
+    execute: async ({ path, content }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         const dir = dirname(fullPath);
@@ -230,11 +230,11 @@ export const fileTools = {
   updateFile: tool({
     description: 'Update an existing file with new content',
     parameters: z.object({
-      explanation: z.string().describe('Short explanation of why you want to update this file'),
+      /* explanation: z.string().describe('Short explanation of why you want to update this file'), */
       path: z.string().describe('The file path relative to the project root'),
       content: z.string().describe('The new content for the file'),
     }),
-    execute: async ({ path, content, explanation }) => {
+    execute: async ({ path, content }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
@@ -271,11 +271,11 @@ export const fileTools = {
   patchFile: tool({
     description: 'Apply contextual edits to an existing file using edit_file-style format with // ... existing code ... markers',
     parameters: z.object({
-      explanation: z.string().describe('Short explanation of why you want to patch this file'),
+      /* explanation: z.string().describe('Short explanation of why you want to patch this file'), */
       path: z.string().describe('The file path relative to the project root'),
       patchDescription: z.string().describe('Edit specification using minimal contextual snippets separated by // ... existing code ...'),
     }),
-    execute: async ({ path, patchDescription, explanation }) => {
+    execute: async ({ path, patchDescription }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
@@ -289,6 +289,26 @@ export const fileTools = {
         
         // Read current content
         const currentContent = readFileSync(fullPath, 'utf-8');
+
+        // Validate patchDescription is edit_file-style with contextual code (be permissive but guard against pure instructions)
+        const description = patchDescription || '';
+        const hasEditMarker = description.includes('// ... existing code ...');
+        const lines = description.split('\n');
+        const normalizedCandidates = lines
+          .map((raw) => raw.replace(/^\s*[+\-]/, '').trimEnd()) // strip diff-like prefixes
+          .filter((l) => l.trim().length > 0 && !l.includes('// ... existing code ...'));
+        const anchorCount = normalizedCandidates.reduce((acc, line) => acc + (line.length >= 3 && currentContent.includes(line) ? 1 : 0), 0);
+        const isLikelyInstruction = anchorCount === 0 && !hasEditMarker;
+        const isTooLarge = description.length > 10000; // safety guard
+
+        if (isLikelyInstruction || isTooLarge) {
+          return {
+            success: false,
+            message:
+              'PATCH_DESCRIPTION_INVALID: Provide concrete code edits with verbatim context lines copied from the current file. Include one or more anchors (exact lines from the file) and optionally use "// ... existing code ..." to omit unrelated sections. Avoid natural-language instructions.',
+            operation: { type: 'patch', path, patchDescription },
+          };
+        }
         
         // Call the quick patch API
         const response = await fetch('http://localhost:3000/api/agent-orchestrator/quick-patch', {
@@ -328,7 +348,10 @@ export const fileTools = {
           return fenceMatchNoLang ? fenceMatchNoLang[1] : s;
         };
 
-        // Helper: preserve quoted top-of-file directives from the original file
+        // Helper: preserve and normalize top-of-file directives.
+        // Guarantees exactly one directive at the very top (first meaningful line),
+        // preserves the original quoted directive if it existed, and removes any
+        // duplicate or malformed directive lines elsewhere (e.g., `use client"`).
         const preserveTopDirective = (original: string, patched: string): string => {
           const isCommentOrEmpty = (line: string) =>
             /^\s*$/.test(line) || /^\s*\/\//.test(line) || /^\s*\/\*/.test(line);
@@ -341,44 +364,71 @@ export const fileTools = {
           while (origIdx < originalLines.length && isCommentOrEmpty(originalLines[origIdx])) origIdx++;
           const originalFirst = originalLines[origIdx] ?? '';
 
-          // Regex for quoted directive like 'use client' or "use server"
-          const quotedDirectiveRe = /^\s*(["'])use\s+[a-zA-Z-]+\1;?\s*$/;
-          const hasQuotedDirective = quotedDirectiveRe.test(originalFirst);
+          // Patterns for directives
+          const quotedDirectiveRe = /^\s*(["'])use\s+([a-zA-Z-]+)\1;?\s*$/; // 'use client' or "use server"
+          const bareDirectiveRe = /^\s*use\s+([a-zA-Z-]+);?\s*$/;             // use client
+          const looseDirectiveRe = /^\s*["']?use\s+([a-zA-Z-]+)["']?;?\s*$/; // includes broken forms like: use client"
 
-          if (!hasQuotedDirective) return patched; // nothing to enforce
+          const hasQuotedDirectiveInOriginal = quotedDirectiveRe.test(originalFirst);
 
-          const directiveLine = originalFirst; // preserve exactly as-is
-
-          // Find first non-empty, non-comment line in patched
-          let patIdx = 0;
-          while (patIdx < patchedLines.length && isCommentOrEmpty(patchedLines[patIdx])) patIdx++;
-          const patchedFirst = patchedLines[patIdx] ?? '';
-
-          // Bare directive (missing quotes) like: use client
-          const bareDirectiveRe = /^\s*use\s+[a-zA-Z-]+;?\s*$/;
-          const patchedHasBareDirective = bareDirectiveRe.test(patchedFirst);
-          const patchedHasQuotedDirective = quotedDirectiveRe.test(patchedFirst);
-
-          if (patchedHasQuotedDirective) {
-            // Already fine
-            return patched;
+          // Collect directive candidate line indices from the first few lines of patched
+          const directiveCandidateIdxs: number[] = [];
+          for (let i = 0; i < Math.min(patchedLines.length, 20); i++) {
+            const line = patchedLines[i];
+            if (isCommentOrEmpty(line)) continue;
+            if (looseDirectiveRe.test(line)) directiveCandidateIdxs.push(i);
           }
 
-          if (patchedHasBareDirective) {
-            // Replace bare with original quoted directive
-            patchedLines[patIdx] = directiveLine;
-            return patchedLines.join('\n');
+          if (hasQuotedDirectiveInOriginal) {
+            const directiveLine = originalFirst; // preserve exactly as-is
+
+            if (directiveCandidateIdxs.length === 0) {
+              // Insert original directive at top if missing
+              return [directiveLine, '', ...patchedLines].join('\n');
+            }
+
+            // Remove all directive candidates, then insert preserved directive at top
+            const cleaned: string[] = [];
+            for (let i = 0; i < patchedLines.length; i++) {
+              if (directiveCandidateIdxs.includes(i)) continue; // drop duplicates/malformed
+              cleaned.push(patchedLines[i]);
+            }
+            return [directiveLine, '', ...cleaned].join('\n');
           }
 
-          // If original had a quoted directive but patched lost it, insert it at the very top
-          // Ensure it becomes the first meaningful statement
-          return [directiveLine, '', ...patchedLines].join('\n');
+          // Original had no quoted directive. If patched has candidates, normalize the first and drop the rest.
+          if (directiveCandidateIdxs.length > 0) {
+            const firstIdx = directiveCandidateIdxs[0];
+            const firstLine = patchedLines[firstIdx];
+            const match = firstLine.match(quotedDirectiveRe) || firstLine.match(bareDirectiveRe) || firstLine.match(looseDirectiveRe);
+            const directiveKeyword = (match && (match[2] || match[1])) || 'client';
+            const normalizedDirective = `"use ${directiveKeyword}"`;
+
+            const cleaned: string[] = [];
+            for (let i = 0; i < patchedLines.length; i++) {
+              if (directiveCandidateIdxs.includes(i)) continue;
+              cleaned.push(patchedLines[i]);
+            }
+            return [normalizedDirective, '', ...cleaned].join('\n');
+          }
+
+          // No directives to normalize
+          return patched;
         };
 
         // Prepare final content with safety adjustments
         const rawPatched = String(result.patchedContent ?? '');
         const noFences = stripFences(rawPatched);
         const adjusted = preserveTopDirective(currentContent, noFences);
+
+        // If nothing changed, treat as a failure so the caller can try a different strategy
+        if (adjusted === currentContent) {
+          return {
+            success: false,
+            message: 'PATCH_NOOP: No changes were applied to the file. Ensure your patch uses verbatim context from the target file and touches the intended code.',
+            operation: { type: 'patch', path, patchDescription }
+          };
+        }
 
         // Write the patched content
         writeFileSync(fullPath, adjusted, 'utf-8');

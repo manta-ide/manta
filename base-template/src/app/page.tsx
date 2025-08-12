@@ -1,4 +1,6 @@
-"use client"
+'use client';
+
+
 
 import React from "react"
 import Image from "next/image"
@@ -48,6 +50,15 @@ const projects = [
   },
 ] as const
 
+const ProjectCard = () => (
+  <div id="node-element-project-card" className="group relative w-full max-w-sm overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-xl">
+    {/* ... other content ... */}
+      <a className="inline-block px-4 py-2 font-medium text-white bg-red-600 rounded hover:bg-red-700" target="_blank" rel="noopener noreferrer" href="https://github.com/yourrepository">
+        View on GitHub →
+      </a>
+  </div>
+);
+
 export default function Home() {
   return (
     <main
@@ -84,7 +95,7 @@ export default function Home() {
         {/* Title */}
         <h1
           id="node-element-hero-title"
-          className="text-4xl font-extrabold tracking-tight text-orange-600 dark:text-orange-400 sm:text-5xl md:text-6xl"
+          className="text-4xl font-extrabold tracking-tight text-green-500 dark:text-green-400 sm:text-5xl md:text-6xl"
         >
           John Doe
         </h1>
@@ -146,10 +157,10 @@ export default function Home() {
                 <Button
                   asChild
                   size="sm"
-                  className="mt-2 self-start bg-orange-600 text-white hover:bg-orange-700 focus-visible:ring-orange-700"
+                  className="mt-2 self-start bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-700"
                 >
                   <Link href={project.href} target="_blank" rel="noopener noreferrer">
-                    View on GitHub →
+                    Check on GitHub
                   </Link>
                 </Button>
               </CardContent>

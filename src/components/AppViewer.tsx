@@ -5,8 +5,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IframeOverlay from './IframeOverlay';
 import { LoaderFive } from '@/components/ui/loader';
-import { useProjectStore } from '@/lib/store';
-import { getLastError, setLastError } from '@/lib/runtimeErrorStore';
+import { setLastError } from '@/lib/runtimeErrorStore';
 
 interface AppViewerProps {
   isEditMode: boolean;
@@ -56,11 +55,8 @@ const IFRAME_PATH = '/iframe';
 export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
   const [isAppRunning, setIsAppRunning] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { refreshTrigger } = useProjectStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const scrollPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   /* host element (inside iframe) that will receive the portal */
   const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
@@ -132,26 +128,6 @@ setOverlayHost(host);
     const id = setInterval(probe, 3_000);
     return () => clearInterval(id);
   }, []);
-
-  /* ── refresh iframe when file operations complete ───────────── */
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      setIsRefreshing(true);
-
-      /* remember where the user was */
-      const win = iframeRef.current?.contentWindow;
-      if (win) {
-        scrollPositionRef.current = { x: win.scrollX, y: win.scrollY };
-      }
-
-      /* cache-bust */
-      const iframe = iframeRef.current;
-      if (iframe) {
-        const base = iframe.src.split('?')[0];
-        iframe.src = `${base}?refresh=${refreshTrigger}`;
-      }
-    }
-  }, [refreshTrigger]);
 
   /* ── early fallback while the child isn’t running ───────────── */
   if (!isAppRunning) {

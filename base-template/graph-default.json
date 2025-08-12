@@ -88,7 +88,7 @@
     {
       "id": "node-element-hero-title",
       "title": "Hero Title",
-      "prompt": "Kind: component. What: Displays the software engineer's name and title. How: Large, bold, and prominent text element for easy recognition, styled with orange text for emphasis. Properties: readable, responsive, attention-grabbing.",
+      "prompt": "Kind: component. What: Displays the software engineer's name and title. How: Large, bold, and prominent text element for easy recognition, styled with red text for emphasis. Properties: readable, responsive, attention-grabbing.",
       "children": [],
       "built": true
     },
@@ -116,7 +116,7 @@
     {
       "id": "node-element-project-card",
       "title": "Project Card",
-      "prompt": "Kind: component. What: Displays project title, description, and an orange button that leads to github. How: Card layout with hover interactions and clickable links. Properties: responsive, informative, clickable.",
+      "prompt": "Kind: component. What: Displays project title, description, and a red button that leads to GitHub. How: Card layout with hover interactions and clickable links. Button: red background with white text, labeled 'Check on GitHub'. Properties: responsive, informative, clickable, accessible.",
       "children": [],
       "built": true
     },

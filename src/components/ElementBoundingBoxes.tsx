@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { getGraphSession } from '@/app/api/lib/graphStorage';
 
 interface GraphNode {
   id: string;
@@ -42,6 +41,19 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
   const [allBoxes, setAllBoxes] = useState<Array<ElementInfo & { id: string }>>([]);
   const [builtStatus, setBuiltStatus] = useState<Record<string, boolean>>({});
 
+  const isRootNodeElement = (el: HTMLElement | null): boolean => {
+    if (!el) return false;
+    const id = el.id || '';
+    if (!id.startsWith('node-element-')) return false;
+    let parent: HTMLElement | null = el.parentElement;
+    while (parent) {
+      const pid = parent.id || '';
+      if (pid.startsWith('node-element-')) return false;
+      parent = parent.parentElement;
+    }
+    return true;
+  };
+
   useEffect(() => {
     if (!isEditMode || !doc || !win) {
       setSelectedBox(null);
@@ -56,7 +68,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       }
       const overlayRoot = doc.getElementById('selection-overlay-root');
       const el = doc.getElementById(selectedNodeId) as HTMLElement | null;
-      if (!el || (overlayRoot && overlayRoot.contains(el))) {
+      if (!el || (overlayRoot && overlayRoot.contains(el)) || isRootNodeElement(el)) {
         setSelectedBox(null);
         return;
       }
@@ -75,8 +87,8 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       const byId = new Map<string, { left: number; top: number; right: number; bottom: number }>();
       doc.querySelectorAll<HTMLElement>('[id^="node-element-"]').forEach(el => {
         if (overlayRoot && overlayRoot.contains(el)) return;
-        // Exclude the root node from bounding boxes
-        if (el.id === 'node-element-swe-portfolio-page') return;
+        // Exclude the root node from bounding boxes dynamically
+        if (isRootNodeElement(el)) return;
         const r = el.getBoundingClientRect();
         const left = r.left + win.scrollX;
         const top = r.top + win.scrollY;

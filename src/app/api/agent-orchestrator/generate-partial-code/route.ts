@@ -8,11 +8,11 @@ import path from 'path';
 
 // New prompt for partial code generation
 const PARTIAL_CODE_CONFIG = {
-  model: 'gpt-5-mini',
+  model: 'gpt-4.1-nano',
   maxSteps: 50,
   streaming: true,
   temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'high' } },
+  providerOptions: { azure: { reasoning_effort: 'low' } },
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',

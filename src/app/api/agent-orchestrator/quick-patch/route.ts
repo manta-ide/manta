@@ -21,6 +21,7 @@ const QuickPatchConfig = {
 const RequestSchema = z.object({
   fileContent: z.string(),
   patchDescription: z.string(),
+  filePath: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -33,70 +34,71 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { fileContent, patchDescription } = parsed.data;
+    const { fileContent, patchDescription, filePath } = parsed.data;
 
     // Get the prompt template
     const template = await getTemplate(QuickPatchConfig.promptTemplate);
     const content = parseMessageWithTemplate(template, {
       FILE_CONTENT: fileContent,
       PATCH_DESCRIPTION: patchDescription,
+      FILE_PATH: filePath || '',
     });
 
-    // Make a single LLM call
-    const response = await fetch('http://localhost:3000/api/llm-agent/run', {
+    // Call Google Gemini API directly to avoid AI SDK model version constraints
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({
+        error: 'Missing GOOGLE_GENERATIVE_AI_API_KEY in environment',
+      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const model = QuickPatchConfig.model;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sessionId: 'quick-patch',
-        parsedMessages: [{ role: 'user', content }],
-        config: {
-          model: QuickPatchConfig.model,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: content }],
+          },
+        ],
+        generationConfig: {
           temperature: QuickPatchConfig.temperature,
-          providerOptions: null,
-          streaming: false,
-          structuredOutput: false,
-          tools: null,
-          maxSteps: 1,
-          provider: QuickPatchConfig.provider,
         },
-        operationName: 'quick-patch',
-        metadata: {
-          fileContent,
-          patchDescription
-        }
       }),
       signal: req.signal,
     });
 
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({ error: `Quick patch failed: ${response.statusText}` }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      const errText = await response.text();
+      return new Response(JSON.stringify({ error: `Quick patch failed: ${response.status} ${response.statusText}`, details: errText }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    const result = await response.json();
+    const gemini = await response.json();
 
-    // Extract the final content from the LLM response.
-    // The /api/llm-agent/run endpoint wraps generateText output as:
-    // { type: 'text', result: { text: '...', ... } }
-    // Fall back to other common fields if the shape changes.
-    let patchedContent =
-      (result && result.result && typeof result.result.text === 'string' && result.result.text)
-      || (typeof result?.text === 'string' && result.text)
-      || (typeof result?.content === 'string' && result.content)
-      || (typeof result?.message === 'string' && result.message)
-      || fileContent;
-
-    // Normalize: strip surrounding markdown code fences if present
-    const stripFences = (s: string): string => {
-      if (!s) return s;
-      const fenceMatch = s.match(/^```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```\s*$/);
-      if (fenceMatch) return fenceMatch[1];
-      const fenceMatchNoLang = s.match(/^```\n([\s\S]*?)\n```\s*$/);
-      return fenceMatchNoLang ? fenceMatchNoLang[1] : s;
-    };
-    patchedContent = stripFences(patchedContent);
+    // Extract text from Gemini response
+    let patchedContent = (() => {
+      try {
+        const firstCandidate = Array.isArray(gemini?.candidates) ? gemini.candidates[0] : undefined;
+        const parts = firstCandidate?.content?.parts;
+        if (Array.isArray(parts)) {
+          const text = parts
+            .map((p: any) => (typeof p?.text === 'string' ? p.text : ''))
+            .join('')
+            .trim();
+          if (text) return text;
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    })() || fileContent;
 
     return new Response(JSON.stringify({ 
       success: true, 
