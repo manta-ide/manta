@@ -18,9 +18,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // Check for existing session on mount
+    // Mark as client-side and initialize auth
+    setIsClient(true);
     initializeAuth();
   }, []);
 
@@ -79,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut, refreshSession }}>
+    <AuthContext.Provider value={{ user, session, loading: loading || !isClient, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
