@@ -310,13 +310,71 @@ export const fileTools = {
           };
         }
         
-        // Call the quick patch API
+        // Helper: find a focused code block in the current file that best matches the patch anchors
+        const selectFocusedBlock = (
+          fileText: string,
+          patchText: string,
+          anchorLines: string[],
+          contextChars: number = 1200
+        ): { start: number; end: number; block: string; reducedPatch: string } | null => {
+          const presentAnchors = anchorLines
+            .map((s) => ({ text: s, pos: fileText.indexOf(s) }))
+            .filter((e) => e.pos >= 0);
+
+          if (presentAnchors.length === 0) return null;
+
+          let minPos = Infinity;
+          let maxPos = -1;
+          for (const a of presentAnchors) {
+            const start = a.pos;
+            const end = a.pos + a.text.length;
+            if (start < minPos) minPos = start;
+            if (end > maxPos) maxPos = end;
+          }
+
+          if (!isFinite(minPos) || maxPos < 0) return null;
+
+          // Expand to line boundaries with a small character context window
+          const pre = Math.max(0, minPos - contextChars);
+          const post = Math.min(fileText.length, maxPos + contextChars);
+          const lineStart = fileText.lastIndexOf('\n', pre - 1) + 1;
+          const lineEndIdx = fileText.indexOf('\n', post);
+          const lineEnd = lineEndIdx === -1 ? fileText.length : lineEndIdx;
+
+          const block = fileText.slice(lineStart, lineEnd);
+
+          // Reduce patch to the vicinity of anchors found inside the original patch text
+          const patchLines = patchText.split('\n');
+          const patchAnchorIdxs: number[] = [];
+          for (const a of presentAnchors) {
+            const idx = patchLines.findIndex((l) => l.includes(a.text));
+            if (idx >= 0) patchAnchorIdxs.push(idx);
+          }
+          let reducedPatch = patchText;
+          if (patchAnchorIdxs.length) {
+            const k = 28; // lines of context around anchors in patch
+            const pMin = Math.max(0, Math.min(...patchAnchorIdxs) - k);
+            const pMax = Math.min(patchLines.length, Math.max(...patchAnchorIdxs) + k + 1);
+            reducedPatch = patchLines.slice(pMin, pMax).join('\n');
+          }
+
+          return { start: lineStart, end: lineEnd, block, reducedPatch };
+        };
+
+        const focus = selectFocusedBlock(currentContent, description, normalizedCandidates);
+
+        // Decide which content to send: focused block (preferred) or full file (fallback)
+        const payloadContent = focus?.block ?? currentContent;
+        const payloadPatch = focus?.reducedPatch ?? patchDescription;
+
+        // Call the quick patch API with only the focused block
         const response = await fetch('http://localhost:3000/api/agent-orchestrator/quick-patch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fileContent: currentContent,
-            patchDescription: patchDescription,
+            fileContent: payloadContent,
+            patchDescription: payloadPatch,
+            filePath: path, // hints model about file context if useful
           }),
         });
 
@@ -419,7 +477,18 @@ export const fileTools = {
         // Prepare final content with safety adjustments
         const rawPatched = String(result.patchedContent ?? '');
         const noFences = stripFences(rawPatched);
-        const adjusted = preserveTopDirective(currentContent, noFences);
+
+        let adjusted: string;
+        if (focus) {
+          // Splice the patched block back into the original file
+          adjusted =
+            currentContent.slice(0, focus.start) +
+            noFences +
+            currentContent.slice(focus.end);
+        } else {
+          // Full-file replacement path: preserve/normalize top-of-file directives
+          adjusted = preserveTopDirective(currentContent, noFences);
+        }
 
         // If nothing changed, treat as a failure so the caller can try a different strategy
         if (adjusted === currentContent) {

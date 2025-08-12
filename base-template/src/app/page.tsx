@@ -2,6 +2,9 @@
 
 
 
+
+
+
 import React from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -51,11 +54,18 @@ const projects = [
 ] as const
 
 const ProjectCard = () => (
-  <div id="node-element-project-card" className="group relative w-full max-w-sm overflow-hidden rounded-lg border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-xl">
-    {/* ... other content ... */}
-      <a className="inline-block px-4 py-2 font-medium text-white bg-red-600 rounded hover:bg-red-700" target="_blank" rel="noopener noreferrer" href="https://github.com/yourrepository">
-        View on GitHub →
-      </a>
+  <div
+id="node-element-project-card"
+className="group relative flex flex-col rounded-lg border border-gray-300 bg-white p-4 shadow hover:shadow-lg"
+  >
+    <h2 className="text-xl font-semibold">Project Title</h2>
+    <p className="mt-2 text-gray-500">This is a project description.</p>
+    <a
+      href="#"
+      className="mt-4 inline-block rounded bg-black px-4 py-2 font-semibold text-white hover:bg-gray-800"
+    >
+      Check on GitHub
+    </a>
   </div>
 );
 
@@ -85,7 +95,7 @@ export default function Home() {
               textAnchor="middle"
               fontSize="42"
               fontWeight="700"
-              className="fill-white"
+className="fill-white"
             >
               JD
             </text>
@@ -95,7 +105,7 @@ export default function Home() {
         {/* Title */}
         <h1
           id="node-element-hero-title"
-          className="text-4xl font-extrabold tracking-tight text-green-500 dark:text-green-400 sm:text-5xl md:text-6xl"
+          className="text-4xl font-extrabold tracking-tight text-green-600 sm:text-5xl md:text-6xl"
         >
           John Doe
         </h1>
@@ -132,7 +142,7 @@ export default function Home() {
         className="flex w-full max-w-5xl flex-col gap-8"
       >
         <h2 className="text-2xl font-semibold">Projects</h2>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <Card
               key={project.title}
@@ -157,10 +167,10 @@ export default function Home() {
                 <Button
                   asChild
                   size="sm"
-                  className="mt-2 self-start bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-700"
+                  className="mt-2 self-start bg-black text-white hover:bg-gray-800 focus-visible:ring-gray-800"
                 >
                   <Link href={project.href} target="_blank" rel="noopener noreferrer">
-                    Check on GitHub
+                    View on GitHub
                   </Link>
                 </Button>
               </CardContent>
