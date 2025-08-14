@@ -34,10 +34,6 @@
       "built": true,
       "children": [
         {
-          "id": "node-element-hero-title",
-          "title": "Hero Title"
-        },
-        {
           "id": "node-element-hero-subtitle",
           "title": "Hero Subtitle"
         },
@@ -89,14 +85,6 @@
           "title": "Social Links Group"
         }
       ]
-    },
-    {
-      "id": "node-element-hero-title",
-      "title": "Hero Title",
-      "prompt": "Kind: component. What: Displays the software engineer's name and title. How: Large, bold, and prominent text element for easy recognition, styled with red text for emphasis. Properties: readable, responsive, attention-grabbing.",
-      "properties": [],
-      "built": true,
-      "children": []
     },
     {
       "id": "node-element-hero-subtitle",

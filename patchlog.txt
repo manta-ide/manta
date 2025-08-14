@@ -38,7 +38,7 @@ description: "A web-based collaborative editor enabling teams to edit documents 
     title: "E-commerce Platform",
     description: "Scalable multi-tenant e-commerce solution supporting thousands of stores, built with a micro-services architecture.",
     href: "https://github.com/example/commerce",
-    tech: ["NestJS", "PostgreSQL", "Redis"],
+tech: ["NestJS", "PostgreSQL", "Redis"],
     executionTime: "1 year",
   },
   {
@@ -78,26 +78,7 @@ export default function Home() {
         className="flex w-full max-w-5xl flex-col items-center gap-6 text-center"
       >
         {/* Profile Image */}
-        <div id="node-element-profile-image" className="relative size-40 rounded-full shadow-lg">
-          {/* Using an inline SVG placeholder to avoid missing asset warnings */}
-          <svg
-            viewBox="0 0 100 100"
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-full w-full rounded-full bg-gradient-to-br from-primary to-purple-600 text-white"
-          >
-            <text
-              x="50%"
-              y="54%"
-              dominantBaseline="middle"
-              textAnchor="middle"
-              fontSize="42"
-              fontWeight="700"
-className="fill-white"
-            >
-              JD
-            </text>
-          </svg>
-        </div>
+        {/* Removed node-element-profile-image as requested */}
 
         {/* Title */}
         <h1

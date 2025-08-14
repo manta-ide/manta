@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     // If specific nodeIds are provided (for node rebuilds), use partial code generation
     if (nodeIds && nodeIds.length > 0) {
-      const response = await fetch(`${req.nextUrl.origin}/api/agent-orchestrator/generate-partial-code`, {
+      const response = await fetch(`${req.nextUrl.origin}/api/agents/generate-partial-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -57,8 +57,20 @@ export async function POST(req: NextRequest) {
     const hasGraph = await graphExists();
 
     if (hasGraph) {
+      // Load current graph (before edit) to compute diffs later
+      const beforeGraph = await (async () => {
+        try {
+          const res = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data.success ? data.graph : null;
+        } catch {
+          return null;
+        }
+      })();
+
       // Edit the existing graph first
-      const editRes = await fetch(`${req.nextUrl.origin}/api/agent-orchestrator/edit-graph`, {
+      const editRes = await fetch(`${req.nextUrl.origin}/api/agents/edit-graph`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userMessage }),
@@ -66,7 +78,7 @@ export async function POST(req: NextRequest) {
       
       if (!editRes.ok) {
         console.warn('Graph edit failed, falling back to full graph generation');
-        const genRes = await fetch(`${req.nextUrl.origin}/api/agent-orchestrator/generate-graph`, {
+        const genRes = await fetch(`${req.nextUrl.origin}/api/agents/generate-graph`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userMessage }),
@@ -76,23 +88,56 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // After editing, generate code for only the unbuilt nodes
-      const unbuiltNodeIds = await (async () => {
+      // After editing, load updated graph and compute diffs
+      const { unbuiltNodeIds, removedNodeIds, parentAnchorIds } = await (async () => {
         try {
           const res = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
-          if (!res.ok) return [] as string[];
+          if (!res.ok) return { unbuiltNodeIds: [] as string[], removedNodeIds: [] as string[], parentAnchorIds: [] as string[] };
           const data = await res.json();
-          if (!data.success || !data.graph) return [] as string[];
-          const nodeIds = (data.graph.nodes || []).filter((n: any) => !n.built).map((n: any) => n.id);
-          return nodeIds as string[];
-        } catch { 
-          return [] as string[]; 
+          if (!data.success || !data.graph) return { unbuiltNodeIds: [] as string[], removedNodeIds: [] as string[], parentAnchorIds: [] as string[] };
+
+          const afterGraph = data.graph;
+
+          const afterIds = new Set<string>((afterGraph.nodes || []).map((n: any) => n.id));
+          const beforeIds = new Set<string>(Array.isArray(beforeGraph?.nodes) ? beforeGraph.nodes.map((n: any) => n.id) : []);
+          const removed = Array.from(beforeIds).filter(id => !afterIds.has(id));
+
+          // Build parent map from beforeGraph
+          const parentMap = new Map<string, string | null>();
+          if (beforeGraph && Array.isArray(beforeGraph.nodes)) {
+            const byId = new Map(beforeGraph.nodes.map((n: any) => [n.id, n]));
+            for (const node of beforeGraph.nodes) {
+              for (const child of node.children || []) {
+                parentMap.set(child.id, node.id);
+              }
+              // root has no parent
+              if (!parentMap.has(node.id)) parentMap.set(node.id, null);
+            }
+          }
+
+          // Choose anchor ids: nearest existing parent in afterGraph, or fall back to afterGraph.rootId
+          const anchors = new Set<string>();
+          for (const rid of removed) {
+            let p = parentMap.get(rid) ?? null;
+            while (p && !afterIds.has(p)) {
+              p = parentMap.get(p) ?? null;
+            }
+            if (p && afterIds.has(p)) anchors.add(p);
+          }
+          if (anchors.size === 0 && afterGraph?.rootId) {
+            anchors.add(afterGraph.rootId);
+          }
+
+          const unbuilt = (afterGraph.nodes || []).filter((n: any) => !n.built).map((n: any) => n.id);
+          return { unbuiltNodeIds: unbuilt as string[], removedNodeIds: removed as string[], parentAnchorIds: Array.from(anchors) };
+        } catch {
+          return { unbuiltNodeIds: [] as string[], removedNodeIds: [] as string[], parentAnchorIds: [] as string[] };
         }
       })();
 
       if (unbuiltNodeIds.length > 0) {
         // Partial code generation for specific nodes
-        const response = await fetch(`${req.nextUrl.origin}/api/agent-orchestrator/generate-partial-code`, {
+        const response = await fetch(`${req.nextUrl.origin}/api/agents/generate-partial-code`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userMessage, nodeIds: unbuiltNodeIds }),
@@ -104,13 +149,32 @@ export async function POST(req: NextRequest) {
 
         const result = await response.json();
         return NextResponse.json(result);
+      } else if (removedNodeIds.length > 0) {
+        // No unbuilt nodes, but nodes were removed from the graph. Trigger a cleanup pass.
+        const response = await fetch(`${req.nextUrl.origin}/api/agents/generate-partial-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userMessage, 
+            nodeIds: parentAnchorIds.length > 0 ? parentAnchorIds : [/* fallback will be handled above */],
+            includeDescendants: true,
+            removedNodeIds
+          }),
+        });
+
+        if (!response.ok) {
+          return NextResponse.json({ error: 'Failed to perform cleanup for removed nodes' }, { status: 500 });
+        }
+
+        const result = await response.json();
+        return NextResponse.json({ ...result, removedNodeIds });
       } else {
-        // Nothing to build
-        return NextResponse.json({ message: 'No unbuilt nodes to generate code for' });
+        // Nothing to build or remove
+        return NextResponse.json({ message: 'Graph updated. No unbuilt nodes or removals to process.' });
       }
     } else {
       // No graph: generate a full graph
-      const genRes = await fetch(`${req.nextUrl.origin}/api/agent-orchestrator/generate-graph`, {
+      const genRes = await fetch(`${req.nextUrl.origin}/api/agents/generate-graph`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userMessage }),
@@ -121,7 +185,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Now trigger code generation for the full graph
-      const response = await fetch(`${req.nextUrl.origin}/api/agent-orchestrator/generate-code`, {
+      const response = await fetch(`${req.nextUrl.origin}/api/agents/generate-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userMessage }),

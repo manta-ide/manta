@@ -358,7 +358,7 @@ export const fileTools = {
         const payloadPatch = focus?.reducedPatch ?? patchDescription;
 
         // Call the quick patch API with only the focused block
-        const response = await fetch('http://localhost:3000/api/agent-orchestrator/quick-patch', {
+        const response = await fetch('http://localhost:3000/api/agents/quick-patch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

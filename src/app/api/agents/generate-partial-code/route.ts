@@ -27,6 +27,7 @@ const RequestSchema = z.object({
   nodeIds: z.array(z.string()).min(1),
   includeDescendants: z.boolean().optional(),
   editHints: z.record(z.string(), EditHintSchema).optional(),
+  removedNodeIds: z.array(z.string()).optional(),
 });
 
 async function buildParsedMessages(
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { userMessage, nodeIds, includeDescendants = true, editHints } = parsed.data;
+    const { userMessage, nodeIds, includeDescendants = true, editHints, removedNodeIds } = parsed.data;
     let graph = getGraphSession();
     if (!graph) {
       await loadGraphFromFile();
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest) {
         SELECTED_NODE_IDS: JSON.stringify(Array.from(idSet)),
         STRICT_EDIT_MODE: '1',
         EDIT_HINTS: editHints ? JSON.stringify(editHints) : undefined,
+        REMOVED_NODE_IDS: removedNodeIds && removedNodeIds.length > 0 ? JSON.stringify(removedNodeIds) : undefined,
       }
     );
 
