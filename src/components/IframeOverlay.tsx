@@ -1,85 +1,101 @@
+
 // IframeOverlay.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useProjectStore } from '@/lib/store';
-import ElementBoundingBoxes from './ElementBoundingBoxes';
-import SelectionBox from './SelectionBox';
+import React, { useRef, useEffect, useState } from 'react';
+import SelectionBox from '@/components/SelectionBox';
+import ElementBoundingBoxes from '@/components/ElementBoundingBoxes';
 
 interface IframeOverlayProps {
   isEditMode: boolean;
+  sessionId?: string;
 }
 
-export default function IframeOverlay({ isEditMode }: IframeOverlayProps) {
-  const { selectedNodeId, setSelectedNode } = useProjectStore();
+interface GraphNode {
+  id: string;
+  title: string;
+  prompt: string;
+  kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
+  what: string;
+  how: string;
+  properties: string[];
+  children: Array<{
+    id: string;
+    title: string;
+    prompt: string;
+    kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
+  }>;
+}
+
+export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayProps) {
   const [document, setDocument] = useState<Document | null>(null);
   const [window, setWindow] = useState<Window | null>(null);
+  const [graphNodes, setGraphNodes] = useState<Map<string, GraphNode>>(new Map());
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const checkIframe = () => {
-      // Use the global document, not the local state
-      const iframe = globalThis.document.querySelector('iframe');
-      console.log('iframe', iframe);
-      if (!iframe) return;
-
-      const iframeDoc = iframe.contentDocument;
-      const iframeWin = iframe.contentWindow;
+    const updateDocumentReference = () => {
+      const doc = containerRef.current?.ownerDocument;
+      const win = doc?.defaultView || null;
       
-      console.log('iframeDoc', iframeDoc);
-      console.log('iframeWin', iframeWin);
-      
-      if (iframeDoc && iframeWin) {
-        setDocument(iframeDoc);
-        setWindow(iframeWin);
-        console.log('Successfully set iframe document and window');
-      }
+      setDocument(doc || null);
+      setWindow(win);
     };
 
-    // Check immediately
-    checkIframe();
+    // Initial update
+    updateDocumentReference();
 
-    // Also check periodically in case iframe loads after component mounts
-    const interval = setInterval(checkIframe, 20000);
-    
-    return () => clearInterval(interval);
-  }, []); // Remove document dependency to avoid circular dependency
+    // Set up a small delay to ensure the iframe is loaded
+    const timer = setTimeout(updateDocumentReference, 100);
 
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch graph node data for elements
   useEffect(() => {
-    if (!isEditMode || !document) return;
+    if (!isEditMode || !sessionId || !document) return;
 
-    // Handle clicks on node elements
-    const handleClick = async (e: Event) => {
+    const fetchGraphNodes = async () => {
+      const nodeElements = document.querySelectorAll<HTMLElement>('[id^="node-element-"]');
+      const nodesMap = new Map<string, GraphNode>();
 
-      const target = e.target as HTMLElement;
-      console.log('handleClick', target.id);
-      if (!target.id?.startsWith('node-element-')) return;
-
-      const nodeId = target.id.replace('node-element-', '');
-      
-      // Fetch node data from backend storage
-      const res = await fetch(`/api/backend/storage?nodeId=${nodeId}`);
-      if (res.ok) {
-        const data = await res.json();
-        // Update selected node in store
-        setSelectedNode(nodeId, data.node);
-        console.log('Selected node:', data.node);
+      for (const element of nodeElements) {
+        const nodeId = element.id;//.replace('node-element-', '');
+        try {
+          const response = await fetch(`/api/storage/${sessionId}/${nodeId}`);
+          if (response.ok) {
+            const data = await response.json();
+            nodesMap.set(element.id, data.node);
+          }
+        } catch (error) {
+          console.error(`Error fetching node data for ${nodeId}:`, error);
+        }
       }
+
+      setGraphNodes(nodesMap);
     };
 
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [isEditMode, document, setSelectedNode]);
+    fetchGraphNodes();
+  }, [isEditMode, sessionId, document]);
 
   return (
-    <div id="selection-overlay-root" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9999 }}>
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+      }}
+    >
       <ElementBoundingBoxes 
         isEditMode={isEditMode} 
-        document={document} 
+        document={document}
         window={window}
+        graphNodes={graphNodes}
       />
       <SelectionBox 
         isEditMode={isEditMode} 
-        document={document} 
+        document={document}
         window={window}
       />
     </div>
