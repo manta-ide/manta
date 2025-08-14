@@ -3,7 +3,7 @@
 import { XIcon, File, MousePointer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatSelectionLabel } from '@/lib/uiSelectionUtils';
-import { isValidSelection } from '@/app/api/lib/messageContextUtils';
+import { isValidSelection } from '@/app/api/lib/selectionUtils';
 import { Selection } from '@/app/api/lib/schemas';
 
 // Helper function to get just the filename from a full path

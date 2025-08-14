@@ -12,16 +12,6 @@ const PROJECT_ROOT = join(process.cwd(), 'base-template');
 // Maximum file size to read (in lines) to prevent memory issues
 const MAX_FILE_LINES = 1000;
 
-function run(cmd: string) {
-  return new Promise<{ ok: boolean; out: string }>((res) =>
-    exec(
-      cmd,
-      { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
-      (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
-    ),
-  );
-}
-
 async function findTsConfig(start: string): Promise<string | null> {
   const { promises: fs } = await import("node:fs");
   let dir = path.resolve(start);

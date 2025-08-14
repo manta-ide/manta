@@ -16,15 +16,13 @@ interface TopBarProps {
     editor: boolean;
     viewer: boolean;
     chat: boolean;
-    eval: boolean;
   };
   onTogglePanel: (panel: keyof TopBarProps['panels']) => void;
   isEditMode: boolean;
   setIsEditMode: (isEditMode: boolean) => void;
-  onOpenEval: () => void;
 }
 
-export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMode, onOpenEval }: TopBarProps) {
+export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMode}: TopBarProps) {
   const switchId = useId();
   const { user, signOut, loading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -113,19 +111,6 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               }
             >
               <MessageCircle className="w-4 h-4" />
-            </Button>
-
-            {/* Evaluation Button */}
-            <Button
-              variant={panels.eval ? "default" : "outline"}
-              size="sm"
-              onClick={onOpenEval}
-              className={panels.eval
-                ? "bg-zinc-700 text-white border-0"
-                : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-              }
-            >
-              <BarChart3 className="w-4 h-4" />
             </Button>
           </div>
 

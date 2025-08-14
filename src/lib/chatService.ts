@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { isValidSelection } from '@/app/api/lib/messageContextUtils';
+import { isValidSelection } from '@/app/api/lib/selectionUtils';
 import { 
   Message, 
   MessageContext

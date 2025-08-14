@@ -7,7 +7,6 @@ import FileEditor from "@/components/FileEditor";
 import AppViewer from "@/components/AppViewer";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
-import EvaluationWindow from "@/components/EvaluationWindow";
 import { useProjectStore } from "@/lib/store";
 
 export default function Home() {
@@ -16,7 +15,6 @@ export default function Home() {
     editor: false,
     viewer: true,
     chat: true,
-    eval: false,
   });
   
   const [isEditMode, setIsEditMode] = useState(true);
@@ -40,7 +38,6 @@ export default function Home() {
         onTogglePanel={togglePanel}
         isEditMode={isEditMode}
         setIsEditMode={setIsEditMode}
-        onOpenEval={() => togglePanel('eval')}
       />
       
       <div className="flex flex-1 overflow-hidden">
@@ -78,14 +75,6 @@ export default function Home() {
             <div className="w-96 flex-shrink-0 border-l border-zinc-700">
               <ChatSidebar />
             </div>
-          )}
-          
-          {/* Evaluation Panel */}
-          {panels.eval && (
-            <EvaluationWindow 
-              isOpen={panels.eval}
-              onClose={() => togglePanel('eval')}
-            />
           )}
         </div>
       </div>
