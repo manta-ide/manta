@@ -29,24 +29,21 @@ const skills = [
 const projects = [
   {
     title: "Realtime Collaboration Tool",
-    description:
-      "A web-based collaborative editor enabling teams to edit documents concurrently with operational-transforms and WebSockets.",
+description: "A web-based collaborative editor enabling teams to edit documents concurrently with operational-transforms and WebSockets.",
     href: "https://github.com/example/realtime-editor",
     tech: ["Next.js", "tRPC", "WebSockets"],
     executionTime: "6 months",
   },
   {
     title: "E-commerce Platform",
-    description:
-      "Scalable multi-tenant e-commerce solution supporting thousands of stores, built with a micro-services architecture.",
+    description: "Scalable multi-tenant e-commerce solution supporting thousands of stores, built with a micro-services architecture.",
     href: "https://github.com/example/commerce",
     tech: ["NestJS", "PostgreSQL", "Redis"],
     executionTime: "1 year",
   },
   {
     title: "Automated Trading Bot",
-    description:
-      "High-frequency crypto trading bot executing strategies with sub-second latency, written in Rust and TypeScript.",
+    description: "High-frequency crypto trading bot executing strategies with sub-second latency, written in Rust and TypeScript.",
     href: "https://github.com/example/trading-bot",
     tech: ["Rust", "TypeScript", "gRPC"],
     executionTime: "3 months",
@@ -62,7 +59,7 @@ className="group relative flex flex-col rounded-lg border border-gray-300 bg-whi
     <p className="mt-2 text-gray-500">This is a project description.</p>
     <a
       href="#"
-      className="mt-4 inline-block rounded bg-black px-4 py-2 font-semibold text-white hover:bg-gray-800"
+      className="mt-4 inline-block rounded bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
     >
       Check on GitHub
     </a>
@@ -167,7 +164,7 @@ className="fill-white"
                 <Button
                   asChild
                   size="sm"
-                  className="mt-2 self-start bg-black text-white hover:bg-gray-800 focus-visible:ring-gray-800"
+                  className="mt-2 self-start bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600"
                 >
                   <Link href={project.href} target="_blank" rel="noopener noreferrer">
                     View on GitHub

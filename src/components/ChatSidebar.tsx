@@ -133,19 +133,7 @@ export default function ChatSidebar() {
               </div>
             </div>
           ))}
-          
-          {/* Show loading indicator when processing */}
-          {loading && (
-            <div className="w-full">
-              <div className="whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm bg-zinc-800 text-zinc-200">
-                <div className="flex items-center gap-2">
-                  <div className="text-sm text-zinc-300 font-medium">
-                    Processing...
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
       

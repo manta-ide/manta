@@ -104,22 +104,23 @@ export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 
 // Graph schema for structured output
 export const GraphSchema = z.object({
-  rootId: z.string(),
-  nodes: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    prompt: z.string(),
-    kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']),
-    what: z.string(),
-    how: z.string(),
-    properties: z.array(z.string()),
-    children: z.array(z.object({
-      id: z.string(),
-      title: z.string(),
-      prompt: z.string(),
-      kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']),
-    })),
-  })),
+	rootId: z.string(),
+	nodes: z.array(z.object({
+		id: z.string(),
+		title: z.string(),
+		prompt: z.string().optional(),
+		kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']).optional(),
+		what: z.string().optional(),
+		how: z.string().optional(),
+		properties: z.array(z.string()).optional().default([]),
+		built: z.boolean().optional(),
+		children: z.array(z.object({
+			id: z.string(),
+			title: z.string(),
+			prompt: z.string().optional(),
+			kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']).optional(),
+		})).optional().default([]),
+	})),
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

@@ -5,6 +5,8 @@
       "id": "node-element-swe-portfolio-page",
       "title": "Software Engineer Portfolio Page",
       "prompt": "Kind: page. What: A portfolio page to showcase a software engineer's skills, experience, and projects. How: Organized layout with a hero section, skills section, projects section, and contact section. Properties: responsive, accessible, modern design.",
+      "properties": [],
+      "built": true,
       "children": [
         {
           "id": "node-element-hero-section",
@@ -22,13 +24,14 @@
           "id": "node-element-contact-section",
           "title": "Contact Section"
         }
-      ],
-      "built": true
+      ]
     },
     {
       "id": "node-element-hero-section",
       "title": "Hero Section",
       "prompt": "Kind: section. What: Introduction section with a title, subtitle, and profile image. How: Hero layout with large text and an image, highlighting the SWE's name and profession. Properties: centered, responsive, visually appealing.",
+      "properties": [],
+      "built": true,
       "children": [
         {
           "id": "node-element-hero-title",
@@ -42,37 +45,40 @@
           "id": "node-element-profile-image",
           "title": "Profile Image"
         }
-      ],
-      "built": true
+      ]
     },
     {
       "id": "node-element-skills-section",
       "title": "Skills Section",
       "prompt": "Kind: section. What: Lists technical skills and proficiencies. How: Grid layout with cards or badges for individual skills. Properties: interactive, organized, accessible.",
+      "properties": [],
+      "built": true,
       "children": [
         {
           "id": "node-element-skill-badge",
           "title": "Skill Badge"
         }
-      ],
-      "built": true
+      ]
     },
     {
       "id": "node-element-projects-section",
       "title": "Projects Section",
       "prompt": "Kind: section. What: Displays software engineering projects. How: Grid layout with cards showcasing project name, description, and links. Properties: responsive, informative, clickable.",
+      "properties": [],
+      "built": true,
       "children": [
         {
           "id": "node-element-project-card",
           "title": "Project Card"
         }
-      ],
-      "built": true
+      ]
     },
     {
       "id": "node-element-contact-section",
       "title": "Contact Section",
       "prompt": "Kind: section. What: Provides methods to contact the SWE. How: Contact form with fields for name, email, and message, and social media links. Properties: functional, accessible, responsive.",
+      "properties": [],
+      "built": true,
       "children": [
         {
           "id": "node-element-contact-form",
@@ -82,69 +88,76 @@
           "id": "node-element-social-links-group",
           "title": "Social Links Group"
         }
-      ],
-      "built": true
+      ]
     },
     {
       "id": "node-element-hero-title",
       "title": "Hero Title",
       "prompt": "Kind: component. What: Displays the software engineer's name and title. How: Large, bold, and prominent text element for easy recognition, styled with red text for emphasis. Properties: readable, responsive, attention-grabbing.",
-      "children": [],
-      "built": true
+      "properties": [],
+      "built": true,
+      "children": []
     },
     {
       "id": "node-element-hero-subtitle",
       "title": "Hero Subtitle",
       "prompt": "Kind: component. What: Provides a brief tagline or summary of the SWE's expertise. How: Smaller secondary text styled with proper spacing and typography. Properties: descriptive, readable.",
-      "children": [],
-      "built": true
+      "properties": [],
+      "built": true,
+      "children": []
     },
     {
       "id": "node-element-profile-image",
       "title": "Profile Image",
       "prompt": "Kind: component. What: Displays the SWE's profile picture. How: Circular or square image format with alt text for accessibility. Properties: accessible, responsive, visually appealing.",
-      "children": [],
-      "built": true
+      "properties": [],
+      "built": true,
+      "children": []
     },
     {
       "id": "node-element-skill-badge",
       "title": "Skill Badge",
       "prompt": "Kind: component. What: Represents individual technical skills. How: Styled badge with hover effects and accessible labels. Properties: interactive, reusable.",
-      "children": [],
-      "built": true
+      "properties": [],
+      "built": true,
+      "children": []
     },
     {
       "id": "node-element-project-card",
       "title": "Project Card",
-      "prompt": "Kind: component. What: Displays project title, description, and a black button that leads to GitHub. How: Card layout with hover interactions and clickable links. Button: black background with white text, labeled 'View on GitHub'. Properties: responsive, informative, clickable, accessible.",
-      "children": [],
-      "built": true
+      "prompt": "Kind: component. What: Displays project title, description, and a red button that leads to GitHub. How: Card layout with hover interactions and clickable links. Button: red background with white text, labeled 'View on GitHub'. Properties: responsive, informative, clickable, accessible.",
+      "properties": [],
+      "built": true,
+      "children": []
     },
     {
       "id": "node-element-contact-form",
       "title": "Contact Form",
       "prompt": "Kind: component. What: Form to collect user messages. How: Styled inputs and buttons with validation for name, email, and message fields. Properties: functional, accessible.",
-      "children": [],
-      "built": true
+      "properties": [],
+      "built": true,
+      "children": []
     },
     {
       "id": "node-element-social-links-group",
       "title": "Social Links Group",
       "prompt": "Kind: group. What: Displays social media icons with links. How: Horizontal layout of clickable icons for LinkedIn, GitHub, Twitter, etc. Properties: interactive, responsive, accessible.",
+      "properties": [],
+      "built": true,
       "children": [
         {
           "id": "node-element-social-link",
           "title": "Social Link"
         }
-      ],
-      "built": true
+      ]
     },
     {
       "id": "node-element-social-link",
       "title": "Social Link",
       "prompt": "Kind: primitive. What: Individual social media link. How: Clickable icon with alt text and hover effects. Properties: accessible, clickable.",
-      "children": [],
-      "built": true
+      "properties": [],
+      "built": true,
+      "children": []
     }
   ]
 }
