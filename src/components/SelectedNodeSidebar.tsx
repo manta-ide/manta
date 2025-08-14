@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
+import { useChatService } from '@/lib/chatService';
 
 export default function SelectedNodeSidebar() {
-  const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh } = useProjectStore();
+  const { selectedNodeId, selectedNode, setSelectedNode } = useProjectStore();
   const [promptDraft, setPromptDraft] = useState<string>('');
-  const [isRebuilding, setIsRebuilding] = useState(false);
-  const sessionId = 'default';
+
+  // Use chat service for rebuild operations
+  const { state: chatState, actions } = useChatService();
+  const { loading } = chatState;
+  const { rebuildNode } = actions;
 
   useEffect(() => {
     setPromptDraft(selectedNode?.prompt ?? '');
@@ -15,66 +19,34 @@ export default function SelectedNodeSidebar() {
 
   if (!selectedNodeId) return null;
 
-
   const handleRebuild = async () => {
     if (!selectedNodeId) return;
+    
     try {
-      setIsRebuilding(true);
-      // 1) Save latest prompt before rebuild
+      // 1) Save latest prompt before rebuild using new backend storage API
       const previousPrompt = selectedNode?.prompt ?? '';
-      const saveRes = await fetch(`/api/storage/${sessionId}/${selectedNodeId}`, {
+      const saveRes = await fetch(`/api/backend/storage`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptDraft })
+        body: JSON.stringify({ 
+          nodeId: selectedNodeId, 
+          prompt: promptDraft 
+        })
       });
+      
       if (!saveRes.ok) {
         console.error('Failed to save prompt before rebuild');
         return;
       }
+      
       const saved = await saveRes.json();
       setSelectedNode(selectedNodeId, saved.node);
 
-      // 2) Trigger partial code generation with explicit edit hints
-      const res = await fetch('/api/agent-orchestrator/generate-partial-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: { role: 'user', content: 'Rebuild selected node', variables: { USER_REQUEST: 'Rebuild selected node' } },
-          sessionId,
-          nodeIds: [selectedNodeId],
-          includeDescendants: true,
-          editHints: {
-            [selectedNodeId]: {
-              previousPrompt,
-              newPrompt: promptDraft,
-            }
-          },
-        })
-      });
-      if (!res.ok) {
-        console.error('Failed to trigger rebuild');
-        return;
-      }
-
-      // 3) Drain stream, then refresh project and viewer
-      const reader = res.body?.getReader();
-      if (reader) {
-        // Drain stream completely
-        while (true) {
-          const { done } = await reader.read();
-          if (done) break;
-        }
-      }
-
-      // Reload filesystem state and refresh the iframe viewer
-      try {
-        await loadProjectFromFileSystem();
-      } catch (e) {
-        console.warn('Reload after rebuild failed:', e);
-      }
-      triggerRefresh();
-    } finally {
-      setIsRebuilding(false);
+      // 2) Use chat service to rebuild the node
+      await rebuildNode(selectedNodeId, previousPrompt, promptDraft);
+      
+    } catch (error) {
+      console.error('Rebuild failed:', error);
     }
   };
 
@@ -113,9 +85,9 @@ export default function SelectedNodeSidebar() {
               <div className="flex gap-2">
                 <button
                   className={`px-3 py-1.5 rounded text-sm bg-blue-600 hover:bg-blue-700`}
-                  disabled={isRebuilding}
+                  disabled={loading}
                   onClick={handleRebuild}
-                >{isRebuilding ? 'Rebuilding…' : 'Rebuild'}</button>
+                >{loading ? 'Rebuilding…' : 'Rebuild'}</button>
               </div>
             </div>
 

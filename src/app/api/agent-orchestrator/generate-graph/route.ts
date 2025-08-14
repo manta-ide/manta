@@ -9,7 +9,7 @@ import { storeGraph } from '@/app/api/lib/graphStorage';
 const GRAPH_GEN_CONFIG = {
   model: 'gpt-4o',
   maxSteps: 50,
-  streaming: true,
+  streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'high' } },
   promptTemplates: {
@@ -20,17 +20,16 @@ const GRAPH_GEN_CONFIG = {
   structuredOutput: true,
 } as const;
 
-const RequestSchema = z.object({ userMessage: MessageSchema, sessionId: z.string().optional() });
+const RequestSchema = z.object({ userMessage: MessageSchema });
 
 async function buildParsedMessages(
-  sessionId: string,
   userMessage: Message,
   promptTemplates: Record<'system' | 'user' | 'assistant', string>,
   extraVariables?: Record<string, unknown>
 ): Promise<ParsedMessage[]> {
-  const session = getConversationSession(sessionId);
-  const systemMessage = await createSystemMessage(sessionId);
-  addMessageToSession(sessionId, userMessage);
+  const session = getConversationSession();
+  const systemMessage = await createSystemMessage();
+  addMessageToSession(userMessage);
   const allMessages = [systemMessage, ...session];
 
   const parsed: ParsedMessage[] = await Promise.all(
@@ -67,17 +66,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage } = parsed.data;
-    const sessionId = parsed.data.sessionId ?? 'default';
 
     // Build messages and run graph generation
     const parsedGraphGenMessages = await buildParsedMessages(
-      sessionId,
       userMessage,
       GRAPH_GEN_CONFIG.promptTemplates
     );
 
     const graphGenResponse = await callAgent(req, {
-      sessionId,
+      sessionId: 'graph-generation',
       parsedMessages: parsedGraphGenMessages,
       config: GRAPH_GEN_CONFIG,
     });
@@ -92,7 +89,7 @@ export async function POST(req: NextRequest) {
     const graphGenResult = await graphGenResponse.json();
     const graph = graphGenResult.result.object;
 
-    await storeGraph(sessionId, graph);
+    await storeGraph(graph);
 
     return new Response(JSON.stringify({ graph }), {
       status: 200,

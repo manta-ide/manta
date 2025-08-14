@@ -162,7 +162,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
           {/* All overlay UI is portalled INTO the iframe’s document */}
           {overlayHost &&
             createPortal(
-              <IframeOverlay isEditMode={isEditMode} sessionId="default" />,
+              <IframeOverlay isEditMode={isEditMode} />,
               overlayHost,
             )}
         </div>

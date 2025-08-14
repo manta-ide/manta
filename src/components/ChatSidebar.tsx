@@ -1,42 +1,16 @@
 'use client';
 
-import { useState, useRef, useMemo, useEffect } from 'react';
-import { Send, Brain, Square, Trash2 } from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { Send, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
-import { useChatService } from '@/lib/chatStreamingService';
-import { updateAutoScrollState } from '@/lib/chatAnimationUtils';
+import { useChatService } from '@/lib/chatService';
 import { MessageRenderer } from './CodeBlock';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-function ThinkingIndicator() {
-  return (
-    <div className="w-full">
-      <div className="whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm bg-zinc-800 text-zinc-200">
-        <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-zinc-400 animate-pulse" style={{ animationDuration: '1.5s' }} />
-          <div className="text-sm text-zinc-300 font-medium">
-            <span className="inline-block animate-pulse" style={{ animationDelay: '0ms', animationDuration: '0.8s' }}>t</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '80ms', animationDuration: '0.8s' }}>h</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '160ms', animationDuration: '0.8s' }}>i</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '240ms', animationDuration: '0.8s' }}>n</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '320ms', animationDuration: '0.8s' }}>k</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '400ms', animationDuration: '0.8s' }}>i</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '480ms', animationDuration: '0.8s' }}>n</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '560ms', animationDuration: '0.8s' }}>g</span>
-            <span className="inline-block animate-pulse ml-1" style={{ animationDelay: '640ms', animationDuration: '0.8s' }}>.</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '720ms', animationDuration: '0.8s' }}>.</span>
-            <span className="inline-block animate-pulse" style={{ animationDelay: '800ms', animationDuration: '0.8s' }}>.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ChatSidebar() {
   const { currentFile, selection, setSelection, setCurrentFile } = useProjectStore();
@@ -46,28 +20,10 @@ export default function ChatSidebar() {
   // scroll container
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Use chat service for all chat logic
-  const { state, actions, streamIdxRef, streamingState } = useChatService(scrollRef);
-  const { messages, loading, activelyReceiving } = state;
-  const { sendMessage, stopStream, clearMessages } = actions;
-
-  // Set up scroll event listener to track auto-scroll state
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
-
-    const handleScroll = () => {
-      // Always update auto-scroll state based on user's scroll position
-      // This allows users to scroll up during streaming to disable auto-scroll
-      updateAutoScrollState(scrollRef, streamingState);
-    };
-
-    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      scrollElement.removeEventListener('scroll', handleScroll);
-    };
-  }, [scrollRef, streamingState]);
+  // Use simplified chat service
+  const { state, actions } = useChatService();
+  const { messages, loading } = state;
+  const { sendMessage, clearMessages } = actions;
 
   // Memoize markdown components to prevent re-rendering
   const markdownComponents = useMemo(() => ({
@@ -178,11 +134,18 @@ export default function ChatSidebar() {
             </div>
           ))}
           
-          {/* Show animated thinking indicator when loading and no stream started */}
-          {loading && streamIdxRef.current === null && <ThinkingIndicator />}
-          
-          {/* Show thinking indicator during waiting periods between stream events */}
-          {loading && streamIdxRef.current !== null && !activelyReceiving && <ThinkingIndicator />}
+          {/* Show loading indicator when processing */}
+          {loading && (
+            <div className="w-full">
+              <div className="whitespace-pre-wrap break-words p-3 rounded-lg w-full text-sm bg-zinc-800 text-zinc-200">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-zinc-300 font-medium">
+                    Processing...
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -204,27 +167,15 @@ export default function ChatSidebar() {
               placeholder="Ask AI to help with your project..."
               className="flex-1 resize-none text-sm field-sizing-content max-h-29.5 min-h-0 py-1.75 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400"
             />
-            {loading ? (
-              <Button 
-                type="button" 
-                size="icon" 
-                onClick={stopStream}
-                className="shrink-0 bg-zinc-700 hover:bg-zinc-600"
-                title="Stop generation"
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button 
-                type="submit" 
-                size="icon" 
-                disabled={!input.trim()}
-                className="shrink-0 bg-zinc-700 hover:bg-zinc-600"
-                title="Send message"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
+            <Button 
+              type="submit" 
+              size="icon" 
+              disabled={!input.trim() || loading}
+              className="shrink-0 bg-zinc-700 hover:bg-zinc-600"
+              title="Send message"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </form>
       </div>

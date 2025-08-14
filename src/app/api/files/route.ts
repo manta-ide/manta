@@ -1,58 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
+import { Graph } from '../lib/graphStorage';
 
-interface FileNode {
-  name: string;
-  path: string;
-  type: 'file' | 'directory';
-  children?: FileNode[];
-  content?: string;
-}
+// Define the project root directory
+const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), 'project');
 
-interface GraphNode {
-  id: string;
-  title: string;
-  prompt: string;
-  kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
-  what: string;
-  how: string;
-  properties: string[];
-  children: Array<{
-    id: string;
-    title: string;
-    prompt: string;
-    kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
-  }>;
-}
-
-interface Graph {
-  rootId: string;
-  nodes: GraphNode[];
-}
-
-const PROJECT_ROOT = path.join(process.cwd(), 'base-template');
-
-// Directories and files to exclude from the editor
+// Define excluded directories and files
 const EXCLUDED_DIRS = new Set([
   'node_modules',
   '.git',
   '.next',
   'dist',
   'build',
+  'coverage',
   '.vscode',
   '.idea',
-  'coverage',
-  '.nyc_output',
-  '.cache',
+  'logs',
   'tmp',
-  'temp',
-  '.DS_Store',
-  'Thumbs.db'
+  'temp'
 ]);
 
 const EXCLUDED_FILES = new Set([
-  '.gitignore',
   '.env',
   '.env.local',
   '.env.development.local',
@@ -66,9 +35,9 @@ const EXCLUDED_FILES = new Set([
 ]);
 
 // Function to save graph data to JSON file
-async function saveGraphToFile(sessionId: string, graph: Graph): Promise<void> {
+async function saveGraphToFile(graph: Graph): Promise<void> {
   try {
-    const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
+    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
     await fs.writeFile(graphFilePath, JSON.stringify(graph, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error saving graph to file:', error);
@@ -77,9 +46,9 @@ async function saveGraphToFile(sessionId: string, graph: Graph): Promise<void> {
 }
 
 // Function to load graph data from JSON file
-async function loadGraphFromFile(sessionId: string): Promise<Graph | null> {
+async function loadGraphFromFile(): Promise<Graph | null> {
   try {
-    const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
+    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
     const content = await fs.readFile(graphFilePath, 'utf-8');
     return JSON.parse(content) as Graph;
   } catch (error) {
@@ -91,22 +60,13 @@ async function loadGraphFromFile(sessionId: string): Promise<Graph | null> {
 // Function to get all graph files
 async function getAllGraphFiles(): Promise<{ sessionId: string; graph: Graph }[]> {
   try {
-    const files = await fs.readdir(PROJECT_ROOT);
-    const graphFiles = files.filter(file => file.startsWith('graph-') && file.endsWith('.json'));
-    
-    const graphs: { sessionId: string; graph: Graph }[] = [];
-    
-    for (const file of graphFiles) {
-      const sessionId = file.replace('graph-', '').replace('.json', '');
-      const graph = await loadGraphFromFile(sessionId);
-      if (graph) {
-        graphs.push({ sessionId, graph });
-      }
+    const graph = await loadGraphFromFile();
+    if (graph) {
+      return [{ sessionId: 'default', graph }];
     }
-    
-    return graphs;
+    return [];
   } catch (error) {
-    console.error('Error getting all graph files:', error);
+    console.error('Error getting graph file:', error);
     return [];
   }
 }
@@ -160,143 +120,156 @@ async function readDirectoryStructure(dirPath: string, relativePath: string = ''
       }
     }
   } catch (error) {
-    console.error('Error reading directory:', error);
+    console.error('Error reading directory structure:', error);
   }
-  
-  // Sort fileTree: directories first, then files
-  fileTree.sort((a, b) => {
-    if (a.type === 'directory' && b.type === 'file') return -1;
-    if (a.type === 'file' && b.type === 'directory') return 1;
-    return a.name.localeCompare(b.name);
-  });
   
   return { files, fileTree };
 }
 
-// GET: Load file list with lengths (for conversation storage)
-export async function GET(request: NextRequest) {
+interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: FileNode[];
+  content?: string;
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const url = new URL(request.url);
+    const url = new URL(req.url);
     const listOnly = url.searchParams.get('list') === 'true';
+    const includeGraphs = url.searchParams.get('graphs') === 'true';
     const filePath = url.searchParams.get('path');
-    const loadGraphs = url.searchParams.get('graphs') === 'true';
+    
+    // Ensure project directory exists
+    await fs.mkdir(PROJECT_ROOT, { recursive: true });
     
     if (filePath) {
       // Return specific file content
+      const fullPath = path.join(PROJECT_ROOT, filePath);
+      try {
+        const content = await fs.readFile(fullPath, 'utf-8');
+        return NextResponse.json({ content });
+      } catch (error) {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 });
+      }
+    }
+    
+    if (listOnly) {
+      // Return just the file list with line counts
       const { files } = await readDirectoryStructure(PROJECT_ROOT);
-      const content = files.get(filePath) || '';
-      return NextResponse.json({ content, path: filePath });
-    } else if (listOnly) {
-      // Return just file list with lengths
-      const { files } = await readDirectoryStructure(PROJECT_ROOT);
-
       const fileList = Array.from(files.entries()).map(([path, content]) => ({
         route: path,
         lines: content.split('\n').length
       }));
       return NextResponse.json({ files: fileList });
-    } else {
-      // Return full files and file tree
-      const { files, fileTree } = await readDirectoryStructure(PROJECT_ROOT);
-      const filesObj = Object.fromEntries(files);
-      
-      let graphs: { sessionId: string; graph: Graph }[] = [];
-      if (loadGraphs) {
-        graphs = await getAllGraphFiles();
-      }
-      
-      return NextResponse.json({ 
-        files: filesObj, 
-        fileTree,
-        graphs 
-      });
     }
+    
+    // Return full file structure
+    const { files, fileTree } = await readDirectoryStructure(PROJECT_ROOT);
+    
+    const response: any = {
+      files: Object.fromEntries(files),
+      fileTree
+    };
+    
+    if (includeGraphs) {
+      const graphs = await getAllGraphFiles();
+      response.graphs = graphs;
+    }
+    
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error loading project:', error);
-    return NextResponse.json({ error: 'Failed to load project' }, { status: 500 });
+    console.error('Error in GET /api/files:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// POST: Create new file
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
+    const { filePath, content } = await req.json();
     
-    // Check if this is a graph save request
-    if (body.type === 'graph') {
-      const { sessionId, graph } = body;
-      await saveGraphToFile(sessionId, graph);
-      return NextResponse.json({ success: true, message: 'Graph saved successfully' });
+    if (!filePath || content === undefined) {
+      return NextResponse.json({ error: 'filePath and content are required' }, { status: 400 });
     }
     
-    // Regular file creation
-    const { filePath, content } = body;
     const fullPath = path.join(PROJECT_ROOT, filePath);
-    const dir = path.dirname(fullPath);
+    const dirPath = path.dirname(fullPath);
     
     // Ensure directory exists
-    await fs.mkdir(dir, { recursive: true });
+    await fs.mkdir(dirPath, { recursive: true });
+    
+    // Write file
     await fs.writeFile(fullPath, content, 'utf-8');
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'File created successfully' });
   } catch (error) {
-    console.error('Error creating file:', error);
+    console.error('Error in POST /api/files:', error);
     return NextResponse.json({ error: 'Failed to create file' }, { status: 500 });
   }
 }
 
-// PUT: Update existing file
-export async function PUT(request: NextRequest) {
+export async function PUT(req: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await req.json();
     
-    // Check if this is a graph save request
     if (body.type === 'graph') {
-      const { sessionId, graph } = body;
-      await saveGraphToFile(sessionId, graph);
-      return NextResponse.json({ success: true, message: 'Graph updated successfully' });
+      // Handle graph storage
+      const { graph } = body;
+      await saveGraphToFile(graph);
+      return NextResponse.json({ success: true, message: 'Graph saved successfully' });
+    } else {
+      // Handle file update
+      const { filePath, content } = body;
+      
+      if (!filePath || content === undefined) {
+        return NextResponse.json({ error: 'filePath and content are required' }, { status: 400 });
+      }
+      
+      const fullPath = path.join(PROJECT_ROOT, filePath);
+      
+      // Write file
+      await fs.writeFile(fullPath, content, 'utf-8');
+      
+      return NextResponse.json({ success: true, message: 'File updated successfully' });
     }
-    
-    // Regular file update
-    const { filePath, content } = body;
-    const fullPath = path.join(PROJECT_ROOT, filePath);
-    await fs.writeFile(fullPath, content, 'utf-8');
-    
-    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating file:', error);
+    console.error('Error in PUT /api/files:', error);
     return NextResponse.json({ error: 'Failed to update file' }, { status: 500 });
   }
 }
 
-// DELETE: Delete file
-export async function DELETE(request: NextRequest) {
+export async function DELETE(req: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await req.json();
     
-    // Check if this is a graph delete request
     if (body.type === 'graph') {
-      const { sessionId } = body;
-      const graphFilePath = path.join(PROJECT_ROOT, `graph-${sessionId}.json`);
-      await fs.unlink(graphFilePath);
-      return NextResponse.json({ success: true, message: 'Graph deleted successfully' });
-    }
-    
-    // Regular file/directory deletion
-    const { filePath, isDirectory } = body;
-    const fullPath = path.join(PROJECT_ROOT, filePath);
-    
-    if (isDirectory) {
-      // Delete directory (only if empty)
-      await fs.rmdir(fullPath);
+      // Handle graph deletion
+      const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+      try {
+        await fs.unlink(graphFilePath);
+        return NextResponse.json({ success: true, message: 'Graph deleted successfully' });
+      } catch (error) {
+        // File might not exist, which is fine
+        return NextResponse.json({ success: true, message: 'Graph deleted successfully' });
+      }
     } else {
+      // Handle file deletion
+      const { filePath } = body;
+      
+      if (!filePath) {
+        return NextResponse.json({ error: 'filePath is required' }, { status: 400 });
+      }
+      
+      const fullPath = path.join(PROJECT_ROOT, filePath);
+      
       // Delete file
       await fs.unlink(fullPath);
+      
+      return NextResponse.json({ success: true, message: 'File deleted successfully' });
     }
-    
-    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting:', error);
-    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+    console.error('Error in DELETE /api/files:', error);
+    return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
   }
 } 

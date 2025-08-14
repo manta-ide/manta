@@ -12,8 +12,7 @@ import {
   MessageContext,
   Selection,
   MessageVariables,
-  SystemVariablesSchema,
-  UserVariablesSchema
+  MessageVariablesSchema
 } from './schemas';
 
 /**
@@ -37,8 +36,8 @@ export function createMessageContext(
   selection: Selection | null
 ): MessageContext {
   return {
-    currentFile,
-    selection
+    currentFile: currentFile || undefined,
+    selection: selection || undefined
   };
 }
 
@@ -52,7 +51,7 @@ export function createSystemMessage(
 ): Message {
   const projectStructure = JSON.stringify(Object.fromEntries(allFiles), null, 2);
   
-  const variables = SystemVariablesSchema.parse({
+  const variables = MessageVariablesSchema.parse({
     PROJECT_FILES: projectStructure,
     CURRENT_FILE: currentFile || '',
     CURRENT_FILE_CONTENT: currentFile ? allFiles.get(currentFile) || '' : ''
@@ -60,6 +59,7 @@ export function createSystemMessage(
   
   return {
     role: 'system',
+    content: 'System message with project context',
     variables
   };
 }
@@ -92,8 +92,8 @@ export function createUserMessage(
     });
   }
   
-  // Validate with UserVariablesSchema
-  const validatedVariables = UserVariablesSchema.parse(variables);
+  // Validate with MessageVariablesSchema
+  const validatedVariables = MessageVariablesSchema.parse(variables);
   
   const userMessage: Message = { 
     role: 'user', 
@@ -101,7 +101,7 @@ export function createUserMessage(
     content: input,
     messageContext: {
       currentFile: messageContext.currentFile,
-      selection: validSelection ? selection : null
+      selection: validSelection ? selection : undefined
     }
   };
 
@@ -115,6 +115,7 @@ export function createUserMessage(
 export function convertToApiMessages(messages: Message[]): Message[] {
   return messages.map(msg => ({
     role: msg.role,
+    content: msg.content,
     variables: msg.variables
   }));
 } 

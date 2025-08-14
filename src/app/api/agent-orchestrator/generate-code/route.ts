@@ -8,7 +8,7 @@ import { getGraphSession, markNodesBuilt } from '@/app/api/lib/graphStorage';
 const CODE_GEN_CONFIG = {
   model: 'o3',
   maxSteps: 50,
-  streaming: true,
+  streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'high' } },
   promptTemplates: {
@@ -19,17 +19,16 @@ const CODE_GEN_CONFIG = {
   structuredOutput: false,
 } as const;
 
-const RequestSchema = z.object({ userMessage: MessageSchema, sessionId: z.string().optional() });
+const RequestSchema = z.object({ userMessage: MessageSchema });
 
 async function buildParsedMessages(
-  sessionId: string,
   userMessage: Message,
   promptTemplates: Record<'system' | 'user' | 'assistant', string>,
   extraVariables?: Record<string, unknown>
 ): Promise<ParsedMessage[]> {
-  const session = getConversationSession(sessionId);
-  const systemMessage = await createSystemMessage(sessionId);
-  addMessageToSession(sessionId, userMessage);
+  const session = getConversationSession();
+  const systemMessage = await createSystemMessage();
+  addMessageToSession(userMessage);
   const allMessages = [systemMessage, ...session];
 
   const parsed: ParsedMessage[] = await Promise.all(
@@ -66,18 +65,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage } = parsed.data;
-    const sessionId = parsed.data.sessionId ?? 'default';
-    const graph = getGraphSession(sessionId);
+    const graph = getGraphSession();
     if (!graph) {
-      return new Response(JSON.stringify({ error: 'No graph found for session. Generate graph first.' }), {
+      return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const graphSessionId = `${sessionId}-graph-code`;
+    const graphSessionId = 'graph-code';
     const parsedGraphCodeMessages = await buildParsedMessages(
-      graphSessionId,
       userMessage,
       CODE_GEN_CONFIG.promptTemplates,
       { GRAPH_DATA: JSON.stringify(graph, null, 2) }
@@ -96,43 +93,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Stream through to client and when done mark all nodes as built
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = graphResponse.body?.getReader();
-        if (!reader) { controller.close(); return; }
-        const encoder = new TextEncoder();
-        const decoder = new TextDecoder();
-        let buffered = '';
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            controller.enqueue(encoder.encode(chunk));
-            buffered += chunk;
-          }
-        } finally {
-          controller.close();
-          try {
-            await markNodesBuilt(sessionId, graph.nodes.map(n => n.id));
-          } catch {}
-        }
-      }
-    });
+    // Get the full response as JSON instead of streaming
+    const result = await graphResponse.json();
+    
+    // Mark all nodes as built
+    try {
+      await markNodesBuilt(graph.nodes.map(n => n.id));
+    } catch (error) {
+      console.warn('Failed to mark nodes as built:', error);
+    }
 
-    return new Response(stream, {
+    return new Response(JSON.stringify({ 
+      success: true,
+      result: result,
+      message: 'Code generation completed successfully'
+    }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/x-ndjson',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-        'Transfer-Encoding': 'chunked',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
     console.error(err);
-    return new Response(err?.message || 'Server error', { status: 500 });
+    return new Response(JSON.stringify({ error: err?.message || 'Server error' }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 

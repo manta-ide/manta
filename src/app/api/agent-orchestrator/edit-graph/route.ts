@@ -22,21 +22,19 @@ const EDIT_GRAPH_CONFIG = {
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
-  sessionId: z.string().optional(),
   // optional constraints
   includeNodeIds: z.array(z.string()).optional(),
   removeNodeIds: z.array(z.string()).optional(),
 });
 
 async function buildParsedMessages(
-  sessionId: string,
   userMessage: Message,
   promptTemplates: Record<'system' | 'user' | 'assistant', string>,
   extraVariables?: Record<string, unknown>
 ): Promise<ParsedMessage[]> {
-  const session = getConversationSession(sessionId);
-  const systemMessage = await createSystemMessage(sessionId);
-  addMessageToSession(sessionId, userMessage);
+  const session = getConversationSession();
+  const systemMessage = await createSystemMessage();
+  addMessageToSession(userMessage);
   const allMessages = [systemMessage, ...session];
 
   const parsed: ParsedMessage[] = await Promise.all(
@@ -73,10 +71,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage, includeNodeIds, removeNodeIds } = parsed.data;
-    const sessionId = parsed.data.sessionId ?? 'default';
-    const graph = getGraphSession(sessionId);
+    const graph = getGraphSession();
     if (!graph) {
-      return new Response(JSON.stringify({ error: 'No graph found for session. Generate graph first.' }), {
+      return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -89,14 +86,13 @@ export async function POST(req: NextRequest) {
     };
 
     const parsedMessages = await buildParsedMessages(
-      sessionId,
       userMessage,
       EDIT_GRAPH_CONFIG.promptTemplates,
       variables
     );
 
     const response = await callAgent(req, {
-      sessionId,
+      sessionId: 'graph-edit',
       parsedMessages,
       config: EDIT_GRAPH_CONFIG,
     });
@@ -110,7 +106,7 @@ export async function POST(req: NextRequest) {
 
     const result = await response.json();
     const newGraph = result.result.object;
-    await storeGraph(sessionId, newGraph);
+    await storeGraph(newGraph);
     return new Response(JSON.stringify({ graph: newGraph }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

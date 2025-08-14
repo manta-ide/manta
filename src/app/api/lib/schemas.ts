@@ -7,53 +7,39 @@
 
 import { z } from 'zod';
 
-// Selection schema for UI selections
-export const SelectionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  width: z.number(),
-  height: z.number(),
-  selectedElements: z.string().optional(),
-});
-
-export type Selection = z.infer<typeof SelectionSchema>;
-
-// Message context schema containing file and selection information
+// Message context for providing file and selection information
 export const MessageContextSchema = z.object({
-  currentFile: z.string().nullable().optional(),
-  selection: SelectionSchema.nullable().optional(),
+  currentFile: z.string().optional(),
+  selection: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+    selectedElements: z.string(),
+  }).optional(),
 });
 
 export type MessageContext = z.infer<typeof MessageContextSchema>;
 
-// Base variables schema containing all possible template variables
+// Message variables for template substitution
 export const MessageVariablesSchema = z.object({
-  // System message variables
+  // User request
+  USER_REQUEST: z.string().optional(),
+  
+  // File context
   PROJECT_FILES: z.array(z.object({
     route: z.string(),
-    lines: z.number()
+    lines: z.number(),
   })).optional(),
   CURRENT_FILE: z.string().optional(),
   CURRENT_FILE_CONTENT: z.string().optional(),
-  // Graph context variable
+  
+  // Graph context
   GRAPH_CONTEXT: z.string().optional(),
   GRAPH_DATA: z.string().optional(),
-  MAX_NODES: z.number().optional(),
-  // Partial code generation control
-  STRICT_EDIT_MODE: z.string().optional(),
-  EDIT_HINTS: z.string().optional(),
-  SELECTED_NODE_IDS: z.string().optional(),
+  GRAPH_NODE_COUNT: z.string().optional(),
   
-  // Node-specific variables for individual node code generation
-  NODE_TITLE: z.string().optional(),
-  NODE_KIND: z.string().optional(),
-  NODE_WHAT: z.string().optional(),
-  NODE_HOW: z.string().optional(),
-  NODE_PROPERTIES: z.string().optional(),
-  NODE_CHILDREN: z.string().optional(),
-  
-  // User message variables
-  USER_REQUEST: z.string().optional(),
+  // Selection context
   SELECTION: z.string().optional(),
   SELECTION_X: z.string().optional(),
   SELECTION_Y: z.string().optional(),
@@ -61,49 +47,34 @@ export const MessageVariablesSchema = z.object({
   SELECTION_HEIGHT: z.string().optional(),
   SELECTION_ELEMENTS: z.string().optional(),
   
-  // Assistant message variables
+  // Node-specific context
+  NODE_ID: z.string().optional(),
+  PREVIOUS_PROMPT: z.string().optional(),
+  NEW_PROMPT: z.string().optional(),
+  SELECTED_NODE_IDS: z.string().optional(),
+  STRICT_EDIT_MODE: z.string().optional(),
+  EDIT_HINTS: z.string().optional(),
+  
+  // Assistant response
   ASSISTANT_RESPONSE: z.string().optional(),
+  
+  // Additional context
+  MAX_NODES: z.string().optional(),
 });
 
 export type MessageVariables = z.infer<typeof MessageVariablesSchema>;
 
-// Role-specific variable schemas
-export const SystemVariablesSchema = MessageVariablesSchema.pick({
-  PROJECT_FILES: true,
-  CURRENT_FILE: true,
-  CURRENT_FILE_CONTENT: true,
-  GRAPH_DATA: true,
-  MAX_NODES: true,
-});
-
-export const UserVariablesSchema = MessageVariablesSchema.pick({
-  USER_REQUEST: true,
-  SELECTION: true,
-  SELECTION_X: true, 
-  SELECTION_Y: true,
-  SELECTION_WIDTH: true,
-  SELECTION_HEIGHT: true,
-});
-
-export const AssistantVariablesSchema = MessageVariablesSchema.pick({
-  ASSISTANT_RESPONSE: true,
-});
-
-// Unified Message schema for both API requests and UI display
+// Message schema
 export const MessageSchema = z.object({
-  // Core message properties
   role: z.enum(['system', 'user', 'assistant']),
+  content: z.string(),
   variables: MessageVariablesSchema.optional(),
-  
-  // Display properties (used in UI)
-  content: z.string().optional(),
-  operations: z.any().optional(),
   messageContext: MessageContextSchema.optional(),
 });
 
 export type Message = z.infer<typeof MessageSchema>;
 
-// ParsedMessage is the processed message with content after template processing
+// Parsed message for template processing
 export const ParsedMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant']),
   content: z.string(),
@@ -111,21 +82,47 @@ export const ParsedMessageSchema = z.object({
 
 export type ParsedMessage = z.infer<typeof ParsedMessageSchema>;
 
-// Chat request schema
-export const ChatRequestSchema = z.object({
-  messages: z.array(MessageSchema),
+// Selection schema for UI interactions
+export const SelectionSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+  selectedElements: z.string(),
 });
 
-export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+export type Selection = z.infer<typeof SelectionSchema>;
 
-// Simplified client request schema - only sends the latest user message
+// Client chat request schema
 export const ClientChatRequestSchema = z.object({
-  userMessage: MessageSchema,
-  sessionId: z.string().optional(), // For conversation continuity
-  parsedMessages: z.array(ParsedMessageSchema).optional(), // Pre-processed messages for AI
+  message: z.string(),
+  currentFile: z.string().optional(),
+  selection: SelectionSchema.optional(),
 });
 
 export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
+
+// Graph schema for structured output
+export const GraphSchema = z.object({
+  rootId: z.string(),
+  nodes: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    prompt: z.string(),
+    kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']),
+    what: z.string(),
+    how: z.string(),
+    properties: z.array(z.string()),
+    children: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      prompt: z.string(),
+      kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']),
+    })),
+  })),
+});
+
+export type Graph = z.infer<typeof GraphSchema>;
 
 // Evaluation schemas
 export const TestCaseSchema = z.object({

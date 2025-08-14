@@ -23,9 +23,6 @@ export default function Home() {
 
   const { loadProject: loadProjectFromFileSystem, selectedNodeId, selectedNode, setSelectedNode } = useProjectStore();
 
-  console.log('selectedNodeId');
-  console.log(selectedNodeId);
-  console.log(selectedNode);
   // Load project from filesystem on mount
   useEffect(() => {
     console.log('🚀 Loading project on mount');

@@ -144,17 +144,22 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
     };
   }, [isEditMode, doc, win, selectedNodeId]);
 
-  // Fetch built flags from backend storage (via files endpoint) once per mount and on selection changes
+  // Fetch built flags from new graph API once per mount and on selection changes
   useEffect(() => {
     const fetchBuilt = async () => {
       try {
-        const res = await fetch('/api/files?graphs=true');
+        const res = await fetch('/api/backend/graph-api');
         const data = await res.json();
-        const graphRec = (data.graphs || []).find((g: any) => g.sessionId === 'default');
-        const map: Record<string, boolean> = {};
-        for (const n of graphRec?.graph?.nodes || []) map[n.id] = !!n.built;
-        setBuiltStatus(map);
-      } catch {}
+        if (data.success && data.graph) {
+          const map: Record<string, boolean> = {};
+          for (const n of data.graph.nodes || []) {
+            map[n.id] = !!n.built;
+          }
+          setBuiltStatus(map);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch graph data for built status:', error);
+      }
     };
     fetchBuilt();
   }, [selectedNodeId]);

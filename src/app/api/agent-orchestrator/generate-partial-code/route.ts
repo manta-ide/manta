@@ -10,7 +10,7 @@ import path from 'path';
 const PARTIAL_CODE_CONFIG = {
   model: 'o3',
   maxSteps: 50,
-  streaming: true,
+  streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'medium' } },
   promptTemplates: {
@@ -24,21 +24,19 @@ const PARTIAL_CODE_CONFIG = {
 const EditHintSchema = z.object({ previousPrompt: z.string(), newPrompt: z.string() });
 const RequestSchema = z.object({
   userMessage: MessageSchema,
-  sessionId: z.string().optional(),
   nodeIds: z.array(z.string()).min(1),
   includeDescendants: z.boolean().optional(),
   editHints: z.record(z.string(), EditHintSchema).optional(),
 });
 
 async function buildParsedMessages(
-  sessionId: string,
   userMessage: Message,
   promptTemplates: Record<'system' | 'user' | 'assistant', string>,
   extraVariables?: Record<string, unknown>
 ): Promise<ParsedMessage[]> {
-  const session = getConversationSession(sessionId);
-  const systemMessage = await createSystemMessage(sessionId);
-  addMessageToSession(sessionId, userMessage);
+  const session = getConversationSession();
+  const systemMessage = await createSystemMessage();
+  addMessageToSession(userMessage);
   const allMessages = [systemMessage, ...session];
 
   const parsed: ParsedMessage[] = await Promise.all(
@@ -75,13 +73,12 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage, nodeIds, includeDescendants = true, editHints } = parsed.data;
-    const sessionId = parsed.data.sessionId ?? 'default';
-    let graph = getGraphSession(sessionId);
+    let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile(sessionId);
-      graph = getGraphSession(sessionId);
+      await loadGraphFromFile();
+      graph = getGraphSession();
       if (!graph) {
-        return new Response(JSON.stringify({ error: 'No graph found for session. Generate graph first.' }), {
+        return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -111,9 +108,8 @@ export async function POST(req: NextRequest) {
       nodes: graph.nodes.filter(n => idSet.has(n.id)),
     };
 
-    const graphSessionId = `${sessionId}-partial-code`;
+    const graphSessionId = 'partial-code';
     const parsedMessages = await buildParsedMessages(
-      graphSessionId,
       userMessage,
       PARTIAL_CODE_CONFIG.promptTemplates,
       {
@@ -143,42 +139,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Stream through to client while also marking nodes built at the end
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = response.body?.getReader();
-        if (!reader) { controller.close(); return; }
-        const encoder = new TextEncoder();
-        const decoder = new TextDecoder();
-        let buffered = '';
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            controller.enqueue(encoder.encode(chunk));
-            buffered += chunk;
-          }
-        } finally {
-          controller.close();
-          // After streaming completes, mark nodes as built
-          try { await markNodesBuilt(sessionId, nodeIds); } catch {}
-        }
-      }
-    });
+    // Get the full response as JSON instead of streaming
+    const result = await response.json();
+    
+    // After completion, mark nodes as built
+    try {
+      await markNodesBuilt(nodeIds);
+    } catch (error) {
+      console.warn('Failed to mark nodes as built:', error);
+    }
 
-    return new Response(stream, {
+    return new Response(JSON.stringify({ 
+      success: true,
+      result: result,
+      message: 'Partial code generation completed successfully',
+      nodeIds: Array.from(idSet)
+    }), {
       status: 200,
-      headers: {
-        'Content-Type': 'application/x-ndjson',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-        'Transfer-Encoding': 'chunked',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
     console.error(err);
-    return new Response(err?.message || 'Server error', { status: 500 });
+    return new Response(JSON.stringify({ error: err?.message || 'Server error' }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 

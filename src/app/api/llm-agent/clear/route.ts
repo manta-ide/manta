@@ -1,23 +1,20 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { clearConversationSession } from '../../lib/conversationStorage';
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId = 'default' } = await req.json();
+    await req.json(); // Ignore any body content
     
-    // Clear the conversation session
-    clearConversationSession(sessionId);
+    clearConversationSession();
     
-    return new Response(JSON.stringify({ success: true, message: 'Conversation cleared' }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Conversation cleared successfully' 
     });
-  } catch (err: any) {
-    console.error('Error clearing conversation:', err);
-    return new Response(
-      JSON.stringify({ success: false, error: err?.message || 'Failed to clear conversation' }), 
+  } catch (error) {
+    console.error('Error clearing conversation:', error);
+    return NextResponse.json(
+      { error: 'Failed to clear conversation' },
       { status: 500 }
     );
   }

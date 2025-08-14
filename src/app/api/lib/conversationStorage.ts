@@ -1,9 +1,9 @@
 import { Message, ParsedMessage } from './schemas';
 import { getGraphSession } from './graphStorage';
 
-// In-memory storage for conversation sessions
+// In-memory storage for conversation
 // In production, this should be replaced with a proper database
-const conversationSessions = new Map<string, Message[]>();
+let conversationMessages: Message[] = [];
 
 /**
  * Get all files from the project using the files API
@@ -70,23 +70,21 @@ async function getFileContent(filePath: string): Promise<string> {
 /**
  * Create a system message with project context
  */
-export async function createSystemMessage(sessionId?: string): Promise<Message> {
+export async function createSystemMessage(): Promise<Message> {
   
   // Get file list with lengths from the API response
   const response = await fetch('http://localhost:3000/api/files?list=true');
   const data = await response.json();
 
-  // Get graph from storage if sessionId is provided
+  // Get graph from storage
   let graphContext = '';
-  if (sessionId) {
-    try {
-      const graph = getGraphSession(sessionId);
-      if (graph) {
-        graphContext = JSON.stringify(graph, null, 2);
-      }
-    } catch (error) {
-      console.warn('Failed to get graph from storage:', error);
+  try {
+    const graph = getGraphSession();
+    if (graph) {
+      graphContext = JSON.stringify(graph, null, 2);
     }
+  } catch (error) {
+    console.warn('Failed to get graph from storage:', error);
   }
   
   return {
@@ -100,41 +98,31 @@ export async function createSystemMessage(sessionId?: string): Promise<Message> 
 }
 
 /**
- * Get or create a conversation session
+ * Get the conversation messages
  */
-export function getConversationSession(sessionId: string): Message[] {
-  if (!conversationSessions.has(sessionId)) {
-    conversationSessions.set(sessionId, []);
-  }
-  return conversationSessions.get(sessionId)!;
+export function getConversationSession(): Message[] {
+  return conversationMessages;
 }
 
 /**
- * Add a message to a conversation session
+ * Add a message to the conversation
  */
-export function addMessageToSession(sessionId: string, message: Message): void {
-  const session = getConversationSession(sessionId);
-  session.push(message);
+export function addMessageToSession(message: Message): void {
+  conversationMessages.push(message);
 }
 
 /**
- * Clear a conversation session
+ * Clear the conversation
  */
-export function clearConversationSession(sessionId: string): void {
-  conversationSessions.delete(sessionId);
+export function clearConversationSession(): void {
+  conversationMessages = [];
 }
 
 /**
  * Get conversation statistics
  */
-export function getConversationStats(): { sessionCount: number; totalMessages: number } {
-  let totalMessages = 0;
-  for (const session of conversationSessions.values()) {
-    totalMessages += session.length;
-  }
-  
+export function getConversationStats(): { messageCount: number } {
   return {
-    sessionCount: conversationSessions.size,
-    totalMessages
+    messageCount: conversationMessages.length
   };
 } 

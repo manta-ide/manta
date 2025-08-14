@@ -20,26 +20,25 @@ export const GraphSchema = z.object({
 
 export type Graph = z.infer<typeof GraphSchema>;
 
-// Graph session storage (in-memory cache)
-const graphSessions = new Map<string, Graph>();
+// Single graph storage (in-memory cache)
+let currentGraph: Graph | null = null;
 
 /**
- * Get or create a graph session
+ * Get the current graph
  */
-export function getGraphSession(sessionId: string): Graph | null {
-  return graphSessions.get(sessionId) || null;
+export function getGraphSession(): Graph | null {
+  return currentGraph;
 }
 
 /**
- * Store a graph in a session and save to file
+ * Store a graph and save to file
  */
-export async function storeGraph(sessionId: string, graph: Graph): Promise<void> {
+export async function storeGraph(graph: Graph): Promise<void> {
   // Merge with existing graph to preserve built flags when nodes are unchanged
-  const prev = graphSessions.get(sessionId) || null;
   let merged: Graph = graph;
 
-  if (prev) {
-    const prevById = new Map(prev.nodes.map(n => [n.id, n]));
+  if (currentGraph) {
+    const prevById = new Map(currentGraph.nodes.map(n => [n.id, n]));
     const nodes = graph.nodes.map(n => {
       const before = prevById.get(n.id);
       if (!before) {
@@ -55,14 +54,14 @@ export async function storeGraph(sessionId: string, graph: Graph): Promise<void>
   }
 
   // Store in memory
-  graphSessions.set(sessionId, merged);
+  currentGraph = merged;
 
   // Save to file
   try {
     const response = await fetch('http://localhost:3000/api/files', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'graph', sessionId, graph: merged })
+      body: JSON.stringify({ type: 'graph', graph: merged })
     });
     if (!response.ok) {
       console.error('Failed to save graph to file');
@@ -86,9 +85,9 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
 }
 
 /**
- * Load graph from file and store in session
+ * Load graph from file and store in memory
  */
-export async function loadGraphFromFile(sessionId: string): Promise<Graph | null> {
+export async function loadGraphFromFile(): Promise<Graph | null> {
   try {
     const response = await fetch(`http://localhost:3000/api/files?graphs=true`);
     if (!response.ok) {
@@ -97,12 +96,12 @@ export async function loadGraphFromFile(sessionId: string): Promise<Graph | null
     
     const data = await response.json();
     const graphs = data.graphs || [];
-    const graphData = graphs.find((g: any) => g.sessionId === sessionId);
+    const graphData = graphs.find((g: any) => g.sessionId === 'default');
     
     if (graphData) {
       const graph = graphData.graph;
       // Store in memory
-      graphSessions.set(sessionId, graph);
+      currentGraph = graph;
       return graph;
     }
     
@@ -114,11 +113,11 @@ export async function loadGraphFromFile(sessionId: string): Promise<Graph | null
 }
 
 /**
- * Clear a graph session and delete file
+ * Clear the current graph and delete file
  */
-export async function clearGraphSession(sessionId: string): Promise<void> {
+export async function clearGraphSession(): Promise<void> {
   // Remove from memory
-  graphSessions.delete(sessionId);
+  currentGraph = null;
   
   // Delete file
   try {
@@ -126,8 +125,7 @@ export async function clearGraphSession(sessionId: string): Promise<void> {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        type: 'graph',
-        sessionId
+        type: 'graph'
       })
     });
     
@@ -142,51 +140,47 @@ export async function clearGraphSession(sessionId: string): Promise<void> {
 /**
  * Get graph statistics
  */
-export function getGraphStats(): { sessionCount: number; totalGraphs: number } {
+export function getGraphStats(): { hasGraph: boolean } {
   return {
-    sessionCount: graphSessions.size,
-    totalGraphs: graphSessions.size
+    hasGraph: currentGraph !== null
   };
 }
 
 /**
- * Get a specific graph node by ID from a session
+ * Get a specific graph node by ID
  */
-export function getGraphNode(sessionId: string, nodeId: string): z.infer<typeof GraphNodeSchema> | null {
-  const graph = getGraphSession(sessionId);
-  if (!graph) {
+export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | null {
+  if (!currentGraph) {
     return null;
   }
   
-  return graph.nodes.find(node => node.id === nodeId) || null;
+  return currentGraph.nodes.find(node => node.id === nodeId) || null;
 }
 
 /**
  * Get ids of nodes that are not yet built
  */
-export function getUnbuiltNodeIds(sessionId: string): string[] {
-  const graph = getGraphSession(sessionId);
-  if (!graph) return [];
-  return graph.nodes.filter(n => !n.built).map(n => n.id);
+export function getUnbuiltNodeIds(): string[] {
+  if (!currentGraph) return [];
+  return currentGraph.nodes.filter(n => !n.built).map(n => n.id);
 }
 
 /**
  * Mark nodes as built and persist to file
  */
-export async function markNodesBuilt(sessionId: string, nodeIds: string[]): Promise<void> {
-  const graph = getGraphSession(sessionId);
-  if (!graph) return;
+export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
+  if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   const updated: Graph = {
-    ...graph,
-    nodes: graph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: true } : n)),
+    ...currentGraph,
+    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: true } : n)),
   };
-  graphSessions.set(sessionId, updated);
+  currentGraph = updated;
   try {
     const response = await fetch('http://localhost:3000/api/files', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'graph', sessionId, graph: updated })
+      body: JSON.stringify({ type: 'graph', graph: updated })
     });
     if (!response.ok) {
       console.error('Failed to persist built flags to file');
@@ -197,7 +191,7 @@ export async function markNodesBuilt(sessionId: string, nodeIds: string[]): Prom
 }
 
 /**
- * Initialize graphs from files on startup
+ * Initialize graph from files on startup
  */
 export async function initializeGraphsFromFiles(): Promise<void> {
   try {
@@ -209,12 +203,13 @@ export async function initializeGraphsFromFiles(): Promise<void> {
     const data = await response.json();
     const graphs = data.graphs || [];
     
-    for (const graphData of graphs) {
-      graphSessions.set(graphData.sessionId, graphData.graph);
+    // Load the default graph
+    const defaultGraph = graphs.find((g: any) => g.sessionId === 'default');
+    if (defaultGraph) {
+      currentGraph = defaultGraph.graph;
+      console.log('Loaded default graph from files');
     }
-    
-    console.log(`Loaded ${graphs.length} graphs from files`);
   } catch (error) {
-    console.error('Error initializing graphs from files:', error);
+    console.error('Error initializing graph from files:', error);
   }
 }

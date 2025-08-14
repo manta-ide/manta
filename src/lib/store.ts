@@ -58,7 +58,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         console.log('📁 File tree structure:', data.fileTree);
         
         // Initialize in-memory graph storage from filesystem as source of truth
-        await fetch('http://localhost:3000/api/storage/initialize', {
+        await fetch('http://localhost:3000/api/backend/storage/initialize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
