@@ -3,18 +3,17 @@
   "nodes": [
     {
       "id": "node-element-swe-portfolio-page",
-      "title": "Software Engineer Portfolio Page",
-      "prompt": "Kind: page. What: A portfolio page to showcase a software engineer's skills, experience, and projects. How: Organized layout with a hero section, skills section, projects section, and contact section. Properties: responsive, accessible, modern design.",
+      "title": "SWE Portfolio Page",
+      "prompt": "Kind: page. What: A portfolio page showcasing a software engineer's skills, projects, and contact information. How: Designed with a responsive layout and modern styling using Next.js and Tailwind CSS. Properties: responsive, SEO-friendly, accessible.",
       "properties": [],
-      "built": true,
       "children": [
         {
           "id": "node-element-hero-section",
           "title": "Hero Section"
         },
         {
-          "id": "node-element-skills-section",
-          "title": "Skills Section"
+          "id": "node-element-about-section",
+          "title": "About Section"
         },
         {
           "id": "node-element-projects-section",
@@ -24,128 +23,140 @@
           "id": "node-element-contact-section",
           "title": "Contact Section"
         }
-      ]
+      ],
+      "built": true
     },
     {
       "id": "node-element-hero-section",
       "title": "Hero Section",
-      "prompt": "Kind: section. What: Introduction section with a title, subtitle, and profile image. How: Hero layout with large text and an image, highlighting the SWE's name and profession. Properties: centered, responsive, visually appealing.",
+      "prompt": "Kind: section. What: First section of the page showcasing the name, title, and call-to-action (CTA). How: Full-screen layout with background image or gradient, and prominent text. Properties: centered, responsive, engaging.",
       "properties": [],
-      "built": true,
       "children": [
+        {
+          "id": "node-element-hero-title",
+          "title": "Hero Title"
+        },
         {
           "id": "node-element-hero-subtitle",
           "title": "Hero Subtitle"
         },
         {
-          "id": "node-element-profile-image",
-          "title": "Profile Image"
+          "id": "node-element-cta-button",
+          "title": "Call-to-Action Button"
         }
-      ]
+      ],
+      "built": true
     },
     {
-      "id": "node-element-skills-section",
-      "title": "Skills Section",
-      "prompt": "Kind: section. What: Lists technical skills and proficiencies. How: Grid layout with cards or badges for individual skills. Properties: interactive, organized, accessible.",
+      "id": "node-element-about-section",
+      "title": "About Section",
+      "prompt": "Kind: section. What: A section introducing the software engineer and describing their background. How: Two-column layout with profile image and text description. Properties: modern layout, responsive, accessible.",
       "properties": [],
-      "built": true,
       "children": [
         {
-          "id": "node-element-skill-badge",
-          "title": "Skill Badge"
+          "id": "node-element-profile-image",
+          "title": "Profile Image"
+        },
+        {
+          "id": "node-element-about-text",
+          "title": "About Text"
         }
-      ]
+      ],
+      "built": true
     },
     {
       "id": "node-element-projects-section",
       "title": "Projects Section",
-      "prompt": "Kind: section. What: Displays software engineering projects. How: Grid layout with cards showcasing project name, description, and links. Properties: responsive, informative, clickable.",
+      "prompt": "Kind: section. What: A section showcasing key projects with links to detailed descriptions or live demos. How: Grid layout with cards representing individual projects. Properties: structured, visually appealing, responsive.",
       "properties": [],
-      "built": true,
       "children": [
         {
           "id": "node-element-project-card",
           "title": "Project Card"
         }
-      ]
+      ],
+      "built": true
     },
     {
       "id": "node-element-contact-section",
       "title": "Contact Section",
-      "prompt": "Kind: section. What: Provides methods to contact the SWE. How: Contact form with fields for name, email, and message, and social media links. Properties: functional, accessible, responsive.",
+      "prompt": "Kind: section. What: A section for users to reach out via a contact form or email. How: Layout with an input form and contact details. Properties: simple, accessible, responsive.",
       "properties": [],
-      "built": true,
       "children": [
         {
           "id": "node-element-contact-form",
           "title": "Contact Form"
         },
         {
-          "id": "node-element-social-links-group",
-          "title": "Social Links Group"
+          "id": "node-element-contact-info",
+          "title": "Contact Information"
         }
-      ]
+      ],
+      "built": true
+    },
+    {
+      "id": "node-element-hero-title",
+      "title": "Hero Title",
+      "prompt": "Kind: component. What: The main title text of the hero section, typically the name of the software engineer. How: Large, bold typography. Properties: prominent, readable, accessible.",
+      "properties": [],
+      "children": [],
+      "built": true
     },
     {
       "id": "node-element-hero-subtitle",
       "title": "Hero Subtitle",
-      "prompt": "Kind: component. What: Provides a brief tagline or summary of the SWE's expertise. How: Smaller secondary text styled with proper spacing and typography. Properties: descriptive, readable.",
+      "prompt": "Kind: component. What: Additional text that supports the hero title, describing the engineer's job/expertise. How: Smaller, secondary typography. Properties: readable, supportive.",
       "properties": [],
-      "built": true,
-      "children": []
+      "children": [],
+      "built": true
+    },
+    {
+      "id": "node-element-cta-button",
+      "title": "Call-to-Action Button",
+      "prompt": "Kind: component. What: A button to direct the user to a key action, such as viewing projects. How: Styled button with hover effects and responsive behavior. Properties: clickable, engaging.",
+      "properties": [],
+      "children": [],
+      "built": true
     },
     {
       "id": "node-element-profile-image",
       "title": "Profile Image",
-      "prompt": "Kind: component. What: Displays the SWE's profile picture. How: Circular or square image format with alt text for accessibility. Properties: accessible, responsive, visually appealing.",
+      "prompt": "Kind: component. What: A profile picture or avatar of the software engineer. How: Circular or square image with a border and alt text. Properties: accessible, SEO-friendly.",
       "properties": [],
-      "built": true,
-      "children": []
+      "children": [],
+      "built": true
     },
     {
-      "id": "node-element-skill-badge",
-      "title": "Skill Badge",
-      "prompt": "Kind: component. What: Represents individual technical skills. How: Styled badge with hover effects and accessible labels. Properties: interactive, reusable.",
+      "id": "node-element-about-text",
+      "title": "About Text",
+      "prompt": "Kind: component. What: A textual description of the software engineer's skills and background. How: Responsive typography with proper spacing. Properties: readable, accessible.",
       "properties": [],
-      "built": true,
-      "children": []
+      "children": [],
+      "built": true
     },
     {
       "id": "node-element-project-card",
       "title": "Project Card",
-      "prompt": "Kind: component. What: Displays project title, description, and a red button that leads to GitHub. How: Card layout with hover interactions and clickable links. Button: red background with white text, labeled 'View on GitHub'. Properties: responsive, informative, clickable, accessible.",
+      "prompt": "Kind: component. What: Card for showcasing a single project, with image, title, and links. How: Styled card with hover effects and responsive grid layout. Properties: visually appealing, interactive.",
       "properties": [],
-      "built": true,
-      "children": []
+      "children": [],
+      "built": true
     },
     {
       "id": "node-element-contact-form",
       "title": "Contact Form",
-      "prompt": "Kind: component. What: Form to collect user messages. How: Styled inputs and buttons with validation for name, email, and message fields. Properties: functional, accessible.",
+      "prompt": "Kind: component. What: Input form for users to send messages. How: Form with inputs for name, email, and message field, styled with Tailwind CSS for spacing and responsiveness. Properties: accessible, responsive.",
       "properties": [],
-      "built": true,
-      "children": []
+      "children": [],
+      "built": true
     },
     {
-      "id": "node-element-social-links-group",
-      "title": "Social Links Group",
-      "prompt": "Kind: group. What: Displays social media icons with links. How: Horizontal layout of clickable icons for LinkedIn, GitHub, Twitter, etc. Properties: interactive, responsive, accessible.",
+      "id": "node-element-contact-info",
+      "title": "Contact Information",
+      "prompt": "Kind: component. What: Details about how users can reach out, including email or social links. How: List or small section styled for clarity. Properties: clean, comprehensive.",
       "properties": [],
-      "built": true,
-      "children": [
-        {
-          "id": "node-element-social-link",
-          "title": "Social Link"
-        }
-      ]
-    },
-    {
-      "id": "node-element-social-link",
-      "title": "Social Link",
-      "prompt": "Kind: primitive. What: Individual social media link. How: Clickable icon with alt text and hover effects. Properties: accessible, clickable.",
-      "properties": [],
-      "built": true,
-      "children": []
+      "children": [],
+      "built": true
     }
   ]
 }

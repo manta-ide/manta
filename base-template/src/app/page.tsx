@@ -1,224 +1,199 @@
 'use client';
 
+import React, { FormEvent } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 
-
-
-
-
-import React from "react"
-import Image from "next/image"
-import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
-
-// Dummy data – in a real application this could come from a CMS or an API
-const skills = [
-  "TypeScript",
-  "React & Next.js",
-  "Node.js",
-  "GraphQL",
-  "PostgreSQL",
-  "AWS",
-  "Docker",
-  "CI/CD",
-] as const
-
-const projects = [
-  {
-    title: "Realtime Collaboration Tool",
-description: "A web-based collaborative editor enabling teams to edit documents concurrently with operational-transforms and WebSockets.",
-    href: "https://github.com/example/realtime-editor",
-    tech: ["Next.js", "tRPC", "WebSockets"],
-    executionTime: "6 months",
-  },
-  {
-    title: "E-commerce Platform",
-    description: "Scalable multi-tenant e-commerce solution supporting thousands of stores, built with a micro-services architecture.",
-    href: "https://github.com/example/commerce",
-tech: ["NestJS", "PostgreSQL", "Redis"],
-    executionTime: "1 year",
-  },
-  {
-    title: "Automated Trading Bot",
-    description: "High-frequency crypto trading bot executing strategies with sub-second latency, written in Rust and TypeScript.",
-    href: "https://github.com/example/trading-bot",
-    tech: ["Rust", "TypeScript", "gRPC"],
-    executionTime: "3 months",
-  },
-] as const
-
-const ProjectCard = () => (
-  <div
-id="node-element-project-card"
-className="group relative flex flex-col rounded-lg border border-gray-300 bg-white p-4 shadow hover:shadow-lg"
-  >
-    <h2 className="text-xl font-semibold">Project Title</h2>
-    <p className="mt-2 text-gray-500">This is a project description.</p>
-    <a
-      href="#"
-      className="mt-4 inline-block rounded bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
-    >
-      Check on GitHub
-    </a>
-  </div>
-);
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function Home() {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const name = data.get('name');
+    const email = data.get('email');
+    const message = data.get('message');
+    // For demo purposes just log – replace with your favourite email service.
+    // eslint-disable-next-line no-console
+    console.log({ name, email, message });
+    alert('Thank you for reaching out!');
+    e.currentTarget.reset();
+  };
+
+  const projects = [
+    {
+      title: 'Realtime Chat App',
+      description: 'Socket.io powered chat application with rooms and live typing indicators.',
+      href: 'https://github.com/yourname/realtime-chat',
+      image: '/window.svg',
+    },
+    {
+      title: 'AI Code Assistant',
+      description: 'VSCode extension that suggests code completions using GPT-4.',
+      href: 'https://github.com/yourname/ai-code-assistant',
+      image: '/file.svg',
+    },
+    {
+      title: 'Travel Planner',
+      description: 'Full-stack Next.js app that helps travelers plan and visualize their trips.',
+      href: 'https://github.com/yourname/travel-planner',
+      image: '/globe.svg',
+    },
+  ];
+
   return (
-    <main
-      id="node-element-swe-portfolio-page"
-      className="flex flex-col items-center gap-24 px-4 pt-20 md:px-8 lg:px-24"
-    >
+    <main id="node-element-swe-portfolio-page" className="flex flex-col scroll-smooth">
       {/* Hero Section */}
       <section
         id="node-element-hero-section"
-        className="flex w-full max-w-5xl flex-col items-center gap-6 text-center"
+        className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-sky-50 via-white to-emerald-50 px-6 text-center dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
       >
-        {/* Profile Image */}
-        {/* Removed node-element-profile-image as requested */}
-
-        {/* Title */}
         <h1
           id="node-element-hero-title"
-          className="text-4xl font-extrabold tracking-tight text-red-600 sm:text-5xl md:text-6xl"
+          className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl md:text-6xl"
         >
           John Doe
         </h1>
-
-        {/* Subtitle */}
         <p
           id="node-element-hero-subtitle"
-          className="max-w-2xl text-lg text-muted-foreground sm:text-xl"
+          className="mt-4 max-w-xl text-lg text-slate-700 dark:text-slate-300 sm:text-xl"
         >
-          Building delightful developer experiences and scalable infrastructure.
+          Full-Stack Software Engineer crafting delightful web experiences.
         </p>
+        <Button
+          asChild
+          className="mt-8"
+          id="node-element-cta-button"
+          size="lg"
+        >
+          <Link href="#projects">See My Work</Link>
+        </Button>
       </section>
 
-      {/* Skills Section */}
+      {/* About Section */}
       <section
-        id="node-element-skills-section"
-        className="flex w-full max-w-5xl flex-col gap-8"
+        id="node-element-about-section"
+        className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10 px-6 py-24 md:flex-row"
       >
-        <h2 className="text-2xl font-semibold">Skills</h2>
-        <ul className="flex flex-wrap gap-3">
-          {skills.map((skill) => (
-            <li key={skill} id="node-element-skill-badge">
-              <Badge variant="secondary" className="text-sm">
-                {skill}
-              </Badge>
-            </li>
-          ))}
-        </ul>
+        {/* Profile Image */}
+        <div className="relative h-48 w-48 flex-shrink-0 md:h-60 md:w-60">
+          <Image
+            id="node-element-profile-image"
+            src="/vercel.svg"
+            alt="John Doe avatar"
+            fill
+            className="rounded-full object-cover shadow-lg"
+          />
+        </div>
+        {/* About Text */}
+        <div id="node-element-about-text" className="prose dark:prose-invert max-w-none md:ml-10">
+          <h2 className="mb-4 text-3xl font-bold">About Me</h2>
+          <p>
+            I’m a passionate software engineer with 5+ years of experience building scalable web
+            applications. My expertise lies in React, Next.js, TypeScript, and cloud-native
+            architectures.
+          </p>
+          <p>
+            I enjoy turning complex problems into simple, beautiful, and intuitive solutions. When
+            I’m not coding, you’ll find me hiking, reading sci-fi novels, or experimenting with new
+            coffee brewing techniques.
+          </p>
+        </div>
       </section>
 
       {/* Projects Section */}
       <section
-        id="node-element-projects-section"
-        className="flex w-full max-w-5xl flex-col gap-8"
+        id="projects" // anchor target for smooth scroll
+        className="w-full bg-slate-50 py-24 dark:bg-slate-800"
       >
-        <h2 className="text-2xl font-semibold">Projects</h2>
-<div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
-            <Card
-              key={project.title}
-              id="node-element-project-card"
-              className="group h-full transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <CardHeader>
-                <CardTitle>{project.title}</CardTitle>
-                <CardDescription className="flex flex-wrap gap-1 pt-2">
-                  {project.tech.map((t) => (
-                    <Badge key={t} variant="outline" className="text-xs">
-                      {t}
-                    </Badge>
-                  ))}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col justify-between gap-4 pb-6">
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {project.description}
-                </p>
-
-                <Button
-                  asChild
-                  size="sm"
-                  className="mt-2 self-start bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600"
+        <div
+          id="node-element-projects-section"
+          className="mx-auto w-full max-w-6xl px-6"
+        >
+          <h2 className="text-center text-3xl font-bold text-slate-900 dark:text-slate-100">
+            My Projects
+          </h2>
+          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <Link
+                key={project.title}
+                href={project.href}
+                className="group"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <article
+                  id="node-element-project-card"
+                  className="flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-lg dark:border-slate-700"
                 >
-                  <Link href={project.href} target="_blank" rel="noopener noreferrer">
-                    View on GitHub
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="relative h-44 w-full bg-slate-100 dark:bg-slate-700">
+                    <Image
+                      src={project.image}
+                      alt={project.title}
+                      fill
+                      className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      {project.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      {project.description}
+                    </p>
+                    <span className="mt-auto text-primary">View project →</span>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Contact Section */}
-      <section
-        id="node-element-contact-section"
-        className="flex w-full max-w-3xl flex-col gap-8"
-      >
-        <h2 className="text-2xl font-semibold">Get in touch</h2>
+      <section id="node-element-contact-section" className="mx-auto w-full max-w-4xl px-6 py-24">
+        <h2 className="text-center text-3xl font-bold text-slate-900 dark:text-slate-100">
+          Get In Touch
+        </h2>
+        <div className="mt-12 flex flex-col gap-16 md:flex-row">
+          {/* Contact Form */}
+          <form
+            id="node-element-contact-form"
+            onSubmit={handleSubmit}
+            className="flex w-full flex-col gap-4 md:w-2/3"
+          >
+            <Input name="name" placeholder="Name" required />
+            <Input name="email" type="email" placeholder="Email" required />
+            <Textarea name="message" placeholder="Your message" rows={5} required />
+            <Button type="submit" className="self-start">
+              Send Message
+            </Button>
+          </form>
 
-        {/* Contact Form */}
-        <form
-          id="node-element-contact-form"
-          className="flex flex-col gap-4 rounded-xl border p-6 shadow-sm"
-          onSubmit={(e) => {
-            e.preventDefault()
-            // In a real product this would post to an API route.
-            alert("Thanks for reaching out! I'll get back to you soon.")
-          }}
-        >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Name</span>
-              <Input name="name" placeholder="Your name" required />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Email</span>
-              <Input
-                type="email"
-                name="email"
-                placeholder="you@example.com"
-                required
-                aria-describedby="email-help"
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Message</span>
-            <Textarea name="message" rows={5} placeholder="Let's build something great together..." required />
-          </label>
-          <div className="flex justify-end">
-            <Button type="submit">Send message</Button>
-          </div>
-        </form>
-
-        {/* Social Links Group */}
-        <div id="node-element-social-links-group" className="flex items-center gap-4">
-          {[
-            { href: "https://github.com/example", label: "GitHub" },
-            { href: "https://linkedin.com/in/example", label: "LinkedIn" },
-            { href: "https://twitter.com/example", label: "Twitter" },
-          ].map((link) => (
-            <Link
-              id="node-element-social-link"
-              key={link.href}
-              href={link.href}
-              className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {link.label}
+          {/* Contact Info */}
+          <div
+            id="node-element-contact-info"
+            className="flex flex-col gap-4 text-base text-slate-700 dark:text-slate-300 md:w-1/3"
+          >
+            <p className="font-semibold">Email</p>
+            <Link href="mailto:john.doe@example.com" className="hover:underline">
+              john.doe@example.com
             </Link>
-          ))}
+            <p className="font-semibold mt-6">Social</p>
+            <Link href="https://github.com/yourname" target="_blank" className="hover:underline">
+              GitHub
+            </Link>
+            <Link href="https://linkedin.com/in/yourname" target="_blank" className="hover:underline">
+              LinkedIn
+            </Link>
+            <Link href="https://twitter.com/yourname" target="_blank" className="hover:underline">
+              Twitter
+            </Link>
+          </div>
         </div>
       </section>
     </main>
-  )
+  );
 }
