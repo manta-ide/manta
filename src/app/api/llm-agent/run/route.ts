@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { streamText, generateObject } from 'ai';
-import { azure, google } from '@ai-sdk/azure';
-import { fileTools } from '@/app/api/lib/fileTools';
+import { generateObject, generateText } from 'ai';
+import { azure } from '@ai-sdk/azure';
+import { google } from '@ai-sdk/google';
+import { fileTools } from '@/app/api/lib/aiFileTools';
 import { GraphSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
 import path from 'path';
@@ -143,58 +144,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Streaming mode
-    if (config.streaming) {
-      const { textStream } = await streamText(streamOptions);
-
-      // Log streaming start
-      writeLog(`[${operationName}] streaming-start`);
-
-      // Create a readable stream that logs and transforms the text stream
-      const readableStream = new ReadableStream({
-        async start(controller) {
-          try {
-            for await (const chunk of textStream.textStream) {
-              // Log each chunk
-              writeLog(`[${operationName}] chunk: ${chunk}`);
-              
-              // Send chunk to client
-              controller.enqueue(new TextEncoder().encode(chunk));
-            }
-
-            // Log final result
-            writeLog(`[${operationName}] streaming-complete`);
-            writeLog(`[${operationName}] final-text: ${textStream.text}`);
-
-            // Add assistant response to conversation
-            const assistantMessage = {
-              role: 'assistant' as const,
-              content: textStream.text,
-              variables: { ASSISTANT_RESPONSE: textStream.text }
-            };
-            addMessageToSession(assistantMessage);
-
-            logStream.end();
-            controller.close();
-          } catch (error) {
-            writeLog(`[${operationName}] error: ${error}`);
-            logStream.end();
-            controller.error(error);
-          }
-        }
-      });
-
-      return new Response(readableStream, {
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
-      });
-    }
-
-    // Non-streaming mode
-    const { text } = await streamText(streamOptions);
+    // Non-streaming mode only
+    const result = await generateText(streamOptions);
+    const text = await result.text;
 
     // Log final result
     writeLog(`[${operationName}] non-streaming-complete`);

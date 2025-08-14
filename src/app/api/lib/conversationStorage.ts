@@ -92,8 +92,9 @@ export async function createSystemMessage(): Promise<Message> {
     variables: {
       PROJECT_FILES: data.files || [],
       GRAPH_CONTEXT: graphContext,
-      MAX_NODES: 7
-    }
+      MAX_NODES: "7"
+    },
+    content: ""
   };
 }
 

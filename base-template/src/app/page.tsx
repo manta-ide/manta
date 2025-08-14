@@ -105,7 +105,7 @@ className="fill-white"
         {/* Title */}
         <h1
           id="node-element-hero-title"
-          className="text-4xl font-extrabold tracking-tight text-green-600 sm:text-5xl md:text-6xl"
+          className="text-4xl font-extrabold tracking-tight text-red-600 sm:text-5xl md:text-6xl"
         >
           John Doe
         </h1>
