@@ -64,7 +64,7 @@ export default function Home() {
         </p>
         <Button
           asChild
-          className="mt-8"
+          className="mt-8 bg-[#c770c0] hover:bg-[#c770c0]/90 text-[#ffffff] font-sans rounded-md"
           id="node-element-cta-button"
           size="lg"
         >

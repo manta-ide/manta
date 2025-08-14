@@ -140,10 +140,9 @@ export async function GET(req: NextRequest) {
     const listOnly = url.searchParams.get('list') === 'true';
     const includeGraphs = url.searchParams.get('graphs') === 'true';
     const filePath = url.searchParams.get('path');
-    
+
     // Ensure project directory exists
     await fs.mkdir(PROJECT_ROOT, { recursive: true });
-    
     if (filePath) {
       // Return specific file content
       const fullPath = path.join(PROJECT_ROOT, filePath);
@@ -221,13 +220,13 @@ export async function PUT(req: NextRequest) {
     } else {
       // Handle file update
       const { filePath, content } = body;
-      
+      console.log('filePath', filePath);
       if (!filePath || content === undefined) {
         return NextResponse.json({ error: 'filePath and content are required' }, { status: 400 });
       }
       
       const fullPath = path.join(PROJECT_ROOT, filePath);
-      
+      console.log('fullPath', fullPath);
       // Write file
       await fs.writeFile(fullPath, content, 'utf-8');
       

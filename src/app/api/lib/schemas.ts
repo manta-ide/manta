@@ -102,25 +102,80 @@ export const ClientChatRequestSchema = z.object({
 
 export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 
-// Graph schema for structured output
+// Property schemas for graph node properties
+export const CodeBindingSchema = z.object({
+  file: z.string(),
+  start: z.number(),
+  end: z.number(),
+});
+
+export type CodeBinding = z.infer<typeof CodeBindingSchema>;
+
+// Property type schemas
+export const ColorPropertySchema = z.object({
+  type: z.literal('color'),
+  value: z.string(),
+  options: z.array(z.string()).optional(),
+});
+
+export const TextPropertySchema = z.object({
+  type: z.literal('text'),
+  value: z.string(),
+  maxLength: z.number().optional(),
+});
+
+export const NumberPropertySchema = z.object({
+  type: z.literal('number'),
+  value: z.number(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  step: z.number().optional(),
+});
+
+export const SelectPropertySchema = z.object({
+  type: z.literal('select'),
+  value: z.string(),
+  options: z.array(z.string()),
+});
+
+// Union of all property types
+export const PropertyValueSchema = z.discriminatedUnion('type', [
+  ColorPropertySchema,
+  TextPropertySchema,
+  NumberPropertySchema,
+  SelectPropertySchema,
+]);
+
+export type PropertyValue = z.infer<typeof PropertyValueSchema>;
+
+// Property definition
+export const PropertySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  propertyType: PropertyValueSchema,
+  codeBinding: CodeBindingSchema,
+});
+
+export type Property = z.infer<typeof PropertySchema>;
+
+// Updated GraphNodeSchema to include properties
+export const GraphNodeSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  prompt: z.string(),
+  children: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+  })),
+  // Tracks whether code for this node has been generated
+  built: z.boolean().optional(),
+  // Properties for the node
+  properties: z.array(PropertySchema).optional(),
+});
+
 export const GraphSchema = z.object({
-	rootId: z.string(),
-	nodes: z.array(z.object({
-		id: z.string(),
-		title: z.string(),
-		prompt: z.string().optional(),
-		kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']).optional(),
-		what: z.string().optional(),
-		how: z.string().optional(),
-		properties: z.array(z.string()).optional().default([]),
-		built: z.boolean().optional(),
-		children: z.array(z.object({
-			id: z.string(),
-			title: z.string(),
-			prompt: z.string().optional(),
-			kind: z.enum(['page', 'section', 'group', 'component', 'primitive', 'behavior']).optional(),
-		})).optional().default([]),
-	})),
+  rootId: z.string(),
+  nodes: z.array(GraphNodeSchema),
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

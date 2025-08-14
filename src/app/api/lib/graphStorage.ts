@@ -1,22 +1,7 @@
 import { z } from 'zod';
+import { GraphSchema, GraphNodeSchema } from './schemas';
 
-// Graph schema based on the build-prompt-graph route
-export const GraphNodeSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  prompt: z.string(),
-  children: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-  })),
-  // Tracks whether code for this node has been generated
-  built: z.boolean().optional(),
-});
 
-export const GraphSchema = z.object({
-  rootId: z.string(),
-  nodes: z.array(GraphNodeSchema),
-});
 
 export type Graph = z.infer<typeof GraphSchema>;
 

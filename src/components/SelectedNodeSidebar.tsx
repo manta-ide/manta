@@ -3,18 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
+import PropertyEditor from './property-editors';
+import { PropertyCodeService } from '@/lib/propertyCodeService';
 
 export default function SelectedNodeSidebar() {
 	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh } = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [isRebuilding, setIsRebuilding] = useState(false);
+	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 
   console.log('selectedNode', selectedNode);
 
 	useEffect(() => {
 		setPromptDraft(selectedNode?.prompt ?? '');
-	}, [selectedNodeId, selectedNode?.prompt]);
+		// Initialize property values from current code
+		if (selectedNode?.properties) {
+			const initializeProperties = async () => {
+				const initialValues: Record<string, any> = {};
+				for (const prop of selectedNode.properties) {
+					try {
+						const currentValue = await PropertyCodeService.readPropertyValue(prop);
+						initialValues[prop.id] = currentValue;
+					} catch (error) {
+						console.error(`Failed to read property ${prop.id}:`, error);
+						initialValues[prop.id] = prop.propertyType.value; // Fallback to default
+					}
+				}
+				setPropertyValues(initialValues);
+			};
+			initializeProperties();
+		}
+	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
 
 	if (!selectedNodeId) return null;
 
@@ -50,6 +70,41 @@ export default function SelectedNodeSidebar() {
 			triggerRefresh();
 		} finally {
 			setIsRebuilding(false);
+		}
+	};
+
+	const handlePropertyChange = async (propertyId: string, value: any) => {
+		setPropertyValues(prev => ({
+			...prev,
+			[propertyId]: value
+		}));
+
+		// Apply the property change to the code
+		if (selectedNode?.properties) {
+			try {
+				const updates = await PropertyCodeService.applyPropertyChanges(
+					selectedNode.properties,
+					{ ...propertyValues, [propertyId]: value }
+				);
+
+				// Group updates by file and apply them
+				const updatesByFile = updates.reduce((acc, update) => {
+					if (!acc[update.file]) {
+						acc[update.file] = [];
+					}
+					acc[update.file].push(update);
+					return acc;
+				}, {} as Record<string, typeof updates>);
+
+				for (const [filePath, fileUpdates] of Object.entries(updatesByFile)) {
+					await PropertyCodeService.updateFileContent(filePath, fileUpdates);
+				}
+
+				// Trigger refresh to show changes
+				triggerRefresh();
+			} catch (error) {
+				console.error('Failed to apply property change:', error);
+			}
 		}
 	};
 
@@ -93,6 +148,27 @@ export default function SelectedNodeSidebar() {
 								>{isRebuilding ? 'Rebuilding…' : 'Rebuild'}</button>
 							</div>
 						</div>
+
+						{selectedNode.properties && selectedNode.properties.length > 0 && (
+							<div className="space-y-4">
+								<div className="text-xs uppercase text-zinc-400">Properties</div>
+								{selectedNode.properties.map(property => (
+									<div key={property.id} className="space-y-2">
+										<div className="text-sm font-medium">{property.title}</div>
+										<PropertyEditor
+											property={{
+												...property,
+												propertyType: {
+													...property.propertyType,
+													value: propertyValues[property.id] || property.propertyType.value
+												}
+											}}
+											onChange={handlePropertyChange}
+										/>
+									</div>
+								))}
+							</div>
+						)}
 
 						{selectedNode.children?.length > 0 && (
 							<div>
