@@ -87,7 +87,7 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
         const picked: PickedStyle = {} as PickedStyle;
         STYLE_KEYS.forEach(k => (picked[k] = cs[k as any] || ''));
 
-        const txt = el.innerText.trim().replace(/\s+/g, ' ').slice(0, 80);
+        const txt = el.innerText ? el.innerText.trim().replace(/\s+/g, ' ').slice(0, 80) : '';
         return {
           tag: el.tagName.toLowerCase(),
           text: txt,
@@ -147,15 +147,17 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
         if (target) {
           const nodeId = target.id;
           let nodeData: any = null;
-          if (sessionId) {
-            try {
-              const res = await fetch(`/api/storage/${sessionId}/${nodeId}`);
-              if (res.ok) {
-                const data = await res.json();
-                nodeData = data.node ?? null;
-              }
-            } catch (_) {}
-          }
+          try {
+            const res = await fetch(`/api/backend/graph-api`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nodeId }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              nodeData = data.node ?? null;
+            }
+          } catch (_) {}
           setSelectedNode(nodeId, nodeData ?? undefined);
         } else {
           setSelectedNode(null, null);
