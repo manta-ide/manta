@@ -186,7 +186,7 @@ export default function SelectedNodeSidebar() {
 	};
 
 	return (
-		<div className="w-[420px] min-w-[420px] max-w-[420px] flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto overflow-x-hidden">
+		<div className="flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto">
 			<div className="p-4 border-b border-zinc-700 flex items-center justify-between">
 				<div className="flex flex-col">
 					<span className="text-xs text-zinc-400">Selected Node</span>

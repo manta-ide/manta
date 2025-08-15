@@ -489,7 +489,7 @@ function GraphView() {
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '100vh',
+        height: '100%',
         fontSize: '18px',
         color: '#666'
       }}>
@@ -504,7 +504,7 @@ function GraphView() {
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '100vh',
+        height: '100%',
         fontSize: '18px',
         color: '#ff4d4f'
       }}>
@@ -514,7 +514,7 @@ function GraphView() {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -525,6 +525,8 @@ function GraphView() {
         nodeTypes={nodeTypes}
         fitView
         attributionPosition="bottom-left"
+        minZoom={0.1}
+        maxZoom={2}
       >
         <MiniMap 
           style={{ background: '#f8f9fa' }}

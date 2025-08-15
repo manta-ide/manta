@@ -9,6 +9,7 @@ import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
 import { useProjectStore } from "@/lib/store";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 export default function Home() {
   const [panels, setPanels] = useState({
@@ -16,7 +17,7 @@ export default function Home() {
     editor: false,
     viewer: true,
     chat: true,
-    graph: false,
+    graph: true,
   });
   
   const [isEditMode, setIsEditMode] = useState(true);
@@ -30,72 +31,121 @@ export default function Home() {
   }, []); // Empty dependency array to run only once on mount
 
   const togglePanel = (panel: keyof typeof panels) => {
-    setPanels(prev => {
-      const newPanels = { ...prev, [panel]: !prev[panel] };
-      
-      // Make graph and viewer mutually exclusive
-      if (panel === 'graph' && newPanels.graph) {
-        newPanels.viewer = false;
-      } else if (panel === 'viewer' && newPanels.viewer) {
-        newPanels.graph = false;
-      }
-      
-      return newPanels;
-    });
+    setPanels(prev => ({
+      ...prev,
+      [panel]: !prev[panel]
+    }));
   };
+  const hasSelected = Boolean(selectedNodeId);
+
+  // inner group (viewer + graph) requires min 30 each when present
+  const mainMin =
+    (panels.viewer ? 30 : 0) +
+    (panels.graph ? 30 : 0) ||
+    0;
+
+  // choose sane outer defaults that sum to <= 100
+  const leftDefaults =
+    (panels.files ? 15 : 0) +
+    (panels.editor ? 30 : 0) +
+    (hasSelected ? 20 : 0);
+
+  const rightDefaults = panels.chat ? 25 : 0;
+
+  const mainDefault = Math.max(
+    mainMin,
+    100 - (leftDefaults + rightDefaults)
+  );
 
   return (
     <div className="flex flex-col h-screen bg-zinc-900">
-      <TopBar 
-        panels={panels} 
-        onTogglePanel={togglePanel}
-        isEditMode={isEditMode}
-        setIsEditMode={setIsEditMode}
-      />
-      
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left side - Files and Editor panels */}
-        <div className="flex flex-1 min-w-0">
-          {/* Files Panel */}
-          {panels.files && (
-            <div className="w-64 flex-shrink-0 border-r border-zinc-700">
-              <FileTree />
-            </div>
-          )}
-          
-          {/* Editor Panel */}
-          {panels.editor && (
-            <div className={`${panels.viewer ? 'w-[600px] flex-shrink-0' : 'flex-1 min-w-0'} border-r border-zinc-700`}>
-              <FileEditor />
-            </div>
-          )}
+      <TopBar panels={panels} onTogglePanel={togglePanel} isEditMode={isEditMode} setIsEditMode={setIsEditMode} />
 
-          {/* Node Details Sidebar (appears when an element is selected) */}
-          {selectedNodeId && <SelectedNodeSidebar />}
-          
-          {/* Main Content Panel - App Viewer or Graph */}
-          {panels.viewer && (
-            <div className="flex-1 min-w-0 bg-zinc-900">
-              <AppViewer isEditMode={isEditMode} />
-            </div>
-          )}
-          {panels.graph && (
-            <div className="flex-1 min-w-0 bg-zinc-900">
-              <GraphView />
-            </div>
-          )}
-        </div>
-        
-        {/* Right side panels */}
-        <div className="flex">
-          {/* Chat Panel */}
-          {panels.chat && (
-            <div className="w-96 flex-shrink-0 border-l border-zinc-700">
-              <ChatSidebar />
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Re-key when the visible layout changes */}
+      <ResizablePanelGroup
+        direction="horizontal"
+        className="flex-1"
+        key={[
+          panels.files,
+          panels.editor,
+          hasSelected,
+          panels.chat,
+          panels.viewer,
+          panels.graph,
+        ].join('|')}
+      >
+        {panels.files && (
+          <>
+            <ResizablePanel defaultSize={15} minSize={8.7} /* consider removing maxSize or raising it */>
+              <div className="h-full border-r border-zinc-700">
+                <FileTree />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+          </>
+        )}
+
+        {panels.editor && (
+          <>
+            <ResizablePanel defaultSize={30} minSize={20}>
+              <div className="h-full border-r border-zinc-700">
+                <FileEditor />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+          </>
+        )}
+
+        {hasSelected && (
+          <>
+            <ResizablePanel defaultSize={20} minSize={8.7}>
+              <div className="h-full border-r border-zinc-700">
+                <SelectedNodeSidebar />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+          </>
+        )}
+
+        {/* Main Content Area - outer main uses computed min/default */}
+        <ResizablePanel minSize={mainMin} defaultSize={mainDefault}>
+          {/* Re-key inner group when viewer/graph visibility changes */}
+          <ResizablePanelGroup
+            direction="horizontal"
+            key={`inner-${panels.viewer}-${panels.graph}`}
+          >
+            {panels.viewer && (
+              <>
+                <ResizablePanel defaultSize={panels.graph ? 60 : 100} minSize={30}>
+                  <div className="h-full bg-zinc-900">
+                    <AppViewer isEditMode={isEditMode} />
+                  </div>
+                </ResizablePanel>
+                {panels.graph && <ResizableHandle />}
+              </>
+            )}
+
+            {panels.graph && (
+              <ResizablePanel defaultSize={panels.viewer ? 40 : 100} minSize={30}>
+                <div className="h-full bg-zinc-900">
+                  <GraphView />
+                </div>
+              </ResizablePanel>
+            )}
+          </ResizablePanelGroup>
+        </ResizablePanel>
+
+        {panels.chat && (
+          <>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={25} minSize={10} /* consider raising max or removing */>
+              <div className="h-full border-l border-zinc-700">
+                <ChatSidebar />
+              </div>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
     </div>
   );
 }

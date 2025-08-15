@@ -1,302 +1,110 @@
-"use client";
+use client';
 
-import React from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import React from 'react';
 
 export default function Home() {
-  const features: { title: string; description: string; icon: string }[] = [
-    {
-      title: "Visual Editor",
-      description:
-        "Drag-and-drop components to build beautiful UIs without writing code, while keeping full code sync.",
-      icon: "window.svg",
-    },
-    {
-      title: "AI Code Assist",
-      description:
-        "Integrated AI suggestions that generate, refactor, and explain code in real-time as you type.",
-      icon: "globe.svg",
-    },
-    {
-      title: "Instant Preview",
-      description:
-        "Hot-reload across devices so you can see every change reflected instantly on web & mobile.",
-      icon: "file.svg",
-    },
-  ];
-
   return (
     <main
-      id="node-element-startup-landing-page"
-      className="flex min-h-screen w-full flex-col bg-background text-foreground"
+      id="node-element-swe-portfolio-page"
+      className="flex flex-col min-h-screen bg-background text-foreground"
     >
-      {/* Header */}
+      {/* Header Section */}
       <header
         id="node-element-header-section"
-        className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/80 backdrop-blur"
+        className="sticky top-0 z-50 flex items-center justify-between w-full px-6 py-4 bg-[#e5e7eb] border-b border-[#e5e7eb]"
       >
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
-          {/* Logo */}
-          <Link
-            id="node-element-logo"
-            href="/"
-            className="flex items-center gap-2 font-semibold"
-          >
-            <Image src="/next.svg" alt="CodeCraft logo" width={28} height={28} />
-            <span className="text-lg">CodeCraft</span>
-          </Link>
+        {/* Logo */}
+        <a
+          id="node-element-logo"
+          href="#node-element-swe-portfolio-page"
+          className="text-lg font-semibold tracking-tight text-black font-sans"
+        >
+          SWE Portfolio
+        </a>
 
-          {/* Navigation */}
-          <nav
-            id="node-element-navigation-links"
-            className="hidden items-center gap-6 text-sm md:flex"
-          >
-            <Link href="#node-element-feature-showcase" className="transition-colors hover:text-primary">
-              Features
-            </Link>
-            <Link href="#pricing" className="transition-colors hover:text-primary">
-              Pricing
-            </Link>
-            <Link href="#about" className="transition-colors hover:text-primary">
-              About
-            </Link>
-          </nav>
-
-          {/* Sign Up */}
-          <Button
-            id="node-element-signup-button"
-            asChild
-            size="sm"
-            className="ml-4 hidden md:inline-flex"
-          >
-            <Link href="/signup">Sign Up</Link>
-          </Button>
-        </div>
+        {/* Navigation Menu */}
+        <nav id="node-element-nav-menu" className="hidden md:block text-black text-sm font-sans">
+          <ul className="flex space-x-6">
+            <li>
+              <a
+                id="node-element-nav-item"
+                href="#node-element-projects-section"
+                className="hover:underline hover:text-[#3b82f6] transition-colors text-black"
+              >
+                Projects
+              </a>
+            </li>
+          </ul>
+        </nav>
       </header>
 
-      {/* Hero */}
+      {/* Introduction Section */}
       <section
-        id="node-element-hero-banner"
-        className="relative flex flex-col items-center justify-center gap-6 px-4 py-24 text-center md:py-32"
+        id="node-element-introduction-section"
+        className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-6"
       >
-        {/* Headlines */}
-        <h1
-          id="node-element-headline"
-          className="max-w-4xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl md:text-6xl"
-        >
-          Build the Web Visually—at the Speed of Thought.
-        </h1>
-        <p
-          id="node-element-subheading"
-          className="max-w-2xl text-base text-muted-foreground sm:text-lg md:text-xl"
-        >
-          CodeCraft is the next-gen IDE that lets you design, code, and deploy
-          modern web apps with a pixel-perfect visual editor powered by AI.
-        </p>
-
-        {/* CTA */}
-        <div className="flex flex-col items-center gap-4 sm:flex-row">
-          <Button
-            id="node-element-hero-call-to-action-button"
-            size="lg"
-            className="px-8"
-          >
-            Get Started for Free
-          </Button>
-          <Button variant="outline" size="lg" asChild>
-            <Link href="#node-element-feature-showcase">See Features</Link>
-          </Button>
+        {/* Profile Image */}
+        <div id="node-element-profile-image" className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary">
+          <img src="/vercel.svg" alt="Profile" className="object-cover w-full h-full" />
         </div>
 
-        {/* Illustration */}
-        <div
-          id="node-element-graphic-illustration"
-          className="relative mt-16 w-full max-w-5xl overflow-hidden rounded-xl border bg-muted/30 shadow-lg"
-        >
-          <Image
-            src="/window.svg"
-            alt="Screenshot of CodeCraft visual editor"
-            width={1200}
-            height={700}
-            className="h-auto w-full"
-            priority
-          />
-        </div>
-      </section>
-
-      {/* Features */}
-      <section
-        id="node-element-feature-showcase"
-        className="container mx-auto w-full px-4 py-24 md:px-8"
-      >
-        <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">
-          Why developers love CodeCraft
-        </h2>
-
-        {/* Cards */}
-        <div
-          id="node-element-feature-card-list"
-          className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group relative flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md"
-            >
-              <Image
-                src={`/${feature.icon}`}
-                alt="Feature icon"
-                width={48}
-                height={48}
-              />
-              <h3 className="text-lg font-semibold">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {feature.description}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Visual Showcase placeholder */}
-        <div
-          id="node-element-visual-showcases"
-          className="mt-20 flex w-full flex-col items-center justify-center gap-6"
-        >
-          <Image
-            src="/globe.svg"
-            alt="Live preview across devices"
-            width={160}
-            height={160}
-          />
-          <p className="max-w-2xl text-center text-muted-foreground">
-            Experience real-time collaboration and deployment previews that keep
-            your entire team in sync—no matter where they are.
+        {/* Introduction Text */}
+        <div id="node-element-introduction-text" className="max-w-2xl space-y-2">
+          <h1 className="text-3xl font-bold">Hi, I'm John Doe</h1>
+          <p className="text-muted-foreground">
+            A passionate software engineer specializing in building (and occasionally designing) exceptional digital experiences.
           </p>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section
-        id="node-element-call-to-action"
-        className="flex flex-col items-center justify-center bg-gradient-to-br from-primary to-primary/80 px-4 py-24 text-center text-primary-foreground"
-      >
-        <h2 className="mb-4 text-3xl font-bold md:text-4xl">
-          Start building with CodeCraft today
-        </h2>
-        <p className="mb-8 max-w-xl text-lg text-primary-foreground/90">
-          Sign up now and get 14 days of Pro features completely free.
-        </p>
-        <div className="flex flex-col gap-4 sm:flex-row">
-          <Button
-            id="node-element-primary-call-to-action"
-            size="lg"
-            variant="secondary"
-            className="bg-white text-primary hover:bg-white/90"
-            asChild
-          >
-            <Link href="/signup">Claim Your Free Trial</Link>
-          </Button>
-          <Button
-id="node-element-secondary-call-to-action"
-            size="lg"
-            variant="outline"
-            className="border-white/70 text-white hover:bg-white/10"
-            asChild
-          >
-            <Link href="/contact">Request a Demo</Link>
-          </Button>
+      {/* Projects Section */}
+      <section id="node-element-projects-section" className="py-16 px-6 bg-muted/50">
+        <h2 className="text-2xl font-semibold mb-8 text-center">Featured Projects</h2>
+
+        <div id="node-element-project-card" className="max-w-xl mx-auto border rounded-lg p-6 shadow-sm bg-background">
+          <h3 className="text-xl font-medium">Awesome Project</h3>
+          <p className="mt-2 text-muted-foreground">A brief description of the awesome project showcasing its features and technologies used.</p>
+          <p className="mt-4 text-sm font-mono text-primary">React · TypeScript · Next.js</p>
+          <a href="https://github.com/username/awesome-project" target="_blank" rel="noopener noreferrer" className="inline-block mt-4 text-sm text-primary hover:underline">View on GitHub</a>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer
-        id="node-element-footer-section"
-        className="border-t border-border/60 bg-background px-4 py-12 md:px-8"
-      >
-        <div className="container mx-auto grid gap-8 md:grid-cols-4">
-          {/* Company Info */}
-          <div id="node-element-company-info-links" className="space-y-4">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <Image src="/next.svg" alt="CodeCraft logo" width={24} height={24} />
-              <span>CodeCraft</span>
-            </Link>
-            <p className="max-w-xs text-sm text-muted-foreground">
-              The visual IDE built for modern web creators. Crafted with ❤️ in
-              San Francisco.
+      {/* Skills Section */}
+      <section id="node-element-skills-section" className="py-16 px-6">
+        <h2 className="text-2xl font-semibold mb-8 text-center">Skills</h2>
+
+        <ul id="node-element-skill-list" className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-4">
+          <li className="bg-muted rounded-md px-4 py-2 text-center">JavaScript</li>
+          <li className="bg-muted rounded-md px-4 py-2 text-center">TypeScript</li>
+          <li className="bg-muted rounded-md px-4 py-2 text-center">React</li>
+          <li className="bg-muted rounded-md px-4 py-2 text-center">Next.js</li>
+          <li className="bg-muted rounded-md px-4 py-2 text-center">Node.js</li>
+          <li className="bg-muted rounded-md px-4 py-2 text-center">GraphQL</li>
+        </ul>
+      </section>
+
+      {/* Contact Section */}
+      <section id="node-element-contact-section" className="py-16 px-6 bg-muted/50">
+        <h2 className="text-2xl font-semibold mb-8 text-center">Get in Touch</h2>
+
+        <div className="max-w-xl mx-auto space-y-8">
+          <div id="node-element-contact-info" className="text-center space-y-2">
+            <p>Email: <a href="mailto:john.doe@example.com" className="text-primary hover:underline">john.doe@example.com</a></p>
+            <p>
+              <a href="https://github.com/username" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">GitHub</a>
+              {" · "}
+              <a href="https://linkedin.com/in/username" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">LinkedIn</a>
             </p>
           </div>
 
-          {/* Links */}
-          <div className="space-y-2">
-            <h4 className="mb-2 font-medium">Product</h4>
-            <ul className="space-y-1 text-sm">
-              <li>
-                <Link href="#node-element-feature-showcase" className="hover:text-primary">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="#pricing" className="hover:text-primary">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="#about" className="hover:text-primary">
-                  About
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Social */}
-          <div className="space-y-2">
-            <h4 className="mb-2 font-medium">Community</h4>
-            <ul
-              id="node-element-social-links"
-              className="space-y-1 text-sm"
-            >
-              <li>
-                <Link href="https://twitter.com" className="hover:text-primary">
-                  Twitter
-                </Link>
-              </li>
-              <li>
-                <Link href="https://github.com" className="hover:text-primary">
-                  GitHub
-                </Link>
-              </li>
-              <li>
-                <Link href="https://discord.com" className="hover:text-primary">
-                  Discord
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div className="space-y-2">
-            <h4 className="mb-2 font-medium">Legal</h4>
-            <ul className="space-y-1 text-sm" id="node-element-legal-links">
-              <li>
-                <Link href="/privacy" className="hover:text-primary">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-primary">
-                  Terms of Service
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <form id="node-element-contact-form" className="space-y-4">
+            <input type="text" placeholder="Name" className="w-full px-4 py-2 border rounded-md bg-background" required />
+            <input type="email" placeholder="Email" className="w-full px-4 py-2 border rounded-md bg-background" required />
+            <textarea placeholder="Message" className="w-full px-4 py-2 border rounded-md bg-background h-32" required></textarea>
+            <button type="submit" className="px-6 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">Send Message</button>
+          </form>
         </div>
-
-        <p className="mt-12 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} CodeCraft Inc. All rights reserved.
-        </p>
-      </footer>
+      </section>
     </main>
   );
 }

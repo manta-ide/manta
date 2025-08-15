@@ -86,7 +86,7 @@ export default function ChatSidebar() {
   };
 
   return (
-    <div className="w-96 flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
+    <div className="flex flex-col h-full bg-zinc-900 border-l border-zinc-700">
       {/* Header with clear button */}
       {messages.length > 0 && (
         <div className="flex justify-end p-2 border-b border-zinc-700">
