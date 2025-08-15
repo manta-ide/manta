@@ -4,107 +4,176 @@ import React from 'react';
 
 export default function Home() {
   return (
-    <main
-      id="node-element-swe-portfolio-page"
-      className="flex flex-col min-h-screen bg-background text-foreground"
-    >
-      {/* Header Section */}
-      <header
-        id="node-element-header-section"
-        className="sticky top-0 z-50 flex items-center justify-between w-full px-6 py-4 bg-[#e5e7eb] border-b border-[#e5e7eb]"
-      >
-        {/* Logo */}
-        <a
-          id="node-element-logo"
-          href="#node-element-swe-portfolio-page"
-          className="text-lg font-semibold tracking-tight text-black font-sans"
-        >
-          SWE Portfolio
-        </a>
+    <main id="node-element-portfolio-page" className="flex flex-col min-h-screen">
+      {/* Header */}
+      <header id="node-element-header" className="p-4 shadow">
+        <div className="flex items-center justify-between max-w-5xl mx-auto">
+          {/* Logo */}
+          <a id="node-element-logo" href="#" className="font-bold text-lg">
+            SWE Portfolio
+          </a>
+          {/* Navigation */}
+          <nav id="node-element-nav-menu" className="hidden md:flex gap-6">
+            <a id="node-element-nav-item" href="#hero" className="hover:underline">
+              Home
+            </a>
+            <a href="#projects" className="hover:underline">
+              Projects
+            </a>
+            <a href="#testimonials" className="hover:underline">
+              Testimonials
+            </a>
+            <a href="#contact" className="hover:underline">
+              Contact
+            </a>
+          </nav>
 
-        {/* Navigation Menu */}
-        <nav id="node-element-nav-menu" className="hidden md:block text-black text-sm font-sans">
-          <ul className="flex space-x-6">
-            <li>
-              <a
-                id="node-element-nav-item"
-                href="#node-element-projects-section"
-                className="hover:underline hover:text-[#3b82f6] transition-colors text-black"
-              >
-                Projects
-              </a>
-            </li>
-          </ul>
-        </nav>
+          {/* CTA */}
+          <a
+            id="node-element-cta-button"
+            href="#resume"
+            className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
+          >
+            Download Resume
+          </a>
+        </div>
       </header>
 
-      {/* Introduction Section */}
+      {/* Hero */}
       <section
-        id="node-element-introduction-section"
-        className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-6"
+        id="node-element-hero-section"
+        className="flex flex-col items-center justify-center gap-6 py-24 text-center max-w-3xl mx-auto"
       >
-        {/* Profile Image */}
-        <div id="node-element-profile-image" className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary">
-          <img src="/vercel.svg" alt="Profile" className="object-cover w-full h-full" />
-        </div>
-
-        {/* Introduction Text */}
-        <div id="node-element-introduction-text" className="max-w-2xl space-y-2">
-          <h1 className="text-3xl font-bold">Hi, I'm John Doe</h1>
-          <p className="text-muted-foreground">
-            A passionate software engineer specializing in building (and occasionally designing) exceptional digital experiences.
-          </p>
+        <h1 id="node-element-intro-text" className="text-4xl font-extrabold tracking-tight">
+          Hi, I'm <span className="text-primary">Your Name</span>
+        </h1>
+        <p className="text-muted-foreground">
+          A software engineer specializing in building exceptional digital experiences.
+        </p>
+        <a
+          id="node-element-resume-link"
+          href="#resume"
+          className="underline text-primary font-medium"
+        >
+          View Resume
+        </a>
+        <div id="node-element-social-links-group" className="flex gap-4 justify-center">
+          <a
+            id="node-element-social-link-item"
+            href="https://github.com"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:underline"
+          >
+            GitHub
+          </a>
+          <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:underline">
+            LinkedIn
+          </a>
+          <a href="https://twitter.com" target="_blank" rel="noreferrer" className="hover:underline">
+            Twitter
+          </a>
         </div>
       </section>
 
-      {/* Projects Section */}
-      <section id="node-element-projects-section" className="py-16 px-6 bg-muted/50">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Featured Projects</h2>
-
-        <div id="node-element-project-card" className="max-w-xl mx-auto border rounded-lg p-6 shadow-sm bg-background">
-          <h3 className="text-xl font-medium">Awesome Project</h3>
-          <p className="mt-2 text-muted-foreground">A brief description of the awesome project showcasing its features and technologies used.</p>
-          <p className="mt-4 text-sm font-mono text-primary">React · TypeScript · Next.js</p>
-          <a href="https://github.com/username/awesome-project" target="_blank" rel="noopener noreferrer" className="inline-block mt-4 text-sm text-primary hover:underline">View on GitHub</a>
-        </div>
-      </section>
-
-      {/* Skills Section */}
-      <section id="node-element-skills-section" className="py-16 px-6">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Skills</h2>
-
-        <ul id="node-element-skill-list" className="bg-[#transparent]">
-          <li className="bg-muted rounded-md px-4 py-2 text-center">JavaScript</li>
-          <li className="bg-muted rounded-md px-4 py-2 text-center">TypeScript</li>
-          <li className="bg-muted rounded-md px-4 py-2 text-center">React</li>
-          <li className="bg-muted rounded-md px-4 py-2 text-center">Next.js</li>
-          <li className="bg-muted rounded-md px-4 py-2 text-center">Node.js</li>
-          <li className="bg-muted rounded-md px-4 py-2 text-center">GraphQL</li>
-        </ul>
-      </section>
-
-      {/* Contact Section */}
-      <section id="node-element-contact-section" className="py-16 px-6 bg-muted/50">
-        <h2 className="text-2xl font-semibold mb-8 text-center">Get in Touch</h2>
-
-        <div className="max-w-xl mx-auto space-y-8">
-          <div id="node-element-contact-info" className="text-center space-y-2">
-            <p>Email: <a href="mailto:john.doe@example.com" className="text-primary hover:underline">john.doe@example.com</a></p>
-            <p>
-              <a href="https://github.com/username" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">GitHub</a>
-              {" · "}
-              <a href="https://linkedin.com/in/username" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      {/* Projects */}
+      <section id="node-element-projects-section" className="py-16 max-w-5xl mx-auto px-4">
+        <h2 className="text-3xl font-bold mb-8">Projects</h2>
+        <div id="node-element-projects-group" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <article id="node-element-project-item" className="border p-4 rounded-lg">
+            <h3 className="font-semibold mb-2">Project Title</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              A short description of the project showing key features and technologies used.
             </p>
-          </div>
+            <div className="flex gap-3 text-sm">
+              <a href="#" className="text-primary hover:underline">
+                Live Demo
+              </a>
+              <a href="#" className="text-primary hover:underline">
+                Source Code
+              </a>
+            </div>
+          </article>
+        </div>
+      </section>
 
+      {/* Testimonials */}
+      <section id="node-element-testimonials-section" className="py-16 bg-muted">
+        <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-3xl font-bold mb-8">Testimonials</h2>
+          <div id="node-element-testimonial-group" className="grid gap-6 md:grid-cols-2">
+            <blockquote id="node-element-testimonial-item" className="p-6 bg-white rounded-lg shadow">
+              <p className="mb-2 text-sm">
+                "Working with this engineer was a pleasure. They delivered quality work on time."
+              </p>
+              <footer className="text-xs font-medium text-muted-foreground">— Happy Client</footer>
+            </blockquote>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact */}
+      <section id="node-element-contact-section" className="py-16 max-w-5xl mx-auto px-4">
+        <h2 className="text-3xl font-bold mb-8">Get in Touch</h2>
+        <div className="grid gap-8 md:grid-cols-2">
+          <div id="node-element-contact-info" className="space-y-2">
+            <p>Email: <a href="mailto:you@example.com" className="text-primary hover:underline">you@example.com</a></p>
+            <p>Phone: <a href="tel:+1234567890" className="text-primary hover:underline">+1 (234) 567-890</a></p>
+          </div>
           <form id="node-element-contact-form" className="space-y-4">
-            <input type="text" placeholder="Name" className="w-full px-4 py-2 border rounded-md bg-background" required />
-            <input type="email" placeholder="Email" className="w-full px-4 py-2 border rounded-md bg-background" required />
-            <textarea placeholder="Message" className="w-full px-4 py-2 border rounded-md bg-background h-32" required></textarea>
-            <button type="submit" className="px-6 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">Send Message</button>
+            <input
+              id="node-element-form-field-name"
+              type="text"
+              placeholder="Your Name"
+              className="border w-full p-2 rounded-md text-sm"
+            />
+            <input
+              id="node-element-form-field-email"
+              type="email"
+              placeholder="you@example.com"
+              className="border w-full p-2 rounded-md text-sm"
+            />
+            <textarea
+              id="node-element-form-field-message"
+              placeholder="Your Message"
+              rows={4}
+              className="border w-full p-2 rounded-md text-sm"
+            />
+            <button
+              id="node-element-submit-button"
+              type="submit"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
+            >
+              Send Message
+            </button>
           </form>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer id="node-element-footer" className="border-t py-6 mt-auto">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p id="node-element-copyright-text" className="text-sm text-muted-foreground">
+            © {new Date().getFullYear()} Your Name. All rights reserved.
+          </p>
+          <nav id="node-element-footer-links" className="flex gap-4 text-sm">
+            <a id="node-element-footer-link-item" href="#projects" className="hover:underline">
+              Projects
+            </a>
+            <a id="node-element-footer-link-item" href="#contact" className="hover:underline">
+              Contact
+            </a>
+          </nav>
+          <div id="node-element-footer-social-icons" className="flex gap-4">
+            <a id="node-element-footer-social-icon-item" href="https://github.com" className="hover:underline" target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+            <a id="node-element-footer-social-icon-item" href="https://linkedin.com" className="hover:underline" target="_blank" rel="noreferrer">
+              LinkedIn
+            </a>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
