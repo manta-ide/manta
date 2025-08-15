@@ -11,6 +11,7 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [isRebuilding, setIsRebuilding] = useState(false);
+	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 
   console.log('selectedNode', selectedNode);
@@ -70,6 +71,82 @@ export default function SelectedNodeSidebar() {
 			triggerRefresh();
 		} finally {
 			setIsRebuilding(false);
+		}
+	};
+
+	const handleGenerateProperties = async () => {
+		if (!selectedNodeId) return;
+		try {
+			setIsGeneratingProperties(true);
+			
+			// Get current graph
+			const graphRes = await fetch('/api/backend/graph-api');
+			if (!graphRes.ok) {
+				console.error('Failed to get graph for property generation');
+				return;
+			}
+			
+			const graphData = await graphRes.json();
+			if (!graphData.success || !graphData.graph) {
+				console.error('No graph found for property generation');
+				return;
+			}
+			
+			// Get current code content
+			const codeRes = await fetch('/api/files?path=src/app/page.tsx');
+			if (!codeRes.ok) {
+				console.error('Failed to get current code for property generation');
+				return;
+			}
+			
+			const codeData = await codeRes.json();
+			const generatedCode = codeData.content || '';
+			
+			// Generate properties for the selected node
+			const propertyRes = await fetch('/api/agents/generate-properties', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					graph: graphData.graph,
+					nodeId: selectedNodeId,
+					generatedCode,
+					filePath: 'base-template/src/app/page.tsx'
+				}),
+			});
+			
+			if (propertyRes.ok) {
+				const propertyData = await propertyRes.json();
+				if (propertyData.success && propertyData.properties.length > 0) {
+					// Use the updated graph from the response
+					const updatedGraph = propertyData.updatedGraph;
+					const updatedNode = updatedGraph.nodes.find((n: any) => n.id === selectedNodeId);
+					
+					if (updatedNode) {
+						// Update local state
+						setSelectedNode(selectedNodeId, updatedNode);
+						
+						// Initialize property values
+						const initialValues: Record<string, any> = {};
+						for (const prop of propertyData.properties) {
+							initialValues[prop.id] = prop.propertyType.value;
+						}
+						setPropertyValues(initialValues);
+						
+						// Trigger refresh
+						triggerRefresh();
+					} else {
+						console.error('Updated node not found in response');
+					}
+				} else {
+					console.log('No properties generated for this node');
+				}
+			} else {
+				console.error('Failed to generate properties');
+			}
+		} catch (error) {
+			console.error('Error generating properties:', error);
+		} finally {
+			setIsGeneratingProperties(false);
 		}
 	};
 
@@ -146,13 +223,18 @@ export default function SelectedNodeSidebar() {
 									disabled={isRebuilding}
 									onClick={handleRebuild}
 								>{isRebuilding ? 'Rebuilding…' : 'Rebuild'}</button>
+								<button
+									className={`px-3 py-1.5 rounded text-sm bg-green-600 hover:bg-green-700`}
+									disabled={isGeneratingProperties}
+									onClick={handleGenerateProperties}
+								>{isGeneratingProperties ? 'Generating…' : 'Generate Properties'}</button>
 							</div>
 						</div>
 
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
 							<div className="space-y-4">
 								<div className="text-xs uppercase text-zinc-400">Properties</div>
-								{selectedNode.properties.map(property => (
+								{selectedNode.properties.map((property: any) => (
 									<div key={property.id} className="space-y-2">
 										<div className="text-sm font-medium">{property.title}</div>
 										<PropertyEditor
@@ -174,7 +256,7 @@ export default function SelectedNodeSidebar() {
 							<div>
 								<div className="text-xs uppercase text-zinc-400">Children ({selectedNode.children.length})</div>
 								<ul className="list-disc list-inside text-sm break-words">
-									{selectedNode.children.map(child => (
+									{selectedNode.children.map((child: any) => (
 										<li key={child.id}>{child.title}</li>
 									))}
 								</ul>

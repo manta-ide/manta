@@ -1,199 +1,198 @@
 'use client';
-
 import React, { FormEvent } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 
 export default function Home() {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const name = data.get('name');
-    const email = data.get('email');
-    const message = data.get('message');
-    // For demo purposes just log – replace with your favourite email service.
-    // eslint-disable-next-line no-console
-    console.log({ name, email, message });
-    alert('Thank you for reaching out!');
-    e.currentTarget.reset();
+    // TODO: integrate with backend or email service
   };
 
-  const projects = [
-    {
-      title: 'Realtime Chat App',
-      description: 'Socket.io powered chat application with rooms and live typing indicators.',
-      href: 'https://github.com/yourname/realtime-chat',
-      image: '/window.svg',
-    },
-    {
-      title: 'AI Code Assistant',
-      description: 'VSCode extension that suggests code completions using GPT-4.',
-      href: 'https://github.com/yourname/ai-code-assistant',
-      image: '/file.svg',
-    },
-    {
-      title: 'Travel Planner',
-      description: 'Full-stack Next.js app that helps travelers plan and visualize their trips.',
-      href: 'https://github.com/yourname/travel-planner',
-      image: '/globe.svg',
-    },
-  ];
-
   return (
-    <main id="node-element-swe-portfolio-page" className="flex flex-col scroll-smooth">
+    <div
+      id="node-element-swe-portfolio-page"
+      className="flex flex-col items-center justify-center scroll-smooth"
+    >
       {/* Hero Section */}
       <section
         id="node-element-hero-section"
-        className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-sky-50 via-white to-emerald-50 px-6 text-center dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
+        className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 text-center px-4"
       >
         <h1
           id="node-element-hero-title"
-          className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl md:text-6xl"
+          className="font-bold font-sans text-4xl"
         >
-          John Doe
+          Hi, I&apos;m John Doe
         </h1>
         <p
           id="node-element-hero-subtitle"
-          className="mt-4 max-w-xl text-lg text-slate-700 dark:text-slate-300 sm:text-xl"
+          className="mt-4 text-gray-600 max-w-2xl font-sans text-2xl"
         >
-          Full-Stack Software Engineer crafting delightful web experiences.
+          Software Engineer specializing in full-stack development and creating
+          great user experiences.
         </p>
         <Button
-          asChild
-          className="mt-8 bg-[#c770c0] hover:bg-[#c770c0]/90 text-[#ffffff] font-sans rounded-md"
           id="node-element-cta-button"
-          size="lg"
+          className="mt-8 bg-[#1d3a62] font-sans rounded-xl"
         >
-          <Link href="#projects">See My Work</Link>
+          View My Work
         </Button>
       </section>
 
       {/* About Section */}
       <section
         id="node-element-about-section"
-        className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10 px-6 py-24 md:flex-row"
+        className="w-full py-20 px-4 bg-white"
       >
-        {/* Profile Image */}
-        <div className="relative h-48 w-48 flex-shrink-0 md:h-60 md:w-60">
-          <Image
-            id="node-element-profile-image"
-            src="/vercel.svg"
-            alt="John Doe avatar"
-            fill
-            className="rounded-full object-cover shadow-lg"
-          />
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 items-center">
+          <div className="flex justify-center">
+            <img
+              id="node-element-profile-image"
+              src="/profile.jpg"
+              alt="John Doe profile picture"
+              className="w-48 h-48 rounded-full object-cover border-4 border-white shadow-md"
+            />
+          </div>
+          <div
+            id="node-element-about-text"
+            className="text-lg leading-relaxed text-gray-700"
+          >
+            <p>
+              I&apos;m a passionate software engineer with experience building
+              scalable web applications and delightful user interfaces using
+              React, Next.js, Node.js, and more. I love turning complex problems
+              into simple, beautiful, and intuitive designs.
+            </p>
+          </div>
         </div>
-        {/* About Text */}
-        <div id="node-element-about-text" className="prose dark:prose-invert max-w-none md:ml-10">
-          <h2 className="mb-4 text-3xl font-bold">About Me</h2>
-          <p>
-            I’m a passionate software engineer with 5+ years of experience building scalable web
-            applications. My expertise lies in React, Next.js, TypeScript, and cloud-native
-            architectures.
-          </p>
-          <p>
-            I enjoy turning complex problems into simple, beautiful, and intuitive solutions. When
-            I’m not coding, you’ll find me hiking, reading sci-fi novels, or experimenting with new
-            coffee brewing techniques.
-          </p>
+      </section>
+
+      {/* Skills Section */}
+      <section
+        id="node-element-skills-section"
+        className="w-full py-20 px-4 bg-gray-50"
+      >
+        <h2 className="text-3xl font-bold text-center mb-8">Skills</h2>
+        <div
+          id="node-element-skills-grid"
+          className="full"
+        >
+          {[
+            'JavaScript',
+            'TypeScript',
+            'React',
+            'Next.js',
+            'Node.js',
+            'GraphQL',
+            'Tailwind CSS',
+            'PostgreSQL',
+          ].map((skill) => (
+            <span
+              key={skill}
+              className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm text-center"
+            >
+              {skill}
+            </span>
+          ))}
         </div>
       </section>
 
       {/* Projects Section */}
       <section
-        id="projects" // anchor target for smooth scroll
-        className="w-full bg-slate-50 py-24 dark:bg-slate-800"
+        id="node-element-projects-section"
+        className="w-full py-20 px-4 bg-white"
       >
-        <div
-          id="node-element-projects-section"
-          className="mx-auto w-full max-w-6xl px-6"
-        >
-          <h2 className="text-center text-3xl font-bold text-slate-900 dark:text-slate-100">
-            My Projects
-          </h2>
-          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
-              <Link
-                key={project.title}
-                href={project.href}
-                className="group"
-                target="_blank"
-                rel="noopener noreferrer"
+        <h2 className="text-3xl font-bold text-center mb-8">Projects</h2>
+        <div className="max-w-5xl mx-auto grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            id="node-element-project-card"
+            className="border overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-[#f5f4f4] rounded-xl"
+          >
+            <img
+              src="/project1.jpg"
+              alt="Screenshot of Project One"
+              className="w-full h-40 object-cover"
+            />
+            <div className="p-4">
+              <h3 className="font-semibold text-lg">Project One</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                A brief description of the first highlighted project showcasing
+                my expertise.
+              </p>
+              <a
+                href="#"
+                className="inline-block mt-4 text-blue-500 hover:underline"
               >
-                <article
-                  id="node-element-project-card"
-                  className="flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-lg dark:border-slate-700"
-                >
-                  <div className="relative h-44 w-full bg-slate-100 dark:bg-slate-700">
-                    <Image
-                      src={project.image}
-                      alt={project.title}
-                      fill
-                      className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                      {project.title}
-                    </h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      {project.description}
-                    </p>
-                    <span className="mt-auto text-primary">View project →</span>
-                  </div>
-                </article>
-              </Link>
-            ))}
+                Learn more →
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Contact Section */}
-      <section id="node-element-contact-section" className="mx-auto w-full max-w-4xl px-6 py-24">
-        <h2 className="text-center text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Get In Touch
-        </h2>
-        <div className="mt-12 flex flex-col gap-16 md:flex-row">
-          {/* Contact Form */}
+      <section
+        id="node-element-contact-section"
+        className="py-16"
+      >
+        <h2 className="text-3xl font-bold text-center mb-8">Contact</h2>
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
           <form
             id="node-element-contact-form"
+            className="flex flex-col gap-4"
             onSubmit={handleSubmit}
-            className="flex w-full flex-col gap-4 md:w-2/3"
           >
-            <Input name="name" placeholder="Name" required />
-            <Input name="email" type="email" placeholder="Email" required />
-            <Textarea name="message" placeholder="Your message" rows={5} required />
-            <Button type="submit" className="self-start">
-              Send Message
+            <input
+              type="text"
+              placeholder="Your Name"
+              required
+              className="border rounded-md p-3"
+            />
+            <input
+              type="email"
+              placeholder="Your Email"
+              required
+              className="border rounded-md p-3"
+            />
+            <textarea
+              placeholder="Your Message"
+              required
+              className="border rounded-md p-3 min-h-[120px]"
+            />
+            <Button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-600 text-white rounded-md self-start"
+            >
+              Send
             </Button>
           </form>
-
-          {/* Contact Info */}
           <div
             id="node-element-contact-info"
-            className="flex flex-col gap-4 text-base text-slate-700 dark:text-slate-300 md:w-1/3"
+            className="flex flex-col gap-2 text-gray-700"
           >
-            <p className="font-semibold">Email</p>
-            <Link href="mailto:john.doe@example.com" className="hover:underline">
-              john.doe@example.com
-            </Link>
-            <p className="font-semibold mt-6">Social</p>
-            <Link href="https://github.com/yourname" target="_blank" className="hover:underline">
-              GitHub
-            </Link>
-            <Link href="https://linkedin.com/in/yourname" target="_blank" className="hover:underline">
-              LinkedIn
-            </Link>
-            <Link href="https://twitter.com/yourname" target="_blank" className="hover:underline">
-              Twitter
-            </Link>
+            <p>
+              Email:{' '}
+              <a
+                href="mailto:hello@example.com"
+                className="text-blue-500 hover:underline"
+              >
+                hello@example.com
+              </a>
+            </p>
+            <p>
+              LinkedIn:{' '}
+              <a
+                href="https://linkedin.com/in/johndoe"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                linkedin.com/in/johndoe
+              </a>
+            </p>
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

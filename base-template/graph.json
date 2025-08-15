@@ -4,8 +4,7 @@
     {
       "id": "node-element-swe-portfolio-page",
       "title": "SWE Portfolio Page",
-      "prompt": "Kind: page. What: A portfolio page showcasing a software engineer's skills, projects, and contact information. How: Designed with a responsive layout and modern styling using Next.js and Tailwind CSS. Properties: responsive, SEO-friendly, accessible.",
-      "properties": [],
+      "prompt": "Kind: page. What: A portfolio page showcasing a software engineer's skills, projects, and contact information. How: Responsive layout with modern styling using Next.js and Tailwind CSS. Properties: responsive, SEO-friendly, accessible. Sections: Hero, About, Skills, Projects, Contact.",
       "children": [
         {
           "id": "node-element-hero-section",
@@ -16,6 +15,10 @@
           "title": "About Section"
         },
         {
+          "id": "node-element-skills-section",
+          "title": "Skills Section"
+        },
+        {
           "id": "node-element-projects-section",
           "title": "Projects Section"
         },
@@ -24,13 +27,13 @@
           "title": "Contact Section"
         }
       ],
-      "built": true
+      "built": false,
+      "properties": []
     },
     {
       "id": "node-element-hero-section",
       "title": "Hero Section",
       "prompt": "Kind: section. What: First section of the page showcasing the name, title, and call-to-action (CTA). How: Full-screen layout with background image or gradient, and prominent text. Properties: centered, responsive, engaging.",
-      "properties": [],
       "children": [
         {
           "id": "node-element-hero-title",
@@ -45,13 +48,13 @@
           "title": "Call-to-Action Button"
         }
       ],
-      "built": true
+      "built": false,
+      "properties": []
     },
     {
       "id": "node-element-about-section",
       "title": "About Section",
       "prompt": "Kind: section. What: A section introducing the software engineer and describing their background. How: Two-column layout with profile image and text description. Properties: modern layout, responsive, accessible.",
-      "properties": [],
       "children": [
         {
           "id": "node-element-profile-image",
@@ -62,26 +65,39 @@
           "title": "About Text"
         }
       ],
-      "built": true
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-skills-section",
+      "title": "Skills Section",
+      "prompt": "Kind: section. What: A section listing the software engineering skills with badges or icons. How: Responsive grid layout of skill chips. Properties: modern layout, accessible, visually lightweight.",
+      "children": [
+        {
+          "id": "node-element-skills-grid",
+          "title": "Skills Grid"
+        }
+      ],
+      "built": false,
+      "properties": []
     },
     {
       "id": "node-element-projects-section",
       "title": "Projects Section",
       "prompt": "Kind: section. What: A section showcasing key projects with links to detailed descriptions or live demos. How: Grid layout with cards representing individual projects. Properties: structured, visually appealing, responsive.",
-      "properties": [],
       "children": [
         {
           "id": "node-element-project-card",
           "title": "Project Card"
         }
       ],
-      "built": true
+      "built": false,
+      "properties": []
     },
     {
       "id": "node-element-contact-section",
       "title": "Contact Section",
       "prompt": "Kind: section. What: A section for users to reach out via a contact form or email. How: Layout with an input form and contact details. Properties: simple, accessible, responsive.",
-      "properties": [],
       "children": [
         {
           "id": "node-element-contact-form",
@@ -92,140 +108,316 @@
           "title": "Contact Information"
         }
       ],
-      "built": true
+      "built": false,
+      "properties": []
     },
     {
       "id": "node-element-hero-title",
       "title": "Hero Title",
       "prompt": "Kind: component. What: The main title text of the hero section, typically the name of the software engineer. How: Large, bold typography. Properties: prominent, readable, accessible.",
-      "properties": [],
       "children": [],
-      "built": true
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-hero-title-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 719,
+            "end": 761
+          }
+        },
+        {
+          "id": "node-element-hero-title-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "4xl",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 719,
+            "end": 761
+          }
+        }
+      ]
     },
     {
       "id": "node-element-hero-subtitle",
       "title": "Hero Subtitle",
       "prompt": "Kind: component. What: Additional text that supports the hero title, describing the engineer's job/expertise. How: Smaller, secondary typography. Properties: readable, supportive.",
-      "properties": [],
       "children": [],
-      "built": true
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-hero-subtitle-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 878,
+            "end": 938
+          }
+        },
+        {
+          "id": "node-element-hero-subtitle-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "xl",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 878,
+            "end": 938
+          }
+        }
+      ]
     },
     {
       "id": "node-element-cta-button",
       "title": "Call-to-Action Button",
       "prompt": "Kind: component. What: A button to direct the user to a key action, such as viewing projects. How: Styled button with hover effects and responsive behavior. Properties: clickable, engaging.",
+      "children": [],
+      "built": false,
       "properties": [
         {
-          "id": "cta-button-color",
-          "title": "Button Color",
+          "id": "node-element-cta-button-background-color",
+          "title": "Background Color",
           "propertyType": {
             "type": "color",
-            "value": "#3b82f6"
+            "value": "#1f2937"
           },
           "codeBinding": {
             "file": "base-template/src/app/page.tsx",
-            "start": 2465,
-            "end": 2520
+            "start": 1144,
+            "end": 1205
           }
         },
         {
-          "id": "cta-button-text-color",
-          "title": "Text Color",
+          "id": "node-element-cta-button-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 1144,
+            "end": 1205
+          }
+        },
+        {
+          "id": "node-element-cta-button-roundness",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "none",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 1144,
+            "end": 1205
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-profile-image",
+      "title": "Profile Image",
+      "prompt": "Kind: component. What: A profile picture or avatar of the software engineer. How: Circular or square image with a border and alt text. Properties: accessible, SEO-friendly.",
+      "children": [],
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-about-text",
+      "title": "About Text",
+      "prompt": "Kind: component. What: A textual description of the software engineer's skills and background. How: Responsive typography with proper spacing. Properties: readable, accessible.",
+      "children": [],
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-project-card",
+      "title": "Project Card",
+      "prompt": "Kind: component. What: Card for showcasing a single project, with image, title, and links. How: Styled card with hover effects and responsive grid layout. Properties: visually appealing, interactive.",
+      "children": [],
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-project-card-background-color",
+          "title": "Card Background Color",
           "propertyType": {
             "type": "color",
             "value": "#ffffff"
           },
           "codeBinding": {
             "file": "base-template/src/app/page.tsx",
-            "start": 2465,
-            "end": 2520
+            "start": 3542,
+            "end": 3631
           }
         },
         {
-          "id": "cta-button-font",
-          "title": "Font Family",
-          "propertyType": {
-            "type": "select",
-            "value": "sans",
-            "options": ["sans", "serif", "mono"]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 2465,
-            "end": 2520
-          }
-        },
-        {
-          "id": "cta-button-font-style",
-          "title": "Font Style",
-          "propertyType": {
-            "type": "select",
-            "value": "normal",
-            "options": ["normal", "italic"]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 2465,
-            "end": 2520
-          }
-        },
-        {
-          "id": "cta-button-roundness",
-          "title": "Roundness",
+          "id": "node-element-project-card-roundness",
+          "title": "Card Roundness",
           "propertyType": {
             "type": "select",
             "value": "md",
-            "options": ["none", "sm", "md", "lg", "xl", "full"]
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
           },
           "codeBinding": {
             "file": "base-template/src/app/page.tsx",
-            "start": 2465,
-            "end": 2520
+            "start": 3542,
+            "end": 3631
           }
         }
-      ],
-      "children": [],
-      "built": true
-    },
-    {
-      "id": "node-element-profile-image",
-      "title": "Profile Image",
-      "prompt": "Kind: component. What: A profile picture or avatar of the software engineer. How: Circular or square image with a border and alt text. Properties: accessible, SEO-friendly.",
-      "properties": [],
-      "children": [],
-      "built": true
-    },
-    {
-      "id": "node-element-about-text",
-      "title": "About Text",
-      "prompt": "Kind: component. What: A textual description of the software engineer's skills and background. How: Responsive typography with proper spacing. Properties: readable, accessible.",
-      "properties": [],
-      "children": [],
-      "built": true
-    },
-    {
-      "id": "node-element-project-card",
-      "title": "Project Card",
-      "prompt": "Kind: component. What: Card for showcasing a single project, with image, title, and links. How: Styled card with hover effects and responsive grid layout. Properties: visually appealing, interactive.",
-      "properties": [],
-      "children": [],
-      "built": true
+      ]
     },
     {
       "id": "node-element-contact-form",
       "title": "Contact Form",
       "prompt": "Kind: component. What: Input form for users to send messages. How: Form with inputs for name, email, and message field, styled with Tailwind CSS for spacing and responsiveness. Properties: accessible, responsive.",
-      "properties": [],
       "children": [],
-      "built": true
+      "built": false,
+      "properties": []
     },
     {
       "id": "node-element-contact-info",
       "title": "Contact Information",
       "prompt": "Kind: component. What: Details about how users can reach out, including email or social links. How: List or small section styled for clarity. Properties: clean, comprehensive.",
-      "properties": [],
       "children": [],
-      "built": true
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-skills-grid",
+      "title": "Skills Grid",
+      "prompt": "Kind: component. What: Displays a collection of core SWE skills as chips or badges. How: Responsive grid with wrapping and accessible labels. Properties: scannable, accessible.",
+      "children": [],
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-skills-grid-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#f0f9ff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 2589,
+            "end": 2671
+          }
+        },
+        {
+          "id": "node-element-skills-grid-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "sm",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 2589,
+            "end": 2671
+          }
+        },
+        {
+          "id": "node-element-skills-grid-roundness",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "full",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 2589,
+            "end": 2671
+          }
+        }
+      ]
     }
   ]
 }

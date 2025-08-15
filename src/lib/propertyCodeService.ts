@@ -10,6 +10,40 @@ export interface CodeUpdate {
 
 export class PropertyCodeService {
   /**
+   * Gets the target element ID from a property ID
+   */
+  private static getTargetElementId(propertyId: string): string | null {
+    // Property IDs are in format: "node-element-{elementName}-{propertyName}"
+    // We need to extract the element ID by removing the property suffix
+    
+    // Common property suffixes to remove
+    const suffixes = [
+      '-bg-color', '-background-color', '-color', '-text-color',
+      '-font-family', '-font', '-font-style', '-font-size',
+      '-roundness', '-border-radius', '-border-color',
+      '-padding', '-margin', '-width', '-height',
+      '-hover-bg-color', '-hover-color', '-hover-text-color'
+    ];
+    
+    let elementId = propertyId;
+    
+    // Remove the property suffix
+    for (const suffix of suffixes) {
+      if (elementId.endsWith(suffix)) {
+        elementId = elementId.slice(0, -suffix.length);
+        break;
+      }
+    }
+    
+    // The elementId should already start with "node-element-"
+    if (elementId.startsWith('node-element-')) {
+      return elementId;
+    }
+    
+    return null;
+  }
+
+  /**
    * Reads the current property value from the code
    */
   static async readPropertyValue(property: Property): Promise<any> {
@@ -41,22 +75,14 @@ export class PropertyCodeService {
    * Extracts property value from className attribute
    */
   private static extractPropertyFromCode(content: string, property: Property): string | null {
-    // Map property IDs to their target element IDs
-    const elementIdMap: Record<string, string> = {
-      'cta-button-color': 'node-element-cta-button',
-      'cta-button-text-color': 'node-element-cta-button',
-      'cta-button-font': 'node-element-cta-button',
-      'cta-button-font-style': 'node-element-cta-button',
-      'cta-button-roundness': 'node-element-cta-button'
-    };
-    
-    const targetElementId = elementIdMap[property.id];
-    if (!targetElementId) {
+    // Extract element ID from property ID (e.g., "cta-button-color" -> "cta-button" -> "node-element-cta-button")
+    const elementId = this.getTargetElementId(property.id);
+    if (!elementId) {
       return null;
     }
     
     // Look for the element with the specific ID
-    const elementPattern = new RegExp(`<[^>]*id="${targetElementId}"[^>]*>`, 'i');
+    const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
     const match = content.match(elementPattern);
     
     if (!match) {
@@ -75,46 +101,62 @@ export class PropertyCodeService {
     
     const className = classNameMatch[0];
     
-    // Extract values based on property type
+    // Extract values based on property type and name
     switch (property.propertyType.type) {
       case 'color':
-        if (property.id === 'cta-button-color') {
+        if (property.id.endsWith('-bg-color') || property.id.endsWith('-background-color')) {
           // Extract background color from bg-[#color] pattern
           const bgColorPattern = /bg-\[#([0-9a-fA-F]{6})\]/;
           const bgColorMatch = className.match(bgColorPattern);
           if (bgColorMatch) {
             return `#${bgColorMatch[1]}`;
           }
-        } else if (property.id === 'cta-button-text-color') {
+        } else if (property.id.endsWith('-hover-bg-color') || property.id.endsWith('-hover-color')) {
+          // Extract hover background color from hover:bg-[#color]/90 pattern
+          const hoverBgColorPattern = /hover:bg-\[#([0-9a-fA-F]{6})\]/;
+          const hoverBgColorMatch = className.match(hoverBgColorPattern);
+          if (hoverBgColorMatch) {
+            return `#${hoverBgColorMatch[1]}`;
+          }
+        } else if (property.id.endsWith('-text-color')) {
           // Extract text color from text-[#color] pattern
           const textColorPattern = /text-\[#([0-9a-fA-F]{6})\]/;
           const textColorMatch = className.match(textColorPattern);
           if (textColorMatch) {
             return `#${textColorMatch[1]}`;
           }
+        } else if (property.id.endsWith('-color')) {
+          // Fallback for generic color properties - extract background color
+          const bgColorPattern = /bg-\[#([0-9a-fA-F]{6})\]/;
+          const bgColorMatch = className.match(bgColorPattern);
+          if (bgColorMatch) {
+            return `#${bgColorMatch[1]}`;
+          }
         }
         break;
       case 'select':
-        if (property.id === 'cta-button-font') {
+        if (property.id.endsWith('-font-family') || property.id.endsWith('-font')) {
           // Extract font family
           const fontPattern = /font-(sans|serif|mono)/;
           const fontMatch = className.match(fontPattern);
           if (fontMatch) {
             return fontMatch[1];
           }
-        } else if (property.id === 'cta-button-font-style') {
+        } else if (property.id.endsWith('-font-style')) {
           // Extract font style
           if (className.includes('italic')) {
             return 'italic';
           }
           return 'normal';
-        } else if (property.id === 'cta-button-roundness') {
+        } else if (property.id.endsWith('-roundness') || property.id.endsWith('-border-radius')) {
           // Extract roundness
           const roundnessPattern = /rounded-(none|sm|md|lg|xl|full)/;
           const roundnessMatch = className.match(roundnessPattern);
           if (roundnessMatch) {
             return roundnessMatch[1];
           }
+          // If no rounded class found, return 'none'
+          return 'none';
         }
         break;
     }
@@ -131,47 +173,61 @@ export class PropertyCodeService {
   ): Promise<CodeUpdate[]> {
     const updates: CodeUpdate[] = [];
 
-    // For className-based properties, we need to build the complete className
-    // Check if any of the properties affect className
-    const hasClassNameProperties = properties.some(p => 
-      p.propertyType.type === 'color' || p.propertyType.type === 'select'
-    );
+    // Group properties by their target element (based on code binding)
+    const propertiesByElement = new Map<string, Property[]>();
+    
+    for (const property of properties) {
+      const elementKey = `${property.codeBinding.file}:${property.codeBinding.start}:${property.codeBinding.end}`;
+      if (!propertiesByElement.has(elementKey)) {
+        propertiesByElement.set(elementKey, []);
+      }
+      propertiesByElement.get(elementKey)!.push(property);
+    }
 
-    if (hasClassNameProperties) {
-      // Build the complete className from all properties
-      const classNameValue = this.buildClassNameFromProperties(properties, propertyValues);
-      
-      console.log('Building complete className:', classNameValue);
-      
-      updates.push({
-        file: properties[0].codeBinding.file, // All properties share the same file
-        start: properties[0].codeBinding.start,
-        end: properties[0].codeBinding.end,
-        newValue: classNameValue,
-        propertyId: 'cta-button-className' // Special ID for className updates
-      });
-    } else {
-      // Handle individual property updates (for non-className properties)
-      for (const property of properties) {
-        const newValue = propertyValues[property.id];
-        if (newValue !== undefined && newValue !== property.propertyType.value) {
-          const codeValue = this.convertPropertyValueToCode(property.propertyType.type, newValue);
-          console.log('Property change:', {
-            propertyId: property.id,
-            oldValue: property.propertyType.value,
-            newValue,
-            codeValue,
-            file: property.codeBinding.file,
-            start: property.codeBinding.start,
-            end: property.codeBinding.end
-          });
-          updates.push({
-            file: property.codeBinding.file,
-            start: property.codeBinding.start,
-            end: property.codeBinding.end,
-            newValue: codeValue,
-            propertyId: property.id
-          });
+    // Process each element's properties separately
+    for (const [elementKey, elementProperties] of propertiesByElement) {
+      const hasClassNameProperties = elementProperties.some(p => 
+        p.propertyType.type === 'color' || p.propertyType.type === 'select'
+      );
+
+      if (hasClassNameProperties) {
+        // Build the complete className for this specific element
+        const classNameValue = await this.buildClassNameFromProperties(elementProperties, propertyValues);
+        
+        console.log(`Building complete className for element ${elementKey}:`, classNameValue);
+        
+        // Use the first property's code binding for this element
+        const firstProperty = elementProperties[0];
+        updates.push({
+          file: firstProperty.codeBinding.file,
+          start: firstProperty.codeBinding.start,
+          end: firstProperty.codeBinding.end,
+          newValue: classNameValue,
+          propertyId: `className-update-${this.getTargetElementId(firstProperty.id)}`
+        });
+      } else {
+        // Handle individual property updates (for non-className properties)
+        for (const property of elementProperties) {
+          const newValue = propertyValues[property.id];
+          if (newValue !== undefined && newValue !== property.propertyType.value) {
+            const codeValue = this.convertPropertyValueToCode(property.propertyType.type, newValue);
+            console.log('Property change:', {
+              propertyId: property.id,
+              oldValue: property.propertyType.value,
+              newValue,
+              codeValue,
+              file: property.codeBinding.file,
+              start: property.codeBinding.start,
+              end: property.codeBinding.end
+            });
+            updates.push({
+              file: property.codeBinding.file,
+              start: property.codeBinding.start,
+              end: property.codeBinding.end,
+              newValue: codeValue,
+              propertyId: property.id
+            });
+          }
         }
       }
     }
@@ -201,8 +257,74 @@ export class PropertyCodeService {
   /**
    * Builds the complete className string from all property values
    */
-  private static buildClassNameFromProperties(properties: Property[], propertyValues: Record<string, any>): string {
-    const classes: string[] = ['mt-8'];
+  private static async buildClassNameFromProperties(properties: Property[], propertyValues: Record<string, any>): Promise<string> {
+    // Get the current className from the code to preserve existing classes
+    const firstProperty = properties[0];
+    const elementId = this.getTargetElementId(firstProperty.id);
+    
+    // Read the current file content to get existing className
+    let existingClasses: string[] = [];
+    try {
+      const projectPath = firstProperty.codeBinding.file.replace('base-template/', '');
+      const response = await fetch(`/api/files?path=${encodeURIComponent(projectPath)}`);
+      if (response.ok) {
+        const { content } = await response.json();
+        const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
+        const match = content.match(elementPattern);
+        if (match) {
+          const classNamePattern = /className="([^"]*)"/;
+          const classNameMatch = match[0].match(classNamePattern);
+          if (classNameMatch) {
+            existingClasses = classNameMatch[1].split(' ').filter((c: string) => c.trim());
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Could not read existing classes, using defaults');
+    }
+    
+    // Start with existing classes, removing any that will be overridden
+    const classes = [...existingClasses];
+    
+    // Remove classes that will be overridden by properties
+    const classesToRemove = new Set<string>();
+    const patternsToRemove = new Set<RegExp>();
+    for (const property of properties) {
+      const value = propertyValues[property.id];
+      if (value !== undefined) {
+        switch (property.propertyType.type) {
+          case 'color':
+            if (property.id.endsWith('-bg-color') || property.id.endsWith('-background-color')) {
+              patternsToRemove.add(/bg-\[#[0-9a-fA-F]{6}\]/);
+              patternsToRemove.add(/bg-[a-z-]+/);
+            } else if (property.id.endsWith('-hover-bg-color') || property.id.endsWith('-hover-color')) {
+              patternsToRemove.add(/hover:bg-\[#[0-9a-fA-F]{6}\]/);
+              patternsToRemove.add(/hover:bg-[a-z-]+/);
+            } else if (property.id.endsWith('-text-color')) {
+              patternsToRemove.add(/text-\[#[0-9a-fA-F]{6}\]/);
+              patternsToRemove.add(/text-[a-z-]+/);
+            }
+            break;
+          case 'select':
+            if (property.id.endsWith('-font-family') || property.id.endsWith('-font')) {
+              patternsToRemove.add(/font-(sans|serif|mono)/);
+            } else if (property.id.endsWith('-font-size')) {
+              patternsToRemove.add(/text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl)/);
+            } else if (property.id.endsWith('-roundness') || property.id.endsWith('-border-radius')) {
+              patternsToRemove.add(/rounded-(none|sm|md|lg|xl|full)/);
+            }
+            break;
+        }
+      }
+    }
+    
+    // Filter out classes that will be overridden
+    const filteredClasses = classes.filter((cls: string) => {
+      for (const pattern of patternsToRemove) {
+        if (pattern.test(cls)) return false;
+      }
+      return true;
+    });
     
     // Process each property and add corresponding classes
     for (const property of properties) {
@@ -210,22 +332,29 @@ export class PropertyCodeService {
       if (value !== undefined) {
         switch (property.propertyType.type) {
           case 'color':
-            if (property.id === 'cta-button-color') {
-              classes.push(`bg-[${value}]`, `hover:bg-[${value}]/90`);
-            } else if (property.id === 'cta-button-text-color') {
-              classes.push(`text-[${value}]`);
+            if (property.id.endsWith('-bg-color') || property.id.endsWith('-background-color')) {
+              filteredClasses.push(`bg-[${value}]`);
+            } else if (property.id.endsWith('-hover-bg-color') || property.id.endsWith('-hover-color')) {
+              filteredClasses.push(`hover:bg-[${value}]/90`);
+            } else if (property.id.endsWith('-text-color')) {
+              filteredClasses.push(`text-[${value}]`);
+            } else if (property.id.endsWith('-color')) {
+              // Fallback for generic color properties
+              filteredClasses.push(`bg-[${value}]`, `hover:bg-[${value}]/90`);
             }
             break;
           case 'select':
-            if (property.id === 'cta-button-font') {
-              classes.push(`font-${value}`);
-            } else if (property.id === 'cta-button-font-style') {
+            if (property.id.endsWith('-font-family') || property.id.endsWith('-font')) {
+              filteredClasses.push(`font-${value}`);
+            } else if (property.id.endsWith('-font-size')) {
+              filteredClasses.push(`text-${value}`);
+            } else if (property.id.endsWith('-font-style')) {
               if (value === 'italic') {
-                classes.push('italic');
+                filteredClasses.push('italic');
               }
-            } else if (property.id === 'cta-button-roundness') {
+            } else if (property.id.endsWith('-roundness') || property.id.endsWith('-border-radius')) {
               if (value !== 'none') {
-                classes.push(`rounded-${value}`);
+                filteredClasses.push(`rounded-${value}`);
               }
             }
             break;
@@ -233,7 +362,7 @@ export class PropertyCodeService {
       }
     }
     
-    return `className="${classes.join(' ')}"`;
+    return `className="${filteredClasses.join(' ')}"`;
   }
 
   /**
@@ -298,17 +427,17 @@ export class PropertyCodeService {
    * Finds the current position of className attribute for the target element
    */
   private static findClassNamePosition(content: string, update: CodeUpdate): { start: number; end: number; newValue: string } | null {
-    // Map property IDs to their target element IDs
-    const elementIdMap: Record<string, string> = {
-      'cta-button-color': 'node-element-cta-button',
-      'cta-button-text-color': 'node-element-cta-button',
-      'cta-button-font': 'node-element-cta-button',
-      'cta-button-font-style': 'node-element-cta-button',
-      'cta-button-roundness': 'node-element-cta-button',
-      'cta-button-className': 'node-element-cta-button' // Special ID for className updates
-    };
+    // For className updates, extract the element ID from the propertyId
+    let targetElementId: string | null = null;
     
-    const targetElementId = elementIdMap[update.propertyId || ''];
+    if (update.propertyId && update.propertyId.startsWith('className-update-')) {
+      // Extract element ID from className update propertyId
+      targetElementId = update.propertyId.replace('className-update-', '');
+    } else {
+      // For regular property updates, extract from property ID
+      targetElementId = this.getTargetElementId(update.propertyId || '');
+    }
+    
     if (!targetElementId) {
       console.error('Unknown property ID for dynamic positioning:', update.propertyId);
       return null;

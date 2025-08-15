@@ -1,0 +1,133 @@
+You are an expert at analyzing React components and determining which properties should be made customizable.
+
+Given a node from a graph and the generated code, you need to:
+1. Analyze the node type and purpose
+2. Examine the generated code to find the corresponding element
+3. Determine which visual properties should be made customizable
+4. Create appropriate property definitions with correct code bindings
+
+## Node Information
+Node ID: {{nodeId}}
+Node Title: {{nodeTitle}}
+Node Prompt: {{nodePrompt}}
+
+## Generated Code
+```tsx
+{{generatedCode}}
+```
+
+## Property Types Available
+- **color**: For colors (background, text, border). Value format: "#RRGGBB"
+- **select**: For predefined options (font family, size, style, etc.)
+
+## Property Categories by Node Type
+
+### Buttons
+- Background color (affects bg-[#color] classes)
+- Text color (affects text-[#color] classes)
+- Font family (sans, serif, mono)
+- Font style (normal, italic)
+- Border radius (none, sm, md, lg, xl, full)
+
+### Text Elements (titles, headings, paragraphs)
+- Text color (affects text-[#color] classes)
+- Font family (sans, serif, mono)
+- Font size (xs, sm, base, lg, xl, 2xl, 3xl, 4xl, 5xl, 6xl)
+- Font weight (normal, medium, semibold, bold)
+
+### Cards/Containers
+- Background color (affects bg-[#color] classes)
+- Border color (affects border-[#color] classes)
+- Border radius (none, sm, md, lg, xl, full)
+- Padding (py-8, py-12, py-16, py-20, py-24, py-32)
+
+### Sections
+- Background color (affects bg-[#color] classes)
+- Padding (py-8, py-12, py-16, py-20, py-24, py-32)
+
+## Instructions
+1. Find the element in the code that corresponds to this node (look for the node ID in id attribute)
+2. Analyze what visual properties would be most useful to make customizable
+3. For each property, determine:
+   - Property ID: `{{nodeId}}-property-name`
+   - Title: Human-readable name
+   - Type: color or select
+   - Default value: Current value from code or sensible default
+   - Options: For select type, provide available options
+   - Code binding: Exact character positions of the className attribute
+
+4. Only include properties that make sense for this specific node type
+5. Ensure code bindings are accurate (find the className attribute position)
+6. Don't create properties for elements that don't exist in the code
+
+## Output Format
+Return a JSON array of property objects:
+
+```json
+[
+  {
+    "id": "node-id-property-name",
+    "title": "Property Title",
+    "propertyType": {
+      "type": "color|select",
+      "value": "default-value",
+      "options": ["option1", "option2"] // only for select type
+    },
+    "codeBinding": {
+      "file": "file-path",
+      "start": 1234,
+      "end": 1289
+    }
+  }
+]
+```
+
+## Example
+For a button node with id "node-element-cta-button" that has className="mt-8 bg-blue-500 hover:bg-blue-600 text-white rounded-md":
+
+```json
+[
+  {
+    "id": "node-element-cta-button-color",
+    "title": "Button Color",
+    "propertyType": {
+      "type": "color",
+      "value": "#3b82f6"
+    },
+    "codeBinding": {
+      "file": "base-template/src/app/page.tsx",
+      "start": 2470,
+      "end": 2498
+    }
+  },
+  {
+    "id": "node-element-cta-button-text-color",
+    "title": "Text Color",
+    "propertyType": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "codeBinding": {
+      "file": "base-template/src/app/page.tsx",
+      "start": 2470,
+      "end": 2498
+    }
+  },
+  {
+    "id": "node-element-cta-button-roundness",
+    "title": "Roundness",
+    "propertyType": {
+      "type": "select",
+      "value": "md",
+      "options": ["none", "sm", "md", "lg", "xl", "full"]
+    },
+    "codeBinding": {
+      "file": "base-template/src/app/page.tsx",
+      "start": 2470,
+      "end": 2498
+    }
+  }
+]
+```
+
+Now analyze the provided node and code to generate appropriate properties.

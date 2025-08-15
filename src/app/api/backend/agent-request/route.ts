@@ -1,6 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Message, MessageSchema } from '@/app/api/lib/schemas';
+import { Message, MessageSchema, Graph } from '@/app/api/lib/schemas';
 import { z } from 'zod';
+
+async function generatePropertiesForNodes(nodeIds: string[], generatedCode: string) {
+  try {
+    // Get current graph
+    const graphRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/backend/graph-api`);
+    if (!graphRes.ok) {
+      console.warn('Failed to get graph for property generation');
+      return;
+    }
+    
+    const graphData = await graphRes.json();
+    if (!graphData.success || !graphData.graph) {
+      console.warn('No graph found for property generation');
+      return;
+    }
+    
+    const graph: Graph = graphData.graph;
+    
+    // Generate properties for each node
+    for (const nodeId of nodeIds) {
+      try {
+        const propertyRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/agents/generate-properties`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            graph,
+            nodeId,
+            generatedCode,
+            filePath: 'base-template/src/app/page.tsx' // Default file path
+          }),
+        });
+        
+        if (propertyRes.ok) {
+          const propertyData = await propertyRes.json();
+          if (propertyData.success && propertyData.properties.length > 0) {
+            // Update the node with properties
+            const node = graph.nodes.find(n => n.id === nodeId);
+            if (node) {
+              node.properties = propertyData.properties;
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to generate properties for node ${nodeId}:`, error);
+      }
+    }
+    
+    // Save the updated graph with properties
+    const saveRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'graph',
+        graph
+      }),
+    });
+    
+    if (!saveRes.ok) {
+      console.warn('Failed to save graph with properties');
+    }
+  } catch (error) {
+    console.error('Error generating properties:', error);
+  }
+}
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
@@ -148,6 +212,10 @@ export async function POST(req: NextRequest) {
         }
 
         const result = await response.json();
+        
+        // Generate properties for the newly built nodes
+        await generatePropertiesForNodes(unbuiltNodeIds, result.generatedCode || '');
+        
         return NextResponse.json(result);
       } else if (removedNodeIds.length > 0) {
         // No unbuilt nodes, but nodes were removed from the graph. Trigger a cleanup pass.
@@ -196,6 +264,19 @@ export async function POST(req: NextRequest) {
       }
 
       const result = await response.json();
+      
+      // Generate properties for all nodes in the new graph
+      if (result.success) {
+        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+        if (graphRes.ok) {
+          const graphData = await graphRes.json();
+          if (graphData.success && graphData.graph) {
+            const allNodeIds = graphData.graph.nodes.map((n: any) => n.id);
+            await generatePropertiesForNodes(allNodeIds, result.generatedCode || '');
+          }
+        }
+      }
+      
       return NextResponse.json(result);
     }
   } catch (error) {

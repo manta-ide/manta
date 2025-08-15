@@ -116,13 +116,13 @@ export const ColorPropertySchema = z.object({
   type: z.literal('color'),
   value: z.string(),
   options: z.array(z.string()).optional(),
-});
+}).required();
 
 export const TextPropertySchema = z.object({
   type: z.literal('text'),
   value: z.string(),
   maxLength: z.number().optional(),
-});
+}).required();
 
 export const NumberPropertySchema = z.object({
   type: z.literal('number'),
@@ -130,13 +130,13 @@ export const NumberPropertySchema = z.object({
   min: z.number().optional(),
   max: z.number().optional(),
   step: z.number().optional(),
-});
+}).required();
 
 export const SelectPropertySchema = z.object({
   type: z.literal('select'),
   value: z.string(),
   options: z.array(z.string()),
-});
+}).required();
 
 // Union of all property types
 export const PropertyValueSchema = z.discriminatedUnion('type', [
@@ -154,7 +154,7 @@ export const PropertySchema = z.object({
   title: z.string(),
   propertyType: PropertyValueSchema,
   codeBinding: CodeBindingSchema,
-});
+}).required();
 
 export type Property = z.infer<typeof PropertySchema>;
 
@@ -179,6 +179,7 @@ export const GraphSchema = z.object({
 });
 
 export type Graph = z.infer<typeof GraphSchema>;
+export type GraphNode = z.infer<typeof GraphNodeSchema>;
 
 // Evaluation schemas
 export const TestCaseSchema = z.object({
@@ -231,4 +232,28 @@ export const EvalRequestSchema = z.object({
   dataset: z.array(TestCaseSchema),
 });
 
-export type EvalRequest = z.infer<typeof EvalRequestSchema>; 
+export type EvalRequest = z.infer<typeof EvalRequestSchema>;
+
+// Property generation schema - simplified to avoid discriminated union issues
+export const PropertyGenerationSchema = z.object({
+  properties: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    propertyType: z.object({
+      type: z.enum(['color', 'text', 'number', 'select']),
+      value: z.union([z.string(), z.number()]),
+      options: z.array(z.string()).optional(),
+      maxLength: z.number().optional(),
+      min: z.number().optional(),
+      max: z.number().optional(),
+      step: z.number().optional(),
+    }),
+    codeBinding: z.object({
+      file: z.string(),
+      start: z.number(),
+      end: z.number(),
+    }),
+  })),
+}).required();
+
+export type PropertyGeneration = z.infer<typeof PropertyGenerationSchema>; 

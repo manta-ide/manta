@@ -4,11 +4,17 @@ import { generateObject, generateText } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
 import { fileTools } from '@/app/api/lib/aiFileTools';
-import { GraphSchema } from '@/app/api/lib/schemas';
+import { GraphSchema, PropertyGenerationSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { promises as fsp } from 'fs';
+
+// Schema mapping for structured output
+const SCHEMA_MAP = {
+  'graph': GraphSchema,
+  'property-generation': PropertyGenerationSchema,
+} as const;
 
 // Agent configuration schema
 const AgentConfigSchema = z.object({
@@ -20,6 +26,7 @@ const AgentConfigSchema = z.object({
   providerOptions: z.record(z.any()).optional(),
   promptTemplates: z.record(z.string()).optional(),
   structuredOutput: z.boolean().optional(),
+  schemaName: z.enum(['graph', 'property-generation']).optional(),
   tools: z.array(z.any()).optional(),
 });
 
@@ -100,17 +107,22 @@ export async function POST(req: NextRequest) {
 
     // If structured output is requested, use generateObject instead
     if (config.structuredOutput) {
+      // Select schema based on schemaName or default to graph
+      const schemaName = config.schemaName || 'graph';
+      const selectedSchema = SCHEMA_MAP[schemaName];
+      
+      if (!selectedSchema) {
+        throw new Error(`Unknown schema: ${schemaName}`);
+      }
 
       const result = await generateObject({
         model: selectModel(config.model, config.provider) as any,
         messages: messages,
-        // Force JSON mode and ensure the schema is treated as an object JSON Schema
-        mode: 'json',
-        schema: GraphSchema,
+        schema: selectedSchema,
         abortSignal: req.signal,
         providerOptions: config.providerOptions,
-        temperature: config.temperature,
-      });
+        temperature: config.temperature
+      } as any);
 
 
       // Log structured result
