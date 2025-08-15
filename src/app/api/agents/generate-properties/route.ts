@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     const { graph, nodeId, generatedCode, filePath }: GeneratePropertiesRequest = await req.json();
 
     if (!graph || !nodeId || !generatedCode || !filePath) {
+      console.log('Missing required fields: graph, nodeId, generatedCode, filePath');
       return NextResponse.json({
         success: false,
         error: 'Missing required fields: graph, nodeId, generatedCode, filePath'
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
 
     const node = graph.nodes.find(n => n.id === nodeId);
     if (!node) {
+      console.log(`Node with ID ${nodeId} not found`);
       return NextResponse.json({
         success: false,
         error: `Node with ID ${nodeId} not found`

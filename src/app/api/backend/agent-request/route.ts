@@ -19,6 +19,14 @@ async function generatePropertiesForNodes(nodeIds: string[], generatedCode: stri
     
     const graph: Graph = graphData.graph;
     
+    // Get current code content from the file system
+    const codeRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=src/app/page.tsx`);
+    let currentCode = generatedCode; // fallback to generated code
+    if (codeRes.ok) {
+      const codeData = await codeRes.json();
+      currentCode = codeData.content || generatedCode;
+    }
+    
     // Generate properties for each node
     for (const nodeId of nodeIds) {
       try {
@@ -28,7 +36,7 @@ async function generatePropertiesForNodes(nodeIds: string[], generatedCode: stri
           body: JSON.stringify({
             graph,
             nodeId,
-            generatedCode,
+            generatedCode: currentCode,
             filePath: 'base-template/src/app/page.tsx' // Default file path
           }),
         });
