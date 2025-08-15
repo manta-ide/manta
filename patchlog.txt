@@ -1,39 +1,302 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
+  const features: { title: string; description: string; icon: string }[] = [
+    {
+      title: "Visual Editor",
+      description:
+        "Drag-and-drop components to build beautiful UIs without writing code, while keeping full code sync.",
+      icon: "window.svg",
+    },
+    {
+      title: "AI Code Assist",
+      description:
+        "Integrated AI suggestions that generate, refactor, and explain code in real-time as you type.",
+      icon: "globe.svg",
+    },
+    {
+      title: "Instant Preview",
+      description:
+        "Hot-reload across devices so you can see every change reflected instantly on web & mobile.",
+      icon: "file.svg",
+    },
+  ];
+
   return (
-    <main id="node-element-startup-landing-page" className="flex flex-col min-h-screen bg-white text-gray-900">
-      {/* Navigation Bar */}
-      <header id="node-element-navigation-bar" className="w-full py-6 px-4 md:px-8 flex items-center justify-between border-b">
-        <h1 className="text-xl font-bold">VisualIDE</h1>
-        <nav className="space-x-6">
-          <a href="#features" className="hover:underline">Features</a>
-          <a href="#testimonials" className="hover:underline">Testimonials</a>
-          <a href="#pricing" className="hover:underline">Pricing</a>
-        </nav>
+    <main
+      id="node-element-startup-landing-page"
+      className="flex min-h-screen w-full flex-col bg-background text-foreground"
+    >
+      {/* Header */}
+      <header
+        id="node-element-header-section"
+        className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/80 backdrop-blur"
+      >
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
+          {/* Logo */}
+          <Link
+            id="node-element-logo"
+            href="/"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <Image src="/next.svg" alt="CodeCraft logo" width={28} height={28} />
+            <span className="text-lg">CodeCraft</span>
+          </Link>
+
+          {/* Navigation */}
+          <nav
+            id="node-element-navigation-links"
+            className="hidden items-center gap-6 text-sm md:flex"
+          >
+            <Link href="#node-element-feature-showcase" className="transition-colors hover:text-primary">
+              Features
+            </Link>
+            <Link href="#pricing" className="transition-colors hover:text-primary">
+              Pricing
+            </Link>
+            <Link href="#about" className="transition-colors hover:text-primary">
+              About
+            </Link>
+          </nav>
+
+          {/* Sign Up */}
+          <Button
+            id="node-element-signup-button"
+            asChild
+            size="sm"
+            className="ml-4 hidden md:inline-flex"
+          >
+            <Link href="/signup">Sign Up</Link>
+          </Button>
+        </div>
       </header>
 
-      {/* Hero Section */}
-      <section id="node-element-hero-section" className="w-full flex flex-col md:flex-row items-center justify-between px-4 md:px-16 py-20 bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-xl space-y-6">
-          <h2 id="node-element-hero-headline" className="text-4xl md:text-6xl font-extrabold">
-            Build the web visually.
-          </h2>
-          <p id="node-element-hero-subheadline" className="text-lg md:text-xl text-gray-600">
-            VisualIDE lets you design, develop, and deploy full-stack web apps with a powerful drag-and-drop editor and instant code export.
-          </p>
-          <button
-            id="node-element-hero-call-to-action-button"
-            className="px-6 py-3 rounded-md bg-black text-white hover:bg-gray-800 transition"
-          >
-            Get Early Access
-          </button>
+      {/* Hero */}
+      <section
+        id="node-element-hero-banner"
+        className="relative flex flex-col items-center justify-center gap-6 px-4 py-24 text-center md:py-32"
+      >
+        {/* Headlines */}
+        <h1
+          id="node-element-headline"
+          className="max-w-4xl bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-4xl font-extrabold leading-tight text-transparent sm:text-5xl md:text-6xl"
+        >
+          Build the Web Visually—at the Speed of Thought.
+        </h1>
+        <p
+          id="node-element-subheading"
+          className="max-w-2xl text-base text-muted-foreground sm:text-lg md:text-xl"
+        >
+          CodeCraft is the next-gen IDE that lets you design, code, and deploy
+          modern web apps with a pixel-perfect visual editor powered by AI.
+        </p>
 
-          {/* Investors */}
+        {/* CTA */}
+        <div className="flex flex-col items-center gap-4 sm:flex-row">
+          <Button
+            id="node-element-hero-call-to-action-button"
+            size="lg"
+            className="px-8"
+          >
+            Get Started for Free
+          </Button>
+          <Button variant="outline" size="lg" asChild>
+            <Link href="#node-element-feature-showcase">See Features</Link>
+          </Button>
+        </div>
+
+        {/* Illustration */}
+        <div
+          id="node-element-graphic-illustration"
+          className="relative mt-16 w-full max-w-5xl overflow-hidden rounded-xl border bg-muted/30 shadow-lg"
+        >
+          <Image
+            src="/window.svg"
+            alt="Screenshot of CodeCraft visual editor"
+            width={1200}
+            height={700}
+            className="h-auto w-full"
+            priority
+          />
         </div>
       </section>
+
+      {/* Features */}
+      <section
+        id="node-element-feature-showcase"
+        className="container mx-auto w-full px-4 py-24 md:px-8"
+      >
+        <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">
+          Why developers love CodeCraft
+        </h2>
+
+        {/* Cards */}
+        <div
+          id="node-element-feature-card-list"
+          className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="group relative flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md"
+            >
+              <Image
+                src={`/${feature.icon}`}
+                alt="Feature icon"
+                width={48}
+                height={48}
+              />
+              <h3 className="text-lg font-semibold">{feature.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Visual Showcase placeholder */}
+        <div
+          id="node-element-visual-showcases"
+          className="mt-20 flex w-full flex-col items-center justify-center gap-6"
+        >
+          <Image
+            src="/globe.svg"
+            alt="Live preview across devices"
+            width={160}
+            height={160}
+          />
+          <p className="max-w-2xl text-center text-muted-foreground">
+            Experience real-time collaboration and deployment previews that keep
+            your entire team in sync—no matter where they are.
+          </p>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section
+        id="node-element-call-to-action"
+        className="flex flex-col items-center justify-center bg-gradient-to-br from-primary to-primary/80 px-4 py-24 text-center text-primary-foreground"
+      >
+        <h2 className="mb-4 text-3xl font-bold md:text-4xl">
+          Start building with CodeCraft today
+        </h2>
+        <p className="mb-8 max-w-xl text-lg text-primary-foreground/90">
+          Sign up now and get 14 days of Pro features completely free.
+        </p>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <Button
+            id="node-element-primary-call-to-action"
+            size="lg"
+            variant="secondary"
+            className="bg-white text-primary hover:bg-white/90"
+            asChild
+          >
+            <Link href="/signup">Claim Your Free Trial</Link>
+          </Button>
+          <Button
+id="node-element-secondary-call-to-action"
+            size="lg"
+            variant="outline"
+            className="border-white/70 text-white hover:bg-white/10"
+            asChild
+          >
+            <Link href="/contact">Request a Demo</Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer
+        id="node-element-footer-section"
+        className="border-t border-border/60 bg-background px-4 py-12 md:px-8"
+      >
+        <div className="container mx-auto grid gap-8 md:grid-cols-4">
+          {/* Company Info */}
+          <div id="node-element-company-info-links" className="space-y-4">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
+              <Image src="/next.svg" alt="CodeCraft logo" width={24} height={24} />
+              <span>CodeCraft</span>
+            </Link>
+            <p className="max-w-xs text-sm text-muted-foreground">
+              The visual IDE built for modern web creators. Crafted with ❤️ in
+              San Francisco.
+            </p>
+          </div>
+
+          {/* Links */}
+          <div className="space-y-2">
+            <h4 className="mb-2 font-medium">Product</h4>
+            <ul className="space-y-1 text-sm">
+              <li>
+                <Link href="#node-element-feature-showcase" className="hover:text-primary">
+                  Features
+                </Link>
+              </li>
+              <li>
+                <Link href="#pricing" className="hover:text-primary">
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link href="#about" className="hover:text-primary">
+                  About
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Social */}
+          <div className="space-y-2">
+            <h4 className="mb-2 font-medium">Community</h4>
+            <ul
+              id="node-element-social-links"
+              className="space-y-1 text-sm"
+            >
+              <li>
+                <Link href="https://twitter.com" className="hover:text-primary">
+                  Twitter
+                </Link>
+              </li>
+              <li>
+                <Link href="https://github.com" className="hover:text-primary">
+                  GitHub
+                </Link>
+              </li>
+              <li>
+                <Link href="https://discord.com" className="hover:text-primary">
+                  Discord
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div className="space-y-2">
+            <h4 className="mb-2 font-medium">Legal</h4>
+            <ul className="space-y-1 text-sm" id="node-element-legal-links">
+              <li>
+                <Link href="/privacy" className="hover:text-primary">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-primary">
+                  Terms of Service
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <p className="mt-12 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} CodeCraft Inc. All rights reserved.
+        </p>
+      </footer>
     </main>
   );
 }

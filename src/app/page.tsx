@@ -5,6 +5,7 @@ import ChatSidebar from "@/components/ChatSidebar";
 import FileTree from "@/components/FileTree";
 import FileEditor from "@/components/FileEditor";
 import AppViewer from "@/components/AppViewer";
+import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
 import { useProjectStore } from "@/lib/store";
@@ -15,6 +16,7 @@ export default function Home() {
     editor: false,
     viewer: true,
     chat: true,
+    graph: false,
   });
   
   const [isEditMode, setIsEditMode] = useState(true);
@@ -28,7 +30,18 @@ export default function Home() {
   }, []); // Empty dependency array to run only once on mount
 
   const togglePanel = (panel: keyof typeof panels) => {
-    setPanels(prev => ({ ...prev, [panel]: !prev[panel] }));
+    setPanels(prev => {
+      const newPanels = { ...prev, [panel]: !prev[panel] };
+      
+      // Make graph and viewer mutually exclusive
+      if (panel === 'graph' && newPanels.graph) {
+        newPanels.viewer = false;
+      } else if (panel === 'viewer' && newPanels.viewer) {
+        newPanels.graph = false;
+      }
+      
+      return newPanels;
+    });
   };
 
   return (
@@ -60,10 +73,15 @@ export default function Home() {
           {/* Node Details Sidebar (appears when an element is selected) */}
           {selectedNodeId && <SelectedNodeSidebar />}
           
-          {/* App Viewer Panel - expands to fill remaining space */}
+          {/* Main Content Panel - App Viewer or Graph */}
           {panels.viewer && (
             <div className="flex-1 min-w-0 bg-zinc-900">
               <AppViewer isEditMode={isEditMode} />
+            </div>
+          )}
+          {panels.graph && (
+            <div className="flex-1 min-w-0 bg-zinc-900">
+              <GraphView />
             </div>
           )}
         </div>
