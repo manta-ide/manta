@@ -1,0 +1,39 @@
+'use client';
+
+import React from 'react';
+
+export default function Home() {
+  return (
+    <main id="node-element-startup-landing-page" className="flex flex-col min-h-screen bg-white text-gray-900">
+      {/* Navigation Bar */}
+      <header id="node-element-navigation-bar" className="w-full py-6 px-4 md:px-8 flex items-center justify-between border-b">
+        <h1 className="text-xl font-bold">VisualIDE</h1>
+        <nav className="space-x-6">
+          <a href="#features" className="hover:underline">Features</a>
+          <a href="#testimonials" className="hover:underline">Testimonials</a>
+          <a href="#pricing" className="hover:underline">Pricing</a>
+        </nav>
+      </header>
+
+      {/* Hero Section */}
+      <section id="node-element-hero-section" className="w-full flex flex-col md:flex-row items-center justify-between px-4 md:px-16 py-20 bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-xl space-y-6">
+          <h2 id="node-element-hero-headline" className="text-4xl md:text-6xl font-extrabold">
+            Build the web visually.
+          </h2>
+          <p id="node-element-hero-subheadline" className="text-lg md:text-xl text-gray-600">
+            VisualIDE lets you design, develop, and deploy full-stack web apps with a powerful drag-and-drop editor and instant code export.
+          </p>
+          <button
+            id="node-element-hero-call-to-action-button"
+            className="px-6 py-3 rounded-md bg-black text-white hover:bg-gray-800 transition"
+          >
+            Get Early Access
+          </button>
+
+          {/* Investors */}
+        </div>
+      </section>
+    </main>
+  );
+}

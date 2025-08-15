@@ -188,21 +188,20 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
       
       console.log(`Looking for element with ID: ${elementId} for property: ${property.id}`);
       
-      // Find the element in the code
-      const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
-      const match = generatedCode.match(elementPattern);
+      // Search for the element in the entire src/ directory
+      const foundElement = await findElementInSrcDirectory(elementId);
       
-      if (match) {
-        const elementContent = match[0];
-        const elementStart = match.index!;
+      if (foundElement) {
+        const { elementContent, elementStart, filePath: foundFilePath } = foundElement;
         
-        console.log(`Found element: ${elementContent}`);
+        console.log(`Found element in ${foundFilePath}: ${elementContent}`);
         
         // Find className attribute position
         const classNamePattern = /className="[^"]*"/;
         const classNameMatch = elementContent.match(classNamePattern);
         
         if (classNameMatch) {
+          // Element has className attribute
           const classNameStart = elementStart + classNameMatch.index!;
           const classNameEnd = classNameStart + classNameMatch[0].length;
           
@@ -212,7 +211,7 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
           const validatedProperty = {
             ...property,
             codeBinding: {
-              file: filePath,
+              file: foundFilePath,
               start: classNameStart,
               end: classNameEnd
             }
@@ -220,10 +219,33 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
           
           validatedProperties.push(validatedProperty);
         } else {
-          console.log(`No className found in element: ${elementContent}`);
+          // Element doesn't have className attribute - we'll add it dynamically
+          // Find the position right after the opening tag (before the closing >)
+          const tagEndIndex = elementContent.lastIndexOf('>');
+          if (tagEndIndex > 0) {
+            // Insert className right before the closing >
+            const classNameStart = elementStart + tagEndIndex;
+            const classNameEnd = classNameStart;
+            
+            console.log(`No className found, will insert at position ${classNameStart}`);
+            
+            // Update the code binding with position where className should be inserted
+            const validatedProperty = {
+              ...property,
+              codeBinding: {
+                file: foundFilePath,
+                start: classNameStart,
+                end: classNameEnd
+              }
+            };
+            
+            validatedProperties.push(validatedProperty);
+          } else {
+            console.log(`Could not determine where to insert className for element: ${elementContent}`);
+          }
         }
       } else {
-        console.log(`Element with ID "${elementId}" not found in code`);
+        console.log(`Element with ID "${elementId}" not found in any src/ files`);
       }
     } catch (error) {
       console.error(`Error validating property ${property.id}:`, error);
@@ -232,6 +254,81 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
   
   console.log(`Validated ${validatedProperties.length} properties out of ${properties.length} total`);
   return validatedProperties;
+}
+
+async function findElementInSrcDirectory(elementId: string): Promise<{ elementContent: string; elementStart: number; filePath: string } | null> {
+  // Common file paths to search in order of likelihood
+  const searchPaths = [
+    'src/app/page.tsx',
+    'src/app/layout.tsx',
+    'src/components/NavigationBar.tsx',
+    'src/components/HeroSection.tsx'
+  ];
+  
+  // First try specific files
+  for (const searchPath of searchPaths) {
+    try {
+      const filesResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(searchPath)}`);
+      if (filesResponse.ok) {
+        const filesData = await filesResponse.json();
+        
+        if (filesData.content) {
+          const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
+          const match = filesData.content.match(elementPattern);
+          
+          if (match) {
+            return {
+              elementContent: match[0],
+              elementStart: match.index!,
+              filePath: `base-template/${searchPath}`
+            };
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Error searching in ${searchPath}:`, error);
+    }
+  }
+  
+  // Then try to get all files and search through them
+  try {
+    const allFilesResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files`);
+    if (allFilesResponse.ok) {
+      const allFilesData = await allFilesResponse.json();
+      
+      if (allFilesData.files && Array.isArray(allFilesData.files)) {
+        // Filter for TypeScript/TSX files in src directory
+        const tsxFiles = allFilesData.files.filter((file: string) => 
+          file.startsWith('src/') && (file.endsWith('.tsx') || file.endsWith('.ts'))
+        );
+        
+        for (const file of tsxFiles) {
+          try {
+            const fileResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(file)}`);
+            if (fileResponse.ok) {
+              const fileData = await fileResponse.json();
+              const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
+              const match = fileData.content.match(elementPattern);
+              
+              if (match) {
+                return {
+                  elementContent: match[0],
+                  elementStart: match.index!,
+                  filePath: `base-template/${file}`
+                };
+              }
+            }
+          } catch (error) {
+            console.warn(`Error reading file ${file}:`, error);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Error getting all files:', error);
+  }
+  
+  return null;
 }
 
 

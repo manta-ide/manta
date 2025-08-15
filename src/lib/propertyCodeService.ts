@@ -459,26 +459,47 @@ export class PropertyCodeService {
     const classNamePattern = /className="[^"]*"/;
     const classNameMatch = elementContent.match(classNamePattern);
     
-    if (!classNameMatch) {
-      console.error('Could not find className attribute in element');
-      return null;
+    if (classNameMatch) {
+      // Element has className attribute - update it
+      const classNameStart = elementStart + classNameMatch.index!;
+      const classNameEnd = classNameStart + classNameMatch[0].length;
+      
+      console.log('Found className position:', {
+        elementStart,
+        classNameStart,
+        classNameEnd,
+        currentValue: classNameMatch[0],
+        newValue: update.newValue
+      });
+      
+      return {
+        start: classNameStart,
+        end: classNameEnd,
+        newValue: update.newValue
+      };
+    } else {
+      // Element doesn't have className attribute - insert it before the closing >
+      const tagEndIndex = elementContent.lastIndexOf('>');
+      if (tagEndIndex > 0) {
+        const classNameStart = elementStart + tagEndIndex;
+        const classNameEnd = classNameStart;
+        
+        console.log('No className found, inserting at position:', {
+          elementStart,
+          classNameStart,
+          classNameEnd,
+          newValue: update.newValue
+        });
+        
+        return {
+          start: classNameStart,
+          end: classNameEnd,
+          newValue: ` ${update.newValue}` // Add space before className
+        };
+      } else {
+        console.error('Could not determine where to insert className in element');
+        return null;
+      }
     }
-    
-    const classNameStart = elementStart + classNameMatch.index!;
-    const classNameEnd = classNameStart + classNameMatch[0].length;
-    
-    console.log('Found className position:', {
-      elementStart,
-      classNameStart,
-      classNameEnd,
-      currentValue: classNameMatch[0],
-      newValue: update.newValue
-    });
-    
-    return {
-      start: classNameStart,
-      end: classNameEnd,
-      newValue: update.newValue
-    };
   }
 }
