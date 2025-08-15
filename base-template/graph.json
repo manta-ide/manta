@@ -1054,7 +1054,47 @@
       "title": "Copyright Text",
       "prompt": "A small text detail specifying the copyright and year of creation.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-copyright-text-color",
+          "title": "Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#6b7280"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6140,
+            "end": 6181
+          }
+        },
+        {
+          "id": "node-element-copyright-text-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "sm",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6140,
+            "end": 6181
+          }
+        }
+      ]
     },
     {
       "id": "node-element-footer-links",
@@ -1066,7 +1106,73 @@
           "title": "Footer Link Item"
         }
       ],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-footer-links-font-family",
+          "title": "Footer Links Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6317,
+            "end": 6347
+          }
+        },
+        {
+          "id": "node-element-footer-links-font-size",
+          "title": "Footer Links Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "sm",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6317,
+            "end": 6347
+          }
+        },
+        {
+          "id": "node-element-footer-links-padding",
+          "title": "Footer Links Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-6",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6317,
+            "end": 6347
+          }
+        }
+      ]
     },
     {
       "id": "node-element-footer-social-icons",
@@ -1078,14 +1184,56 @@
           "title": "Footer Social Icon Item"
         }
       ],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-footer-social-icons-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6689,
+            "end": 6711
+          }
+        }
+      ]
     },
     {
       "id": "node-element-nav-item",
       "title": "Nav Item",
       "prompt": "Individual navigation menu link pointing to different sections within the portfolio.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-nav-item-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "base",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 631,
+            "end": 658
+          }
+        }
+      ]
     },
     {
       "id": "node-element-social-link-item",
@@ -1099,56 +1247,403 @@
       "title": "Project Item",
       "prompt": "Individual project representation containing all details such as thumbnail, title, description, and links.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-project-item-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FFFFFF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 2950,
+            "end": 2983
+          }
+        },
+        {
+          "id": "node-element-project-item-border-radius",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "lg",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 2950,
+            "end": 2983
+          }
+        },
+        {
+          "id": "node-element-project-item-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-4",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 2950,
+            "end": 2983
+          }
+        }
+      ]
     },
     {
       "id": "node-element-testimonial-item",
       "title": "Testimonial Item",
       "prompt": "Single testimonial representation with quote text and author attribution.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-testimonial-item-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 3949,
+            "end": 3991
+          }
+        },
+        {
+          "id": "node-element-testimonial-item-border-radius",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "lg",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 3949,
+            "end": 3991
+          }
+        },
+        {
+          "id": "node-element-testimonial-item-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-6",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 3949,
+            "end": 3991
+          }
+        }
+      ]
     },
     {
       "id": "node-element-form-field-name",
       "title": "Form Field: Name",
       "prompt": "Text input field for the user's full name, styled and accessible.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-form-field-name-roundness",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5095,
+            "end": 5143
+          }
+        },
+        {
+          "id": "node-element-form-field-name-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-8",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5095,
+            "end": 5143
+          }
+        }
+      ]
     },
     {
       "id": "node-element-form-field-email",
       "title": "Form Field: Email",
       "prompt": "Text input field for the user's email address, styled and accessible.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-form-field-email-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5312,
+            "end": 5360
+          }
+        },
+        {
+          "id": "node-element-form-field-email-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "sm",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5312,
+            "end": 5360
+          }
+        }
+      ]
     },
     {
       "id": "node-element-form-field-message",
       "title": "Form Field: Message",
       "prompt": "Textarea input for the user's message, styled and accessible.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-form-field-message-roundness",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5527,
+            "end": 5575
+          }
+        },
+        {
+          "id": "node-element-form-field-message-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "sm",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5527,
+            "end": 5575
+          }
+        }
+      ]
     },
     {
       "id": "node-element-submit-button",
       "title": "Submit Button",
       "prompt": "Button designated for form submission, styled and interactive.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-submit-button-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#0000FF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5699,
+            "end": 5774
+          }
+        },
+        {
+          "id": "node-element-submit-button-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5699,
+            "end": 5774
+          }
+        },
+        {
+          "id": "node-element-submit-button-border-radius",
+          "title": "Border Radius",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 5699,
+            "end": 5774
+          }
+        }
+      ]
     },
     {
       "id": "node-element-footer-link-item",
       "title": "Footer Link Item",
       "prompt": "Clickable footer link pointing to an external resource or portfolio section.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-footer-link-item-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6416,
+            "end": 6443
+          }
+        }
+      ]
     },
     {
       "id": "node-element-footer-social-icon-item",
       "title": "Footer Social Icon Item",
       "prompt": "Single social media icon for quick access to external platforms.",
       "children": [],
-      "built": true
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-footer-social-icon-item-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "base",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 6796,
+            "end": 6823
+          }
+        }
+      ]
     }
   ]
 }
