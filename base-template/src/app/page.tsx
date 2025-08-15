@@ -9,7 +9,7 @@ export default function Home() {
       <header id="node-element-header" className="p-4 shadow">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           {/* Logo */}
-          <a id="node-element-logo" href="#" className="font-bold text-lg">
+          <a id="node-element-logo" href="#" className="font-bold font-sans text-xl">
             SWE Portfolio
           </a>
           {/* Navigation */}
@@ -32,7 +32,7 @@ export default function Home() {
           <a
             id="node-element-cta-button"
             href="#resume"
-            className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
+            className="px-4 py-2 text-primary-foreground text-sm bg-[#0e0e90] font-sans rounded-md"
           >
             Download Resume
           </a>
@@ -45,15 +45,14 @@ export default function Home() {
         className="flex flex-col items-center justify-center gap-6 py-24 text-center max-w-3xl mx-auto"
       >
         <h1 id="node-element-intro-text" className="text-4xl font-extrabold tracking-tight">
-          Hi, I'm <span className="text-primary">Your Name</span>
-        </h1>
+</h1>
         <p className="text-muted-foreground">
           A software engineer specializing in building exceptional digital experiences.
         </p>
         <a
           id="node-element-resume-link"
           href="#resume"
-          className="underline text-primary font-medium"
+          className="underline text-primary font-medium font-sans"
         >
           View Resume
         </a>
@@ -80,16 +79,30 @@ export default function Home() {
       <section id="node-element-projects-section" className="py-16 max-w-5xl mx-auto px-4">
         <h2 className="text-3xl font-bold mb-8">Projects</h2>
         <div id="node-element-projects-group" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <article id="node-element-project-item" className="border p-4 rounded-lg">
+          <article id="node-element-project-item" className="border p-4 rounded-lg flex flex-col">
+            {/* Thumbnail */}
+            <img
+              src="/window.svg"
+              alt="Project thumbnail"
+              className="w-full h-40 object-contain mb-4"
+            />
+
+            {/* Title */}
             <h3 className="font-semibold mb-2">Project Title</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              A short description of the project showing key features and technologies used.
+
+            {/* Description */}
+            <p className="text-sm text-muted-foreground mb-4 flex-1">
+              A short description of the project showcasing key features and technologies used to build
+              the solution.
             </p>
+
+            {/* Links */}
             <div className="flex gap-3 text-sm">
-              <a href="#" className="text-primary hover:underline">
+              <a href="#" className="text-primary font-medium hover:underline">
                 Live Demo
               </a>
-              <a href="#" className="text-primary hover:underline">
+              <span className="text-muted-foreground">•</span>
+              <a href="#" className="text-primary font-medium hover:underline">
                 Source Code
               </a>
             </div>

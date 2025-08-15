@@ -98,7 +98,7 @@ export default function Home() {
 
         {hasSelected && (
           <>
-            <ResizablePanel defaultSize={8.7} minSize={8.7}>
+            <ResizablePanel defaultSize={14} minSize={14}>
               <div className="h-full border-r border-zinc-700">
                 <SelectedNodeSidebar />
               </div>
@@ -138,7 +138,7 @@ export default function Home() {
         {panels.chat && (
           <>
             <ResizableHandle />
-            <ResizablePanel defaultSize={10} minSize={10} /* consider raising max or removing */>
+            <ResizablePanel defaultSize={17} minSize={17} /* consider raising max or removing */>
               <div className="h-full border-l border-zinc-700">
                 <ChatSidebar />
               </div>

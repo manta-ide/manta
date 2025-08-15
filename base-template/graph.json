@@ -236,12 +236,12 @@
           "title": "Background Color",
           "propertyType": {
             "type": "color",
-            "value": "#FFFFFF"
+            "value": "#ffffff"
           },
           "codeBinding": {
             "file": "base-template/src/app/page.tsx",
-            "start": 2696,
-            "end": 2736
+            "start": 2728,
+            "end": 2768
           }
         },
         {
@@ -261,8 +261,8 @@
           },
           "codeBinding": {
             "file": "base-template/src/app/page.tsx",
-            "start": 2696,
-            "end": 2736
+            "start": 2728,
+            "end": 2768
           }
         }
       ]
