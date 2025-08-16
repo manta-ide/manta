@@ -1245,7 +1245,7 @@
     {
       "id": "node-element-project-item",
       "title": "Project Item",
-      "prompt": "Individual project representation containing all details such as thumbnail, title, description, and links.",
+      "prompt": "Individual project representation containing all details such as thumbnail, title, description, and links, with high tech design.",
       "children": [],
       "built": true,
       "properties": [

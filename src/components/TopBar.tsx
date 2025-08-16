@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, MessageCircle, Edit3, Eye, Monitor, BarChart3, User, LogOut, Network } from 'lucide-react';
+import { Folder, Code, Edit3, Eye, Monitor, BarChart3, User, LogOut, Network } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,7 +15,6 @@ interface TopBarProps {
     files: boolean;
     editor: boolean;
     viewer: boolean;
-    chat: boolean;
     graph: boolean;
   };
   onTogglePanel: (panel: keyof TopBarProps['panels']) => void;
@@ -102,17 +101,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               <Monitor className="w-4 h-4" />
             </Button>
 
-            <Button
-              variant={panels.chat ? "default" : "outline"}
-              size="sm"
-              onClick={() => onTogglePanel('chat')}
-              className={panels.chat
-                ? "bg-zinc-700 text-white border-0"
-                : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-              }
-            >
-              <MessageCircle className="w-4 h-4" />
-            </Button>
+
 
             <Button
               variant={panels.graph ? "default" : "outline"}

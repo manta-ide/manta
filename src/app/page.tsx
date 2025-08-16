@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import ChatSidebar from "@/components/ChatSidebar";
+import FloatingChat from "@/components/FloatingChat";
 import FileTree from "@/components/FileTree";
 import FileEditor from "@/components/FileEditor";
 import AppViewer from "@/components/AppViewer";
@@ -16,7 +16,6 @@ export default function Home() {
     files: false,
     editor: false,
     viewer: true,
-    chat: true,
     graph: true,
   });
   
@@ -29,6 +28,34 @@ export default function Home() {
     console.log('🚀 Loading project on mount');
     loadProjectFromFileSystem();
   }, []); // Empty dependency array to run only once on mount
+
+  // Set root node as selected on mount
+  useEffect(() => {
+    const setRootNodeAsSelected = async () => {
+      try {
+        // Get the graph data to find the root node
+        const graphResponse = await fetch('/api/files?graphs=true');
+        if (graphResponse.ok) {
+          const data = await graphResponse.json();
+          const graphs = data.graphs || [];
+          const graphData = graphs.find((g: any) => g.sessionId === 'default');
+          
+          if (graphData && graphData.graph && graphData.graph.rootId) {
+            const rootNode = graphData.graph.nodes.find((n: any) => n.id === graphData.graph.rootId);
+            if (rootNode) {
+              setSelectedNode(graphData.graph.rootId, rootNode);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to set root node as selected:', error);
+      }
+    };
+
+    // Wait a bit for the project to load, then set root node
+    const timer = setTimeout(setRootNodeAsSelected, 1000);
+    return () => clearTimeout(timer);
+  }, [setSelectedNode]);
 
   const togglePanel = (panel: keyof typeof panels) => {
     setPanels(prev => ({
@@ -50,12 +77,13 @@ export default function Home() {
     (panels.editor ? 30 : 0) +
     (hasSelected ? 20 : 0);
 
-  const rightDefaults = panels.chat ? 25 : 0;
-
   const mainDefault = Math.max(
     mainMin,
-    100 - (leftDefaults + rightDefaults)
+    100 - leftDefaults
   );
+
+  // Adjust panel sizes when SelectedNodeSidebar is visible
+  const selectedPanelSize = hasSelected ? 20 : 0;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-900">
@@ -69,7 +97,6 @@ export default function Home() {
           panels.files,
           panels.editor,
           hasSelected,
-          panels.chat,
           panels.viewer,
           panels.graph,
         ].join('|')}
@@ -98,7 +125,7 @@ export default function Home() {
 
         {hasSelected && (
           <>
-            <ResizablePanel defaultSize={14} minSize={14}>
+            <ResizablePanel defaultSize={10} minSize={10}>
               <div className="h-full border-r border-zinc-700">
                 <SelectedNodeSidebar />
               </div>
@@ -135,17 +162,11 @@ export default function Home() {
           </ResizablePanelGroup>
         </ResizablePanel>
 
-        {panels.chat && (
-          <>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={17} minSize={17} /* consider raising max or removing */>
-              <div className="h-full border-l border-zinc-700">
-                <ChatSidebar />
-              </div>
-            </ResizablePanel>
-          </>
-        )}
+        
       </ResizablePanelGroup>
+      
+      {/* Floating Chat */}
+      <FloatingChat />
     </div>
   );
 }

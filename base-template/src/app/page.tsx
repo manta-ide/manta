@@ -9,7 +9,7 @@ export default function Home() {
       <header id="node-element-header" className="p-4 shadow">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           {/* Logo */}
-          <a id="node-element-logo" href="#" className="font-bold font-sans text-xl">
+          <a id="node-element-logo" href="#" className="font-bold font-mono text-4xl">
             SWE Portfolio
           </a>
           {/* Navigation */}
@@ -79,7 +79,10 @@ export default function Home() {
       <section id="node-element-projects-section" className="py-16 max-w-5xl mx-auto px-4">
         <h2 className="text-3xl font-bold mb-8">Projects</h2>
         <div id="node-element-projects-group" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <article id="node-element-project-item" className="border p-4 flex flex-col bg-[#fafafa] rounded-lg">
+          <article
+            id="node-element-project-item"
+            className="border border-indigo-500/30 p-6 flex flex-col from-[#0a0a23] via-[#0f0f3d] to-[#0a0a23] shadow-lg hover:shadow-indigo-500/30 transition-shadow bg-[#efebeb] rounded-lg"
+          >
             {/* Thumbnail */}
             <img
               src="/window.svg"
