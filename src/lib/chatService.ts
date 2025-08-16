@@ -10,19 +10,10 @@ import { useProjectStore } from '@/lib/store';
 import { isValidSelection } from '@/app/api/lib/selectionUtils';
 import { 
   Message, 
-  MessageContext
+  MessageContext,
+  ChatServiceState,
+  ChatServiceActions
 } from '@/app/api/lib/schemas';
-
-export interface ChatServiceState {
-  messages: Message[];
-  loading: boolean;
-}
-
-export interface ChatServiceActions {
-  sendMessage: (input: string) => Promise<void>;
-  clearMessages: () => Promise<void>;
-  rebuildNode: (nodeId: string, previousPrompt: string, newPrompt: string) => Promise<void>;
-}
 
 /**
  * Custom React hook for managing chat functionality

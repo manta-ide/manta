@@ -1,12 +1,5 @@
-import { Property, CodeBinding } from '@/app/api/lib/schemas';
-
-export interface CodeUpdate {
-  file: string;
-  start: number;
-  end: number;
-  newValue: string;
-  propertyId?: string; // Optional property ID for dynamic positioning
-}
+import { Property, CodeBinding, CodeUpdate } from '@/app/api/lib/schemas';
+import { property } from 'better-auth';
 
 export class PropertyCodeService {
   /**
@@ -49,14 +42,16 @@ export class PropertyCodeService {
   static async readPropertyValue(property: Property): Promise<any> {
     try {
       const projectPath = property.codeBinding.file.replace('base-template/', '');
-      const response = await fetch(`/api/files?path=${encodeURIComponent(projectPath)}`);
       
-      if (!response.ok) {
+      // Get content from store instead of API call
+      const { useProjectStore } = await import('@/lib/store');
+      const store = useProjectStore.getState();
+      const content = store.getFileContent(projectPath);
+      
+      if (!content) {
         console.warn(`Failed to read file for property ${property.id}:`, projectPath);
         return property.propertyType.value; // Fallback to default
       }
-      
-      const { content } = await response.json();
       
       // For color and select properties, extract the value from className
       if (property.propertyType.type === 'color' || property.propertyType.type === 'select') {
@@ -195,6 +190,7 @@ export class PropertyCodeService {
         const classNameValue = await this.buildClassNameFromProperties(elementProperties, propertyValues);
         
         console.log(`Building complete className for element ${elementKey}:`, classNameValue);
+        console.log(elementProperties)
         
         // Use the first property's code binding for this element
         const firstProperty = elementProperties[0];
@@ -202,6 +198,7 @@ export class PropertyCodeService {
           file: firstProperty.codeBinding.file,
           start: firstProperty.codeBinding.start,
           end: firstProperty.codeBinding.end,
+          newCode: classNameValue,
           newValue: classNameValue,
           propertyId: `className-update-${this.getTargetElementId(firstProperty.id)}`
         });
@@ -224,6 +221,7 @@ export class PropertyCodeService {
               file: property.codeBinding.file,
               start: property.codeBinding.start,
               end: property.codeBinding.end,
+              newCode: codeValue,
               newValue: codeValue,
               propertyId: property.id
             });
@@ -387,7 +385,7 @@ export class PropertyCodeService {
       
       for (const update of sortedUpdates) {
         // For className updates, find the current position dynamically
-        if (update.newValue.includes('className=')) {
+        if (update.newValue && update.newValue.includes('className=')) {
           const dynamicUpdate = this.findClassNamePosition(content, update);
           if (dynamicUpdate) {
             const before = content.substring(0, dynamicUpdate.start);
@@ -442,7 +440,7 @@ export class PropertyCodeService {
       console.error('Unknown property ID for dynamic positioning:', update.propertyId);
       return null;
     }
-    
+    console.log("content", content);
     // Look for the element with the specific ID
     const elementPattern = new RegExp(`<[^>]*id="${targetElementId}"[^>]*>`, 'i');
     const match = content.match(elementPattern);
@@ -475,7 +473,7 @@ export class PropertyCodeService {
       return {
         start: classNameStart,
         end: classNameEnd,
-        newValue: update.newValue
+        newValue: update.newValue || ''
       };
     } else {
       // Element doesn't have className attribute - insert it before the closing >

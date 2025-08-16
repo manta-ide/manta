@@ -10,7 +10,7 @@ export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
 	const DEBOUNCE_PROPERTY_CHANGES = true;
 	
-	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh } = useProjectStore();
+	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh, refreshGraph } = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [isRebuilding, setIsRebuilding] = useState(false);
@@ -19,8 +19,6 @@ export default function SelectedNodeSidebar() {
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
 	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  console.log('selectedNode', selectedNode);
 
 	useEffect(() => {
 		setPromptDraft(selectedNode?.prompt ?? '');
@@ -34,10 +32,10 @@ export default function SelectedNodeSidebar() {
 		}
 		
 		// Initialize property values from current code
-		if (selectedNode?.properties) {
+		if (selectedNode?.properties && selectedNode.properties.length > 0) {
 			const initializeProperties = async () => {
 				const initialValues: Record<string, any> = {};
-				for (const prop of selectedNode.properties) {
+				for (const prop of selectedNode.properties!) {
 					try {
 						const currentValue = await PropertyCodeService.readPropertyValue(prop);
 						initialValues[prop.id] = currentValue;
@@ -93,16 +91,12 @@ export default function SelectedNodeSidebar() {
 
 			// 3) Refresh the graph to get the latest state
 			try {
-				const graphRes = await fetch('/api/backend/graph-api');
-				if (graphRes.ok) {
-					const graphData = await graphRes.json();
-					if (graphData.success && graphData.graph) {
-						// Find the updated node in the refreshed graph
-						const updatedNode = graphData.graph.nodes.find((n: any) => n.id === selectedNodeId);
-						if (updatedNode) {
-							setSelectedNode(selectedNodeId, updatedNode);
-						}
-					}
+				await refreshGraph();
+				// Find the updated node in the refreshed graph
+				const { graph } = useProjectStore.getState();
+				const updatedNode = graph?.nodes.find(n => n.id === selectedNodeId);
+				if (updatedNode) {
+					setSelectedNode(selectedNodeId, updatedNode);
 				}
 			} catch (e) {
 				console.warn('Failed to refresh graph after rebuild:', e);
@@ -133,35 +127,22 @@ export default function SelectedNodeSidebar() {
 		try {
 			setIsGeneratingProperties(true);
 			
-			// Get current graph
-			const graphRes = await fetch('/api/backend/graph-api');
-			if (!graphRes.ok) {
-				console.error('Failed to get graph for property generation');
-				return;
-			}
-			
-			const graphData = await graphRes.json();
-			if (!graphData.success || !graphData.graph) {
+			// Get current graph from store
+			const { graph, getFileContent } = useProjectStore.getState();
+			if (!graph) {
 				console.error('No graph found for property generation');
 				return;
 			}
 			
-			// Get current code content
-			const codeRes = await fetch('/api/files?path=src/app/page.tsx');
-			if (!codeRes.ok) {
-				console.error('Failed to get current code for property generation');
-				return;
-			}
-			
-			const codeData = await codeRes.json();
-			const generatedCode = codeData.content || '';
+			// Get current code content from store
+			const generatedCode = getFileContent('src/app/page.tsx') || '';
 			
 			// Generate properties for the selected node
 			const propertyRes = await fetch('/api/agents/generate-properties', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					graph: graphData.graph,
+					graph: graph,
 					nodeId: selectedNodeId,
 					generatedCode,
 					filePath: 'base-template/src/app/page.tsx'

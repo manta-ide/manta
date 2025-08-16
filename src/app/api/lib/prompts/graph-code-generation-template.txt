@@ -30,5 +30,8 @@ Component instructions:
 1. For the links, use next/link <Link>, with plain text inside, and no <a> 
 2. Do not add image placeholders unless asked. 
 
+SUPER CRITICAL:
+GENERATE ALL CODE INSIDE page.tsx
+
 Goal:  
 Implement the entire graph as a working application with all components integrated into the main page, ready to run without errors.

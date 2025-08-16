@@ -1,0 +1,1200 @@
+{
+  "rootId": "node-element-portfolio-page",
+  "nodes": [
+    {
+      "id": "node-element-portfolio-page",
+      "title": "Software Engineer Portfolio Page",
+      "prompt": "A portfolio page tailored to software engineers, featuring sections for showcasing projects, skills, and contact information. Responsive and accessible design.",
+      "children": [
+        {
+          "id": "node-element-header-section",
+          "title": "Header Section"
+        },
+        {
+          "id": "node-element-introduction-section",
+          "title": "Introduction Section"
+        },
+        {
+          "id": "node-element-projects-section",
+          "title": "Projects Section"
+        },
+        {
+          "id": "node-element-skills-section",
+          "title": "Skills Section"
+        },
+        {
+          "id": "node-element-contact-section",
+          "title": "Contact Section"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-portfolio-page-header-bg-color",
+          "title": "Header Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FFFFFF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-header-text-color",
+          "title": "Header Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-introduction-bg-color",
+          "title": "Introduction Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FAFAFA"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-introduction-text-color",
+          "title": "Introduction Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#333333"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-project-card-bg-color",
+          "title": "Project Card Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FFFFFF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-project-card-border-roundness",
+          "title": "Project Card Border Radius",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-skills-bg-color",
+          "title": "Skills Section Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FFFFFF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-skills-hover-text-color",
+          "title": "Skills Hover Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#0000FF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-contact-bg-color",
+          "title": "Contact Section Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FAFAFA"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-portfolio-page-contact-text-color",
+          "title": "Contact Section Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#444444"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-header-section",
+      "title": "Header Section",
+      "prompt": "Fixed header section with logo and navigation menu for quick access to different sections of the portfolio.",
+      "children": [
+        {
+          "id": "node-element-logo",
+          "title": "Logo"
+        },
+        {
+          "id": "node-element-nav-menu",
+          "title": "Navigation Menu"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-header-section-bg-color",
+          "title": "Header Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-header-section-padding",
+          "title": "Section Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-8",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-introduction-section",
+      "title": "Introduction Section",
+      "prompt": "Introduction section with a profile picture and a short summary describing the software engineer.",
+      "children": [
+        {
+          "id": "node-element-profile-picture",
+          "title": "Profile Picture"
+        },
+        {
+          "id": "node-element-introduction-text",
+          "title": "Introduction Text"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-introduction-section-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-introduction-section-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-16",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-projects-section",
+      "title": "Projects Section",
+      "prompt": "A section to showcase prominent software engineering projects with a clear layout and detailed information.",
+      "children": [
+        {
+          "id": "node-element-project-list",
+          "title": "Project List"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-projects-section-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#FFFFFF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-projects-section-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-16",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-skills-section",
+      "title": "Skills Section",
+      "prompt": "Skills section displaying essential technical skills using a badge layout.",
+      "children": [
+        {
+          "id": "node-element-skills-list",
+          "title": "Skills List"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-skills-section-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skills-section-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-16",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skills-section-badge-bg-color",
+          "title": "Badge Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#blue-500"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skills-section-badge-hover-bg-color",
+          "title": "Badge Hover Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#blue-600"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-contact-section",
+      "title": "Contact Section",
+      "prompt": "A section including a contact form and social links for reaching out to the software engineer.",
+      "children": [
+        {
+          "id": "node-element-contact-form",
+          "title": "Contact Form"
+        },
+        {
+          "id": "node-element-social-links",
+          "title": "Social Links"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-contact-section-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-contact-section-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-12",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-contact-section-form-title-color",
+          "title": "Form Title Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-contact-section-link-color",
+          "title": "Social Link Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#0077b5"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-logo",
+      "title": "Logo",
+      "prompt": "A logo representing the portfolio or personal branding, designed with accessibility and responsiveness.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-logo-color",
+          "title": "Logo Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-logo-roundness",
+          "title": "Logo Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "full",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-nav-menu",
+      "title": "Navigation Menu",
+      "prompt": "Horizontal navigation menu with links to page sections, featuring hover effects and responsive design.",
+      "children": [
+        {
+          "id": "node-element-nav-item",
+          "title": "Navigation Item"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-nav-menu-text-color",
+          "title": "Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-nav-menu-hover-color",
+          "title": "Hover Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#555555"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-nav-menu-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-nav-menu-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "base",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-profile-picture",
+      "title": "Profile Picture",
+      "prompt": "Circular profile picture that is visually prominent and adapts responsively.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-profile-picture-border-color",
+          "title": "Profile Picture Border Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-profile-picture-roundness",
+          "title": "Profile Picture Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "full",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-introduction-text",
+      "title": "Introduction Text",
+      "prompt": "A text area for a brief introduction about the software engineer.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-introduction-text-text-color",
+          "title": "Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-introduction-text-font-family",
+          "title": "Font Family",
+          "propertyType": {
+            "type": "select",
+            "value": "sans",
+            "options": [
+              "sans",
+              "serif",
+              "mono"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-introduction-text-font-size",
+          "title": "Font Size",
+          "propertyType": {
+            "type": "select",
+            "value": "base",
+            "options": [
+              "xs",
+              "sm",
+              "base",
+              "lg",
+              "xl",
+              "2xl",
+              "3xl",
+              "4xl",
+              "5xl",
+              "6xl"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-introduction-text-font-weight",
+          "title": "Font Weight",
+          "propertyType": {
+            "type": "select",
+            "value": "normal",
+            "options": [
+              "normal",
+              "medium",
+              "semibold",
+              "bold"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-project-list",
+      "title": "Project List",
+      "prompt": "A list layout presenting individual project cards with titles, descriptions, and links.",
+      "children": [
+        {
+          "id": "node-element-project-card",
+          "title": "Project Card"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-project-list-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-project-list-border-color",
+          "title": "Border Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#e5e7eb"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-project-list-border-radius",
+          "title": "Border Radius",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-project-list-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-2",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-skills-list",
+      "title": "Skills List",
+      "prompt": "A grid or flex layout listing individual skill badges with hover effects.",
+      "children": [
+        {
+          "id": "node-element-skill-item",
+          "title": "Skill Item"
+        }
+      ],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-skills-list-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skills-list-hover-bg-color",
+          "title": "Hover Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#e5e5e5"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skills-list-text-color",
+          "title": "Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skills-list-border-radius",
+          "title": "Border Radius",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-contact-form",
+      "title": "Contact Form",
+      "prompt": "A contact form for users to send messages, designed with accessibility and form validation.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-contact-form-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-contact-form-border-color",
+          "title": "Border Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#cccccc"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-contact-form-roundness",
+          "title": "Border Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "md",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-contact-form-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-12",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-social-links",
+      "title": "Social Links",
+      "prompt": "Clickable icons linking to social media profiles, styled for responsiveness and hover effects.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-social-links-icon-color",
+          "title": "Icon Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-social-links-hover-color",
+          "title": "Hover Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#555555"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-social-links-roundness",
+          "title": "Icon Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "full",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-nav-item",
+      "title": "Navigation Item",
+      "prompt": "Individual navigation menu item with clickable links and descriptive titles.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-nav-item-background-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#000000"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-nav-item-text-color",
+          "title": "Text Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-nav-item-roundness",
+          "title": "Roundness",
+          "propertyType": {
+            "type": "select",
+            "value": "sm",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-project-card",
+      "title": "Project Card",
+      "prompt": "Card component to display project information, including title, description, and live/demo links.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-project-card-bg-color",
+          "title": "Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#ffffff"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-project-card-border-color",
+          "title": "Border Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#cccccc"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-project-card-border-radius",
+          "title": "Border Radius",
+          "propertyType": {
+            "type": "select",
+            "value": "lg",
+            "options": [
+              "none",
+              "sm",
+              "md",
+              "lg",
+              "xl",
+              "full"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-project-card-padding",
+          "title": "Padding",
+          "propertyType": {
+            "type": "select",
+            "value": "py-16",
+            "options": [
+              "py-8",
+              "py-12",
+              "py-16",
+              "py-20",
+              "py-24",
+              "py-32"
+            ]
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "node-element-skill-item",
+      "title": "Skill Item",
+      "prompt": "Individual badge for a technical skill with customizable color and hover effect.",
+      "children": [],
+      "built": true,
+      "properties": [
+        {
+          "id": "node-element-skill-item-bg-color",
+          "title": "Badge Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#D1D5DB"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skill-item-border-color",
+          "title": "Badge Border Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#374151"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        },
+        {
+          "id": "node-element-skill-item-hover-color",
+          "title": "Hover Effect Background Color",
+          "propertyType": {
+            "type": "color",
+            "value": "#9CA3AF"
+          },
+          "codeBinding": {
+            "file": "base-template/src/app/page.tsx",
+            "start": 0,
+            "end": 0
+          }
+        }
+      ]
+    }
+  ]
+}

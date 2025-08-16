@@ -1,27 +1,23 @@
 import { create } from 'zustand';
-import { Selection } from '@/app/api/lib/schemas';
-import { GraphNodeSchema } from '@/app/api/lib/graphStorage';
-import { z } from 'zod';
-
-interface FileNode {
-  name: string;
-  path: string;
-  type: 'file' | 'directory';
-  children?: FileNode[];
-  content?: string;
-}
+import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
 
 interface ProjectStore {
+  // File system state
   files: Map<string, string>;
   currentFile: string | null;
   selectedFile: string | null;
   fileTree: FileNode[];
   selection: Selection | null;
-  refreshTrigger: number; // Add refresh trigger counter
-  // Selected node (graph element) state
-  selectedNodeId: string | null;
-  selectedNode: z.infer<typeof GraphNodeSchema> | null;
+  refreshTrigger: number;
   
+  // Graph state
+  selectedNodeId: string | null;
+  selectedNode: GraphNode | null;
+  graph: Graph | null;
+  graphLoading: boolean;
+  graphError: string | null;
+  
+  // File operations
   loadProject: () => Promise<void>;
   setFileContent: (path: string, content: string) => Promise<void>;
   deleteFile: (path: string) => Promise<void>;
@@ -29,22 +25,39 @@ interface ProjectStore {
   setCurrentFile: (path: string | null) => void;
   setSelectedFile: (path: string | null) => void;
   setSelection: (selection: Selection | null) => void;
-  setSelectedNode: (id: string | null, node?: z.infer<typeof GraphNodeSchema> | null) => void;
   getFileContent: (path: string) => string;
   getAllFiles: () => Map<string, string>;
   buildFileTree: () => void;
-  triggerRefresh: () => void; // Add method to trigger refresh
+  triggerRefresh: () => void;
+  
+  // Graph operations
+  setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
+  loadGraph: () => Promise<void>;
+  refreshGraph: () => Promise<void>;
+  updateGraph: (graph: Graph) => void;
+  setGraphLoading: (loading: boolean) => void;
+  setGraphError: (error: string | null) => void;
+  
+  // Graph event handling
+  connectToGraphEvents: () => void;
+  disconnectFromGraphEvents: () => void;
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
+  // File system state
   files: new Map(),
   currentFile: null,
   selectedFile: null,
   fileTree: [],
   selection: null,
-  refreshTrigger: 0, // Initialize refresh trigger
+  refreshTrigger: 0,
+  
+  // Graph state
   selectedNodeId: null,
   selectedNode: null,
+  graph: null,
+  graphLoading: true,
+  graphError: null,
 
   loadProject: async () => {
     try {
@@ -63,7 +76,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           headers: { 'Content-Type': 'application/json' }
         });
         
+        // Also trigger graph API refresh to ensure it has the latest data
+        await fetch('http://localhost:3000/api/backend/graph-api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'refresh' })
+        });
+        
         set({ files, fileTree: data.fileTree });
+        
+        // Load graph data
+        await get().loadGraph();
       } else {
         console.error('❌ Error loading project:', data.error);
       }
@@ -180,4 +203,85 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   triggerRefresh: () => set(state => ({ refreshTrigger: state.refreshTrigger + 1 })),
+  
+  // Graph operations
+  loadGraph: async () => {
+    try {
+      set({ graphLoading: true, graphError: null });
+      const response = await fetch('http://localhost:3000/api/backend/graph-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'refresh' })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.graph) {
+          set({ graph: data.graph, graphLoading: false });
+          console.log(`✅ Loaded graph with ${data.graph.nodes?.length || 0} nodes`);
+        } else {
+          set({ graph: null, graphLoading: false });
+          console.log('ℹ️ No graph found');
+        }
+      } else if (response.status === 404) {
+        // Graph not found is not an error, just set to null
+        set({ graph: null, graphLoading: false });
+        console.log('ℹ️ No graph found (404)');
+      } else {
+        const errorData = await response.json();
+        set({ graphError: errorData.error || 'Failed to load graph', graphLoading: false });
+        console.error('❌ Error loading graph:', errorData.error);
+      }
+    } catch (error) {
+      set({ graphError: 'Failed to load graph', graphLoading: false });
+      console.error('❌ Error loading graph:', error);
+    }
+  },
+  
+  refreshGraph: async () => {
+    await get().loadGraph();
+  },
+  
+  updateGraph: (graph) => set({ graph }),
+  
+  setGraphLoading: (loading) => set({ graphLoading: loading }),
+  
+  setGraphError: (error) => set({ graphError: error }),
+  
+  // Graph event handling
+  connectToGraphEvents: () => {
+    const eventSource = new EventSource('/api/backend/graph-api?sse=true');
+    
+    eventSource.onopen = () => {
+      console.log('🔗 Connected to graph events');
+      set({ graphError: null });
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'graph-update') {
+          set({ graph: data.graph, graphLoading: false });
+        }
+      } catch (err) {
+        console.error('Error parsing graph event:', err);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('❌ Graph event source error:', error);
+      set({ graphError: 'Connection lost. Reconnecting...' });
+      
+      // Attempt to reconnect after 3 seconds
+      setTimeout(() => {
+        console.log('🔄 Attempting to reconnect to graph events...');
+        get().connectToGraphEvents();
+      }, 3000);
+    };
+  },
+  
+  disconnectFromGraphEvents: () => {
+    // EventSource will be cleaned up by the browser when the component unmounts
+    console.log('🔌 Disconnected from graph events');
+  },
 })); 

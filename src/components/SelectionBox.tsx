@@ -146,19 +146,10 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
 
         if (target) {
           const nodeId = target.id;
-          let nodeData: any = null;
-          try {
-            const res = await fetch(`/api/backend/graph-api`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nodeId }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              nodeData = data.node ?? null;
-            }
-          } catch (_) {}
-          setSelectedNode(nodeId, nodeData ?? undefined);
+          // Find node data from store
+          const { graph } = useProjectStore.getState();
+          const nodeData = graph?.nodes.find(n => n.id === nodeId) || null;
+          setSelectedNode(nodeId, nodeData);
         } else {
           setSelectedNode(null, null);
         }

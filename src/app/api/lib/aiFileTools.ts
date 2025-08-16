@@ -1,4 +1,4 @@
-import { tool } from 'ai';
+import { ToolSet, tool } from 'ai';
 import { exec } from 'child_process';
 import * as z from 'zod';
 import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
@@ -121,7 +121,7 @@ function getRuntimeError() {
     ts: err.ts,
   };
 }
-export const fileTools = {
+export const fileTools: ToolSet = {
   readFile: tool({
     description: 'Read a file and return its content. Returns error if file not found or too long.',
     parameters: z.object({

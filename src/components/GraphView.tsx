@@ -18,26 +18,7 @@ import {
 
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
-
-// Types based on the graph schema
-interface GraphNode {
-  id: string;
-  title: string;
-  prompt: string;
-  children: Array<{ id: string; title: string }>;
-  built?: boolean;
-  properties?: Array<{
-    id: string;
-    title: string;
-    propertyType: any;
-    codeBinding: any;
-  }>;
-}
-
-interface Graph {
-  rootId: string;
-  nodes: GraphNode[];
-}
+import { GraphNode, Graph } from '@/app/api/lib/schemas';
 
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -293,9 +274,41 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
 function GraphView() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { setSelectedNode, selectedNodeId } = useProjectStore();
+  
+  // Use the store for graph data
+  const { graph, graphLoading: loading, graphError: error, refreshGraph, connectToGraphEvents, disconnectFromGraphEvents } = useProjectStore();
+
+  // Function to delete the graph
+  const deleteGraph = useCallback(async () => {
+    if (!confirm('Are you sure you want to delete the graph? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/backend/graph-api', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        console.log('✅ Graph deleted successfully');
+        // The graph will be automatically updated via SSE
+      } else {
+        console.error('❌ Failed to delete graph');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting graph:', error);
+    }
+  }, []);
+
+  // Connect to graph events on mount
+  useEffect(() => {
+    connectToGraphEvents();
+    return () => {
+      disconnectFromGraphEvents();
+    };
+  }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
@@ -306,153 +319,126 @@ function GraphView() {
     }
   }, [setSelectedNode]);
 
-  // Fetch graph data
+  // Process graph data and create ReactFlow nodes/edges
   useEffect(() => {
-    const fetchGraph = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/graph-visualize');
-        if (!response.ok) {
-          throw new Error('Failed to fetch graph data');
-        }
-        
-        // Get the graph data from storage
-        const graphResponse = await fetch('/api/files?graphs=true');
-        if (!graphResponse.ok) {
-          throw new Error('Failed to fetch graph data');
-        }
-        
-        const data = await graphResponse.json();
-        const graphs = data.graphs || [];
-        const graphData = graphs.find((g: any) => g.sessionId === 'default');
-        
-        if (!graphData) {
-          setError('No graph data found');
-          setLoading(false);
-          return;
-        }
+    if (!graph || !graph.nodes) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
 
-        const graph: Graph = graphData.graph;
-        
-        // Create a tree layout for the nodes
-        const nodePositions = new Map<string, { x: number; y: number }>();
-        const nodeDepths = new Map<string, number>();
-        const nodeWidths = new Map<string, number>();
-        
-        // Calculate depths and widths for each node
-        const calculateNodeLayout = (nodeId: string, depth: number = 0): number => {
-          if (nodeDepths.has(nodeId)) {
-            return nodeWidths.get(nodeId) || 0;
-          }
-          
-          const node = graph.nodes.find(n => n.id === nodeId);
-          if (!node) return 0;
-          
-          nodeDepths.set(nodeId, depth);
-          
-          if (node.children.length === 0) {
-            nodeWidths.set(nodeId, 1);
-            return 1;
-          }
-          
-          let totalWidth = 0;
-          node.children.forEach(child => {
-            totalWidth += calculateNodeLayout(child.id, depth + 1);
-          });
-          
-          nodeWidths.set(nodeId, totalWidth);
-          return totalWidth;
-        };
-        
-        // Calculate layout starting from root
-        const totalTreeWidth = calculateNodeLayout(graph.rootId);
-        
-        // Position nodes based on the calculated layout with better tree structure
-        const positionNodes = (nodeId: string, startX: number, depth: number): number => {
-          const node = graph.nodes.find(n => n.id === nodeId);
-          if (!node) return 0;
-          
-          const width = nodeWidths.get(nodeId) || 1;
-          
-          // For better tree structure, use tighter spacing for children
-          const horizontalSpacing = 320; // Increased for more vertical layout
-          const verticalSpacing = 420; // Reduced for tighter vertical spacing
-          
-          // Calculate x position to center the node over its children
-          const x = startX + (width - 1) * horizontalSpacing / 2;
-          const y = depth * verticalSpacing + 60;
-          
-          nodePositions.set(nodeId, { x, y });
-          
-          if (node.children.length === 0) {
-            return 1;
-          }
-          
-          // Position children with tighter spacing and better distribution
-          let currentX = startX;
-          node.children.forEach(child => {
-            const childWidth = nodeWidths.get(child.id) || 1;
-            currentX += positionNodes(child.id, currentX, depth + 1) * horizontalSpacing;
-          });
-          
-          return width;
-        };
-        
-        // Center the tree by calculating the starting position
-        const treeWidth = totalTreeWidth * 320; // Use the same spacing as in positioning
-        const startX = (1200 - treeWidth) / 2; // Use a fixed width instead of window.innerWidth
-        
-        // Start positioning from root
-        positionNodes(graph.rootId, startX, 0);
-        
-        // Convert graph nodes to ReactFlow nodes
-        const reactFlowNodes: Node[] = graph.nodes.map((node) => {
-          const position = nodePositions.get(node.id) || { x: 0, y: 0 };
-          return {
-            id: node.id,
-            position,
-            data: { 
-              label: node.title,
-              node: node,
-              built: node.built || false,
-              properties: node.properties || []
-            },
-            type: 'custom',
-            selected: selectedNodeId === node.id, // Set initial selection state
-          };
-        });
-
-        // Create edges based on children relationships
-        const reactFlowEdges: Edge[] = [];
-        graph.nodes.forEach(node => {
-          node.children.forEach(child => {
-            reactFlowEdges.push({
-              id: `${node.id}-${child.id}`,
-              source: node.id,
-              target: child.id,
-              type: 'smoothstep',
-              style: { 
-                stroke: '#3b82f6', 
-                strokeWidth: 3,
-                strokeDasharray: '5,5',
-              },
-              animated: false,
-            });
-          });
-        });
-
-        setNodes(reactFlowNodes);
-        setEdges(reactFlowEdges);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching graph:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        setLoading(false);
+    // Create a tree layout for the nodes
+    const nodePositions = new Map<string, { x: number; y: number }>();
+    const nodeDepths = new Map<string, number>();
+    const nodeWidths = new Map<string, number>();
+    
+    // Calculate depths and widths for each node
+    const calculateNodeLayout = (nodeId: string, depth: number = 0): number => {
+      if (nodeDepths.has(nodeId)) {
+        return nodeWidths.get(nodeId) || 0;
       }
+      
+      const node = graph.nodes.find(n => n.id === nodeId);
+      if (!node) return 0;
+      
+      nodeDepths.set(nodeId, depth);
+      
+      if (!node.children || node.children.length === 0) {
+        nodeWidths.set(nodeId, 1);
+        return 1;
+      }
+      
+      let totalWidth = 0;
+      node.children.forEach(child => {
+        totalWidth += calculateNodeLayout(child.id, depth + 1);
+      });
+      
+      nodeWidths.set(nodeId, totalWidth);
+      return totalWidth;
     };
+    
+    // Calculate layout starting from root
+    const totalTreeWidth = calculateNodeLayout(graph.rootId);
+    
+    // Position nodes based on the calculated layout with better tree structure
+    const positionNodes = (nodeId: string, startX: number, depth: number): number => {
+      const node = graph.nodes.find(n => n.id === nodeId);
+      if (!node) return 0;
+      
+      const width = nodeWidths.get(nodeId) || 1;
+      
+      // For better tree structure, use tighter spacing for children
+      const horizontalSpacing = 320; // Increased for more vertical layout
+      const verticalSpacing = 420; // Reduced for tighter vertical spacing
+      
+      // Calculate x position to center the node over its children
+      const x = startX + (width - 1) * horizontalSpacing / 2;
+      const y = depth * verticalSpacing + 60;
+      
+      nodePositions.set(nodeId, { x, y });
+      
+      if (!node.children || node.children.length === 0) {
+        return 1;
+      }
+      
+      // Position children with tighter spacing and better distribution
+      let currentX = startX;
+      node.children.forEach(child => {
+        const childWidth = nodeWidths.get(child.id) || 1;
+        currentX += positionNodes(child.id, currentX, depth + 1) * horizontalSpacing;
+      });
+      
+      return width;
+    };
+    
+    // Center the tree by calculating the starting position
+    const treeWidth = totalTreeWidth * 320; // Use the same spacing as in positioning
+    const startX = (1200 - treeWidth) / 2; // Use a fixed width instead of window.innerWidth
+    
+    // Start positioning from root
+    positionNodes(graph.rootId, startX, 0);
+    
+    // Convert graph nodes to ReactFlow nodes
+    const reactFlowNodes: Node[] = graph.nodes.map((node) => {
+      const position = nodePositions.get(node.id) || { x: 0, y: 0 };
+      return {
+        id: node.id,
+        position,
+        data: { 
+          label: node.title,
+          node: node,
+          built: node.built || false,
+          properties: node.properties || []
+        },
+        type: 'custom',
+        selected: selectedNodeId === node.id, // Set initial selection state
+      };
+    });
 
-    fetchGraph();
-  }, []); // Removed selectedNodeId from dependencies
+    // Create edges based on children relationships
+    const reactFlowEdges: Edge[] = [];
+    graph.nodes.forEach(node => {
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          reactFlowEdges.push({
+            id: `${node.id}-${child.id}`,
+            source: node.id,
+            target: child.id,
+            type: 'smoothstep',
+            style: { 
+              stroke: '#3b82f6', 
+              strokeWidth: 3,
+              strokeDasharray: '5,5',
+            },
+            animated: false,
+          });
+        });
+      }
+    });
+
+    setNodes(reactFlowNodes);
+    setEdges(reactFlowEdges);
+  }, [graph, selectedNodeId, setNodes, setEdges]);
 
   // Update node selection without re-rendering the whole graph
   useEffect(() => {
@@ -464,18 +450,6 @@ function GraphView() {
     );
   }, [selectedNodeId, setNodes]);
 
-  // Initialize selection state when nodes are first loaded
-  useEffect(() => {
-    if (nodes.length > 0 && selectedNodeId) {
-      setNodes((nds) =>
-        nds.map((node) => ({
-          ...node,
-          selected: selectedNodeId === node.id,
-        }))
-      );
-    }
-  }, [nodes.length, selectedNodeId, setNodes]);
-
   const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
   // Node types for ReactFlow
@@ -484,37 +458,64 @@ function GraphView() {
   };
 
   if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100%',
-        fontSize: '18px',
-        color: '#666'
-      }}>
-        Loading graph...
-      </div>
-    );
+    return null;
   }
 
   if (error) {
     return (
       <div style={{ 
         display: 'flex', 
+        flexDirection: 'column',
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100%',
-        fontSize: '18px',
-        color: '#ff4d4f'
+        fontSize: '16px',
+        color: '#ff4d4f',
+        gap: '16px'
       }}>
-        Error: {error}
+        <div>⚠️ {error}</div>
+        <button
+          onClick={refreshGraph}
+          style={{
+            padding: '8px 16px',
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          Retry Connection
+        </button>
       </div>
     );
   }
 
-  return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }}>
+  // Show empty state when no nodes are present
+  if (nodes.length === 0) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100%',
+        fontSize: '16px',
+        color: '#6b7280',
+        textAlign: 'center',
+        gap: '12px'
+      }}>
+        <div style={{ fontWeight: '500' }}>No Graph Available</div>
+        <div style={{ fontSize: '14px', maxWidth: '500px' }}>
+          Generate a new app to visualize your project structure
+        </div>
+      </div>
+    );
+  }
+
+    return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', position: 'relative' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -537,6 +538,41 @@ function GraphView() {
         <Controls />
         <Background color="#f8f9fa" gap={20} />
       </ReactFlow>
+      
+      {/* Delete Graph Button */}
+      <button
+        onClick={deleteGraph}
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          border: '1px solid #ef4444',
+          padding: '6px 12px',
+          borderRadius: '20px',
+          fontSize: '12px',
+          color: '#ef4444',
+          fontWeight: '500',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          zIndex: 1000,
+          transition: 'all 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+          e.currentTarget.style.color = '#dc2626';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+          e.currentTarget.style.color = '#ef4444';
+        }}
+        title="Delete graph"
+      >
+        🗑️ Delete Graph
+      </button>
     </div>
   );
 }

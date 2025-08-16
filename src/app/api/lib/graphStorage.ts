@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
-
-
+import fs from 'fs/promises';
+import path from 'path';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
 // Single graph storage (in-memory cache)
 let currentGraph: Graph | null = null;
+
+// Define the project root directory
+const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), 'base-template');
 
 /**
  * Get the current graph
@@ -41,16 +44,10 @@ export async function storeGraph(graph: Graph): Promise<void> {
   // Store in memory
   currentGraph = merged;
 
-  // Save to file
+  // Save to file directly
   try {
-    const response = await fetch('http://localhost:3000/api/files', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'graph', graph: merged })
-    });
-    if (!response.ok) {
-      console.error('Failed to save graph to file');
-    }
+    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+    await fs.writeFile(graphFilePath, JSON.stringify(merged, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error saving graph to file:', error);
   }
@@ -74,25 +71,18 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
  */
 export async function loadGraphFromFile(): Promise<Graph | null> {
   try {
-    const response = await fetch(`http://localhost:3000/api/files?graphs=true`);
-    if (!response.ok) {
-      return null;
-    }
+    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
     
-    const data = await response.json();
-    const graphs = data.graphs || [];
-    const graphData = graphs.find((g: any) => g.sessionId === 'default');
+    const content = await fs.readFile(graphFilePath, 'utf-8');
+    const graph = JSON.parse(content) as Graph;
     
-    if (graphData) {
-      const graph = graphData.graph;
-      // Store in memory
-      currentGraph = graph;
-      return graph;
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error loading graph from file:', error);
+    // Store in memory
+    currentGraph = graph;
+    console.log(`✅ Loaded graph with ${graph.nodes?.length || 0} nodes`);
+    return graph;
+  } catch (error: any) {
+    // Silently return null for any error (including file not found)
+    // This is expected behavior when no graph exists
     return null;
   }
 }
@@ -104,19 +94,10 @@ export async function clearGraphSession(): Promise<void> {
   // Remove from memory
   currentGraph = null;
   
-  // Delete file
+  // Delete file directly
   try {
-    const response = await fetch('http://localhost:3000/api/files', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'graph'
-      })
-    });
-    
-    if (!response.ok) {
-      console.error('Failed to delete graph file');
-    }
+    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+    await fs.unlink(graphFilePath);
   } catch (error) {
     console.error('Error deleting graph file:', error);
   }
@@ -161,15 +142,10 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
     nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: true } : n)),
   };
   currentGraph = updated;
+  
   try {
-    const response = await fetch('http://localhost:3000/api/files', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'graph', graph: updated })
-    });
-    if (!response.ok) {
-      console.error('Failed to persist built flags to file');
-    }
+    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+    await fs.writeFile(graphFilePath, JSON.stringify(updated, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error persisting built flags:', error);
   }
@@ -180,19 +156,12 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
  */
 export async function initializeGraphsFromFiles(): Promise<void> {
   try {
-    const response = await fetch('http://localhost:3000/api/files?graphs=true');
-    if (!response.ok) {
-      return;
-    }
-    
-    const data = await response.json();
-    const graphs = data.graphs || [];
-    
-    // Load the default graph
-    const defaultGraph = graphs.find((g: any) => g.sessionId === 'default');
-    if (defaultGraph) {
-      currentGraph = defaultGraph.graph;
-      console.log('Loaded default graph from files');
+    console.log('🔄 Initializing graphs from files...');
+    const graph = await loadGraphFromFile();
+    if (graph) {
+      console.log('✅ Loaded default graph from files');
+    } else {
+      console.log('ℹ️ No graph file found, will be created when first graph is generated');
     }
   } catch (error) {
     console.error('Error initializing graph from files:', error);

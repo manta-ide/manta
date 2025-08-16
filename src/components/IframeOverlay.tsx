@@ -11,21 +11,8 @@ interface IframeOverlayProps {
   sessionId?: string;
 }
 
-interface GraphNode {
-  id: string;
-  title: string;
-  prompt: string;
-  kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
-  what: string;
-  how: string;
-  properties: string[];
-  children: Array<{
-    id: string;
-    title: string;
-    prompt: string;
-    kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
-  }>;
-}
+import { GraphNode } from '@/app/api/lib/schemas';
+import { useProjectStore } from '@/lib/store';
 
 export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayProps) {
   const [document, setDocument] = useState<Document | null>(null);
@@ -51,36 +38,25 @@ export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayPr
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch graph node data for elements
+  // Get graph nodes from store
+  const { graph } = useProjectStore();
+  
   useEffect(() => {
-    if (!isEditMode || !sessionId || !document) return;
+    if (!isEditMode || !document) return;
 
-    const fetchGraphNodes = async () => {
-      const nodeElements = document.querySelectorAll<HTMLElement>('[id^="node-element-"]');
-      const nodesMap = new Map<string, GraphNode>();
+    const nodeElements = document.querySelectorAll<HTMLElement>('[id^="node-element-"]');
+    const nodesMap = new Map<string, GraphNode>();
 
-      for (const element of nodeElements) {
-        const nodeId = element.id;
-        try {
-          const response = await fetch(`/api/backend/graph-api`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nodeId }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            nodesMap.set(element.id, data.node);
-          }
-        } catch (error) {
-          console.error(`Error fetching node data for ${nodeId}:`, error);
-        }
+    for (const element of nodeElements) {
+      const nodeId = element.id;
+      const nodeData = graph?.nodes.find(n => n.id === nodeId);
+      if (nodeData) {
+        nodesMap.set(element.id, nodeData);
       }
+    }
 
-      setGraphNodes(nodesMap);
-    };
-
-    fetchGraphNodes();
-  }, [isEditMode, sessionId, document]);
+    setGraphNodes(nodesMap);
+  }, [isEditMode, document, graph]);
 
   return (
     <div

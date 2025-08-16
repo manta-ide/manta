@@ -51,8 +51,13 @@ async function loadGraphFromFile(): Promise<Graph | null> {
     const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
     const content = await fs.readFile(graphFilePath, 'utf-8');
     return JSON.parse(content) as Graph;
-  } catch (error) {
-    console.error('Error loading graph from file:', error);
+  } catch (error: any) {
+    // Don't log ENOENT errors (file not found) as they're expected when no graph exists
+    if (error.code === 'ENOENT') {
+      console.log('ℹ️ No graph file found');
+    } else {
+      console.error('Error loading graph from file:', error);
+    }
     return null;
   }
 }
@@ -126,13 +131,7 @@ async function readDirectoryStructure(dirPath: string, relativePath: string = ''
   return { files, fileTree };
 }
 
-interface FileNode {
-  name: string;
-  path: string;
-  type: 'file' | 'directory';
-  children?: FileNode[];
-  content?: string;
-}
+import { FileNode } from '../lib/schemas';
 
 export async function GET(req: NextRequest) {
   try {

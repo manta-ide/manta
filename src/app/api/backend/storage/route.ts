@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeGraph, getGraphSession, loadGraphFromFile } from '../../lib/graphStorage';
+import { storeGraph, getGraphSession } from '../../lib/graphStorage';
 import { z } from 'zod';
 
 // Schema for manual node edits
@@ -17,10 +17,20 @@ export async function GET(req: NextRequest) {
       // Get specific node
       let node = getGraphNode(nodeId);
       
-      // If not found in memory, try to load from file
+      // If not found in memory, try to load from graph-api
       if (!node) {
-        await loadGraphFromFile();
-        node = getGraphNode(nodeId);
+        try {
+          const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+          if (graphRes.ok) {
+            const graphData = await graphRes.json();
+            if (graphData.success && graphData.graph) {
+              // Graph is now loaded in memory, try to get the node again
+              node = getGraphNode(nodeId);
+            }
+          }
+        } catch (error) {
+          console.log('ℹ️ No graph found when loading node');
+        }
       }
 
       if (!node) {
@@ -35,8 +45,17 @@ export async function GET(req: NextRequest) {
       // Get graph
       let graph = getGraphSession();
       if (!graph) {
-        await loadGraphFromFile();
-        graph = getGraphSession();
+        try {
+          const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+          if (graphRes.ok) {
+            const graphData = await graphRes.json();
+            if (graphData.success && graphData.graph) {
+              graph = graphData.graph;
+            }
+          }
+        } catch (error) {
+          console.log('ℹ️ No graph found when loading graph');
+        }
       }
       
       if (!graph) {
@@ -101,8 +120,17 @@ export async function PUT(req: NextRequest) {
     // Ensure graph is loaded
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile();
-      graph = getGraphSession();
+      try {
+        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+        if (graphRes.ok) {
+          const graphData = await graphRes.json();
+          if (graphData.success && graphData.graph) {
+            graph = graphData.graph;
+          }
+        }
+      } catch (error) {
+        console.log('ℹ️ No graph found when updating node');
+      }
     }
     if (!graph) {
       return NextResponse.json({ error: 'Graph not found' }, { status: 404 });

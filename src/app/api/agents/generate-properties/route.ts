@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Graph, GraphNode, Property, CodeBinding } from '../../lib/schemas';
+import { Graph, GraphNode, Property, CodeBinding, GeneratePropertiesRequest, GeneratePropertiesResponse } from '../../lib/schemas';
 import { getTemplate, parseTemplate } from '../../lib/promptTemplateUtils';
 import { storeGraph } from '../../lib/graphStorage';
 
-interface GeneratePropertiesRequest {
-  graph: Graph;
-  nodeId: string;
-  generatedCode: string;
-  filePath: string;
-}
-
-interface GeneratePropertiesResponse {
-  properties: Property[];
-  success: boolean;
-  error?: string;
-}
-
 export async function POST(req: NextRequest) {
   try {
+    console.log('🔄 Property generation endpoint called');
     const { graph, nodeId, generatedCode, filePath }: GeneratePropertiesRequest = await req.json();
+    
+    console.log(`🔄 Property generation for node: ${nodeId}, filePath: ${filePath}, code length: ${generatedCode.length}`);
 
     if (!graph || !nodeId || !generatedCode || !filePath) {
       console.log('Missing required fields: graph, nodeId, generatedCode, filePath');
@@ -56,6 +46,7 @@ export async function POST(req: NextRequest) {
     // Save the updated graph
     await storeGraph(updatedGraph);
 
+    console.log('🔄 Property generation completed successfully');
     return NextResponse.json({
       properties,
       success: true,
@@ -63,7 +54,8 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error generating properties:', error);
+    console.error('❌ Error generating properties:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({
       success: false,
       error: 'Internal server error'
@@ -73,8 +65,10 @@ export async function POST(req: NextRequest) {
 
 async function generatePropertiesForNode(node: GraphNode, generatedCode: string, filePath: string): Promise<Property[]> {
   try {
+    console.log('🔄 Loading property generation template');
     // Load the property generation template
     const template = await getTemplate('property-generation-template');
+    console.log('🔄 Template loaded, length:', template.length);
     
     // Prepare variables for the template
     const variables = {
@@ -84,15 +78,20 @@ async function generatePropertiesForNode(node: GraphNode, generatedCode: string,
       generatedCode: generatedCode
     };
     
+    console.log('🔄 Template variables:', JSON.stringify(variables, null, 2));
+    
     // Parse the template with variables
     const prompt = parseTemplate(template, variables);
+    
+    console.log('🔄 Property generation prompt:', prompt.substring(0, 500) + '...');
     
     // Call the LLM to analyze and generate properties
     const llmResponse = await callLLMForPropertyGeneration(prompt);
     
     // Extract properties from structured output and convert to proper Property format
     const rawProperties = llmResponse.properties || [];
-    console.log('Raw properties from LLM:', JSON.stringify(rawProperties, null, 2));
+    console.log('🔄 Raw properties from LLM:', JSON.stringify(rawProperties, null, 2));
+    console.log('🔄 Raw properties count:', rawProperties.length);
     
     const properties = rawProperties.map((rawProp: any) => ({
       id: rawProp.id,
@@ -109,20 +108,25 @@ async function generatePropertiesForNode(node: GraphNode, generatedCode: string,
       codeBinding: rawProp.codeBinding
     }));
     
-    console.log('Converted properties:', JSON.stringify(properties, null, 2));
+    console.log('🔄 Converted properties:', JSON.stringify(properties, null, 2));
+    console.log('🔄 Converted properties count:', properties.length);
     
     // Validate and adjust code bindings
     const validatedProperties = await validateAndAdjustCodeBindings(properties, generatedCode, filePath);
     
+    console.log('🔄 Validated properties count:', validatedProperties.length);
+    
     return validatedProperties;
   } catch (error) {
-    console.error('Error generating properties with LLM:', error);
+    console.error('❌ Error generating properties with LLM:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return [];
   }
 }
 
 async function callLLMForPropertyGeneration(prompt: string): Promise<any> {
   try {
+    console.log('🔄 Calling LLM for property generation');
     // Call the LLM agent to generate properties with structured output
     const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/llm-agent/run`, {
       method: 'POST',
@@ -152,9 +156,11 @@ async function callLLMForPropertyGeneration(prompt: string): Promise<any> {
     }
 
     const result = await response.json();
+    console.log('🔄 LLM response:', JSON.stringify(result, null, 2));
     return result.result.object;
   } catch (error) {
-    console.error('Error calling LLM for property generation:', error);
+    console.error('❌ Error calling LLM for property generation:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw error;
   }
 }
@@ -197,7 +203,7 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
         console.log(`Found element in ${foundFilePath}: ${elementContent}`);
         
         // Find className attribute position
-        const classNamePattern = /className="[^"]*"/;
+        const classNamePattern = /className=["'][^"']*["']/;
         const classNameMatch = elementContent.match(classNamePattern);
         
         if (classNameMatch) {
@@ -246,9 +252,24 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
         }
       } else {
         console.log(`Element with ID "${elementId}" not found in any src/ files`);
+        
+        // Even if element not found, still add the property with a fallback binding
+        // This allows the property to be used for dynamic styling
+        const validatedProperty = {
+          ...property,
+          codeBinding: {
+            file: 'base-template/src/app/page.tsx', // Fallback to main page
+            start: 0,
+            end: 0
+          }
+        };
+        
+        validatedProperties.push(validatedProperty);
+        console.log(`Added property "${property.id}" with fallback binding`);
       }
     } catch (error) {
-      console.error(`Error validating property ${property.id}:`, error);
+      console.error(`❌ Error validating property ${property.id}:`, error);
+      console.error(`❌ Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
     }
   }
   
@@ -257,78 +278,97 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
 }
 
 async function findElementInSrcDirectory(elementId: string): Promise<{ elementContent: string; elementStart: number; filePath: string } | null> {
-  // Common file paths to search in order of likelihood
-  const searchPaths = [
-    'src/app/page.tsx',
-    'src/app/layout.tsx',
-    'src/components/NavigationBar.tsx',
-    'src/components/HeroSection.tsx'
-  ];
+  console.log(`🔍 Searching for element with ID: "${elementId}"`);
   
-  // First try specific files
-  for (const searchPath of searchPaths) {
-    try {
-      const filesResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(searchPath)}`);
-      if (filesResponse.ok) {
-        const filesData = await filesResponse.json();
+  try {
+    const allFilesResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files`);
+    if (!allFilesResponse.ok) {
+      console.warn('⚠️ Failed to get files list');
+      return null;
+    }
+    
+    const allFilesData = await allFilesResponse.json();
+    
+    if (!allFilesData.files || !Array.isArray(allFilesData.files)) {
+      console.warn('⚠️ No files data available');
+      return null;
+    }
+    
+    // Filter for TypeScript/TSX files in src directory
+    const tsxFiles = allFilesData.files.filter((file: string) => 
+      file.startsWith('src/') && (file.endsWith('.tsx') || file.endsWith('.ts'))
+    );
+    
+    console.log(`🔍 Searching in ${tsxFiles.length} TSX/TS files:`, tsxFiles);
+    
+    for (const file of tsxFiles) {
+      try {
+        const fileResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(file)}`);
+        if (!fileResponse.ok) {
+          console.warn(`⚠️ Failed to read file: ${file}`);
+          continue;
+        }
         
-        if (filesData.content) {
-          const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
-          const match = filesData.content.match(elementPattern);
+        const fileData = await fileResponse.json();
+        if (!fileData.content) {
+          console.warn(`⚠️ No content in file: ${file}`);
+          continue;
+        }
+        
+        // First try to find by exact ID
+        const exactIdPattern = new RegExp(`<[^>]*id=["']${elementId}["'][^>]*>`, 'i');
+        let match = fileData.content.match(exactIdPattern);
+        
+        if (match) {
+          console.log(`✅ Found element with exact ID "${elementId}" in ${file}`);
+          return {
+            elementContent: match[0],
+            elementStart: match.index!,
+            filePath: file
+          };
+        }
+        
+        // If not found by exact ID, try to find by partial ID (for cases where the ID might be slightly different)
+        const partialIdPattern = new RegExp(`<[^>]*id=["'][^"']*${elementId.replace(/^node-element-/, '')}[^"']*["'][^>]*>`, 'i');
+        match = fileData.content.match(partialIdPattern);
+        
+        if (match) {
+          console.log(`✅ Found element with partial ID match "${elementId}" in ${file}`);
+          return {
+            elementContent: match[0],
+            elementStart: match.index!,
+            filePath: file
+          };
+        }
+        
+        // If still not found, try to find by element type (button, input, etc.)
+        const elementType = elementId.replace(/^node-element-/, '').replace(/-.*$/, '');
+        if (elementType && ['button', 'input', 'form', 'section', 'div'].includes(elementType)) {
+          const elementTypePattern = new RegExp(`<${elementType}[^>]*>`, 'i');
+          match = fileData.content.match(elementTypePattern);
           
           if (match) {
+            console.log(`✅ Found ${elementType} element in ${file} (fallback for "${elementId}")`);
             return {
               elementContent: match[0],
               elementStart: match.index!,
-              filePath: `base-template/${searchPath}`
+              filePath: file
             };
           }
         }
-      }
-    } catch (error) {
-      console.warn(`Error searching in ${searchPath}:`, error);
-    }
-  }
-  
-  // Then try to get all files and search through them
-  try {
-    const allFilesResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files`);
-    if (allFilesResponse.ok) {
-      const allFilesData = await allFilesResponse.json();
-      
-      if (allFilesData.files && Array.isArray(allFilesData.files)) {
-        // Filter for TypeScript/TSX files in src directory
-        const tsxFiles = allFilesData.files.filter((file: string) => 
-          file.startsWith('src/') && (file.endsWith('.tsx') || file.endsWith('.ts'))
-        );
         
-        for (const file of tsxFiles) {
-          try {
-            const fileResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(file)}`);
-            if (fileResponse.ok) {
-              const fileData = await fileResponse.json();
-              const elementPattern = new RegExp(`<[^>]*id="${elementId}"[^>]*>`, 'i');
-              const match = fileData.content.match(elementPattern);
-              
-              if (match) {
-                return {
-                  elementContent: match[0],
-                  elementStart: match.index!,
-                  filePath: `base-template/${file}`
-                };
-              }
-            }
-          } catch (error) {
-            console.warn(`Error reading file ${file}:`, error);
-          }
-        }
+      } catch (error) {
+        console.warn(`⚠️ Error reading file ${file}:`, error);
       }
     }
+    
+    console.log(`❌ Element with ID "${elementId}" not found in any src/ files`);
+    return null;
+    
   } catch (error) {
-    console.warn('Error getting all files:', error);
+    console.warn('⚠️ Error getting all files:', error);
+    return null;
   }
-  
-  return null;
 }
 
 

@@ -3,22 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
-
-interface GraphNode {
-  id: string;
-  title: string;
-  prompt: string;
-  kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
-  what: string;
-  how: string;
-  properties: string[];
-  children: Array<{
-    id: string;
-    title: string;
-    prompt: string;
-    kind: 'page' | 'section' | 'group' | 'component' | 'primitive' | 'behavior';
-  }>;
-}
+import { GraphNode } from '@/app/api/lib/schemas';
 
 interface ElementBoundingBoxesProps {
   isEditMode: boolean;
@@ -144,25 +129,18 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
     };
   }, [isEditMode, doc, win, selectedNodeId]);
 
-  // Fetch built flags from new graph API once per mount and on selection changes
+  // Get built status from store
+  const { graph } = useProjectStore();
+  
   useEffect(() => {
-    const fetchBuilt = async () => {
-      try {
-        const res = await fetch('/api/backend/graph-api');
-        const data = await res.json();
-        if (data.success && data.graph) {
-          const map: Record<string, boolean> = {};
-          for (const n of data.graph.nodes || []) {
-            map[n.id] = !!n.built;
-          }
-          setBuiltStatus(map);
-        }
-      } catch (error) {
-        console.warn('Failed to fetch graph data for built status:', error);
+    if (graph) {
+      const map: Record<string, boolean> = {};
+      for (const n of graph.nodes || []) {
+        map[n.id] = !!n.built;
       }
-    };
-    fetchBuilt();
-  }, [selectedNodeId]);
+      setBuiltStatus(map);
+    }
+  }, [graph, selectedNodeId]);
 
   if (!isEditMode) return null;
   return (

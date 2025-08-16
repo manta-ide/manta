@@ -3,7 +3,10 @@ import { Message, MessageSchema, Graph } from '@/app/api/lib/schemas';
 import { z } from 'zod';
 
 async function generatePropertiesForNodes(nodeIds: string[], generatedCode: string) {
+  console.log(`🔄 generatePropertiesForNodes called with ${nodeIds.length} nodes and ${generatedCode.length} chars of code`);
   try {
+    console.log(`🔄 Generating properties for ${nodeIds.length} nodes`);
+    
     // Get current graph
     const graphRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/backend/graph-api`);
     if (!graphRes.ok) {
@@ -20,7 +23,7 @@ async function generatePropertiesForNodes(nodeIds: string[], generatedCode: stri
     const graph: Graph = graphData.graph;
     
     // Get current code content from the file system
-    const codeRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=src/app/page.tsx`);
+    const codeRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files?path=base-template/src/app/page.tsx`);
     let currentCode = generatedCode; // fallback to generated code
     if (codeRes.ok) {
       const codeData = await codeRes.json();
@@ -30,6 +33,8 @@ async function generatePropertiesForNodes(nodeIds: string[], generatedCode: stri
     // Generate properties for each node
     for (const nodeId of nodeIds) {
       try {
+        console.log(`🔄 Generating properties for node: ${nodeId}`);
+        
         const propertyRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/agents/generate-properties`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -43,34 +48,37 @@ async function generatePropertiesForNodes(nodeIds: string[], generatedCode: stri
         
         if (propertyRes.ok) {
           const propertyData = await propertyRes.json();
-          if (propertyData.success && propertyData.properties.length > 0) {
+          if (propertyData.success && propertyData.properties && propertyData.properties.length > 0) {
+            console.log(`✅ Generated ${propertyData.properties.length} properties for node ${nodeId}`);
             // Update the node with properties
             const node = graph.nodes.find(n => n.id === nodeId);
             if (node) {
               node.properties = propertyData.properties;
             }
+          } else {
+            console.log(`⚠️ No properties generated for node ${nodeId}`);
           }
+        } else {
+          console.error(`❌ Property generation failed for node ${nodeId}: ${propertyRes.status} ${propertyRes.statusText}`);
         }
       } catch (error) {
-        console.error(`Failed to generate properties for node ${nodeId}:`, error);
+        console.error(`❌ Failed to generate properties for node ${nodeId}:`, error);
+        console.error(`❌ Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
       }
     }
     
-    // Save the updated graph with properties
-    const saveRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/files`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'graph',
-        graph
-      }),
-    });
-    
-    if (!saveRes.ok) {
-      console.warn('Failed to save graph with properties');
+    // Save the updated graph with properties using graph storage
+    try {
+      const { storeGraph } = await import('@/app/api/lib/graphStorage');
+      await storeGraph(graph);
+      console.log('✅ Graph saved with properties');
+    } catch (error) {
+      console.error('❌ Failed to save graph with properties:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     }
   } catch (error) {
-    console.error('Error generating properties:', error);
+    console.error('❌ Error generating properties:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
   }
 }
 
@@ -222,6 +230,7 @@ export async function POST(req: NextRequest) {
         const result = await response.json();
         
         // Generate properties for the newly built nodes
+        console.log(`🔄 Generating properties for ${unbuiltNodeIds.length} newly built nodes`);
         await generatePropertiesForNodes(unbuiltNodeIds, result.generatedCode || '');
         
         return NextResponse.json(result);
@@ -268,27 +277,43 @@ export async function POST(req: NextRequest) {
       });
       
       if (!response.ok) {
-        return NextResponse.json({ error: 'Failed to generate code' }, { status: 500 });
+        const errorText = await response.text();
+        console.error(`❌ Code generation failed with status ${response.status}: ${errorText}`);
+        return NextResponse.json({ 
+          error: `Failed to generate code: ${response.status} ${response.statusText}`,
+          details: errorText
+        }, { status: 500 });
       }
 
       const result = await response.json();
       
+      console.log('📝 Code generation response:', JSON.stringify(result, null, 2));
+      
       // Generate properties for all nodes in the new graph
       if (result.success) {
+        console.log('🔄 Starting property generation for new graph');
         const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
         if (graphRes.ok) {
           const graphData = await graphRes.json();
           if (graphData.success && graphData.graph) {
             const allNodeIds = graphData.graph.nodes.map((n: any) => n.id);
+            console.log(`🔄 Generating properties for ${allNodeIds.length} nodes in new graph`);
             await generatePropertiesForNodes(allNodeIds, result.generatedCode || '');
+          } else {
+            console.log('⚠️ No graph data found for property generation');
           }
+        } else {
+          console.log('⚠️ Failed to fetch graph for property generation');
         }
+      } else {
+        console.log('⚠️ Code generation was not successful, skipping property generation');
       }
       
       return NextResponse.json(result);
     }
   } catch (error) {
-    console.error('Agent request error:', error);
+    console.error('❌ Agent request error:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

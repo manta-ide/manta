@@ -33,18 +33,13 @@ export default function Home() {
   useEffect(() => {
     const setRootNodeAsSelected = async () => {
       try {
-        // Get the graph data to find the root node
-        const graphResponse = await fetch('/api/files?graphs=true');
-        if (graphResponse.ok) {
-          const data = await graphResponse.json();
-          const graphs = data.graphs || [];
-          const graphData = graphs.find((g: any) => g.sessionId === 'default');
-          
-          if (graphData && graphData.graph && graphData.graph.rootId) {
-            const rootNode = graphData.graph.nodes.find((n: any) => n.id === graphData.graph.rootId);
-            if (rootNode) {
-              setSelectedNode(graphData.graph.rootId, rootNode);
-            }
+        // Get the graph data from store
+        const { graph } = useProjectStore.getState();
+        
+        if (graph && graph.rootId) {
+          const rootNode = graph.nodes.find(n => n.id === graph.rootId);
+          if (rootNode) {
+            setSelectedNode(graph.rootId, rootNode);
           }
         }
       } catch (error) {

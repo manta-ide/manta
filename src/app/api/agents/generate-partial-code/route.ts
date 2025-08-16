@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
-import { getGraphSession, loadGraphFromFile, markNodesBuilt } from '@/app/api/lib/graphStorage';
-import path from 'path';
+import { getGraphSession, markNodesBuilt } from '@/app/api/lib/graphStorage';
+import { fileTools } from '../../lib/aiFileTools';
 
 // New prompt for partial code generation
 const PARTIAL_CODE_CONFIG = {
@@ -19,6 +19,7 @@ const PARTIAL_CODE_CONFIG = {
     system: 'graph-partial-code-generation-template',
   },
   structuredOutput: false,
+  tools: fileTools,
 } as const;
 
 const EditHintSchema = z.object({ previousPrompt: z.string(), newPrompt: z.string() });
@@ -76,8 +77,19 @@ export async function POST(req: NextRequest) {
     const { userMessage, nodeIds, includeDescendants = true, editHints, removedNodeIds } = parsed.data;
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile();
-      graph = getGraphSession();
+      console.log('🔄 No graph in memory, fetching from storage API...');
+      try {
+        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+        if (graphRes.ok) {
+          const graphData = await graphRes.json();
+          if (graphData.success && graphData.graph) {
+            graph = graphData.graph;
+            console.log(`✅ Loaded graph with ${graphData.graph.nodes?.length || 0} nodes from storage API`);
+          }
+        }
+      } catch (error) {
+        console.log('ℹ️ No graph found in storage');
+      }
       if (!graph) {
         return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
           status: 400,

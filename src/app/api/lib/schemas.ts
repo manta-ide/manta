@@ -256,4 +256,101 @@ export const PropertyGenerationSchema = z.object({
   })),
 }).required();
 
-export type PropertyGeneration = z.infer<typeof PropertyGenerationSchema>; 
+export type PropertyGeneration = z.infer<typeof PropertyGenerationSchema>;
+
+// File system schemas
+export const FileNodeSchema: z.ZodType<{
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: Array<{
+    name: string;
+    path: string;
+    type: 'file' | 'directory';
+    children?: Array<any>;
+    content?: string;
+  }>;
+  content?: string;
+}> = z.object({
+  name: z.string(),
+  path: z.string(),
+  type: z.enum(['file', 'directory']),
+  children: z.array(z.lazy(() => FileNodeSchema)).optional(),
+  content: z.string().optional(),
+});
+
+export type FileNode = z.infer<typeof FileNodeSchema>;
+
+// Chat service schemas
+export const ChatServiceStateSchema = z.object({
+  isConnected: z.boolean(),
+  isConnecting: z.boolean(),
+  error: z.string().nullable(),
+  messages: z.array(MessageSchema),
+  currentMessage: z.string(),
+});
+
+export type ChatServiceState = z.infer<typeof ChatServiceStateSchema>;
+
+export const ChatServiceActionsSchema = z.object({
+  sendMessage: z.function().args(z.string()).returns(z.promise(z.void())),
+  clearMessages: z.function().returns(z.void()),
+  setCurrentMessage: z.function().args(z.string()).returns(z.void()),
+});
+
+export type ChatServiceActions = z.infer<typeof ChatServiceActionsSchema>;
+
+// Property code service schemas
+export const CodeUpdateSchema = z.object({
+  file: z.string(),
+  start: z.number(),
+  end: z.number(),
+  newCode: z.string(),
+  newValue: z.string().optional(),
+  propertyId: z.string().optional(),
+});
+
+export type CodeUpdate = z.infer<typeof CodeUpdateSchema>;
+
+// Graph event schemas
+export const GraphUpdateEventSchema = z.object({
+  type: z.literal('graph-update'),
+  graph: GraphSchema,
+});
+
+export type GraphUpdateEvent = z.infer<typeof GraphUpdateEventSchema>;
+
+// Property generation request/response schemas
+export const GeneratePropertiesRequestSchema = z.object({
+  graph: GraphSchema,
+  nodeId: z.string(),
+  generatedCode: z.string(),
+  filePath: z.string(),
+});
+
+export type GeneratePropertiesRequest = z.infer<typeof GeneratePropertiesRequestSchema>;
+
+export const GeneratePropertiesResponseSchema = z.object({
+  success: z.boolean(),
+  properties: z.array(PropertySchema).optional(),
+  error: z.string().optional(),
+});
+
+export type GeneratePropertiesResponse = z.infer<typeof GeneratePropertiesResponseSchema>;
+
+// Project store schemas
+export const ProjectStoreSchema = z.object({
+  files: z.instanceof(Map),
+  currentFile: z.string().nullable(),
+  selectedFile: z.string().nullable(),
+  fileTree: z.array(FileNodeSchema),
+  selection: SelectionSchema.nullable(),
+  refreshTrigger: z.number(),
+  selectedNodeId: z.string().nullable(),
+  selectedNode: GraphNodeSchema.nullable(),
+  graph: GraphSchema.nullable(),
+  graphLoading: z.boolean(),
+  graphError: z.string().nullable(),
+});
+
+export type ProjectStore = z.infer<typeof ProjectStoreSchema>; 

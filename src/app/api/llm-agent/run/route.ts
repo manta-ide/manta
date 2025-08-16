@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { generateObject, generateText } from 'ai';
+import { generateObject, generateText, ToolSet } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
-import { fileTools } from '@/app/api/lib/aiFileTools';
 import { GraphSchema, PropertyGenerationSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
+import { fileTools } from '@/app/api/lib/aiFileTools';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { promises as fsp } from 'fs';
@@ -27,7 +27,7 @@ const AgentConfigSchema = z.object({
   promptTemplates: z.record(z.string()).optional(),
   structuredOutput: z.boolean().optional(),
   schemaName: z.enum(['graph', 'property-generation']).optional(),
-  tools: z.array(z.any()).optional(),
+  tools: z.any().optional(),
 });
 
 // Request schema with required configuration
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     // If no parsedMessages provided, create a simple message array
     const messages = parsedMessages;
     // Use the provided tools or default to fileTools
-    const tools = config.tools || null;
+    const tools = config.tools || undefined;
     // Provider/model selection helpers
     const detectProvider = (modelId: string): 'azure' | 'google' => {
       const id = modelId.toLowerCase();
@@ -69,21 +69,6 @@ export async function POST(req: NextRequest) {
       const p = provider ?? detectProvider(modelId);
       return p === 'google' ? google(modelId) : azure(modelId);
     };
-
-    // Prepare streamText options
-    const streamOptions: any = {
-      model: selectModel(config.model, config.provider) as any,
-      messages: messages,
-      tools: fileTools,
-      maxSteps: config.maxSteps,
-      abortSignal: req.signal,
-      temperature: config.temperature
-    };
-
-    // Add provider options if provided
-    if (config.providerOptions) {
-      streamOptions.providerOptions = config.providerOptions;
-    }
 
     // Prepare logging (shared across all modes)
     const logsDir = path.join(process.cwd(), 'logs');
@@ -157,7 +142,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Non-streaming mode only
-    const result = await generateText(streamOptions);
+    const result = await generateText({
+      model: selectModel(config.model, config.provider) as any,
+      messages: messages,
+      tools: fileTools,
+      maxSteps: config.maxSteps,
+      abortSignal: req.signal,
+      temperature: config.temperature
+    });
     const text = await result.text;
 
     // Log final result

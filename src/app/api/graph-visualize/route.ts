@@ -10,8 +10,12 @@ export async function GET(req: NextRequest) {
     // Get graph data
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile();
-      graph = getGraphSession();
+      try {
+        await loadGraphFromFile();
+        graph = getGraphSession();
+      } catch (error) {
+        console.log('ℹ️ No graph file found');
+      }
     }
     
     if (!graph) {

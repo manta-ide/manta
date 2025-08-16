@@ -4,12 +4,13 @@ import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTempl
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
 import { getGraphSession, markNodesBuilt } from '@/app/api/lib/graphStorage';
+import { fileTools } from '@/app/api/lib/aiFileTools';
 
 const CODE_GEN_CONFIG = {
-  model: 'o3',
-  maxSteps: 50,
+  model: 'gpt-4o',
+  maxSteps: 100, // Increased max steps to allow for file operations
   streaming: false,
-  temperature: 1,
+  temperature: 0.7, // Slightly lower temperature for more focused execution
   providerOptions: { azure: { reasoning_effort: 'high' } },
   promptTemplates: {
     user: 'user-prompt-template',
@@ -17,6 +18,7 @@ const CODE_GEN_CONFIG = {
     system: 'graph-code-generation-template',
   },
   structuredOutput: false,
+  tools: fileTools,
 } as const;
 
 const RequestSchema = z.object({ userMessage: MessageSchema });
@@ -46,6 +48,7 @@ async function buildParsedMessages(
 }
 
 async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
+  console.log("generate-code calling agent with body", body);
   return fetch('http://localhost:3000/api/llm-agent/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -65,7 +68,25 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage } = parsed.data;
-    const graph = getGraphSession();
+    
+    // Get graph from memory only (no direct file access)
+    let graph = getGraphSession();
+    if (!graph) {
+      console.log('🔄 No graph in memory, fetching from storage API...');
+      try {
+        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+        if (graphRes.ok) {
+          const graphData = await graphRes.json();
+          if (graphData.success && graphData.graph) {
+            graph = graphData.graph;
+            console.log(`✅ Loaded graph with ${graphData.graph.nodes?.length || 0} nodes from storage API`);
+          }
+        }
+      } catch (error) {
+        console.log('ℹ️ No graph found in storage');
+      }
+    }
+    
     if (!graph) {
       return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
         status: 400,
@@ -73,13 +94,31 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // At this point, graph is guaranteed to be non-null
+    const graphData = graph;
+
+    // Get project files for the prompt template
+    const projectFilesRes = await fetch(`${req.nextUrl.origin}/api/files?list=true`);
+    let projectFiles = [];
+    if (projectFilesRes.ok) {
+      const filesData = await projectFilesRes.json();
+      // Ensure projectFiles is an array of file objects with route and lines properties
+      projectFiles = Array.isArray(filesData.files) ? filesData.files : [];
+    }
+
     const graphSessionId = 'graph-code';
     const parsedGraphCodeMessages = await buildParsedMessages(
       userMessage,
       CODE_GEN_CONFIG.promptTemplates,
-      { GRAPH_DATA: JSON.stringify(graph, null, 2) }
+      { 
+        GRAPH_DATA: JSON.stringify(graphData, null, 2),
+        PROJECT_FILES: projectFiles
+      }
     );
 
+    console.log('🔄 Calling agent with config:', JSON.stringify(CODE_GEN_CONFIG, null, 2));
+    console.log('🔄 Agent messages:', JSON.stringify(parsedGraphCodeMessages, null, 2));
+    
     const graphResponse = await callAgent(req, {
       sessionId: graphSessionId,
       parsedMessages: parsedGraphCodeMessages,
@@ -96,16 +135,24 @@ export async function POST(req: NextRequest) {
     // Get the full response as JSON instead of streaming
     const result = await graphResponse.json();
     
+    console.log('📝 Code generation result:', JSON.stringify(result, null, 2));
+    
     // Mark all nodes as built
     try {
-      await markNodesBuilt(graph.nodes.map(n => n.id));
+      if (graphData && graphData.nodes) {
+        await markNodesBuilt(graphData.nodes.map(n => n.id));
+      }
     } catch (error) {
       console.warn('Failed to mark nodes as built:', error);
     }
 
+    const generatedCode = result.result?.content || result.result || result.content || '';
+    console.log('📝 Generated code length:', generatedCode.length);
+
     return new Response(JSON.stringify({ 
       success: true,
       result: result,
+      generatedCode: generatedCode,
       message: 'Code generation completed successfully'
     }), {
       status: 200,
