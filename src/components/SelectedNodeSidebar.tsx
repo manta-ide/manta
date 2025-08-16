@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { PropertyCodeService } from '@/lib/propertyCodeService';
 
 export default function SelectedNodeSidebar() {
+	// Set to false to disable debouncing and apply property changes immediately
+	const DEBOUNCE_PROPERTY_CHANGES = true;
+	
 	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh } = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
@@ -15,6 +18,7 @@ export default function SelectedNodeSidebar() {
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
+	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   console.log('selectedNode', selectedNode);
 
@@ -22,6 +26,13 @@ export default function SelectedNodeSidebar() {
 		setPromptDraft(selectedNode?.prompt ?? '');
 		setRebuildError(null);
 		setRebuildSuccess(false);
+		
+		// Clear any pending property change timeout when node changes
+		if (propertyChangeTimeoutRef.current) {
+			clearTimeout(propertyChangeTimeoutRef.current);
+			propertyChangeTimeoutRef.current = null;
+		}
+		
 		// Initialize property values from current code
 		if (selectedNode?.properties) {
 			const initializeProperties = async () => {
@@ -40,6 +51,15 @@ export default function SelectedNodeSidebar() {
 			initializeProperties();
 		}
 	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
+
+	// Cleanup timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (propertyChangeTimeoutRef.current) {
+				clearTimeout(propertyChangeTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	if (!selectedNodeId) return null;
 
@@ -185,7 +205,7 @@ export default function SelectedNodeSidebar() {
 		}
 	};
 
-	const handlePropertyChange = async (propertyId: string, value: any) => {
+	const handlePropertyChange = useCallback(async (propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
 		const newPropertyValues = {
 			...propertyValues,
@@ -193,7 +213,25 @@ export default function SelectedNodeSidebar() {
 		};
 		setPropertyValues(newPropertyValues);
 
-		// Apply the property change to the code
+		// If debouncing is disabled, apply changes immediately
+		if (!DEBOUNCE_PROPERTY_CHANGES) {
+			await applyPropertyChanges(newPropertyValues);
+			return;
+		}
+
+		// Clear any existing timeout
+		if (propertyChangeTimeoutRef.current) {
+			clearTimeout(propertyChangeTimeoutRef.current);
+		}
+
+		// Debounce the file system update
+		propertyChangeTimeoutRef.current = setTimeout(async () => {
+			await applyPropertyChanges(newPropertyValues);
+		}, 300); // 300ms debounce delay
+	}, [propertyValues, selectedNode?.properties, triggerRefresh, DEBOUNCE_PROPERTY_CHANGES]);
+
+	// Helper function to apply property changes
+	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
 				const updates = await PropertyCodeService.applyPropertyChanges(
@@ -222,7 +260,7 @@ export default function SelectedNodeSidebar() {
 				setPropertyValues(propertyValues);
 			}
 		}
-	};
+	}, [selectedNode?.properties, triggerRefresh, propertyValues]);
 
 	return (
 		<div className="flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto">

@@ -79,7 +79,7 @@ export default function Home() {
       <section id="node-element-projects-section" className="py-16 max-w-5xl mx-auto px-4">
         <h2 className="text-3xl font-bold mb-8">Projects</h2>
         <div id="node-element-projects-group" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <article id="node-element-project-item" className="border p-4 rounded-lg flex flex-col">
+          <article id="node-element-project-item" className="border p-4 flex flex-col bg-[#fafafa] rounded-lg">
             {/* Thumbnail */}
             <img
               src="/window.svg"
