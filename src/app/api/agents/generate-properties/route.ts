@@ -253,18 +253,7 @@ async function validateAndAdjustCodeBindings(properties: Property[], generatedCo
       } else {
         console.log(`Element with ID "${elementId}" not found in any src/ files`);
         
-        // Even if element not found, still add the property with a fallback binding
-        // This allows the property to be used for dynamic styling
-        const validatedProperty = {
-          ...property,
-          codeBinding: {
-            file: 'base-template/src/app/page.tsx', // Fallback to main page
-            start: 0,
-            end: 0
-          }
-        };
-        
-        validatedProperties.push(validatedProperty);
+        validatedProperties.push(property);
         console.log(`Added property "${property.id}" with fallback binding`);
       }
     } catch (error) {
