@@ -115,10 +115,12 @@ export function useChatService() {
       if (validSelection) {
         setSelection(null);
       }
-
-      // Refresh project store and trigger iframe refresh
-      await loadProjectFromFileSystem();
-      triggerRefresh();
+      console.log("Skipping graph refresh");
+      // Only refresh if the graph was actually modified
+      /* if (result.graphModified) {
+        await loadProjectFromFileSystem();
+        triggerRefresh();
+      } */
 
     } catch (error) {
       console.error('Chat service error:', error);
@@ -181,9 +183,12 @@ export function useChatService() {
       const result = await response.json();
       console.log('Rebuild result:', result);
 
-      // Refresh project store and trigger iframe refresh
-      await loadProjectFromFileSystem();
-      triggerRefresh();
+      console.log("Skipping refresh");
+      // Only refresh if the graph was actually modified
+      /* if (result.graphModified) {
+        await loadProjectFromFileSystem();
+        triggerRefresh();
+      } */
 
     } catch (error) {
       console.error('Node rebuild error:', error);

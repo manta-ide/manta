@@ -28,12 +28,17 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
   
+  // Determine background color based on built status
+  const getBackgroundColor = () => {
+    return node.built ? '#EEF3FB' : '#F3FFBD'; // Light green for built, light yellow for unbuilt
+  };
+  
   if (isZoomedOut) {
     return (
       <div
         className={`custom-node-simple ${selected ? 'selected' : ''}`}
         style={{
-          background: selected ? '#f0f9ff' : 'white',
+          background: getBackgroundColor(),
           border: selected ? '10px solid #2563eb' : '2px solid #e5e7eb',
           borderRadius: '12px',
           padding: '20px',
@@ -52,26 +57,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           transform: selected ? 'scale(1.02)' : 'scale(1)',
         }}
       >
-        {/* Built indicator for zoomed out view */}
-        {node.built && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '-8px',
-              right: '16px',
-              background: '#10b981',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              fontWeight: '600',
-              textTransform: 'uppercase',
-            }}
-          >
-            Built
-          </div>
-        )}
-        
         {/* Large title text */}
         <div
           style={{
@@ -135,7 +120,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     <div
       className={`custom-node ${selected ? 'selected' : ''}`}
       style={{
-        background: selected ? '#f0f9ff' : 'white',
+        background: getBackgroundColor(),
         border: selected ? '4px solid #2563eb' : '2px solid #e5e7eb',
         borderRadius: '12px',
         padding: '20px',
@@ -153,26 +138,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         transform: selected ? 'scale(1.02)' : 'scale(1)',
       }}
     >
-      {/* Built indicator */}
-      {node.built && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-8px',
-            right: '16px',
-            background: '#10b981',
-            color: 'white',
-            padding: '4px 8px',
-            borderRadius: '12px',
-            fontSize: '11px',
-            fontWeight: '600',
-            textTransform: 'uppercase',
-          }}
-        >
-          Built
-        </div>
-      )}
-      
       {/* Main content area */}
       <div style={{ flex: 1 }}>
         {/* Title */}
