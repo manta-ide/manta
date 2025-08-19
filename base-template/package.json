@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 3001",
+    "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start --port 3001",
     "lint": "next lint"
@@ -42,6 +42,7 @@
     "react-resizable-panels": "^3.0.4",
     "recharts": "^2.15.4",
     "tailwind-merge": "^3.3.1",
+    "webpack": "^5.101.3",
     "zod": "^4.0.14"
   },
   "devDependencies": {

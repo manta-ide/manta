@@ -17,3 +17,21 @@ export async function fetchGraphFromApi(req: NextRequest): Promise<any> {
     return null;
   }
 }
+
+export async function fetchUnbuiltNodeIdsFromApi(req: NextRequest): Promise<string[]> {
+  try {
+    const unbuiltRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api?unbuilt=true`);
+    if (unbuiltRes.ok) {
+      const unbuiltData = await unbuiltRes.json();
+      if (unbuiltData.success && unbuiltData.unbuiltNodeIds) {
+        console.log(`✅ Loaded ${unbuiltData.count} unbuilt node IDs from storage API`);
+        return unbuiltData.unbuiltNodeIds;
+      }
+    }
+    console.log('ℹ️ No unbuilt nodes found in storage API');
+    return [];
+  } catch (error) {
+    console.log('ℹ️ Error fetching unbuilt node IDs from storage API:', error);
+    return [];
+  }
+}

@@ -215,39 +215,78 @@ export default function SelectedNodeSidebar() {
 	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
-				// Mock: Log the property changes that would be applied
-				console.log('Applying property changes:', {
-					nodeId: selectedNodeId,
-					nodeTitle: selectedNode.title,
-					properties: selectedNode.properties.map(prop => ({
-						id: prop.id,
-						title: prop.title,
-						type: prop.type,
-						oldValue: propertyValues[prop.id],
-						newValue: newPropertyValues[prop.id]
-					}))
+				// Update each changed property through the graph API
+				const updatePromises = selectedNode.properties.map(async (prop) => {
+					const oldValue = propertyValues[prop.id];
+					const newValue = newPropertyValues[prop.id];
+					
+					// Only update if the value actually changed
+					if (oldValue !== newValue) {
+						console.log(`Updating property ${prop.id} from "${oldValue}" to "${newValue}"`);
+						
+						const response = await fetch('/api/backend/graph-api', {
+							method: 'PATCH',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								nodeId: selectedNodeId,
+								propertyId: prop.id,
+								value: newValue
+							})
+						});
+						
+						if (!response.ok) {
+							const errorData = await response.json().catch(() => ({}));
+							throw new Error(`Failed to update property ${prop.id}: ${errorData.error || response.statusText}`);
+						}
+						
+						const result = await response.json();
+						if (result.success && result.updatedNode) {
+							// Update the local node state with the updated node
+							setSelectedNode(selectedNodeId, result.updatedNode);
+						}
+						
+						return {
+							propertyId: prop.id,
+							oldValue,
+							newValue,
+							success: true
+						};
+					}
+					
+					return {
+						propertyId: prop.id,
+						oldValue: oldValue,
+						newValue: newValue,
+						success: true,
+						unchanged: true
+					};
 				});
-
-				// Mock: Simulate file updates
-				const mockUpdates = selectedNode.properties.map(prop => ({
-					file: 'src/app/page.tsx',
-					propertyId: prop.id,
-					oldValue: propertyValues[prop.id],
-					newValue: newPropertyValues[prop.id],
-					timestamp: new Date().toISOString()
-				}));
-
-				console.log('Mock file updates:', mockUpdates);
-
-				// Trigger refresh to show changes
-				triggerRefresh();
+				
+				const results = await Promise.all(updatePromises);
+				const updatedProperties = results.filter(r => r.success && !r.unchanged);
+				
+				if (updatedProperties.length > 0) {
+					console.log('✅ Successfully updated properties:', updatedProperties);
+					
+					// Refresh the graph to ensure UI is updated
+					await refreshGraph();
+					
+					// Trigger refresh to show changes in the file viewer
+					triggerRefresh();
+				} else {
+					console.log('ℹ️ No properties were changed');
+				}
 			} catch (error) {
-				console.error('Failed to apply property change:', error);
+				console.error('Failed to apply property changes:', error);
 				// Revert the local state change on error
 				setPropertyValues(propertyValues);
+				
+				// Show error to user (you might want to add a toast notification here)
+				setRebuildError(`Failed to update properties: ${error instanceof Error ? error.message : 'Unknown error'}`);
+				setTimeout(() => setRebuildError(null), 5000);
 			}
 		}
-	}, [selectedNode?.properties, selectedNodeId, propertyValues, triggerRefresh]);
+	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, refreshGraph, triggerRefresh]);
 
 	return (
 		<div className="flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto">

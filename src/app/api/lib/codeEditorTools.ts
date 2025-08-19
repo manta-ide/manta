@@ -121,7 +121,7 @@ function getRuntimeError() {
     ts: err.ts,
   };
 }
-export const fileTools: ToolSet = {
+export const codeEditorTools: ToolSet = {
   readFile: tool({
     description: 'Read a file and return its content. Returns error if file not found or too long.',
     parameters: z.object({

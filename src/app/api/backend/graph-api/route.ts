@@ -6,6 +6,7 @@ export async function GET(req: NextRequest) {
     // Check if this is an SSE request
     const url = new URL(req.url);
     const isSSE = url.searchParams.get('sse') === 'true';
+    const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
     
     if (isSSE) {
       // Set up SSE headers
@@ -71,6 +72,38 @@ export async function GET(req: NextRequest) {
       });
 
       return new Response(stream, { headers });
+    }
+
+    // Check if requesting unbuilt nodes only
+    if (getUnbuiltNodes) {
+      // Always try to load from file first to ensure we have the latest data
+      let graph = getGraphSession();
+      if (!graph) {
+        console.log('🔄 No graph in session, loading from file...');
+        await loadGraphFromFile();
+        graph = getGraphSession();
+      }
+      
+      if (!graph) {
+        console.log('ℹ️ No graph found in file system');
+        return NextResponse.json(
+          { error: 'Graph not found' },
+          { status: 404 }
+        );
+      }
+
+      // Get unbuilt node IDs
+      const unbuiltNodeIds = graph.nodes
+        .filter(node => !node.built || node.built === undefined)
+        .map(node => node.id);
+
+      console.log(`✅ Returning ${unbuiltNodeIds.length} unbuilt node IDs`);
+
+      return NextResponse.json({ 
+        success: true,
+        unbuiltNodeIds: unbuiltNodeIds,
+        count: unbuiltNodeIds.length
+      });
     }
 
     // Regular GET request
@@ -223,6 +256,82 @@ export async function PUT(req: NextRequest) {
     });
   } catch (error) {
     console.error('❌ Graph API PUT error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { nodeId, propertyId, value } = body;
+    
+    if (!nodeId || !propertyId) {
+      return NextResponse.json(
+        { error: 'Node ID and property ID are required' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`🔄 Updating property ${propertyId} for node ${nodeId} to:`, value);
+    
+    // Get current graph
+    let graph = getGraphSession();
+    if (!graph) {
+      await loadGraphFromFile();
+      graph = getGraphSession();
+    }
+    
+    if (!graph) {
+      return NextResponse.json(
+        { error: 'Graph not found' },
+        { status: 404 }
+      );
+    }
+
+    // Find the node and update the property
+    const nodeIndex = graph.nodes.findIndex(n => n.id === nodeId);
+    if (nodeIndex === -1) {
+      return NextResponse.json(
+        { error: 'Node not found' },
+        { status: 404 }
+      );
+    }
+
+    const node = graph.nodes[nodeIndex];
+    const propertyIndex = node.properties?.findIndex(p => p.id === propertyId);
+    
+    if (propertyIndex === -1 || propertyIndex === undefined || !node.properties) {
+      return NextResponse.json(
+        { error: 'Property not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update the property value
+    graph.nodes[nodeIndex] = {
+      ...node,
+      properties: [
+        ...node.properties.slice(0, propertyIndex),
+        { ...node.properties[propertyIndex], value },
+        ...node.properties.slice(propertyIndex + 1)
+      ]
+    };
+
+    // Store the updated graph (this will also regenerate vars.json)
+    await storeGraph(graph);
+    
+    console.log(`✅ Property updated successfully`);
+    
+    return NextResponse.json({ 
+      success: true,
+      message: 'Property updated successfully',
+      updatedNode: graph.nodes[nodeIndex]
+    });
+  } catch (error) {
+    console.error('❌ Graph API PATCH error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

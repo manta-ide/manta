@@ -1,0 +1,205 @@
+{
+  "nodes": [
+    {
+      "id": "node-element-portfolio-page",
+      "title": "SWE Portfolio Page",
+      "prompt": "A portfolio page for a Software Engineer showcasing projects, skills, and contact information in a responsive and accessible design.",
+      "children": [
+        {
+          "id": "node-element-header",
+          "title": "Header"
+        },
+        {
+          "id": "node-element-about-section",
+          "title": "About Section"
+        },
+        {
+          "id": "node-element-projects-section",
+          "title": "Projects Section"
+        },
+        {
+          "id": "node-element-skills-section",
+          "title": "Skills Section"
+        },
+        {
+          "id": "node-element-contact-section",
+          "title": "Contact Section"
+        }
+      ],
+      "parentId": "root",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-header",
+      "title": "Header",
+      "prompt": "A fixed header for the portfolio page including navigation links, Software Engineer title, and responsive design.",
+      "children": [
+        {
+          "id": "node-element-navbar",
+          "title": "Navbar"
+        }
+      ],
+      "parentId": "node-element-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-about-section",
+      "title": "About Section",
+      "prompt": "Section providing an introduction to the Software Engineer including a professional summary and image.",
+      "children": [
+        {
+          "id": "node-element-about-summary",
+          "title": "Professional Summary"
+        }
+      ],
+      "parentId": "node-element-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-projects-section",
+      "title": "Projects Section",
+      "prompt": "Section to showcase key projects with descriptions, images, and links to code repositories.",
+      "children": [
+        {
+          "id": "node-element-project-entry",
+          "title": "Project Entry"
+        }
+      ],
+      "parentId": "node-element-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-skills-section",
+      "title": "Skills Section",
+      "prompt": "Section listing technical skills categorized by domain with visual indicators for proficiency.",
+      "children": [
+        {
+          "id": "node-element-skills-list",
+          "title": "Skills List"
+        }
+      ],
+      "parentId": "node-element-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-contact-section",
+      "title": "Contact Section",
+      "prompt": "Section for visitors to contact the Software Engineer including a form and links to social media.",
+      "children": [
+        {
+          "id": "node-element-contact-form",
+          "title": "Contact Form"
+        }
+      ],
+      "parentId": "node-element-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-navbar",
+      "title": "Navbar",
+      "prompt": "The navigation bar with links to navigate between sections of the portfolio page.",
+      "children": [],
+      "parentId": "node-element-header",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-navbar-link-color",
+          "title": "Link Color",
+          "type": "color",
+          "value": "#4f46e5"
+        },
+        {
+          "id": "node-element-navbar-bg-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#ffffff"
+        }
+      ]
+    },
+    {
+      "id": "node-element-about-summary",
+      "title": "Professional Summary",
+      "prompt": "A brief summary highlighting the Software Engineer's expertise and achievements.",
+      "children": [],
+      "parentId": "node-element-about-section",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-about-summary-text",
+          "title": "Summary Text",
+          "type": "text",
+          "value": "Experienced Software Engineer with a passion for creating scalable and efficient solutions.",
+          "maxLength": 500
+        }
+      ]
+    },
+    {
+      "id": "node-element-project-entry",
+      "title": "Project Entry",
+      "prompt": "A card-like component to showcase individual projects with an image, description, and repository link.",
+      "children": [],
+      "parentId": "node-element-projects-section",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-project-title",
+          "title": "Project Title",
+          "type": "text",
+          "value": "Project Title",
+          "maxLength": 100
+        },
+        {
+          "id": "node-element-project-description",
+          "title": "Project Description",
+          "type": "text",
+          "value": "A brief description of the project.",
+          "maxLength": 250
+        },
+        {
+          "id": "node-element-project-link",
+          "title": "Repository Link",
+          "type": "text",
+          "value": "https://github.com/example"
+        }
+      ]
+    },
+    {
+      "id": "node-element-skills-list",
+      "title": "Skills List",
+      "prompt": "An organized list displaying technical skills with proficiency indicators.",
+      "children": [],
+      "parentId": "node-element-skills-section",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-skills-frontend-color",
+          "title": "Proficiency Bar Color",
+          "type": "color",
+          "value": "#10cb87"
+        }
+      ]
+    },
+    {
+      "id": "node-element-contact-form",
+      "title": "Contact Form",
+      "prompt": "A form to collect messages, including fields for name, email, and message.",
+      "children": [],
+      "parentId": "node-element-contact-section",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-contact-bg-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#f3f4f6"
+        }
+      ]
+    }
+  ]
+}

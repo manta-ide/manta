@@ -4,8 +4,8 @@ import { generateObject, generateText, ToolSet } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
-import { fileTools } from '../../lib/aiFileTools';
 import { graphEditorTools } from '../../lib/graphEditorTools';
+import { codeEditorTools } from '../../lib/codeEditorTools';
 import { 
   GraphSchema, 
   PropertyGenerationSchema, 
@@ -18,7 +18,7 @@ import { promises as fsp } from 'fs';
 
 // Direct mapping for toolsets
 const TOOLSET_MAP = {
-  'file': fileTools,
+  'code-editor': codeEditorTools,
   'graph-editor': graphEditorTools,
 } as const;
 

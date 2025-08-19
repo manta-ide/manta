@@ -19,6 +19,34 @@ export function getGraphSession(): Graph | null {
 }
 
 /**
+ * Extract variables from graph nodes and generate vars.json
+ */
+function extractVariablesFromGraph(graph: Graph): Record<string, any> {
+  const vars: Record<string, any> = {};
+  
+  // Extract variables from node properties
+  graph.nodes?.forEach(node => {
+    if (node.properties) {
+      node.properties.forEach((property, index) => {
+        // Create variable names based on node title and property title
+        const nodeTitle = node.title?.toLowerCase().replace(/\s+/g, '-') || 'unknown';
+        const propertyTitle = property.title?.toLowerCase().replace(/\s+/g, '-') || `property-${index}`;
+        
+        // Generate both formats: with node-element prefix and without
+        const varNameWithPrefix = `${nodeTitle}.${propertyTitle}`;
+        const varNameWithoutPrefix = `${nodeTitle}.${propertyTitle}`;
+        
+        // Store both formats for flexibility - just the value, no metadata
+        vars[varNameWithPrefix] = property.value;
+        vars[varNameWithoutPrefix] = property.value;
+      });
+    }
+  });
+  
+  return vars;
+}
+
+/**
  * Store a graph and save to file
  */
 export async function storeGraph(graph: Graph): Promise<void> {
@@ -44,12 +72,29 @@ export async function storeGraph(graph: Graph): Promise<void> {
   // Store in memory
   currentGraph = merged;
 
-  // Save to file directly
+  // Ensure .graph directory exists
+  const graphDir = path.join(PROJECT_ROOT, '.graph');
   try {
-    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+    await fs.mkdir(graphDir, { recursive: true });
+  } catch (error) {
+    console.error('Error creating .graph directory:', error);
+  }
+
+  // Save graph to file
+  try {
+    const graphFilePath = path.join(graphDir, 'graph.json');
     await fs.writeFile(graphFilePath, JSON.stringify(merged, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error saving graph to file:', error);
+  }
+
+  // Generate and save vars.json
+  try {
+    const vars = extractVariablesFromGraph(merged);
+    const varsFilePath = path.join(graphDir, 'vars.json');
+    await fs.writeFile(varsFilePath, JSON.stringify(vars, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error saving vars.json:', error);
   }
 }
 
@@ -71,7 +116,7 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
  */
 export async function loadGraphFromFile(): Promise<Graph | null> {
   try {
-    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+    const graphFilePath = path.join(PROJECT_ROOT, '.graph', 'graph.json');
     
     const content = await fs.readFile(graphFilePath, 'utf-8');
     const graph = JSON.parse(content) as Graph;
@@ -94,12 +139,16 @@ export async function clearGraphSession(): Promise<void> {
   // Remove from memory
   currentGraph = null;
   
-  // Delete file directly
+  // Delete files directly
   try {
-    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
-    await fs.unlink(graphFilePath);
+    const graphDir = path.join(PROJECT_ROOT, '.graph');
+    const graphFilePath = path.join(graphDir, 'graph.json');
+    const varsFilePath = path.join(graphDir, 'vars.json');
+    
+    await fs.unlink(graphFilePath).catch(() => {}); // Ignore if file doesn't exist
+    await fs.unlink(varsFilePath).catch(() => {}); // Ignore if file doesn't exist
   } catch (error) {
-    console.error('Error deleting graph file:', error);
+    console.error('Error deleting graph files:', error);
   }
 }
 
@@ -127,8 +176,9 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
  * Get ids of nodes that are not yet built
  */
 export function getUnbuiltNodeIds(): string[] {
+  console.log("graphStorage currentGraph", currentGraph);
   if (!currentGraph) return [];
-  return currentGraph.nodes.filter(n => !n.built).map(n => n.id);
+  return currentGraph.nodes.filter(n => !n.built || n.built === undefined).map(n => n.id);
 }
 
 /**
@@ -144,7 +194,7 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
   currentGraph = updated;
   
   try {
-    const graphFilePath = path.join(PROJECT_ROOT, 'graph.json');
+    const graphFilePath = path.join(PROJECT_ROOT, '.graph', 'graph.json');
     await fs.writeFile(graphFilePath, JSON.stringify(updated, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error persisting built flags:', error);

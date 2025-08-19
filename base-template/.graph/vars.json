@@ -1,0 +1,10 @@
+{
+  "navbar.link-color": "#4f46e5",
+  "navbar.background-color": "#ffffff",
+  "professional-summary.summary-text": "Experienced Software Engineer with a passion for creating scalable and efficient solutions.",
+  "project-entry.project-title": "Project Title",
+  "project-entry.project-description": "A brief description of the project.",
+  "project-entry.repository-link": "https://github.com/example",
+  "skills-list.proficiency-bar-color": "#10cb87",
+  "contact-form.background-color": "#f3f4f6"
+}
