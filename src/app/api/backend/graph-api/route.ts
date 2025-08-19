@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile } from '../../lib/graphStorage';
+import { getGraphSession, loadGraphFromFile, storeGraph } from '../../lib/graphStorage';
 
 export async function GET(req: NextRequest) {
   try {
@@ -190,6 +190,39 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error in graph API POST:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { graph } = body;
+    
+    if (!graph) {
+      return NextResponse.json(
+        { error: 'Graph data is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('💾 Saving graph...');
+    
+    // Store the graph using the storage function
+    await storeGraph(graph);
+    
+    console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes`);
+    
+    return NextResponse.json({ 
+      success: true,
+      message: 'Graph saved successfully',
+      graph: graph
+    });
+  } catch (error) {
+    console.error('❌ Graph API PUT error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

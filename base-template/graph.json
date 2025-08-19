@@ -15,10 +15,6 @@
           "title": "Introduction Section"
         },
         {
-          "id": "node-element-projects-section",
-          "title": "Projects Section"
-        },
-        {
           "id": "node-element-skills-section",
           "title": "Skills Section"
         },
@@ -27,7 +23,7 @@
           "title": "Contact Section"
         }
       ],
-      "built": true,
+      "built": false,
       "properties": [
         {
           "id": "node-element-portfolio-page-header-bg-color",
@@ -252,54 +248,6 @@
         },
         {
           "id": "node-element-introduction-section-padding",
-          "title": "Padding",
-          "propertyType": {
-            "type": "select",
-            "value": "py-16",
-            "options": [
-              "py-8",
-              "py-12",
-              "py-16",
-              "py-20",
-              "py-24",
-              "py-32"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        }
-      ]
-    },
-    {
-      "id": "node-element-projects-section",
-      "title": "Projects Section",
-      "prompt": "A section to showcase prominent software engineering projects with a clear layout and detailed information.",
-      "children": [
-        {
-          "id": "node-element-project-list",
-          "title": "Project List"
-        }
-      ],
-      "built": true,
-      "properties": [
-        {
-          "id": "node-element-projects-section-bg-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#FFFFFF"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-projects-section-padding",
           "title": "Padding",
           "propertyType": {
             "type": "select",
@@ -727,88 +675,6 @@
       ]
     },
     {
-      "id": "node-element-project-list",
-      "title": "Project List",
-      "prompt": "A list layout presenting individual project cards with titles, descriptions, and links.",
-      "children": [
-        {
-          "id": "node-element-project-card",
-          "title": "Project Card"
-        }
-      ],
-      "built": true,
-      "properties": [
-        {
-          "id": "node-element-project-list-background-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#ffffff"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-project-list-border-color",
-          "title": "Border Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#e5e7eb"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-project-list-border-radius",
-          "title": "Border Radius",
-          "propertyType": {
-            "type": "select",
-            "value": "md",
-            "options": [
-              "none",
-              "sm",
-              "md",
-              "lg",
-              "xl",
-              "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-project-list-padding",
-          "title": "Padding",
-          "propertyType": {
-            "type": "select",
-            "value": "py-2",
-            "options": [
-              "py-8",
-              "py-12",
-              "py-16",
-              "py-20",
-              "py-24",
-              "py-32"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        }
-      ]
-    },
-    {
       "id": "node-element-skills-list",
       "title": "Skills List",
       "prompt": "A grid or flex layout listing individual skill badges with hover effects.",
@@ -1061,83 +927,6 @@
               "lg",
               "xl",
               "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        }
-      ]
-    },
-    {
-      "id": "node-element-project-card",
-      "title": "Project Card",
-      "prompt": "Card component to display project information, including title, description, and live/demo links.",
-      "children": [],
-      "built": true,
-      "properties": [
-        {
-          "id": "node-element-project-card-bg-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#ffffff"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-project-card-border-color",
-          "title": "Border Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#cccccc"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-project-card-border-radius",
-          "title": "Border Radius",
-          "propertyType": {
-            "type": "select",
-            "value": "lg",
-            "options": [
-              "none",
-              "sm",
-              "md",
-              "lg",
-              "xl",
-              "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-project-card-padding",
-          "title": "Padding",
-          "propertyType": {
-            "type": "select",
-            "value": "py-16",
-            "options": [
-              "py-8",
-              "py-12",
-              "py-16",
-              "py-20",
-              "py-24",
-              "py-32"
             ]
           },
           "codeBinding": {

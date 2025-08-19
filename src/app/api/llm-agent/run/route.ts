@@ -3,20 +3,48 @@ import { z } from 'zod';
 import { generateObject, generateText, ToolSet } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
-import { GraphSchema, PropertyGenerationSchema, GraphQuickPatchResponseSchema, PartialCodeGenerationResponseSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
-import { fileTools } from '@/app/api/lib/aiFileTools';
+import { fileTools } from '../../lib/aiFileTools';
+import { graphEditorTools } from '../../lib/graphEditorTools';
+import { 
+  GraphSchema, 
+  PropertyGenerationSchema, 
+  GraphQuickPatchResponseSchema, 
+  PartialCodeGenerationResponseSchema 
+} from '../../lib/schemas';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { promises as fsp } from 'fs';
 
-// Schema mapping for structured output
+// Direct mapping for toolsets
+const TOOLSET_MAP = {
+  'file': fileTools,
+  'graph-editor': graphEditorTools,
+} as const;
+
+// Direct mapping for schemas
 const SCHEMA_MAP = {
   'graph': GraphSchema,
   'property-generation': PropertyGenerationSchema,
   'graph-quick-patch': GraphQuickPatchResponseSchema,
   'partial-code-generation': PartialCodeGenerationResponseSchema,
 } as const;
+
+// Helper function to get tools by name
+function getToolsByName(toolsetName: string) {
+  const tools = TOOLSET_MAP[toolsetName as keyof typeof TOOLSET_MAP];
+  if (!tools) {
+    throw new Error(`Unknown toolset: ${toolsetName}. Available toolsets: ${Object.keys(TOOLSET_MAP).join(', ')}`);
+  }
+  return tools;
+}
+
+// Helper function to get schema by name
+function getSchemaByName(schemaName: string) {
+  return SCHEMA_MAP[schemaName as keyof typeof SCHEMA_MAP];
+}
+
+
 
 // Agent configuration schema
 const AgentConfigSchema = z.object({
@@ -29,7 +57,7 @@ const AgentConfigSchema = z.object({
   promptTemplates: z.record(z.string()).optional(),
   structuredOutput: z.boolean().optional(),
   schemaName: z.enum(['graph', 'property-generation', 'graph-quick-patch', 'partial-code-generation']).optional(),
-  tools: z.any().optional(),
+  toolsetName: z.string(),
   // Google Gemini specific options
   useGoogleStructuredOutput: z.boolean().optional(),
   googleStructuredSchema: z.any().optional(),
@@ -111,8 +139,11 @@ export async function POST(req: NextRequest) {
     const { parsedMessages, config, operationName = 'agent', metadata } = AgentRequestSchema.parse(await req.json());
     // If no parsedMessages provided, create a simple message array
     const messages = parsedMessages;
-    // Use the provided tools or default to fileTools
-    const tools = config.tools || undefined;
+    console.log("config.toolsetName", config.toolsetName)
+    // Get tools by name (required)
+    const tools = getToolsByName(config.toolsetName);
+    console.log("tools", tools)
+    console.log("tools2", fileTools)
     // Provider/model selection helpers
     const detectProvider = (modelId: string): 'azure' | 'google' => {
       const id = modelId.toLowerCase();
@@ -145,6 +176,19 @@ export async function POST(req: NextRequest) {
 
     // Initialize step counter
     let totalSteps = 0;
+    
+    // Log available tools
+    writeLog(`[${operationName}] available-tools:`);
+    if (tools && Array.isArray(tools)) {
+      tools.forEach((tool: any, index: number) => {
+        writeLog(`[${operationName}]   Tool ${index + 1}: ${tool.name || tool.id || 'Unknown'}`);
+        if (tool.description) {
+          writeLog(`[${operationName}]     Description: ${tool.description}`);
+        }
+      });
+    } else {
+      writeLog(`[${operationName}]   No tools available or tools not in expected format`);
+    }
 
     // Header
     writeLog(`[${operationName}]`);
@@ -172,6 +216,9 @@ export async function POST(req: NextRequest) {
       // Log structured result
       writeLog(`[${operationName}] google-structured-result:`);
       writeLog(JSON.stringify(result, null, 2));
+      
+      // Note: Google Gemini structured output doesn't provide usage statistics in the same format
+      writeLog(`[${operationName}] usage-statistics: Not available for Google structured output`);
 
       // Add assistant response to conversation
       const assistantMessage = {
@@ -211,7 +258,7 @@ export async function POST(req: NextRequest) {
     if (config.structuredOutput) {
       // Select schema based on schemaName or default to graph
       const schemaName = config.schemaName || 'graph';
-      const selectedSchema = SCHEMA_MAP[schemaName];
+      const selectedSchema = getSchemaByName(schemaName);
       
       if (!selectedSchema) {
         throw new Error(`Unknown schema: ${schemaName}`);
@@ -237,6 +284,14 @@ export async function POST(req: NextRequest) {
         usage: result.usage,
         warnings: result.warnings,
       }, null, 2));
+      
+      // Log usage statistics if available
+      if (result.usage) {
+        writeLog(`[${operationName}] usage-statistics:`);
+        writeLog(`[${operationName}]   Prompt Tokens: ${result.usage.promptTokens || 'N/A'}`);
+        writeLog(`[${operationName}]   Completion Tokens: ${result.usage.completionTokens || 'N/A'}`);
+        writeLog(`[${operationName}]   Total Tokens: ${result.usage.totalTokens || 'N/A'}`);
+      }
 
       // Add assistant response to conversation
       const assistantMessage = {
@@ -274,12 +329,12 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-
+    console.log(tools)
     // Non-streaming mode only
     const result = await generateText({
       model: selectModel(config.model, config.provider) as any,
       messages: messages,
-      tools: fileTools,
+      tools: tools,
       maxSteps: config.maxSteps,
       abortSignal: req.signal,
       temperature: config.temperature
@@ -289,6 +344,43 @@ export async function POST(req: NextRequest) {
     // Get step count from result if available
     if (result.steps) {
       totalSteps = result.steps.length;
+      
+      // Collect all tool calls and their results from all steps
+      const allToolCalls = result.steps.flatMap(step => step.toolCalls || []);
+      const allToolResults = result.steps.flatMap(step => step.toolResults || []);
+      
+      // Create a map of tool call results by toolCallId
+      const toolResultsMap = new Map();
+      allToolResults.forEach((result: any) => {
+        if (result.toolCallId) {
+          toolResultsMap.set(result.toolCallId, result);
+        }
+      });
+      
+      // Log tool calls summary
+      writeLog(`[${operationName}] === TOOL CALLS SUMMARY ===`);
+      writeLog(`[${operationName}] Total Tool Calls: ${allToolCalls.length}`);
+      
+      if (allToolCalls.length > 0) {
+        allToolCalls.forEach((toolCall: any, index: number) => {
+          writeLog(`[${operationName}] Tool Call ${index + 1}:`);
+          writeLog(`[${operationName}]   Tool ID: ${toolCall.toolId || 'N/A'}`);
+          writeLog(`[${operationName}]   Tool Name: ${toolCall.toolName || 'N/A'}`);
+          writeLog(`[${operationName}]   Tool Call ID: ${toolCall.toolCallId || 'N/A'}`);
+          if (toolCall.args) {
+            writeLog(`[${operationName}]   Arguments: ${JSON.stringify(toolCall.args, null, 2)}`);
+          }
+          
+          // Get the result for this tool call
+          const toolResult = toolCall.toolCallId ? toolResultsMap.get(toolCall.toolCallId) : null;
+          if (toolResult) {
+            writeLog(`[${operationName}]   Result: ${JSON.stringify(toolResult, null, 2)}`);
+          } else {
+            writeLog(`[${operationName}]   Result: Not found`);
+          }
+        });
+      }
+      writeLog(`[${operationName}] === END STEP DETAILS ===`);
     } else {
       totalSteps = 1; // Default to 1 step if no step information available
     }
@@ -296,6 +388,19 @@ export async function POST(req: NextRequest) {
     // Log final result
     writeLog(`[${operationName}] non-streaming-complete`);
     writeLog(`[${operationName}] final-text: ${text}`);
+    
+    // Log usage statistics if available
+    if (result.usage) {
+      writeLog(`[${operationName}] usage-statistics:`);
+      writeLog(`[${operationName}]   Prompt Tokens: ${result.usage.promptTokens || 'N/A'}`);
+      writeLog(`[${operationName}]   Completion Tokens: ${result.usage.completionTokens || 'N/A'}`);
+      writeLog(`[${operationName}]   Total Tokens: ${result.usage.totalTokens || 'N/A'}`);
+    }
+    
+    // Log finish reason if available
+    if (result.finishReason) {
+      writeLog(`[${operationName}] finish-reason: ${result.finishReason}`);
+    }
 
     // Add assistant response to conversation
     const assistantMessage = {
@@ -317,7 +422,7 @@ export async function POST(req: NextRequest) {
     writeLog(`[${operationName}] Total Time: ${totalMinutes}m ${totalSeconds}s`);
     writeLog(`[${operationName}] Model: ${config.model}`);
     writeLog(`[${operationName}] Max Steps: ${config.maxSteps || 'unlimited'}`);
-    writeLog(`[${operationName}] Tools Used: ${tools ? 'custom' : 'fileTools'}`);
+    writeLog(`[${operationName}] Tools Used: ${config.toolsetName}`);
     writeLog(`[${operationName}] Tokens Per Second: ${result.usage?.totalTokens / totalTimeMs * 1000}`);
     writeLog(`[${operationName}] === END SUMMARY ===\n`);
 

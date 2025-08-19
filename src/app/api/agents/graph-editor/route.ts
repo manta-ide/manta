@@ -5,20 +5,23 @@ import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
 import { storeGraph } from '@/app/api/lib/graphStorage';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
+import { GraphSchema } from '@/app/api/lib/schemas';
+import { setCurrentGraph, resetPendingChanges } from '@/app/api/lib/graphEditorTools';
 
-// New prompt for editing graph - generates edit specifications only
-const EDIT_GRAPH_CONFIG = {
+// Multi-step agent configuration for graph editing
+const GRAPH_EDITOR_CONFIG = {
   model: 'o4-mini',
-  maxSteps: 1,
+  maxSteps: 15,
   streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'high' } },
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
-    system: 'graph-edit-template',
+    system: 'graph-editor-template',
   },
   structuredOutput: false,
+  toolsetName: 'graph-editor'
 } as const;
 
 const RequestSchema = z.object({
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
-      console.log('Edit graph request schema error:', parsed.error.flatten());
+      console.log('Graph editor request schema error:', parsed.error.flatten());
       return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -79,43 +82,66 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Initialize the graph editor tools with the current graph
+    setCurrentGraph(graph);
+
     const variables = {
       GRAPH_DATA: JSON.stringify(graph, null, 2),
     };
 
     const parsedMessages = await buildParsedMessages(
       userMessage,
-      EDIT_GRAPH_CONFIG.promptTemplates,
+      GRAPH_EDITOR_CONFIG.promptTemplates,
       variables
     );
 
     const response = await callAgent(req, {
-      sessionId: 'graph-edit',
+      sessionId: 'graph-editor',
       parsedMessages,
-      config: EDIT_GRAPH_CONFIG,
-      operationName: 'edit-graph',
+      config: GRAPH_EDITOR_CONFIG,
+      operationName: 'graph-editor',
+      metadata: {
+        originalGraphId: graph.rootId,
+        graphNodeCount: graph.nodes.length,
+      }
     });
 
     if (!response.ok) {
       return new Response(
-        JSON.stringify({ error: `Edit graph failed: ${response.statusText}` }),
+        JSON.stringify({ error: `Graph editor failed: ${response.statusText}` }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     const result = await response.json();
-    const editSpecification = result.result.content;
+    
+    // Check if the agent applied changes and saved the graph
+    const finalGraph = await fetchGraphFromApi(req);
+    const graphWasModified = finalGraph && JSON.stringify(finalGraph) !== JSON.stringify(graph);
+    
+    // Reset pending changes after the operation
+    resetPendingChanges();
     
     return new Response(JSON.stringify({ 
-      editSpecification
+      success: true,
+      result: result.result,
+      graphModified: graphWasModified,
+      finalGraph: graphWasModified ? finalGraph : null,
+      originalGraph: graph,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
     console.error(err);
-    return new Response(err?.message || 'Server error', { status: 500 });
+    // Reset pending changes on error
+    resetPendingChanges();
+    return new Response(JSON.stringify({ 
+      error: err?.message || 'Server error',
+      success: false 
+    }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
-
-

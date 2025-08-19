@@ -30,32 +30,18 @@ export async function POST(req: NextRequest) {
     const hasGraph = await graphExists();
 
     if (hasGraph) {
-      // Step 1: Generate edit specification
-      const editResponse = await fetch(`${req.nextUrl.origin}/api/agents/edit-graph`, {
+      // Use the new single multi-step graph editor agent
+      const graphEditorResponse = await fetch(`${req.nextUrl.origin}/api/agents/graph-editor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userMessage }),
       });
 
-      if (!editResponse.ok) {
-        return NextResponse.json({ error: 'Failed to generate edit specification' }, { status: 500 });
+      if (!graphEditorResponse.ok) {
+        return NextResponse.json({ error: 'Failed to edit graph' }, { status: 500 });
       }
 
-      const editResult = await editResponse.json();
-      const editSpecification = editResult.editSpecification;
-      console.log("Sending edit specification to graph-quick-patch", editSpecification)
-      // Step 2: Apply the edit specification
-      const patchResponse = await fetch(`${req.nextUrl.origin}/api/agents/graph-quick-patch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editSpecification)
-      });
-
-      if (!patchResponse.ok) {
-        return NextResponse.json({ error: 'Failed to apply graph patch' }, { status: 500 });
-      }
-
-      const result = await patchResponse.json();
+      const result = await graphEditorResponse.json();
       return NextResponse.json(result);
     } else {
       // No graph: generate a new graph
