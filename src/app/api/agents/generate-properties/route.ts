@@ -146,7 +146,8 @@ async function callLLMForPropertyGeneration(prompt: string): Promise<any> {
           providerOptions: { azure: { reasoning_effort: 'high' } },
           structuredOutput: true,
           schemaName: 'property-generation'
-        }
+        },
+        operationName: 'generate-properties'
       })
     });
 

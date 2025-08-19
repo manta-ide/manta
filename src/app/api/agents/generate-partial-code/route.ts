@@ -3,16 +3,22 @@ import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
-import { getGraphSession, markNodesBuilt } from '@/app/api/lib/graphStorage';
+import { markNodesBuilt } from '@/app/api/lib/graphStorage';
 import { fileTools } from '../../lib/aiFileTools';
+import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 
-// New prompt for partial code generation
+// Configuration for partial code generation
 const PARTIAL_CODE_CONFIG = {
-  model: 'o3',
+  model: 'o4-mini',
   maxSteps: 50,
   streaming: false,
   temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'medium' } },
+  provider: 'azure',
+  providerOptions: { 
+    azure: { 
+      reasoning_effort: 'medium' 
+    } 
+  },
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
@@ -75,40 +81,28 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage, nodeIds, includeDescendants = true, editHints, removedNodeIds } = parsed.data;
-    let graph = getGraphSession();
+    const graph = await fetchGraphFromApi(req);
     if (!graph) {
-      console.log('🔄 No graph in memory, fetching from storage API...');
-      try {
-        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
-        if (graphRes.ok) {
-          const graphData = await graphRes.json();
-          if (graphData.success && graphData.graph) {
-            graph = graphData.graph;
-            console.log(`✅ Loaded graph with ${graphData.graph.nodes?.length || 0} nodes from storage API`);
-          }
-        }
-      } catch (error) {
-        console.log('ℹ️ No graph found in storage');
-      }
-      if (!graph) {
-        return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+      return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Extract subset of nodes for partial code gen (optionally include descendants)
     const idSet = new Set<string>();
     const queue = [...nodeIds];
     for (const id of queue) idSet.add(id);
-    if (includeDescendants) {
-      const byId = new Map(graph.nodes.map(n => [n.id, n]));
+    
+    // Only include descendants if explicitly requested AND we're not doing removals
+    // For removals, we want to be very surgical and only update the specific nodes
+    if (includeDescendants && (!removedNodeIds || removedNodeIds.length === 0)) {
+      const byId = new Map(graph.nodes.map((n: any) => [n.id, n]));
       for (let i = 0; i < queue.length; i++) {
         const currentId = queue[i];
         const node = byId.get(currentId);
         if (!node) continue;
-        for (const child of node.children || []) {
+        for (const child of (node as any).children || []) {
           if (!idSet.has(child.id)) {
             idSet.add(child.id);
             queue.push(child.id);
@@ -118,16 +112,19 @@ export async function POST(req: NextRequest) {
     }
     const partialGraph = {
       rootId: graph.rootId,
-      nodes: graph.nodes.filter(n => idSet.has(n.id)),
+      nodes: graph.nodes.filter((n: any) => idSet.has(n.id)),
     };
+    
+    console.log(`🔄 Partial code generation: ${nodeIds.length} requested nodes, ${partialGraph.nodes.length} nodes in partial graph`);
+    if (removedNodeIds && removedNodeIds.length > 0) {
+      console.log(`🔄 Removing ${removedNodeIds.length} nodes: ${removedNodeIds.join(', ')}`);
+    }
 
-    const graphSessionId = 'partial-code';
     const parsedMessages = await buildParsedMessages(
       userMessage,
       PARTIAL_CODE_CONFIG.promptTemplates,
       {
         GRAPH_DATA: JSON.stringify(partialGraph, null, 2),
-        SELECTED_NODE_IDS: JSON.stringify(Array.from(idSet)),
         STRICT_EDIT_MODE: '1',
         EDIT_HINTS: editHints ? JSON.stringify(editHints) : undefined,
         REMOVED_NODE_IDS: removedNodeIds && removedNodeIds.length > 0 ? JSON.stringify(removedNodeIds) : undefined,
@@ -136,13 +133,13 @@ export async function POST(req: NextRequest) {
 
     // Call agent with centralized logging
     const response = await callAgent(req, {
-      sessionId: graphSessionId,
       parsedMessages,
       config: PARTIAL_CODE_CONFIG,
-      operationName: 'partial-code',
+      operationName: 'partial-code-generation',
       metadata: {
         nodeIds: Array.from(idSet),
-        editHints: editHints ?? null
+        editHints: editHints ?? null,
+        removedNodeIds: removedNodeIds ?? null
       }
     });
 

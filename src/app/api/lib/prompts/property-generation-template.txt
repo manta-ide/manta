@@ -74,9 +74,7 @@ Return a JSON array of property objects:
       "options": ["option1", "option2"] // only for select type
     },
     "codeBinding": {
-      "file": "file-path",
-      "start": 1234,
-      "end": 1289
+      "file": "file-path"
     }
   }
 ]
@@ -95,9 +93,7 @@ For a button node with id "node-element-cta-button" that has className="mt-8 bg-
       "value": "#3b82f6"
     },
     "codeBinding": {
-      "file": "base-template/src/app/page.tsx",
-      "start": 2470,
-      "end": 2498
+      "file": "base-template/src/app/page.tsx"
     }
   },
   {
@@ -108,9 +104,7 @@ For a button node with id "node-element-cta-button" that has className="mt-8 bg-
       "value": "#ffffff"
     },
     "codeBinding": {
-      "file": "base-template/src/app/page.tsx",
-      "start": 2470,
-      "end": 2498
+      "file": "base-template/src/app/page.tsx"
     }
   },
   {
@@ -122,9 +116,7 @@ For a button node with id "node-element-cta-button" that has className="mt-8 bg-
       "options": ["none", "sm", "md", "lg", "xl", "full"]
     },
     "codeBinding": {
-      "file": "base-template/src/app/page.tsx",
-      "start": 2470,
-      "end": 2498
+      "file": "base-template/src/app/page.tsx"
     }
   }
 ]

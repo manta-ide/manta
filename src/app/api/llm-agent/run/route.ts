@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { generateObject, generateText, ToolSet } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
-import { GraphSchema, PropertyGenerationSchema } from '@/app/api/lib/schemas';
+import { GraphSchema, PropertyGenerationSchema, GraphQuickPatchResponseSchema, PartialCodeGenerationResponseSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
 import { fileTools } from '@/app/api/lib/aiFileTools';
 import path from 'path';
@@ -14,6 +14,8 @@ import { promises as fsp } from 'fs';
 const SCHEMA_MAP = {
   'graph': GraphSchema,
   'property-generation': PropertyGenerationSchema,
+  'graph-quick-patch': GraphQuickPatchResponseSchema,
+  'partial-code-generation': PartialCodeGenerationResponseSchema,
 } as const;
 
 // Agent configuration schema
@@ -26,8 +28,11 @@ const AgentConfigSchema = z.object({
   providerOptions: z.record(z.any()).optional(),
   promptTemplates: z.record(z.string()).optional(),
   structuredOutput: z.boolean().optional(),
-  schemaName: z.enum(['graph', 'property-generation']).optional(),
+  schemaName: z.enum(['graph', 'property-generation', 'graph-quick-patch', 'partial-code-generation']).optional(),
   tools: z.any().optional(),
+  // Google Gemini specific options
+  useGoogleStructuredOutput: z.boolean().optional(),
+  googleStructuredSchema: z.any().optional(),
 });
 
 // Request schema with required configuration
@@ -41,8 +46,66 @@ const AgentRequestSchema = z.object({
   metadata: z.record(z.any()).optional(),
 });
 
+// Helper function to call Google Gemini API directly for structured output
+async function callGoogleGeminiStructured(
+  model: string,
+  messages: any[],
+  schema: any,
+  temperature: number = 1,
+  signal?: AbortSignal
+) {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY in environment');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  // Convert messages to Google Gemini format
+  const geminiMessages = messages.map(msg => ({
+    role: msg.role,
+    parts: [{ text: msg.content }]
+  }));
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: geminiMessages,
+      generationConfig: {
+        temperature,
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Google Gemini API failed: ${response.status} ${response.statusText} - ${errText}`);
+  }
+
+  const result = await response.json();
+  
+  // Extract structured output from Gemini response
+  const firstCandidate = Array.isArray(result?.candidates) ? result.candidates[0] : undefined;
+  const parts = firstCandidate?.content?.parts;
+  
+  if (Array.isArray(parts) && parts.length > 0) {
+    const text = parts[0]?.text;
+    if (text) {
+      return JSON.parse(text);
+    }
+  }
+  
+  throw new Error('Failed to extract structured output from Gemini response');
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Start timing
+    const startTime = Date.now();
 
     // Parse and validate the request body using Zod
     const { parsedMessages, config, operationName = 'agent', metadata } = AgentRequestSchema.parse(await req.json());
@@ -80,6 +143,9 @@ export async function POST(req: NextRequest) {
     const logStream = createWriteStream(logFilePath, { flags: 'a' });
     const writeLog = (s: string) => logStream.write(s.endsWith('\n') ? s : s + '\n');
 
+    // Initialize step counter
+    let totalSteps = 0;
+
     // Header
     writeLog(`[${operationName}]`);
     if (metadata) writeLog(`[${operationName}] metadata=${JSON.stringify(metadata)}`);
@@ -89,6 +155,57 @@ export async function POST(req: NextRequest) {
       writeLog(m.content);
       writeLog(`--- end message[${i}] ---`);
     });
+
+    // If Google structured output is requested, use direct API call
+    if (config.useGoogleStructuredOutput && config.googleStructuredSchema) {
+      const result = await callGoogleGeminiStructured(
+        config.model,
+        messages || [],
+        config.googleStructuredSchema,
+        config.temperature,
+        req.signal
+      );
+
+      // Increment step counter for structured output
+      totalSteps = 1;
+
+      // Log structured result
+      writeLog(`[${operationName}] google-structured-result:`);
+      writeLog(JSON.stringify(result, null, 2));
+
+      // Add assistant response to conversation
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: JSON.stringify(result),
+        variables: { ASSISTANT_RESPONSE: JSON.stringify(result) }
+      };
+      addMessageToSession(assistantMessage);
+
+      // Write summary before ending
+      const endTime = Date.now();
+      const totalTimeMs = endTime - startTime;
+      const totalMinutes = Math.floor(totalTimeMs / 60000);
+      const totalSeconds = Math.floor((totalTimeMs % 60000) / 1000);
+      
+      writeLog(`\n[${operationName}] === SUMMARY ===`);
+      writeLog(`[${operationName}] Description: ${operationName} operation with Google structured output`);
+      writeLog(`[${operationName}] Total Steps: ${totalSteps}`);
+      writeLog(`[${operationName}] Total Time: ${totalMinutes}m ${totalSeconds}s`);
+      writeLog(`[${operationName}] Model: ${config.model}`);
+      writeLog(`[${operationName}] Tokens Per Second: ${result.usage?.totalTokens / totalTimeMs * 1000}`);
+      writeLog(`[${operationName}] === END SUMMARY ===\n`);
+
+      logStream.end();
+      return new Response(JSON.stringify({
+        result: {
+          object: result,
+          finishReason: 'stop',
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // If structured output is requested, use generateObject instead
     if (config.structuredOutput) {
@@ -109,6 +226,8 @@ export async function POST(req: NextRequest) {
         temperature: config.temperature
       } as any);
 
+      // Increment step counter for structured output
+      totalSteps = 1;
 
       // Log structured result
       writeLog(`[${operationName}] structured-result:`);
@@ -126,6 +245,21 @@ export async function POST(req: NextRequest) {
         variables: { ASSISTANT_RESPONSE: JSON.stringify(result.object) }
       };
       addMessageToSession(assistantMessage);
+
+      // Write summary before ending
+      const endTime = Date.now();
+      const totalTimeMs = endTime - startTime;
+      const totalMinutes = Math.floor(totalTimeMs / 60000);
+      const totalSeconds = Math.floor((totalTimeMs % 60000) / 1000);
+      
+      writeLog(`\n[${operationName}] === SUMMARY ===`);
+      writeLog(`[${operationName}] Description: ${operationName} operation with structured output (${schemaName})`);
+      writeLog(`[${operationName}] Total Steps: ${totalSteps}`);
+      writeLog(`[${operationName}] Total Time: ${totalMinutes}m ${totalSeconds}s`);
+      writeLog(`[${operationName}] Model: ${config.model}`);
+      writeLog(`[${operationName}] Schema: ${schemaName}`);
+      writeLog(`[${operationName}] Tokens Per Second: ${result.usage?.totalTokens / totalTimeMs * 1000}`);
+      writeLog(`[${operationName}] === END SUMMARY ===\n`);
 
       logStream.end();
       return new Response(JSON.stringify({
@@ -152,6 +286,13 @@ export async function POST(req: NextRequest) {
     });
     const text = await result.text;
 
+    // Get step count from result if available
+    if (result.steps) {
+      totalSteps = result.steps.length;
+    } else {
+      totalSteps = 1; // Default to 1 step if no step information available
+    }
+
     // Log final result
     writeLog(`[${operationName}] non-streaming-complete`);
     writeLog(`[${operationName}] final-text: ${text}`);
@@ -163,6 +304,22 @@ export async function POST(req: NextRequest) {
       variables: { ASSISTANT_RESPONSE: text }
     };
     addMessageToSession(assistantMessage);
+
+    // Write summary before ending
+    const endTime = Date.now();
+    const totalTimeMs = endTime - startTime;
+    const totalMinutes = Math.floor(totalTimeMs / 60000);
+    const totalSeconds = Math.floor((totalTimeMs % 60000) / 1000);
+    
+    writeLog(`\n[${operationName}] === SUMMARY ===`);
+    writeLog(`[${operationName}] Description: ${operationName} operation with text generation`);
+    writeLog(`[${operationName}] Total Steps: ${totalSteps}`);
+    writeLog(`[${operationName}] Total Time: ${totalMinutes}m ${totalSeconds}s`);
+    writeLog(`[${operationName}] Model: ${config.model}`);
+    writeLog(`[${operationName}] Max Steps: ${config.maxSteps || 'unlimited'}`);
+    writeLog(`[${operationName}] Tools Used: ${tools ? 'custom' : 'fileTools'}`);
+    writeLog(`[${operationName}] Tokens Per Second: ${result.usage?.totalTokens / totalTimeMs * 1000}`);
+    writeLog(`[${operationName}] === END SUMMARY ===\n`);
 
     logStream.end();
     return new Response(JSON.stringify({

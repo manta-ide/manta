@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
-import { getGraphSession, storeGraph } from '@/app/api/lib/graphStorage';
+import { storeGraph } from '@/app/api/lib/graphStorage';
+import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 
-// New prompt for editing graph
+// New prompt for editing graph - generates edit specifications only
 const EDIT_GRAPH_CONFIG = {
-  model: 'gpt-5-nano',
-  maxSteps: 50,
+  model: 'o4-mini',
+  maxSteps: 1,
   streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'high' } },
@@ -17,14 +18,11 @@ const EDIT_GRAPH_CONFIG = {
     assistant: 'assistant-prompt-template',
     system: 'graph-edit-template',
   },
-  structuredOutput: true,
+  structuredOutput: false,
 } as const;
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
-  // optional constraints
-  includeNodeIds: z.array(z.string()).optional(),
-  removeNodeIds: z.array(z.string()).optional(),
 });
 
 async function buildParsedMessages(
@@ -64,15 +62,17 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
+      console.log('Edit graph request schema error:', parsed.error.flatten());
       return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const { userMessage, includeNodeIds, removeNodeIds } = parsed.data;
-    const graph = getGraphSession();
+    const { userMessage } = parsed.data;
+    const graph = await fetchGraphFromApi(req);
     if (!graph) {
+      console.log('No graph found. Generate graph first.');
       return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -81,8 +81,6 @@ export async function POST(req: NextRequest) {
 
     const variables = {
       GRAPH_DATA: JSON.stringify(graph, null, 2),
-      INCLUDE_NODE_IDS: includeNodeIds?.join(', ') || '',
-      REMOVE_NODE_IDS: removeNodeIds?.join(', ') || '',
     };
 
     const parsedMessages = await buildParsedMessages(
@@ -95,6 +93,7 @@ export async function POST(req: NextRequest) {
       sessionId: 'graph-edit',
       parsedMessages,
       config: EDIT_GRAPH_CONFIG,
+      operationName: 'edit-graph',
     });
 
     if (!response.ok) {
@@ -105,9 +104,11 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await response.json();
-    const newGraph = result.result.object;
-    await storeGraph(newGraph);
-    return new Response(JSON.stringify({ graph: newGraph }), {
+    const editSpecification = result.result.content;
+    
+    return new Response(JSON.stringify({ 
+      editSpecification
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

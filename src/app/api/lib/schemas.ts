@@ -114,29 +114,29 @@ export type CodeBinding = z.infer<typeof CodeBindingSchema>;
 // Property type schemas
 export const ColorPropertySchema = z.object({
   type: z.literal('color'),
-  value: z.string(),
+  value: z.string().optional(),
   options: z.array(z.string()).optional(),
-}).required();
+});
 
 export const TextPropertySchema = z.object({
   type: z.literal('text'),
-  value: z.string(),
+  value: z.string().optional(),
   maxLength: z.number().optional(),
-}).required();
+});
 
 export const NumberPropertySchema = z.object({
   type: z.literal('number'),
-  value: z.number(),
+  value: z.number().optional(),
   min: z.number().optional(),
   max: z.number().optional(),
   step: z.number().optional(),
-}).required();
+});
 
 export const SelectPropertySchema = z.object({
   type: z.literal('select'),
-  value: z.string(),
-  options: z.array(z.string()),
-}).required();
+  value: z.string().optional(),
+  options: z.array(z.string()).optional(),
+});
 
 // Union of all property types
 export const PropertyValueSchema = z.discriminatedUnion('type', [
@@ -152,9 +152,9 @@ export type PropertyValue = z.infer<typeof PropertyValueSchema>;
 export const PropertySchema = z.object({
   id: z.string(),
   title: z.string(),
-  propertyType: PropertyValueSchema,
-  codeBinding: CodeBindingSchema,
-}).required();
+  propertyType: PropertyValueSchema.optional(),
+  codeBinding: CodeBindingSchema.optional(),
+});
 
 export type Property = z.infer<typeof PropertySchema>;
 
@@ -241,7 +241,7 @@ export const PropertyGenerationSchema = z.object({
     title: z.string(),
     propertyType: z.object({
       type: z.enum(['color', 'text', 'number', 'select']),
-      value: z.union([z.string(), z.number()]),
+      value: z.union([z.string(), z.number()]).optional(),
       options: z.array(z.string()).optional(),
       maxLength: z.number().optional(),
       min: z.number().optional(),
@@ -252,9 +252,9 @@ export const PropertyGenerationSchema = z.object({
       file: z.string(),
       start: z.number(),
       end: z.number(),
-    }),
-  })),
-}).required();
+    }).optional(),
+  })).optional(),
+});
 
 export type PropertyGeneration = z.infer<typeof PropertyGenerationSchema>;
 
@@ -354,3 +354,21 @@ export const ProjectStoreSchema = z.object({
 });
 
 export type ProjectStore = z.infer<typeof ProjectStoreSchema>; 
+
+// Graph quick patch schemas
+export const GraphQuickPatchResponseSchema = z.object({
+  success: z.boolean(),
+  patched_graph: GraphSchema,
+  error_message: z.string().optional(),
+});
+
+export type GraphQuickPatchResponse = z.infer<typeof GraphQuickPatchResponseSchema>;
+
+// Partial code generation schemas
+export const PartialCodeGenerationResponseSchema = z.object({
+  success: z.boolean(),
+  generated_code: z.string(),
+  error_message: z.string().optional(),
+});
+
+export type PartialCodeGenerationResponse = z.infer<typeof PartialCodeGenerationResponseSchema>; 

@@ -195,7 +195,7 @@ export class PropertyCodeService {
         // Use the first property's code binding for this element
         const firstProperty = elementProperties[0];
         updates.push({
-          file: firstProperty.codeBinding.file,
+          file: firstProperty.codeBinding!.file,
           start: firstProperty.codeBinding.start,
           end: firstProperty.codeBinding.end,
           newCode: classNameValue,

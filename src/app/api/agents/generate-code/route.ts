@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
-import { getGraphSession, markNodesBuilt } from '@/app/api/lib/graphStorage';
+import { markNodesBuilt } from '@/app/api/lib/graphStorage';
 import { fileTools } from '@/app/api/lib/aiFileTools';
+import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 
 const CODE_GEN_CONFIG = {
-  model: 'gpt-4o',
-  maxSteps: 100, // Increased max steps to allow for file operations
+  model: 'o4-mini',
+  maxSteps: 50, // Increased max steps to allow for file operations
   streaming: false,
   temperature: 0.7, // Slightly lower temperature for more focused execution
   providerOptions: { azure: { reasoning_effort: 'high' } },
@@ -69,23 +70,8 @@ export async function POST(req: NextRequest) {
 
     const { userMessage } = parsed.data;
     
-    // Get graph from memory only (no direct file access)
-    let graph = getGraphSession();
-    if (!graph) {
-      console.log('🔄 No graph in memory, fetching from storage API...');
-      try {
-        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
-        if (graphRes.ok) {
-          const graphData = await graphRes.json();
-          if (graphData.success && graphData.graph) {
-            graph = graphData.graph;
-            console.log(`✅ Loaded graph with ${graphData.graph.nodes?.length || 0} nodes from storage API`);
-          }
-        }
-      } catch (error) {
-        console.log('ℹ️ No graph found in storage');
-      }
-    }
+    // Get graph from API
+    const graph = await fetchGraphFromApi(req);
     
     if (!graph) {
       return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
@@ -123,6 +109,7 @@ export async function POST(req: NextRequest) {
       sessionId: graphSessionId,
       parsedMessages: parsedGraphCodeMessages,
       config: CODE_GEN_CONFIG,
+      operationName: 'generate-code',
     });
 
     if (!graphResponse.ok) {
@@ -140,7 +127,7 @@ export async function POST(req: NextRequest) {
     // Mark all nodes as built
     try {
       if (graphData && graphData.nodes) {
-        await markNodesBuilt(graphData.nodes.map(n => n.id));
+        await markNodesBuilt(graphData.nodes.map((n: any) => n.id));
       }
     } catch (error) {
       console.warn('Failed to mark nodes as built:', error);

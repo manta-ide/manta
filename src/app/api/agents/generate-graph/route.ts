@@ -8,7 +8,7 @@ import { storeGraph } from '@/app/api/lib/graphStorage';
 // Config for full graph generation
 const GRAPH_GEN_CONFIG = {
   model: 'gpt-4o',
-  maxSteps: 50,
+  maxSteps: 1,
   streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'high' } },
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       sessionId: 'graph-generation',
       parsedMessages: parsedGraphGenMessages,
       config: GRAPH_GEN_CONFIG,
+      operationName: 'generate-graph',
     });
 
     if (!graphGenResponse.ok) {
