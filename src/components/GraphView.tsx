@@ -30,7 +30,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   
   // Determine background color based on built status
   const getBackgroundColor = () => {
-    return node.built ? '#EEF3FB' : '#F3FFBD'; // Light green for built, light yellow for unbuilt
+    return node.built ? '#EEF3FB' : '#FFF7BD'; // Light green for built, light yellow for unbuilt
   };
   
   if (isZoomedOut) {

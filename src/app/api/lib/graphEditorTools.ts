@@ -119,20 +119,20 @@ const AddNodeParamsSchema = z.object({
   nodeId: z.string().describe('Unique ID for the new node (should follow pattern node-element-*)'),
   title: z.string().describe('Display title for the new node'),
   prompt: z.string().describe('Description/prompt for the new node'),
-  properties: z.array(PropertySchema).describe('Array of property objects'),
+  properties: z.array(PropertySchema).optional().describe('Array of property objects'),
 }).strict();
 
 const DeleteNodeParamsSchema = z.object({
   nodeId: z.string().describe('ID of the node to delete'),
-  recursive: z.boolean().describe('If true, delete all children and descendants recursively. If false or not provided, only delete the node itself'),
+  recursive: z.boolean().optional().describe('If true, delete all children and descendants recursively. If false or not provided, only delete the node itself'),
 }).strict();
 
 const EditNodeParamsSchema = z.object({
   nodeId: z.string().describe('ID of the node to edit'),
-  title: z.string().describe('New title for the node'),
-  prompt: z.string().describe('New prompt/description for the node'),
-  properties: z.array(PropertySchema).describe('Array of property objects'),
-  children: z.array(ChildLinkSchema),
+  title: z.string().optional().describe('New title for the node'),
+  prompt: z.string().optional().describe('New prompt/description for the node'),
+  properties: z.array(PropertySchema).optional().describe('Array of property objects'),
+  children: z.array(ChildLinkSchema).optional()
 }).strict();
 
 const ReadGraphParamsSchema = z.object({
