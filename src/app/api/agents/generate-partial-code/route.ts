@@ -111,7 +111,6 @@ export async function POST(req: NextRequest) {
       }
     }
     const partialGraph = {
-      rootId: graph.rootId,
       nodes: graph.nodes.filter((n: any) => idSet.has(n.id)),
     };
     

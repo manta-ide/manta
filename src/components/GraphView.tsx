@@ -322,8 +322,11 @@ function GraphView() {
       return totalWidth;
     };
     
-    // Calculate layout starting from root
-    const totalTreeWidth = calculateNodeLayout(graph.rootId);
+    // Calculate layout starting from root (first node)
+    const rootId = graph.nodes.length > 0 ? graph.nodes[0].id : null;
+    if (!rootId) return;
+    
+    const totalTreeWidth = calculateNodeLayout(rootId);
     
     // Position nodes based on the calculated layout with better tree structure
     const positionNodes = (nodeId: string, startX: number, depth: number): number => {
@@ -360,8 +363,8 @@ function GraphView() {
     const treeWidth = totalTreeWidth * 320; // Use the same spacing as in positioning
     const startX = (1200 - treeWidth) / 2; // Use a fixed width instead of window.innerWidth
     
-    // Start positioning from root
-    positionNodes(graph.rootId, startX, 0);
+    // Start positioning from root (first node)
+    positionNodes(rootId, startX, 0);
     
     // Convert graph nodes to ReactFlow nodes
     const reactFlowNodes: Node[] = graph.nodes.map((node) => {

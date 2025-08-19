@@ -15,49 +15,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'userMessage is required' }, { status: 400 });
     }
 
-    // Check if a graph exists
-    const graphExists = async () => {
-      try {
-        const res = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
-        if (!res.ok) return false;
-        const data = await res.json();
-        return data.success && data.graph;
-      } catch {
-        return false;
-      }
-    };
+    // Always use the graph editor agent
+    const graphEditorResponse = await fetch(`${req.nextUrl.origin}/api/agents/graph-editor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userMessage }),
+    });
 
-    const hasGraph = await graphExists();
-
-    if (hasGraph) {
-      // Use the new single multi-step graph editor agent
-      const graphEditorResponse = await fetch(`${req.nextUrl.origin}/api/agents/graph-editor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage }),
-      });
-
-      if (!graphEditorResponse.ok) {
-        return NextResponse.json({ error: 'Failed to edit graph' }, { status: 500 });
-      }
-
-      const result = await graphEditorResponse.json();
-      return NextResponse.json(result);
-    } else {
-      // No graph: generate a new graph
-      const genResponse = await fetch(`${req.nextUrl.origin}/api/agents/generate-graph`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage }),
-      });
-      
-      if (!genResponse.ok) {
-        return NextResponse.json({ error: 'Failed to generate graph' }, { status: 500 });
-      }
-
-      const result = await genResponse.json();
-      return NextResponse.json(result);
+    if (!graphEditorResponse.ok) {
+      return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
     }
+
+    const result = await graphEditorResponse.json();
+    return NextResponse.json(result);
   } catch (error) {
     console.error('❌ Agent request error:', error);
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');

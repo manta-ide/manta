@@ -103,62 +103,27 @@ export const ClientChatRequestSchema = z.object({
 export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 
 // Property schemas for graph node properties
-export const CodeBindingSchema = z.object({
-  file: z.string(),
-  start: z.number(),
-  end: z.number(),
-});
 
-export type CodeBinding = z.infer<typeof CodeBindingSchema>;
+// Property type enum - defines the available property types for graph nodes
+export const PropertyTypeEnum = z.enum(['color', 'text', 'number', 'select']);
+export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 
-// Property type schemas
-export const ColorPropertySchema = z.object({
-  type: z.literal('color'),
-  value: z.string().optional(),
-  options: z.array(z.string()).optional(),
-});
-
-export const TextPropertySchema = z.object({
-  type: z.literal('text'),
-  value: z.string().optional(),
-  maxLength: z.number().optional(),
-});
-
-export const NumberPropertySchema = z.object({
-  type: z.literal('number'),
-  value: z.number().optional(),
-  min: z.number().optional(),
-  max: z.number().optional(),
-  step: z.number().optional(),
-});
-
-export const SelectPropertySchema = z.object({
-  type: z.literal('select'),
-  value: z.string().optional(),
-  options: z.array(z.string()).optional(),
-});
-
-// Union of all property types
-export const PropertyValueSchema = z.discriminatedUnion('type', [
-  ColorPropertySchema,
-  TextPropertySchema,
-  NumberPropertySchema,
-  SelectPropertySchema,
-]);
-
-export type PropertyValue = z.infer<typeof PropertyValueSchema>;
-
-// Property definition
+// Property definition - represents a configurable property of a graph node
 export const PropertySchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  propertyType: PropertyValueSchema.optional(),
-  codeBinding: CodeBindingSchema.optional(),
+  id: z.string().describe('Unique identifier for the property (should follow pattern: node-id-property-name)'),
+  title: z.string().describe('Human-readable title/name for the property'),
+  type: PropertyTypeEnum.describe('The type of property (color, text, number, or select)'),
+  value: z.union([z.string(), z.number()]).optional().describe('The current/default value for the property'),
+  options: z.array(z.string()).optional().describe('Array of available options (required for select type)'),
+  maxLength: z.number().optional().describe('Maximum length constraint for text properties'),
+  min: z.number().optional().describe('Minimum value constraint for number properties'),
+  max: z.number().optional().describe('Maximum value constraint for number properties'),
+  step: z.number().optional().describe('Step increment for number properties'),
 });
 
 export type Property = z.infer<typeof PropertySchema>;
 
-// Updated GraphNodeSchema to include properties
+// Updated GraphNodeSchema to include properties and parentId
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -167,6 +132,8 @@ export const GraphNodeSchema = z.object({
     id: z.string(),
     title: z.string(),
   })),
+  // Parent ID for bidirectional relationship tracking
+  parentId: z.string().optional(),
   // Tracks whether code for this node has been generated
   built: z.boolean().optional(),
   // Properties for the node
@@ -174,7 +141,6 @@ export const GraphNodeSchema = z.object({
 });
 
 export const GraphSchema = z.object({
-  rootId: z.string(),
   nodes: z.array(GraphNodeSchema),
 });
 
@@ -234,26 +200,9 @@ export const EvalRequestSchema = z.object({
 
 export type EvalRequest = z.infer<typeof EvalRequestSchema>;
 
-// Property generation schema - simplified to avoid discriminated union issues
+// Property generation schema - uses unified property type schema
 export const PropertyGenerationSchema = z.object({
-  properties: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    propertyType: z.object({
-      type: z.enum(['color', 'text', 'number', 'select']),
-      value: z.union([z.string(), z.number()]).optional(),
-      options: z.array(z.string()).optional(),
-      maxLength: z.number().optional(),
-      min: z.number().optional(),
-      max: z.number().optional(),
-      step: z.number().optional(),
-    }),
-    codeBinding: z.object({
-      file: z.string(),
-      start: z.number(),
-      end: z.number(),
-    }).optional(),
-  })).optional(),
+  properties: z.array(PropertySchema).optional(),
 });
 
 export type PropertyGeneration = z.infer<typeof PropertyGenerationSchema>;

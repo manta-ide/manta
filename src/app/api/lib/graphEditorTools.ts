@@ -1,42 +1,72 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { GraphSchema } from './schemas';
+import {
+  GraphSchema,
+  GraphNodeSchema,
+  PropertySchema,
+  // Types from your schemas
+  Graph,
+  GraphNode,
+} from './schemas';
 
-// Helper function to fetch graph from API
-async function fetchGraphFromAPI(): Promise<any> {
+/* =========
+   Local types
+   ========= */
+
+// Derive the child link type from your GraphNode
+type ChildLink = GraphNode['children'][number];
+
+// ---- simple async mutex
+let graphOp = Promise.resolve();
+
+async function withGraphLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = graphOp;
+  let release!: () => void;
+  graphOp = new Promise<void>(r => (release = r));
+  await prev;             // wait turn
+  try { return await fn(); }
+  finally { release(); }  // release next
+}
+
+/* =========================
+   API Fetch/Save (typed)
+   ========================= */
+
+async function fetchGraphFromAPI(): Promise<Graph | null> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
     if (!response.ok) {
-      if (response.status === 404) {
-        return null; // No graph exists
-      }
+      if (response.status === 404) return null;
       throw new Error(`Failed to fetch graph: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-    return data.success ? data.graph : null;
+
+    // Validate for both runtime safety + strong typing
+    if (data?.success) {
+      const parsed = GraphSchema.safeParse(data.graph);
+      if (parsed.success) return normalizeGraph(parsed.data);
+      console.warn('Graph validation failed, attempting to normalize server payload:', parsed.error);
+      return normalizeGraph(data.graph);
+    }
+    return null;
   } catch (error) {
     console.error('Error fetching graph from API:', error);
     return null;
   }
 }
 
-// Helper function to save graph through API
-async function saveGraphThroughAPI(graph: any): Promise<boolean> {
+async function saveGraphThroughAPI(graph: Graph): Promise<boolean> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ graph }),
     });
 
@@ -45,81 +75,210 @@ async function saveGraphThroughAPI(graph: any): Promise<boolean> {
     }
 
     const data = await response.json();
-    return data.success;
+    return !!data.success;
   } catch (error) {
     console.error('Error saving graph through API:', error);
     return false;
   }
 }
 
-// In-memory storage for pending changes
-let pendingGraph: any = null;
-let originalGraph: any = null;
+/* =========================
+   In-memory state (typed)
+   ========================= */
 
-export async function setCurrentGraph(graph?: any) {
-  // If no graph is provided, try to fetch it from the API
-  if (!graph) {
-    graph = await fetchGraphFromAPI();
-    if (!graph) {
-      throw new Error('No graph available and could not fetch from API');
-    }
-  }
-  
-  if (!originalGraph) originalGraph = JSON.parse(JSON.stringify(graph));
-  pendingGraph = pendingGraph || JSON.parse(JSON.stringify(graph));
+let pendingGraph: Graph | null = null;
+let originalGraph: Graph | null = null;
+
+/* =========================
+   Normalization helpers
+   ========================= */
+
+function ensureChildrenArray(n: Partial<GraphNode> | undefined): ChildLink[] {
+  if (!n || !Array.isArray(n.children)) return [];
+  return n.children.filter((c): c is ChildLink => !!c && typeof c.id === 'string' && typeof c.title === 'string');
 }
 
-// Replace your current PropertyTypeSchema with this:
+function normalizeNode(raw: unknown): GraphNode {
+  // Trust Zod to coerce here if you want; otherwise do minimal normalization:
+  const parsed = GraphNodeSchema.safeParse(raw);
+  if (parsed.success) {
+    // Ensure children exists as array (schema already guarantees), just return
+    return { ...parsed.data, children: [...parsed.data.children] };
+  }
+  const r = raw as any;
+  return {
+    id: String(r?.id ?? ''),
+    title: String(r?.title ?? ''),
+    prompt: typeof r?.prompt === 'string' ? r.prompt : '',
+    children: ensureChildrenArray(r),
+    parentId: typeof r?.parentId === 'string' ? r.parentId : undefined,
+    built: typeof r?.built === 'boolean' ? r.built : undefined,
+    properties: Array.isArray(r?.properties) ? (r.properties as GraphNode['properties']) : undefined,
+  };
+}
 
-const PropertyTypeSchema = z.discriminatedUnion('type', [
-    z.object({
-      type: z.literal('color'),
-      value: z.string(),            // required
-    }).strict(),
-  
-    z.object({
-      type: z.literal('text'),
-      value: z.string(),            // required
-    }).strict(),
-  
-    z.object({
-      type: z.literal('number'),
-      value: z.string(),            // keep as string if your pipeline expects strings
-    }).strict(),
-  
-    z.object({
-      type: z.literal('select'),
-      value: z.string(),            // current selection (required)
-      options: z.array(z.string()), // required for select
-    }).strict(),
-  ]);
-  
-  const CodeBindingSchema = z.object({
-    file: z.string(),
-    start: z.number().int(),
-    end: z.number().int(),
-  }).strict();
-  
-  const PropertySchema = z.object({
-    id: z.string(),
-    title: z.string(),
-    propertyType: PropertyTypeSchema,
-    codeBinding: CodeBindingSchema, // ok: optional at parent level
-  }).strict();
-  
-  const ChildLinkSchema = z.object({
-    id: z.string(),
-    title: z.string(),
-  }).strict();
-  
+function normalizeGraph(raw: unknown): Graph {
+  const r = raw as any;
+  const nodes = Array.isArray(r?.nodes) ? r.nodes.map(normalizeNode) : [];
+  return { nodes };
+}
 
-/** ---------- Tool Parameter Schemas (STRICT) ---------- */
+/* =========================
+   Graph Sync / Consistency
+   ========================= */
+
+function buildIndex(graph: Graph): Map<string, GraphNode> {
+  return new Map<string, GraphNode>(graph.nodes.map((n) => [n.id, n] as const));
+}
+
+/**
+ * Keeps forward references (children pointing to not-yet-created nodes),
+ * resolves links whenever both ends exist, dedupes, and syncs titles.
+ * Single-parent invariant: child's parentId wins.
+ */
+function ensureGraphConsistency(graph: Graph): Graph {
+  if (!Array.isArray(graph.nodes)) graph.nodes = [];
+
+  const byId = buildIndex(graph);
+
+  // Normalize children arrays
+  graph.nodes.forEach((n) => {
+    n.children = ensureChildrenArray(n);
+  });
+
+  // Pass 1: parent -> child sync (do NOT remove unknown children)
+  graph.nodes.forEach((parent) => {
+    const next: ChildLink[] = [];
+    const seen = new Set<string>();
+
+    parent.children.forEach((childRef) => {
+      if (!childRef?.id) return;
+      if (seen.has(childRef.id)) return;
+      seen.add(childRef.id);
+
+      const childNode = byId.get(childRef.id);
+
+      if (childNode) {
+        // keep ref title in sync with real child title
+        if (childNode.title && childRef.title !== childNode.title) {
+          childRef.title = childNode.title;
+        }
+
+        // If the child has no parent, adopt this parent
+        if (!childNode.parentId) {
+          childNode.parentId = parent.id;
+          next.push(childRef);
+        } else if (childNode.parentId === parent.id) {
+          // Already consistent
+          next.push(childRef);
+        } else {
+          // Conflict: child's parentId points elsewhere. Prefer child's parentId → drop stray ref.
+        }
+      } else {
+        // Child not created yet — keep the placeholder reference
+        next.push(childRef);
+      }
+    });
+
+    parent.children = next;
+  });
+
+  // Pass 2: child -> parent sync (for any child with parentId, ensure parent contains the ref)
+  graph.nodes.forEach((child) => {
+    if (!child.parentId) return;
+    const parent = byId.get(child.parentId);
+    if (!parent) return; // parent not created yet
+
+    const hasRef = parent.children.some((c) => c.id === child.id);
+    if (!hasRef) {
+      parent.children.push({ id: child.id, title: child.title });
+    }
+  });
+
+  // Pass 3: global dedupe of children arrays
+  graph.nodes.forEach((n) => {
+    const seen = new Set<string>();
+    n.children = n.children.filter((c) => {
+      if (!c?.id) return false;
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  });
+
+  return graph;
+}
+
+/**
+ * When a new node is added, this:
+ *  - adopts a parent if some existing node already lists it as a child (and it has no parent yet)
+ *  - removes stray refs to this child from other parents (enforce single parent)
+ *  - sets parentId for any existing children of this new node
+ */
+function syncDeferredRelationsForNewNode(newNode: GraphNode, graph: Graph): void {
+  const byId = buildIndex(graph);
+
+  // 1) If any parent already references this node, adopt the first as parent if not set
+  if (!newNode.parentId) {
+    const candidate = graph.nodes.find(
+      (p) => p.children.some((c) => c.id === newNode.id)
+    );
+    if (candidate) {
+      newNode.parentId = candidate.id;
+    }
+  }
+
+  // 2) Enforce single parent: remove this child from other parents
+  graph.nodes.forEach((p) => {
+    if (p.id !== newNode.parentId) {
+      p.children = p.children.filter((c) => c.id !== newNode.id);
+    }
+  });
+
+  // 3) If the new node already lists children, set their parentId (when they exist)
+  newNode.children.forEach((c) => {
+    const cn = byId.get(c.id);
+    if (cn && !cn.parentId) {
+      cn.parentId = newNode.id;
+    }
+  });
+}
+
+/* =========================
+   Graph state bootstrap
+   ========================= */
+
+export async function setCurrentGraph(graph?: Graph) {
+  // If no graph is provided, try to fetch it from the API
+  if (!graph) {
+    const fetched = await fetchGraphFromAPI();
+    graph = fetched ?? { nodes: [] };
+
+    if (!fetched) {
+      // Save the empty graph to the API
+      const saveSuccess = await saveGraphThroughAPI(graph);
+      if (!saveSuccess) throw new Error('Failed to create and save initial graph');
+    }
+  }
+
+  if (!originalGraph) originalGraph = JSON.parse(JSON.stringify(graph)) as Graph;
+  pendingGraph = pendingGraph ?? (JSON.parse(JSON.stringify(graph)) as Graph);
+}
+
+/* ---------- Tool Parameter Schemas (STRICT) ---------- */
+const ChildLinkSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+}).strict();
+
 const AddNodeParamsSchema = z.object({
   parentId: z.string().describe('ID of the parent node to add the new node as a child'),
   nodeId: z.string().describe('Unique ID for the new node (should follow pattern node-element-*)'),
   title: z.string().describe('Display title for the new node'),
   prompt: z.string().describe('Description/prompt for the new node'),
   properties: z.array(PropertySchema).optional().describe('Array of property objects'),
+  children: z.array(ChildLinkSchema).optional().describe('Array of child node references'),
+  built: z.boolean().optional().describe('Whether the node has been built'),
 }).strict();
 
 const DeleteNodeParamsSchema = z.object({
@@ -132,40 +291,108 @@ const EditNodeParamsSchema = z.object({
   title: z.string().optional().describe('New title for the node'),
   prompt: z.string().optional().describe('New prompt/description for the node'),
   properties: z.array(PropertySchema).optional().describe('Array of property objects'),
-  children: z.array(ChildLinkSchema).optional()
+  children: z.array(ChildLinkSchema).optional(),
+  built: z.boolean().optional().describe('Whether the node has been built'),
 }).strict();
 
 const ReadGraphParamsSchema = z.object({
-  // No parameters needed for reading the graph
+  nodeId: z.string().optional().describe('Specific node ID to read. If not provided, reads the entire graph'),
+  recursive: z.boolean().optional().describe('If true and nodeId is provided, includes all descendants recursively. If false or not provided, only returns the specified node'),
+  includeProperties: z.boolean().optional().describe('Whether to include node properties in the response. Defaults to true'),
+  includeChildren: z.boolean().optional().describe('Whether to include child references in the response. Defaults to true'),
 }).strict();
 
-/** ---------- Tools ---------- */
+/* =========================
+   Tools (typed)
+   ========================= */
+
 export const graphEditorTools = {
   add_node: tool({
     description: 'Add a new node to the graph with specified properties',
     parameters: AddNodeParamsSchema,
-    execute: async ({ parentId, nodeId, title, prompt, properties = [] }) => {
+    execute: async ({ parentId, nodeId, title, prompt, properties = [], children = [], built = false}) =>  withGraphLock(async () => {
       try {
-        if (!pendingGraph) {
-          await setCurrentGraph();
-        }
-        const modifiedGraph = JSON.parse(JSON.stringify(pendingGraph));
+        if (!pendingGraph) await setCurrentGraph();
 
-        const parentNode = modifiedGraph.nodes.find((node: any) => node.id === parentId);
-        if (!parentNode) {
-          return { success: false, message: `Parent node with ID ${parentId} not found`, operation: { type: 'add_node', nodeId, title } };
-        }
+        // Deep clone with type
+        const modifiedGraph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
 
-        const existingNode = modifiedGraph.nodes.find((node: any) => node.id === nodeId);
+        const byId = buildIndex(modifiedGraph);
+        const parentNode = byId.get(parentId);
+        const existingNode = byId.get(nodeId);
+
         if (existingNode) {
-          return { success: false, message: `Node with ID ${nodeId} already exists`, operation: { type: 'add_node', nodeId, title } };
+          // Update existing node metadata
+          existingNode.title = title ?? existingNode.title;
+          existingNode.prompt = prompt ?? existingNode.prompt;
+          if (properties?.length) existingNode.properties = properties;
+          if (children?.length) {
+            const merged = [...existingNode.children, ...children];
+            const seen = new Set<string>();
+            existingNode.children = merged.filter((c) => {
+              if (!c?.id) return false;
+              if (seen.has(c.id)) return false;
+              seen.add(c.id);
+              return true;
+            });
+          }
+
+          if (parentId) existingNode.parentId = parentId;
+
+          if (parentNode) {
+            const childExists = parentNode.children.some((c) => c.id === nodeId);
+            if (!childExists) parentNode.children.push({ id: nodeId, title: existingNode.title });
+          }
+
+          ensureGraphConsistency(modifiedGraph);
+
+          const validationResult = GraphSchema.safeParse(modifiedGraph);
+          if (!validationResult.success) {
+            return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'add_node', nodeId, title } };
+          }
+
+          const saveSuccess = await saveGraphThroughAPI(modifiedGraph);
+          if (!saveSuccess) {
+            return { success: false, message: 'Failed to save graph through API', operation: { type: 'add_node', nodeId, title } };
+          }
+
+          pendingGraph = null;
+          originalGraph = null;
+
+          const parentInfo = parentNode
+            ? ` and synced as child of "${parentNode.title}"`
+            : ' (parent not found yet; will link automatically when created)';
+          return {
+            success: true,
+            message: `Successfully updated existing node "${existingNode.title}" (${nodeId})${parentInfo}`,
+            operation: { type: 'add_node', nodeId, title: existingNode.title, parentId, synced: !!parentNode }
+          };
         }
 
-        const newNode = { id: nodeId, title, prompt, children: [], built: false, properties };
+        // Create new node
+        const newNode: GraphNode = {
+          id: nodeId,
+          title,
+          prompt,
+          children: children ?? [],
+          parentId: parentId || undefined,
+          built: false,
+          properties,
+        };
         modifiedGraph.nodes.push(newNode);
-        parentNode.children.push({ id: nodeId, title });
 
-        // Auto-apply changes
+        if (parentNode) {
+          const childExists = parentNode.children.some((c) => c.id === nodeId);
+          if (!childExists) parentNode.children.push({ id: nodeId, title });
+        }
+
+        // Snap this node into any already-declared relationships
+        syncDeferredRelationsForNewNode(newNode, modifiedGraph);
+
+        // Ensure consistency
+        ensureGraphConsistency(modifiedGraph);
+
+        // Validate & save
         const validationResult = GraphSchema.safeParse(modifiedGraph);
         if (!validationResult.success) {
           return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'add_node', nodeId, title } };
@@ -179,37 +406,37 @@ export const graphEditorTools = {
         pendingGraph = null;
         originalGraph = null;
 
-        return { success: true, message: `Successfully added node "${title}" (${nodeId}) as child of "${parentNode.title}"`, operation: { type: 'add_node', nodeId, title, parentId } };
+        const parentInfo = parentNode ? ` as child of "${parentNode.title}"` : ' (parent not found, will be linked when parent is created)';
+        return { success: true, message: `Successfully added node "${title}" (${nodeId})${parentInfo}`, operation: { type: 'add_node', nodeId, title, parentId } };
       } catch (error: any) {
         return { success: false, message: error.message, operation: { type: 'add_node', nodeId, title } };
       }
-    },
+    }),
   }),
 
   delete_node: tool({
     description: 'Remove a node from the graph and update parent references. Optionally delete all children recursively.',
     parameters: DeleteNodeParamsSchema,
-    execute: async ({ nodeId, recursive = false }) => {
+    execute: async ({ nodeId, recursive = false }) => withGraphLock(async () => {
       try {
-        if (!pendingGraph) {
-          await setCurrentGraph();
-        }
+        if (!pendingGraph) await setCurrentGraph();
 
-        const modifiedGraph = JSON.parse(JSON.stringify(pendingGraph));
-        const nodeToDelete = modifiedGraph.nodes.find((node: any) => node.id === nodeId);
+        const modifiedGraph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
+
+        const nodeToDelete = modifiedGraph.nodes.find((n) => n.id === nodeId);
         if (!nodeToDelete) {
           return { success: false, message: `Node with ID ${nodeId} not found`, operation: { type: 'delete_node', nodeId } };
         }
-        if (modifiedGraph.rootId === nodeId) {
-          return { success: false, message: 'Cannot delete the root node', operation: { type: 'delete_node', nodeId } };
+        if (modifiedGraph.nodes.length > 0 && modifiedGraph.nodes[0].id === nodeId) {
+          return { success: false, message: 'Cannot delete the root node (first node)', operation: { type: 'delete_node', nodeId } };
         }
 
-        // Helper function to collect all descendant IDs recursively
-        const collectDescendantIds = (nodeId: string, nodes: any[]): string[] => {
+        // Collect descendant IDs
+        const collectDescendantIds = (id: string, nodes: GraphNode[]): string[] => {
           const descendants: string[] = [];
-          const node = nodes.find((n: any) => n.id === nodeId);
-          if (node && node.children) {
-            node.children.forEach((child: any) => {
+          const node = nodes.find((n) => n.id === id);
+          if (node) {
+            node.children.forEach((child) => {
               descendants.push(child.id);
               descendants.push(...collectDescendantIds(child.id, nodes));
             });
@@ -223,15 +450,19 @@ export const graphEditorTools = {
           nodesToDelete = [...nodesToDelete, ...descendantIds];
         }
 
-        // Remove all nodes to be deleted
-        modifiedGraph.nodes = modifiedGraph.nodes.filter((node: any) => !nodesToDelete.includes(node.id));
-        
-        // Remove all references to deleted nodes from children arrays
-        modifiedGraph.nodes.forEach((node: any) => {
-          node.children = node.children.filter((child: any) => !nodesToDelete.includes(child.id));
+        // Remove nodes
+        modifiedGraph.nodes = modifiedGraph.nodes.filter((n) => !nodesToDelete.includes(n.id));
+
+        // Remove references
+        modifiedGraph.nodes.forEach((n) => {
+          n.children = n.children.filter((c) => !nodesToDelete.includes(c.id));
+          if (n.parentId && nodesToDelete.includes(n.parentId)) {
+            n.parentId = undefined;
+          }
         });
 
-        // Auto-apply changes
+        ensureGraphConsistency(modifiedGraph);
+
         const validationResult = GraphSchema.safeParse(modifiedGraph);
         if (!validationResult.success) {
           return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'delete_node', nodeId } };
@@ -246,55 +477,69 @@ export const graphEditorTools = {
         originalGraph = null;
 
         const deletedCount = nodesToDelete.length;
-        const message = recursive 
+        const message = recursive
           ? `Successfully deleted node "${nodeToDelete.title}" (${nodeId}) and ${deletedCount - 1} descendants recursively`
           : `Successfully deleted node "${nodeToDelete.title}" (${nodeId})`;
 
-        return { 
-          success: true, 
-          message, 
-          operation: { 
-            type: 'delete_node', 
-            nodeId, 
-            deletedTitle: nodeToDelete.title, 
-            recursive, 
-            deletedCount 
-          } 
+        return {
+          success: true,
+          message,
+          operation: { type: 'delete_node', nodeId, deletedTitle: nodeToDelete.title, recursive, deletedCount }
         };
       } catch (error: any) {
         return { success: false, message: error.message, operation: { type: 'delete_node', nodeId } };
       }
-    },
+    }),
   }),
 
   edit_node: tool({
     description: "Edit an existing node's properties",
     parameters: EditNodeParamsSchema,
-    execute: async ({ nodeId, title, prompt, properties, children }) => {
+    execute: async ({ nodeId, title, prompt, properties, children }) => withGraphLock(async () => {
       try {
-        if (!pendingGraph) {
-          await setCurrentGraph();
-        }
+        if (!pendingGraph) await setCurrentGraph();
 
-        const modifiedGraph = JSON.parse(JSON.stringify(pendingGraph));
-        const nodeToEdit = modifiedGraph.nodes.find((node: any) => node.id === nodeId);
+        const modifiedGraph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
+
+        const nodeToEdit = modifiedGraph.nodes.find((n) => n.id === nodeId);
         if (!nodeToEdit) {
           return { success: false, message: `Node with ID ${nodeId} not found`, operation: { type: 'edit_node', nodeId } };
         }
 
         if (title !== undefined) {
           nodeToEdit.title = title;
-          modifiedGraph.nodes.forEach((node: any) => {
-            node.children.forEach((child: any) => {
-              if (child.id === nodeId) child.title = title;
+          modifiedGraph.nodes.forEach((n) => {
+            n.children.forEach((c) => {
+              if (c.id === nodeId) c.title = title;
             });
           });
         }
         if (prompt !== undefined) nodeToEdit.prompt = prompt;
         if (properties !== undefined) nodeToEdit.properties = properties;
-        if (children !== undefined) nodeToEdit.children = children;
 
-        // Auto-apply changes
+        if (children !== undefined) {
+          nodeToEdit.children = Array.isArray(children) ? children : [];
+
+          // Sync parent-child for children that exist now
+          const byId = buildIndex(modifiedGraph);
+          nodeToEdit.children.forEach((c) => {
+            const childNode = byId.get(c.id);
+            if (childNode && (!childNode.parentId || childNode.parentId === nodeId)) {
+              childNode.parentId = nodeId;
+            }
+          });
+
+          // Clear parentId for nodes no longer children
+          const currentChildIds = new Set(nodeToEdit.children.map((c) => c.id));
+          modifiedGraph.nodes.forEach((n) => {
+            if (n.parentId === nodeId && !currentChildIds.has(n.id)) {
+              n.parentId = undefined;
+            }
+          });
+        }
+
+        ensureGraphConsistency(modifiedGraph);
+
         const validationResult = GraphSchema.safeParse(modifiedGraph);
         if (!validationResult.success) {
           return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'edit_node', nodeId } };
@@ -312,7 +557,78 @@ export const graphEditorTools = {
       } catch (error: any) {
         return { success: false, message: error.message, operation: { type: 'edit_node', nodeId } };
       }
-    },
+    }),
+  }),
+
+  read_graph: tool({
+    description: 'Read the current graph or specific nodes with various options',
+    parameters: ReadGraphParamsSchema,
+    execute: async ({ nodeId, recursive = false, includeProperties = true, includeChildren = true }) => withGraphLock(async () => {
+      try {
+        if (!pendingGraph) await setCurrentGraph();
+
+        const graph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
+
+        // Helper: collect descendant nodes recursively
+        const collectDescendants = (id: string, nodes: GraphNode[]): GraphNode[] => {
+          const descendants: GraphNode[] = [];
+          const node = nodes.find((n) => n.id === id);
+          if (node) {
+            node.children.forEach((c) => {
+              const childNode = nodes.find((n) => n.id === c.id);
+              if (childNode) {
+                descendants.push(childNode);
+                descendants.push(...collectDescendants(childNode.id, nodes));
+              }
+            });
+          }
+          return descendants;
+        };
+
+        // Helper: filter node data based on options
+        const filterNodeData = (node: GraphNode) => {
+          const out: Partial<GraphNode> = {
+            id: node.id,
+            title: node.title,
+            prompt: node.prompt,
+            built: node.built,
+          };
+          if (includeProperties) out.properties = node.properties;
+          if (includeChildren) out.children = node.children;
+          return out;
+        };
+
+        let result: any;
+
+        if (nodeId) {
+          const targetNode = graph.nodes.find((n) => n.id === nodeId);
+          if (!targetNode) {
+            return { success: false, message: `Node with ID ${nodeId} not found`, operation: { type: 'read_graph', nodeId } };
+          }
+
+          if (recursive) {
+            const descendants = collectDescendants(nodeId, graph.nodes);
+            result = {
+              targetNode: filterNodeData(targetNode),
+              descendants: descendants.map(filterNodeData),
+            };
+          } else {
+            result = { targetNode: filterNodeData(targetNode) };
+          }
+        } else {
+          result = { nodes: graph.nodes.map(filterNodeData) };
+        }
+
+        return {
+          success: true,
+          message: 'Successfully read graph data',
+          operation: { type: 'read_graph', nodeId, recursive, includeProperties, includeChildren },
+          data: result,
+        };
+      } catch (error: any) {
+        return { success: false, message: error.message, operation: { type: 'read_graph', nodeId } };
+      }
+    }),
   }),
 };
 

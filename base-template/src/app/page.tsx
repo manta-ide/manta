@@ -58,7 +58,7 @@ const PortfolioPage = () => {
         {/* Project List */}
         <div id="node-element-project-list" className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Project Card */}
-          <div id="node-element-project-card" className="shadow-md p-4 rounded bg-[#8f8a8a] bg-[#cccccc] hover:bg-[#cccccc]/90">
+          <div id="node-element-project-card" className="shadow-md p-4 rounded bg-[#8f8a8a] bg-[#d4c9c9] hover:bg-[#d4c9c9]/90 rounded-lg">
             <h3 className="text-xl font-bold">Project Title</h3>
             <p className="text-gray-600">Description of the project.</p>
             <Link href="#" className="text-blue-500 hover:underline">

@@ -73,17 +73,21 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage } = parsed.data;
-    const graph = await fetchGraphFromApi(req);
+    let graph = await fetchGraphFromApi(req);
+    
+    // If no graph exists, create a completely empty one
     if (!graph) {
-      console.log('No graph found. Generate graph first.');
-      return new Response(JSON.stringify({ error: 'No graph found. Generate graph first.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const emptyGraph = {
+        nodes: []
+      };
+      
+      await storeGraph(emptyGraph);
+      
+      graph = emptyGraph;
     }
-
-    // Initialize the graph editor tools with the current graph
-    setCurrentGraph(graph);
+    
+    // Always set the current graph (either existing or newly created)
+    await setCurrentGraph(graph);
 
     const variables = {
       GRAPH_DATA: JSON.stringify(graph, null, 2),
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
       config: GRAPH_EDITOR_CONFIG,
       operationName: 'graph-editor',
       metadata: {
-        originalGraphId: graph.rootId,
+        originalGraphId: graph.nodes.length > 0 ? graph.nodes[0].id : '',
         graphNodeCount: graph.nodes.length,
       }
     });

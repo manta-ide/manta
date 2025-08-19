@@ -139,11 +139,7 @@ export async function POST(req: NextRequest) {
     const { parsedMessages, config, operationName = 'agent', metadata } = AgentRequestSchema.parse(await req.json());
     // If no parsedMessages provided, create a simple message array
     const messages = parsedMessages;
-    console.log("config.toolsetName", config.toolsetName)
-    // Get tools by name (required)
     const tools = getToolsByName(config.toolsetName);
-    console.log("tools", tools)
-    console.log("tools2", fileTools)
     // Provider/model selection helpers
     const detectProvider = (modelId: string): 'azure' | 'google' => {
       const id = modelId.toLowerCase();
@@ -167,9 +163,18 @@ export async function POST(req: NextRequest) {
     // Prepare logging (shared across all modes)
     const logsDir = path.join(process.cwd(), 'logs');
     await fsp.mkdir(logsDir, { recursive: true });
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const second = now.getSeconds();
+    const day = now.getDate();
+    const month = now.getMonth() + 1; // getMonth() returns 0-11
+    const year = now.getFullYear();
+    const dateString = `${hour}_${minute.toString().padStart(2, '0')}_${second.toString().padStart(2, '0')}___${day}_${month}_${year}`;
+    
     const logFilePath = path.join(
       logsDir,
-      `${operationName}-${Date.now()}.log`
+      `${operationName}-${dateString}.log`
     );
     const logStream = createWriteStream(logFilePath, { flags: 'a' });
     const writeLog = (s: string) => logStream.write(s.endsWith('\n') ? s : s + '\n');

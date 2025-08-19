@@ -24,9 +24,7 @@ Example (illustrative):
             "type": "color",
             "value": "#000000"
           },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx"
-          }
+
     },
   }
 }

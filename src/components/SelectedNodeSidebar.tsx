@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
-import { PropertyCodeService } from '@/lib/propertyCodeService';
+import { Property } from '@/app/api/lib/schemas';
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
@@ -31,22 +31,13 @@ export default function SelectedNodeSidebar() {
 			propertyChangeTimeoutRef.current = null;
 		}
 		
-		// Initialize property values from current code
+		// Initialize property values from current properties
 		if (selectedNode?.properties && selectedNode.properties.length > 0) {
-			const initializeProperties = async () => {
-				const initialValues: Record<string, any> = {};
-				for (const prop of selectedNode.properties!) {
-					try {
-						const currentValue = await PropertyCodeService.readPropertyValue(prop);
-						initialValues[prop.id] = currentValue;
-					} catch (error) {
-						console.error(`Failed to read property ${prop.id}:`, error);
-						initialValues[prop.id] = prop.propertyType.value; // Fallback to default
-					}
-				}
-				setPropertyValues(initialValues);
-			};
-			initializeProperties();
+			const initialValues: Record<string, any> = {};
+			for (const prop of selectedNode.properties) {
+				initialValues[prop.id] = prop.value;
+			}
+			setPropertyValues(initialValues);
 		}
 	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
 
@@ -163,7 +154,7 @@ export default function SelectedNodeSidebar() {
 						// Initialize property values
 						const initialValues: Record<string, any> = {};
 						for (const prop of propertyData.properties) {
-							initialValues[prop.id] = prop.propertyType.value;
+							initialValues[prop.id] = prop.value;
 						}
 						setPropertyValues(initialValues);
 						
@@ -194,6 +185,15 @@ export default function SelectedNodeSidebar() {
 		};
 		setPropertyValues(newPropertyValues);
 
+		// Log the property change for now (mock functionality)
+		console.log('Property change:', {
+			nodeId: selectedNodeId,
+			propertyId,
+			oldValue: propertyValues[propertyId],
+			newValue: value,
+			allProperties: newPropertyValues
+		});
+
 		// If debouncing is disabled, apply changes immediately
 		if (!DEBOUNCE_PROPERTY_CHANGES) {
 			await applyPropertyChanges(newPropertyValues);
@@ -209,29 +209,35 @@ export default function SelectedNodeSidebar() {
 		propertyChangeTimeoutRef.current = setTimeout(async () => {
 			await applyPropertyChanges(newPropertyValues);
 		}, 300); // 300ms debounce delay
-	}, [propertyValues, selectedNode?.properties, triggerRefresh, DEBOUNCE_PROPERTY_CHANGES]);
+	}, [propertyValues, selectedNodeId, DEBOUNCE_PROPERTY_CHANGES]);
 
-	// Helper function to apply property changes
+	// Helper function to apply property changes (mock implementation)
 	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
-				const updates = await PropertyCodeService.applyPropertyChanges(
-					selectedNode.properties,
-					newPropertyValues
-				);
+				// Mock: Log the property changes that would be applied
+				console.log('Applying property changes:', {
+					nodeId: selectedNodeId,
+					nodeTitle: selectedNode.title,
+					properties: selectedNode.properties.map(prop => ({
+						id: prop.id,
+						title: prop.title,
+						type: prop.type,
+						oldValue: propertyValues[prop.id],
+						newValue: newPropertyValues[prop.id]
+					}))
+				});
 
-				// Group updates by file and apply them
-				const updatesByFile = updates.reduce((acc, update) => {
-					if (!acc[update.file]) {
-						acc[update.file] = [];
-					}
-					acc[update.file].push(update);
-					return acc;
-				}, {} as Record<string, typeof updates>);
+				// Mock: Simulate file updates
+				const mockUpdates = selectedNode.properties.map(prop => ({
+					file: 'src/app/page.tsx',
+					propertyId: prop.id,
+					oldValue: propertyValues[prop.id],
+					newValue: newPropertyValues[prop.id],
+					timestamp: new Date().toISOString()
+				}));
 
-				for (const [filePath, fileUpdates] of Object.entries(updatesByFile)) {
-					await PropertyCodeService.updateFileContent(filePath, fileUpdates);
-				}
+				console.log('Mock file updates:', mockUpdates);
 
 				// Trigger refresh to show changes
 				triggerRefresh();
@@ -241,7 +247,7 @@ export default function SelectedNodeSidebar() {
 				setPropertyValues(propertyValues);
 			}
 		}
-	}, [selectedNode?.properties, triggerRefresh, propertyValues]);
+	}, [selectedNode?.properties, selectedNodeId, propertyValues, triggerRefresh]);
 
 	return (
 		<div className="flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto">
@@ -302,16 +308,13 @@ export default function SelectedNodeSidebar() {
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
 							<div className="space-y-4">
 								<div className="text-xs uppercase text-zinc-400">Properties</div>
-								{selectedNode.properties.map((property: any) => (
+								{selectedNode.properties.map((property: Property) => (
 									<div key={property.id} className="space-y-2">
 										<div className="text-sm font-medium">{property.title}</div>
 										<PropertyEditor
 											property={{
 												...property,
-												propertyType: {
-													...property.propertyType,
-													value: propertyValues[property.id] || property.propertyType.value
-												}
+												value: propertyValues[property.id] || property.value
 											}}
 											onChange={handlePropertyChange}
 										/>

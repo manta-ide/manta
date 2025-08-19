@@ -3,12 +3,10 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { PropertyValue } from '@/app/api/lib/schemas';
-
-type SelectProperty = Extract<PropertyValue, { type: 'select' }>;
+import { Property } from '@/app/api/lib/schemas';
 
 interface SelectPropertyEditorProps {
-  property: SelectProperty;
+  property: Property & { type: 'select'; options: string[] };
   onChange: (value: string) => void;
 }
 
@@ -16,7 +14,7 @@ export default function SelectPropertyEditor({ property, onChange }: SelectPrope
   return (
     <div className="space-y-2">
       <Label className="text-xs text-zinc-400">Select</Label>
-      <Select value={property.value} onValueChange={onChange}>
+      <Select value={property.value as string || ''} onValueChange={onChange}>
         <SelectTrigger className="w-full text-xs bg-zinc-800 border border-zinc-700">
           <SelectValue />
         </SelectTrigger>

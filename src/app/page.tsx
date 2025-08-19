@@ -36,11 +36,9 @@ export default function Home() {
         // Get the graph data from store
         const { graph } = useProjectStore.getState();
         
-        if (graph && graph.rootId) {
-          const rootNode = graph.nodes.find(n => n.id === graph.rootId);
-          if (rootNode) {
-            setSelectedNode(graph.rootId, rootNode);
-          }
+        if (graph && graph.nodes.length > 0) {
+          const rootNode = graph.nodes[0]; // First node is the root
+          setSelectedNode(rootNode.id, rootNode);
         }
       } catch (error) {
         console.error('Failed to set root node as selected:', error);

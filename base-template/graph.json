@@ -1,694 +1,313 @@
 {
-  "rootId": "node-element-portfolio-page",
   "nodes": [
     {
-      "id": "node-element-portfolio-page",
-      "title": "Software Engineer Portfolio Page",
-      "prompt": "A portfolio page tailored to software engineers, featuring sections for showcasing projects, skills, and contact information. Responsive and accessible design.",
+      "id": "node-element-swe-portfolio-page",
+      "title": "SWE Portfolio Page",
+      "prompt": "A software engineer portfolio page with various sections showcasing skills, projects, and contact information.",
       "children": [
         {
-          "id": "node-element-introduction-section",
-          "title": "Introduction Section"
+          "id": "node-element-header",
+          "title": "Header"
         },
         {
-          "id": "node-element-skills-section",
-          "title": "Skills Section"
+          "id": "node-element-about",
+          "title": "About Section"
         },
         {
-          "id": "node-element-contact-section",
+          "id": "node-element-projects",
+          "title": "Projects Section"
+        },
+        {
+          "id": "node-element-contact",
           "title": "Contact Section"
+        },
+        {
+          "id": "node-element-gallery",
+          "title": "Gallery Section"
         }
       ],
+      "parentId": "root",
       "built": false,
-      "properties": [
-        {
-          "id": "node-element-portfolio-page-header-bg-color",
-          "title": "Header Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#FFFFFF"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-header-text-color",
-          "title": "Header Text Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#000000"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-introduction-bg-color",
-          "title": "Introduction Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#FAFAFA"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-introduction-text-color",
-          "title": "Introduction Text Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#333333"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-project-card-bg-color",
-          "title": "Project Card Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#FFFFFF"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-project-card-border-roundness",
-          "title": "Project Card Border Radius",
-          "propertyType": {
-            "type": "select",
-            "value": "md",
-            "options": [
-              "none",
-              "sm",
-              "md",
-              "lg",
-              "xl",
-              "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-skills-bg-color",
-          "title": "Skills Section Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#FFFFFF"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-skills-hover-text-color",
-          "title": "Skills Hover Text Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#0000FF"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-contact-bg-color",
-          "title": "Contact Section Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#FAFAFA"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-portfolio-page-contact-text-color",
-          "title": "Contact Section Text Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#444444"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        }
-      ]
+      "properties": []
     },
     {
-      "id": "node-element-introduction-section",
-      "title": "Introduction Section",
-      "prompt": "Introduction section with a profile picture and a short summary describing the software engineer.",
+      "id": "node-element-header",
+      "title": "Header",
+      "prompt": "Fixed header with responsive design, logo, and navigation menu.",
       "children": [
         {
-          "id": "node-element-profile-picture",
-          "title": "Profile Picture"
+          "id": "node-element-logo",
+          "title": "Logo"
         },
         {
-          "id": "node-element-introduction-text",
-          "title": "Introduction Text"
+          "id": "node-element-navigation-menu",
+          "title": "Navigation Menu"
         }
       ],
-      "built": true,
-      "properties": [
-        {
-          "id": "node-element-introduction-section-background-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#ffffff"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-introduction-section-padding",
-          "title": "Padding",
-          "propertyType": {
-            "type": "select",
-            "value": "py-16",
-            "options": [
-              "py-8",
-              "py-12",
-              "py-16",
-              "py-20",
-              "py-24",
-              "py-32"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        }
-      ]
+      "parentId": "node-element-swe-portfolio-page",
+      "built": false,
+      "properties": []
     },
     {
-      "id": "node-element-skills-section",
-      "title": "Skills Section",
-      "prompt": "Skills section displaying essential technical skills using a badge layout.",
+      "id": "node-element-about",
+      "title": "About Section",
+      "prompt": "Overview of the SWE with introduction, bio, and skills.",
       "children": [
+        {
+          "id": "node-element-bio-text",
+          "title": "Bio Text"
+        },
         {
           "id": "node-element-skills-list",
           "title": "Skills List"
         }
       ],
-      "built": true,
-      "properties": [
-        {
-          "id": "node-element-skills-section-bg-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#ffffff"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-skills-section-padding",
-          "title": "Padding",
-          "propertyType": {
-            "type": "select",
-            "value": "py-16",
-            "options": [
-              "py-8",
-              "py-12",
-              "py-16",
-              "py-20",
-              "py-24",
-              "py-32"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-skills-section-badge-bg-color",
-          "title": "Badge Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#blue-500"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-skills-section-badge-hover-bg-color",
-          "title": "Badge Hover Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#blue-600"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        }
-      ]
+      "parentId": "node-element-swe-portfolio-page",
+      "built": false,
+      "properties": []
     },
     {
-      "id": "node-element-contact-section",
+      "id": "node-element-projects",
+      "title": "Projects Section",
+      "prompt": "Showcase of SWE projects with descriptions and visuals.",
+      "children": [
+        {
+          "id": "node-element-project-cards",
+          "title": "Project Cards"
+        }
+      ],
+      "parentId": "node-element-swe-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-contact",
       "title": "Contact Section",
-      "prompt": "A section including a contact form and social links for reaching out to the software engineer.",
+      "prompt": "Contact information and links to reach out to the SWE.",
       "children": [
         {
           "id": "node-element-contact-form",
           "title": "Contact Form"
         },
         {
-          "id": "node-element-social-links",
-          "title": "Social Links"
+          "id": "node-element-contact-links",
+          "title": "Contact Links"
         }
       ],
-      "built": true,
+      "parentId": "node-element-swe-portfolio-page",
+      "built": false,
+      "properties": []
+    },
+    {
+      "id": "node-element-logo",
+      "title": "Logo",
+      "prompt": "Logo component with customizable image source and alt text for accessibility.",
+      "children": [],
+      "parentId": "node-element-header",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-contact-section-bg-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#ffffff"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-logo-src",
+          "title": "Logo Source",
+          "type": "text",
+          "value": "/logo.svg"
         },
         {
-          "id": "node-element-contact-section-padding",
-          "title": "Padding",
-          "propertyType": {
-            "type": "select",
-            "value": "py-12",
-            "options": [
-              "py-8",
-              "py-12",
-              "py-16",
-              "py-20",
-              "py-24",
-              "py-32"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-contact-section-form-title-color",
-          "title": "Form Title Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#000000"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-contact-section-link-color",
-          "title": "Social Link Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#0077b5"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-logo-alt",
+          "title": "Alt Text",
+          "type": "text",
+          "value": "Software Engineer Portfolio Logo"
         }
       ]
     },
     {
-      "id": "node-element-profile-picture",
-      "title": "Profile Picture",
-      "prompt": "Circular profile picture that is visually prominent and adapts responsively.",
+      "id": "node-element-navigation-menu",
+      "title": "Navigation Menu",
+      "prompt": "Horizontal navigation bar with links to various sections of the portfolio.",
       "children": [],
-      "built": true,
+      "parentId": "node-element-header",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-profile-picture-border-color",
-          "title": "Profile Picture Border Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#000000"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-profile-picture-roundness",
-          "title": "Profile Picture Roundness",
-          "propertyType": {
-            "type": "select",
-            "value": "full",
-            "options": [
-              "none",
-              "sm",
-              "md",
-              "lg",
-              "xl",
-              "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-navigation-menu-links",
+          "title": "Navigation Links",
+          "type": "text",
+          "value": "Home, About, Projects, Contact"
         }
       ]
     },
     {
-      "id": "node-element-introduction-text",
-      "title": "Introduction Text",
-      "prompt": "A text area for a brief introduction about the software engineer.",
+      "id": "node-element-bio-text",
+      "title": "Bio Text",
+      "prompt": "A short biography or introduction text for the software engineer.",
       "children": [],
-      "built": true,
+      "parentId": "node-element-about",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-introduction-text-text-color",
-          "title": "Text Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#000000"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-introduction-text-font-family",
-          "title": "Font Family",
-          "propertyType": {
-            "type": "select",
-            "value": "sans",
-            "options": [
-              "sans",
-              "serif",
-              "mono"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-introduction-text-font-size",
-          "title": "Font Size",
-          "propertyType": {
-            "type": "select",
-            "value": "base",
-            "options": [
-              "xs",
-              "sm",
-              "base",
-              "lg",
-              "xl",
-              "2xl",
-              "3xl",
-              "4xl",
-              "5xl",
-              "6xl"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-introduction-text-font-weight",
-          "title": "Font Weight",
-          "propertyType": {
-            "type": "select",
-            "value": "normal",
-            "options": [
-              "normal",
-              "medium",
-              "semibold",
-              "bold"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-bio-text-content",
+          "title": "Bio Content",
+          "type": "text",
+          "value": "Hi, I'm a software engineer specializing in building responsive and scalable applications."
         }
       ]
     },
     {
       "id": "node-element-skills-list",
       "title": "Skills List",
-      "prompt": "A grid or flex layout listing individual skill badges with hover effects.",
-      "children": [
-        {
-          "id": "node-element-skill-item",
-          "title": "Skill Item"
-        }
-      ],
-      "built": true,
+      "prompt": "List of skills relevant to the software engineer, displayed in a responsive and visually appealing layout.",
+      "children": [],
+      "parentId": "node-element-about",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-skills-list-bg-color",
-          "title": "Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#ffffff"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
+          "id": "node-element-skills-list-items",
+          "title": "Skills",
+          "type": "text",
+          "value": "JavaScript, React, Next.js, TypeScript, Tailwind CSS, Node.js"
+        }
+      ]
+    },
+    {
+      "id": "node-element-project-cards",
+      "title": "Project Cards",
+      "prompt": "Cards displaying software engineering projects with title, description, and links.",
+      "children": [],
+      "parentId": "node-element-projects",
+      "built": false,
+      "properties": [
         {
-          "id": "node-element-skills-list-hover-bg-color",
-          "title": "Hover Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#e5e5e5"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-skills-list-text-color",
-          "title": "Text Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#000000"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-skills-list-border-radius",
-          "title": "Border Radius",
-          "propertyType": {
-            "type": "select",
-            "value": "md",
-            "options": [
-              "none",
-              "sm",
-              "md",
-              "lg",
-              "xl",
-              "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-project-cards-data",
+          "title": "Project Data",
+          "type": "text",
+          "value": "Project A: Building responsive web apps, Project B: Optimizing API performance, Project C: Developing scalable architectures"
         }
       ]
     },
     {
       "id": "node-element-contact-form",
       "title": "Contact Form",
-      "prompt": "A contact form for users to send messages, designed with accessibility and form validation.",
+      "prompt": "A responsive form where users can input their name, email, and message to reach the software engineer.",
       "children": [],
-      "built": true,
+      "parentId": "node-element-contact",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-contact-form-button-bg-color",
-          "title": "Send Button Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#00FF00"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-contact-form-fields",
+          "title": "Form Fields",
+          "type": "text",
+          "value": "Name, Email, Message"
         }
       ]
     },
     {
-      "id": "node-element-social-links",
-      "title": "Social Links",
-      "prompt": "Clickable icons linking to social media profiles, styled for responsiveness and hover effects.",
+      "id": "node-element-contact-links",
+      "title": "Contact Links",
+      "prompt": "Links to professional profiles and communication channels (e.g., LinkedIn, GitHub, Email).",
       "children": [],
-      "built": true,
+      "parentId": "node-element-contact",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-social-links-icon-color",
-          "title": "Icon Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#000000"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-social-links-hover-color",
-          "title": "Hover Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#555555"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
-        },
-        {
-          "id": "node-element-social-links-roundness",
-          "title": "Icon Roundness",
-          "propertyType": {
-            "type": "select",
-            "value": "full",
-            "options": [
-              "none",
-              "sm",
-              "md",
-              "lg",
-              "xl",
-              "full"
-            ]
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-contact-links-items",
+          "title": "Links",
+          "type": "text",
+          "value": "LinkedIn: linkedin.com/in/swe, GitHub: github.com/swe, Email: swe@example.com"
         }
       ]
     },
     {
-      "id": "node-element-skill-item",
-      "title": "Skill Item",
-      "prompt": "Individual badge for a technical skill with customizable color and hover effect.",
-      "children": [],
-      "built": true,
+      "id": "node-element-gallery",
+      "title": "Gallery Section",
+      "prompt": "A gallery showcasing images or screenshots from SWE's projects or activities.",
+      "children": [
+        {
+          "id": "node-element-gallery-image-1",
+          "title": "Gallery Image 1"
+        },
+        {
+          "id": "node-element-gallery-image-2",
+          "title": "Gallery Image 2"
+        },
+        {
+          "id": "node-element-gallery-image-3",
+          "title": "Gallery Image 3"
+        }
+      ],
+      "parentId": "node-element-swe-portfolio-page",
+      "built": false,
       "properties": [
         {
-          "id": "node-element-skill-item-bg-color",
-          "title": "Badge Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#D1D5DB"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-gallery-images",
+          "title": "Gallery Images",
+          "type": "text",
+          "value": "Image1: Screenshot of Project A, Image2: Screenshot of Project B, Image3: Screenshot of Project C"
+        }
+      ]
+    },
+    {
+      "id": "node-element-gallery-image-1",
+      "title": "Gallery Image 1",
+      "prompt": "Image element to showcase a project or activity.",
+      "children": [],
+      "parentId": "node-element-gallery",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-gallery-image-1-src",
+          "title": "Image Source",
+          "type": "text",
+          "value": "Image1: Screenshot of Project A"
         },
         {
-          "id": "node-element-skill-item-border-color",
-          "title": "Badge Border Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#374151"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-gallery-image-1-alt",
+          "title": "Alt Text",
+          "type": "text",
+          "value": "Screenshot from Project A"
+        }
+      ]
+    },
+    {
+      "id": "node-element-gallery-image-2",
+      "title": "Gallery Image 2",
+      "prompt": "Image element to showcase a project or activity.",
+      "children": [],
+      "parentId": "node-element-gallery",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-gallery-image-2-src",
+          "title": "Image Source",
+          "type": "text",
+          "value": "Image2: Screenshot of Project B"
         },
         {
-          "id": "node-element-skill-item-hover-color",
-          "title": "Hover Effect Background Color",
-          "propertyType": {
-            "type": "color",
-            "value": "#9CA3AF"
-          },
-          "codeBinding": {
-            "file": "base-template/src/app/page.tsx",
-            "start": 0,
-            "end": 0
-          }
+          "id": "node-element-gallery-image-2-alt",
+          "title": "Alt Text",
+          "type": "text",
+          "value": "Screenshot from Project B"
+        }
+      ]
+    },
+    {
+      "id": "node-element-gallery-image-3",
+      "title": "Gallery Image 3",
+      "prompt": "Image element to showcase a project or activity.",
+      "children": [],
+      "parentId": "node-element-gallery",
+      "built": false,
+      "properties": [
+        {
+          "id": "node-element-gallery-image-3-src",
+          "title": "Image Source",
+          "type": "text",
+          "value": "Image3: Screenshot of Project C"
+        },
+        {
+          "id": "node-element-gallery-image-3-alt",
+          "title": "Alt Text",
+          "type": "text",
+          "value": "Screenshot from Project C"
         }
       ]
     }
