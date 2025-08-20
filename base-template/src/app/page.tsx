@@ -27,7 +27,7 @@ export default function Page() {
         {/* Logo Component */}
         <div id="logo" className="flex items-center">
           <img
-            src={getVar("logo-component.image-url", "")}
+            src={getVar("logo-component.image-url", "")+ " "}
             alt="Logo"
             style={{
               width: `${getVar("logo-component.logo-size", 50)}px`,
