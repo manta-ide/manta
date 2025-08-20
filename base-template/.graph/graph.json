@@ -3,86 +3,84 @@
     {
       "id": "portfolio-page",
       "title": "Portfolio Page",
-      "prompt": "Create a software engineer's (SWE) portfolio page that showcases projects, skills, and contact information in a professional layout.",
+      "prompt": "This is the main Software Engineer portfolio page containing sections like header, projects, skills, and contact. Each section showcases relevant portfolio information.",
       "children": [
         {
-          "id": "header",
+          "id": "header-section",
           "title": "Header Section"
         },
         {
-          "id": "main-content",
-          "title": "Main Content Section"
+          "id": "projects-section",
+          "title": "Projects Section"
         },
         {
-          "id": "footer",
-          "title": "Footer Section"
+          "id": "skills-section",
+          "title": "Skills Section"
+        },
+        {
+          "id": "contact-section",
+          "title": "Contact Section"
         }
       ],
-      "built": true,
+      "built": false,
       "properties": [
         {
-          "id": "portfolio-page-background-color",
+          "id": "page-background-color",
           "title": "Background Color",
           "type": "color",
           "value": "#ffffff"
         },
         {
-          "id": "portfolio-page-font-family",
-          "title": "Font Family",
-          "type": "select",
-          "value": "Arial",
-          "options": [
-            "Arial",
-            "Helvetica",
-            "Times New Roman",
-            "Courier New"
-          ]
-        },
-        {
-          "id": "portfolio-page-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 16,
-          "min": 12,
-          "max": 24,
-          "step": 1
-        },
-        {
-          "id": "portfolio-page-text-color",
+          "id": "page-text-color",
           "title": "Text Color",
           "type": "color",
           "value": "#000000"
+        },
+        {
+          "id": "page-font-family",
+          "title": "Font Family",
+          "type": "text",
+          "value": "Inter, sans-serif"
+        },
+        {
+          "id": "page-section-padding",
+          "title": "Section Padding",
+          "type": "number",
+          "value": 20,
+          "min": 0,
+          "max": 100,
+          "step": 5
         }
       ]
     },
     {
-      "id": "header",
+      "id": "header-section",
       "title": "Header Section",
-      "prompt": "Design the header section for the portfolio page, including the logo, name, and navigation links.",
+      "prompt": "The header section of the portfolio page containing the logo and a navigation menu.",
       "children": [
         {
-          "id": "logo",
+          "id": "logo-component",
           "title": "Logo Component"
         },
         {
-          "id": "navbar",
-          "title": "Navigation Bar Component"
+          "id": "navigation-menu-component",
+          "title": "Navigation Menu Component"
         }
       ],
       "parentId": "portfolio-page",
-      "built": true,
+      "built": false,
       "properties": [
         {
           "id": "header-background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#3b82f6"
+          "value": "#f8f9fa"
         },
         {
           "id": "header-text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#ffffff"
+          "value": "#000000"
         },
         {
           "id": "header-padding",
@@ -90,326 +88,323 @@
           "type": "number",
           "value": 20,
           "min": 0,
-          "max": 50,
-          "step": 1
+          "max": 100,
+          "step": 5
         },
         {
           "id": "header-font-size",
           "title": "Font Size",
           "type": "number",
-          "value": 18,
-          "min": 12,
-          "max": 24,
-          "step": 1
+          "value": 24,
+          "min": 8,
+          "max": 48,
+          "step": 2
+        },
+        {
+          "id": "header-tagline",
+          "title": "Tagline",
+          "type": "text",
+          "value": "Welcome to My Portfolio",
+          "maxLength": 100
         }
       ]
     },
     {
-      "id": "main-content",
-      "title": "Main Content Section",
-      "prompt": "Develop the main content section, showcasing projects and skills in cards or layouts.",
-      "children": [
-        {
-          "id": "projects",
-          "title": "Projects Component"
-        },
-        {
-          "id": "skills",
-          "title": "Skills Component"
-        }
-      ],
-      "parentId": "portfolio-page",
-      "built": true,
-      "properties": [
-        {
-          "id": "main-content-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#f4f4f5"
-        },
-        {
-          "id": "main-content-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#000000"
-        },
-        {
-          "id": "main-content-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 16,
-          "min": 12,
-          "max": 20,
-          "step": 1
-        },
-        {
-          "id": "main-content-padding",
-          "title": "Padding",
-          "type": "number",
-          "value": 20,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        }
-      ]
-    },
-    {
-      "id": "footer",
-      "title": "Footer Section",
-      "prompt": "Construct the footer section to include contact information and social media links.",
-      "children": [
-        {
-          "id": "contact-info",
-          "title": "Contact Information Component"
-        },
-        {
-          "id": "social-links",
-          "title": "Social Media Links Component"
-        }
-      ],
-      "parentId": "portfolio-page",
-      "built": true,
-      "properties": [
-        {
-          "id": "footer-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#1f2937"
-        },
-        {
-          "id": "footer-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "footer-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 14,
-          "min": 12,
-          "max": 18,
-          "step": 1
-        },
-        {
-          "id": "footer-padding",
-          "title": "Padding",
-          "type": "number",
-          "value": 20,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        }
-      ]
-    },
-    {
-      "id": "logo",
+      "id": "logo-component",
       "title": "Logo Component",
-      "prompt": "Create a logo component that displays a professional logo image.",
+      "prompt": "A logo component that includes the company or personal branding logo.",
       "children": [],
-      "parentId": "header",
-      "built": true,
+      "parentId": "header-section",
+      "built": false,
       "properties": [
         {
           "id": "logo-image-url",
-          "title": "Image URL",
+          "title": "Logo Image URL",
           "type": "text",
-          "value": "",
-          "maxLength": 200
+          "value": "https://example.com/logo.png"
         },
         {
           "id": "logo-size",
           "title": "Logo Size",
           "type": "number",
           "value": 50,
-          "min": 30,
-          "max": 100,
-          "step": 5
+          "min": 10,
+          "max": 200,
+          "step": 10
         }
       ]
     },
     {
-      "id": "navbar",
-      "title": "Navigation Bar Component",
-      "prompt": "Add a navigation bar with links to sections in the portfolio page.",
+      "id": "navigation-menu-component",
+      "title": "Navigation Menu Component",
+      "prompt": "A navigation menu component with links to various sections of the portfolio.",
       "children": [],
-      "parentId": "header",
-      "built": true,
+      "parentId": "header-section",
+      "built": false,
       "properties": [
         {
-          "id": "navbar-link-text-color",
-          "title": "Link Text Color",
+          "id": "nav-link-color",
+          "title": "Link Color",
           "type": "color",
-          "value": "#e8e3e3"
+          "value": "#000000"
         },
         {
-          "id": "navbar-link-background-color",
-          "title": "Link Background Color",
+          "id": "nav-hover-color",
+          "title": "Hover Color",
           "type": "color",
-          "value": "#3b82f6"
+          "value": "#007bff"
         },
         {
-          "id": "navbar-link-padding",
-          "title": "Link Padding",
-          "type": "number",
-          "value": 10,
-          "min": 0,
-          "max": 20,
-          "step": 1
-        },
-        {
-          "id": "navbar-link-font-size",
-          "title": "Link Font Size",
-          "type": "number",
-          "value": 16,
-          "min": 12,
-          "max": 18,
-          "step": 1
+          "id": "nav-menu-items",
+          "title": "Menu Items",
+          "type": "text",
+          "value": "Home, About, Projects, Skills, Contact",
+          "maxLength": 100
         }
       ]
     },
     {
-      "id": "projects",
-      "title": "Projects Component",
-      "prompt": "Create a component to showcase individual projects with details and images.",
-      "children": [],
-      "parentId": "main-content",
-      "built": true,
+      "id": "projects-section",
+      "title": "Projects Section",
+      "prompt": "Section showcasing projects. Features individual project cards.",
+      "children": [
+        {
+          "id": "project-card-component",
+          "title": "Project Card Component"
+        }
+      ],
+      "parentId": "portfolio-page",
+      "built": false,
       "properties": [
         {
-          "id": "projects-card-background-color",
-          "title": "Card Background Color",
+          "id": "projects-background-color",
+          "title": "Background Color",
           "type": "color",
-          "value": "#e5aeae"
+          "value": "#ffffff"
+        },
+        {
+          "id": "projects-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#000000"
         },
         {
           "id": "projects-card-shadow",
           "title": "Card Shadow",
           "type": "text",
-          "value": "0px 4px 6px rgba(0,0,0,0.1)"
+          "value": "0px 4px 6px rgba(0, 0, 0, 0.1)"
         },
         {
-          "id": "projects-card-padding",
-          "title": "Card Padding",
+          "id": "projects-max-projects",
+          "title": "Max Projects",
           "type": "number",
-          "value": 20,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        },
-        {
-          "id": "projects-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 16,
-          "min": 12,
+          "value": 6,
+          "min": 1,
           "max": 20,
           "step": 1
         }
       ]
     },
     {
-      "id": "skills",
-      "title": "Skills Component",
-      "prompt": "Create a section to showcase technical skills with graphical indicators (e.g., progress bars or badges).",
+      "id": "project-card-component",
+      "title": "Project Card Component",
+      "prompt": "A card component displaying individual project details.",
       "children": [],
-      "parentId": "main-content",
-      "built": true,
+      "parentId": "projects-section",
+      "built": false,
       "properties": [
         {
-          "id": "skills-progress-bar-color",
-          "title": "Progress Bar Color",
+          "id": "card-title-text-color",
+          "title": "Title Text Color",
           "type": "color",
-          "value": "#32b030"
+          "value": "#000000"
         },
         {
-          "id": "skills-badge-background-color",
-          "title": "Badge Background Color",
+          "id": "card-description-text-color",
+          "title": "Description Text Color",
           "type": "color",
-          "value": "#21365e"
+          "value": "#555555"
         },
         {
-          "id": "skills-font-size",
-          "title": "Font Size",
+          "id": "card-background-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#ffffff"
+        },
+        {
+          "id": "card-border-radius",
+          "title": "Border Radius",
           "type": "number",
-          "value": 14,
-          "min": 12,
-          "max": 18,
-          "step": 1
+          "value": 10,
+          "min": 0,
+          "max": 50,
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "skills-section",
+      "title": "Skills Section",
+      "prompt": "Section showcasing skills with icons and descriptions.",
+      "children": [
+        {
+          "id": "skill-item-component",
+          "title": "Skill Item Component"
+        }
+      ],
+      "parentId": "portfolio-page",
+      "built": false,
+      "properties": [
+        {
+          "id": "skills-background-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#f8f9fa"
+        },
+        {
+          "id": "skills-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#000000"
         },
         {
           "id": "skills-padding",
           "title": "Padding",
           "type": "number",
-          "value": 10,
+          "value": 20,
           "min": 0,
-          "max": 30,
-          "step": 1
-        }
-      ]
-    },
-    {
-      "id": "contact-info",
-      "title": "Contact Information Component",
-      "prompt": "Provide fields for contact details like email, phone number, and address.",
-      "children": [],
-      "parentId": "footer",
-      "built": true,
-      "properties": [
-        {
-          "id": "contact-info-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 15,
-          "min": 12,
-          "max": 18,
-          "step": 1
+          "max": 100,
+          "step": 5
         },
         {
-          "id": "contact-info-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#f8f1f1"
-        },
-        {
-          "id": "contact-info-padding",
-          "title": "Padding",
-          "type": "number",
-          "value": 10,
-          "min": 0,
-          "max": 30,
-          "step": 1
-        }
-      ]
-    },
-    {
-      "id": "social-links",
-      "title": "Social Media Links Component",
-      "prompt": "Add social media icons with links for platforms like LinkedIn, GitHub, and Twitter.",
-      "children": [],
-      "parentId": "footer",
-      "built": true,
-      "properties": [
-        {
-          "id": "social-links-icon-size",
+          "id": "skills-icon-size",
           "title": "Icon Size",
           "type": "number",
-          "value": 24,
-          "min": 20,
-          "max": 30,
+          "value": 40,
+          "min": 10,
+          "max": 100,
+          "step": 5
+        },
+        {
+          "id": "skills-max-icons",
+          "title": "Max Icons",
+          "type": "number",
+          "value": 8,
+          "min": 1,
+          "max": 20,
           "step": 1
+        }
+      ]
+    },
+    {
+      "id": "skill-item-component",
+      "title": "Skill Item Component",
+      "prompt": "An individual skill item with an icon and a name.",
+      "children": [],
+      "parentId": "skills-section",
+      "built": false,
+      "properties": [
+        {
+          "id": "skill-icon-color",
+          "title": "Icon Color",
+          "type": "color",
+          "value": "#007bff"
         },
         {
-          "id": "social-links-link-color",
-          "title": "Link Color",
+          "id": "skill-name-text-color",
+          "title": "Skill Name Text Color",
           "type": "color",
-          "value": "#7271d1"
+          "value": "#000000"
         },
         {
-          "id": "social-links-link-hover-color",
-          "title": "Link Hover Color",
+          "id": "skill-border-radius",
+          "title": "Border Radius",
+          "type": "number",
+          "value": 10,
+          "min": 0,
+          "max": 50,
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "contact-section",
+      "title": "Contact Section",
+      "prompt": "Section for users to get in contact through a form.",
+      "children": [
+        {
+          "id": "contact-form-component",
+          "title": "Contact Form Component"
+        }
+      ],
+      "parentId": "portfolio-page",
+      "built": false,
+      "properties": [
+        {
+          "id": "contact-background-color",
+          "title": "Background Color",
           "type": "color",
-          "value": "#3b82f6"
+          "value": "#ffffff"
+        },
+        {
+          "id": "contact-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#000000"
+        },
+        {
+          "id": "contact-font-size",
+          "title": "Font Size",
+          "type": "number",
+          "value": 16,
+          "min": 8,
+          "max": 48,
+          "step": 2
+        },
+        {
+          "id": "contact-placeholder-text",
+          "title": "Form Placeholder Text",
+          "type": "text",
+          "value": "Enter your message here",
+          "maxLength": 100
+        }
+      ]
+    },
+    {
+      "id": "contact-form-component",
+      "title": "Contact Form Component",
+      "prompt": "A form component for submitting contact inquiries.",
+      "children": [],
+      "parentId": "contact-section",
+      "built": false,
+      "properties": [
+        {
+          "id": "form-input-border-color",
+          "title": "Input Border Color",
+          "type": "color",
+          "value": "#ced4da"
+        },
+        {
+          "id": "form-button-background-color",
+          "title": "Button Background Color",
+          "type": "color",
+          "value": "#007bff"
+        },
+        {
+          "id": "form-button-text",
+          "title": "Button Text",
+          "type": "text",
+          "value": "Submit",
+          "maxLength": 50
+        },
+        {
+          "id": "form-button-padding",
+          "title": "Button Padding",
+          "type": "number",
+          "value": 15,
+          "min": 0,
+          "max": 100,
+          "step": 5
         }
       ]
     }

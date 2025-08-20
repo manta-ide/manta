@@ -5,7 +5,6 @@ Available Information:
 {{#CURRENT_FILE}}- Current file: {{CURRENT_FILE}}{{/CURRENT_FILE}}  
 {{#CURRENT_FILE_CONTENT}}- Current file content: {{CURRENT_FILE_CONTENT}}{{/CURRENT_FILE_CONTENT}}  
 - Graph (unbuilt nodes only): {{#GRAPH_DATA}}{{GRAPH_DATA}}{{/GRAPH_DATA}}  
-- Unbuilt Node IDs: {{#UNBUILT_NODE_IDS}}{{UNBUILT_NODE_IDS}}{{/UNBUILT_NODE_IDS}}
 
 Key Rules:  
 1. Focus ONLY on the unbuilt nodes provided in the graph data. Do not modify existing built nodes.

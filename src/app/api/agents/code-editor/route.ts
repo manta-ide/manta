@@ -15,7 +15,7 @@ const CODE_EDITOR_CONFIG = {
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
-    system: 'code-editor-template',
+    system: 'website-template',
   },
   structuredOutput: false,
   toolsetName: 'code-editor'
@@ -48,7 +48,6 @@ async function buildParsedMessages(
 }
 
 async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
-  console.log("code-editor calling agent with body", body);
   return fetch('http://localhost:3000/api/llm-agent/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -123,7 +122,6 @@ export async function POST(req: NextRequest) {
       { 
         GRAPH_DATA: JSON.stringify(filteredGraph, null, 2),
         PROJECT_FILES: projectFiles,
-        UNBUILT_NODE_IDS: unbuiltNodeIds.join(', ')
       }
     );
 
