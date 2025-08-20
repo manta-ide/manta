@@ -20,16 +20,21 @@ import {
  * Handles message sending and basic state management
  */
 export function useChatService() {
-  const { currentFile, selection, setSelection, loadProject: loadProjectFromFileSystem, triggerRefresh } = useProjectStore();
+  const { currentFile, selection, setSelection, loadProject: loadProjectFromFileSystem, triggerRefresh, selectedNodeId, selectedNode } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const sendMessage = useCallback(async (input: string) => {
+  const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNode?: boolean }) => {
     if (!input.trim()) return;
 
-    // Only use selection if it's valid
-    const validSelection = isValidSelection(selection) ? selection : null;
+    // Use context flags if provided, otherwise include everything
+    const shouldIncludeFile = contextFlags?.includeFile !== false;
+    const shouldIncludeSelection = contextFlags?.includeSelection !== false;
+    const shouldIncludeNode = contextFlags?.includeNode !== false;
+
+    // Only use selection if it's valid and should be included
+    const validSelection = (shouldIncludeSelection && isValidSelection(selection)) ? selection : null;
     
     const roundedSelection = validSelection ? {
         x: Math.round(validSelection.x),
@@ -41,7 +46,7 @@ export function useChatService() {
 
     // Store current selection context
     const messageContext: MessageContext = {
-      currentFile: currentFile || undefined,
+      currentFile: (shouldIncludeFile && currentFile) || undefined,
       selection: roundedSelection || undefined
     };
 
@@ -65,6 +70,17 @@ export function useChatService() {
         SELECTION_WIDTH: roundedSelection.width.toString(),
         SELECTION_HEIGHT: roundedSelection.height.toString(),
         SELECTION_ELEMENTS: roundedSelection.selectedElements
+      };
+    }
+
+    // Add selected node variables if a node is selected and should be included
+    if (shouldIncludeNode && selectedNodeId && selectedNode) {
+      userMessage.variables = {
+        ...userMessage.variables,
+        SELECTED_NODE_ID: selectedNodeId,
+        SELECTED_NODE_TITLE: selectedNode.title,
+        SELECTED_NODE_PROMPT: selectedNode.prompt,
+        SELECTED_NODE_IDS: selectedNodeId // For backward compatibility
       };
     }
 
@@ -140,7 +156,7 @@ export function useChatService() {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, setSelection, loadProjectFromFileSystem, triggerRefresh]);
+  }, [currentFile, selection, setSelection, loadProjectFromFileSystem, triggerRefresh, selectedNodeId, selectedNode]);
 
   const rebuildNode = useCallback(async (nodeId: string, previousPrompt: string, newPrompt: string) => {
     setLoading(true);

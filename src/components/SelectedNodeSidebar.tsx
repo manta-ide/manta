@@ -215,66 +215,75 @@ export default function SelectedNodeSidebar() {
 	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
-				// Update each changed property through the graph API
-				const updatePromises = selectedNode.properties.map(async (prop) => {
+				// Track which properties actually changed and if any affect code generation
+				let hasCodeAffectingChanges = false;
+				const changedProperties: Array<{propertyId: string, oldValue: any, newValue: any}> = [];
+				
+				// Check which properties changed and if they affect code generation
+				for (const prop of selectedNode.properties) {
 					const oldValue = propertyValues[prop.id];
 					const newValue = newPropertyValues[prop.id];
 					
-					// Only update if the value actually changed
 					if (oldValue !== newValue) {
-						console.log(`Updating property ${prop.id} from "${oldValue}" to "${newValue}"`);
+						changedProperties.push({ propertyId: prop.id, oldValue, newValue });
 						
-						const response = await fetch('/api/backend/graph-api', {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								nodeId: selectedNodeId,
-								propertyId: prop.id,
-								value: newValue
-							})
-						});
-						
-						if (!response.ok) {
-							const errorData = await response.json().catch(() => ({}));
-							throw new Error(`Failed to update property ${prop.id}: ${errorData.error || response.statusText}`);
-						}
-						
-						const result = await response.json();
-						if (result.success && result.updatedNode) {
-							// Update the local node state with the updated node
-							setSelectedNode(selectedNodeId, result.updatedNode);
-						}
-						
-						return {
-							propertyId: prop.id,
-							oldValue,
-							newValue,
-							success: true
-						};
+						// Check if this property affects code generation (you can customize this logic)
+						// For now, assume all properties might affect code generation
+						hasCodeAffectingChanges = true;
+					}
+				}
+				
+				if (changedProperties.length === 0) {
+					console.log('ℹ️ No properties were changed');
+					return;
+				}
+				
+				console.log('🔄 Updating properties:', changedProperties);
+				
+				// Update each changed property through the graph API
+				const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
+					const response = await fetch('/api/backend/graph-api', {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							nodeId: selectedNodeId,
+							propertyId: propertyId,
+							value: newValue
+						})
+					});
+					
+					if (!response.ok) {
+						const errorData = await response.json().catch(() => ({}));
+						throw new Error(`Failed to update property ${propertyId}: ${errorData.error || response.statusText}`);
+					}
+					
+					const result = await response.json();
+					if (result.success && result.updatedNode) {
+						// Update the local node state with the updated node
+						setSelectedNode(selectedNodeId, result.updatedNode);
 					}
 					
 					return {
-						propertyId: prop.id,
-						oldValue: oldValue,
-						newValue: newValue,
-						success: true,
-						unchanged: true
+						propertyId,
+						oldValue,
+						newValue,
+						success: true
 					};
 				});
 				
 				const results = await Promise.all(updatePromises);
-				const updatedProperties = results.filter(r => r.success && !r.unchanged);
+				const successfulUpdates = results.filter(r => r.success);
 				
-				if (updatedProperties.length > 0) {
-					console.log('✅ Successfully updated properties:', updatedProperties);
+				if (successfulUpdates.length > 0) {
+					console.log('✅ Successfully updated properties:', successfulUpdates);
 					
-					// Refresh the graph to ensure UI is updated
-					await refreshGraph();
-					
-					// Trigger refresh to show changes in the file viewer
-					triggerRefresh();
-				} else {
-					console.log('ℹ️ No properties were changed');
+					// Only trigger refresh if properties affect code generation
+					if (hasCodeAffectingChanges) {
+						console.log('🔄 Properties affect code generation, triggering refresh...');
+						triggerRefresh();
+					} else {
+						console.log('ℹ️ Properties updated without affecting code generation');
+					}
 				}
 			} catch (error) {
 				console.error('Failed to apply property changes:', error);
@@ -286,7 +295,7 @@ export default function SelectedNodeSidebar() {
 				setTimeout(() => setRebuildError(null), 5000);
 			}
 		}
-	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, refreshGraph, triggerRefresh]);
+	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, triggerRefresh]);
 
 	return (
 		<div className="flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto">

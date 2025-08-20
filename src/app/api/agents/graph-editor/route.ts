@@ -26,6 +26,9 @@ const GRAPH_EDITOR_CONFIG = {
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
+  selectedNodeId: z.string().optional(),
+  selectedNodeTitle: z.string().optional(),
+  selectedNodePrompt: z.string().optional(),
 });
 
 async function buildParsedMessages(
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { userMessage } = parsed.data;
+    const { userMessage, selectedNodeId, selectedNodeTitle, selectedNodePrompt } = parsed.data;
     let graph = await fetchGraphFromApi(req);
     
     // If no graph exists, create a completely empty one
@@ -91,6 +94,9 @@ export async function POST(req: NextRequest) {
 
     const variables = {
       GRAPH_DATA: JSON.stringify(graph, null, 2),
+      SELECTED_NODE_ID: selectedNodeId || userMessage.variables?.SELECTED_NODE_ID,
+      SELECTED_NODE_TITLE: selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE,
+      SELECTED_NODE_PROMPT: selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT,
     };
 
     const parsedMessages = await buildParsedMessages(

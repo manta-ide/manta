@@ -20,7 +20,12 @@ export async function POST(req: NextRequest) {
     const graphEditorResponse = await fetch(`${req.nextUrl.origin}/api/agents/graph-editor`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userMessage }),
+      body: JSON.stringify({ 
+        userMessage,
+        selectedNodeId: userMessage.variables?.SELECTED_NODE_ID,
+        selectedNodeTitle: userMessage.variables?.SELECTED_NODE_TITLE,
+        selectedNodePrompt: userMessage.variables?.SELECTED_NODE_PROMPT
+      }),
     });
 
     if (!graphEditorResponse.ok) {

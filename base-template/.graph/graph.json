@@ -3,183 +3,508 @@
     {
       "id": "portfolio-page",
       "title": "Portfolio Page",
-      "prompt": "Root node for the Software Engineer portfolio page structure.",
+      "prompt": "This page showcases a portfolio for a Software Engineer, including sections for About Me, Projects, Skills, and Contact.",
       "children": [
         {
           "id": "header-section",
           "title": "Header Section"
         },
         {
-          "id": "hero-section",
-          "title": "Hero Section"
+          "id": "about-me-section",
+          "title": "About Me Section"
         },
         {
-          "id": "about-section",
-          "title": "About Section"
+          "id": "projects-section",
+          "title": "Projects Section"
         },
         {
-          "id": "work-section",
-          "title": "Work Section"
+          "id": "skills-section",
+          "title": "Skills Section"
         },
         {
           "id": "contact-section",
           "title": "Contact Section"
-        },
-        {
-          "id": "footer-section",
-          "title": "Footer Section"
         }
       ],
-      "parentId": "root",
       "built": true,
       "properties": []
     },
     {
       "id": "header-section",
       "title": "Header Section",
-      "prompt": "Header section with logo and navigation menu.",
+      "prompt": "The header section contains navigation links, a logo, and provides easy access to different sections of the portfolio.",
       "children": [
         {
-          "id": "logo-component",
-          "title": "Logo"
-        },
-        {
-          "id": "navigation-menu",
-          "title": "Navigation Menu"
+          "id": "navigation-container",
+          "title": "Navigation Container"
         }
       ],
       "parentId": "portfolio-page",
       "built": true,
-      "properties": [
-        {
-          "id": "header-bg-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        }
-      ]
+      "properties": []
     },
     {
-      "id": "hero-section",
-      "title": "Hero Section",
-      "prompt": "Hero section with introductory text, profile picture, and call-to-action button.",
-      "children": [],
+      "id": "about-me-section",
+      "title": "About Me Section",
+      "prompt": "This section introduces the Software Engineer with a brief biography and profile image.",
+      "children": [
+        {
+          "id": "about-me-container",
+          "title": "About Me Container"
+        }
+      ],
       "parentId": "portfolio-page",
       "built": true,
-      "properties": [
-        {
-          "id": "hero-bg-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#f7f7f7"
-        }
-      ]
+      "properties": []
     },
     {
-      "id": "about-section",
-      "title": "About Section",
-      "prompt": "Section providing a brief introduction and a list of skills.",
-      "children": [],
+      "id": "projects-section",
+      "title": "Projects Section",
+      "prompt": "The projects section showcases the Software Engineer's featured projects using cards, images, descriptions, and links.",
+      "children": [
+        {
+          "id": "projects-container",
+          "title": "Projects Container"
+        }
+      ],
       "parentId": "portfolio-page",
       "built": true,
-      "properties": [
-        {
-          "id": "about-bg-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        }
-      ]
+      "properties": []
     },
     {
-      "id": "work-section",
-      "title": "Work Section",
-      "prompt": "Section displaying portfolio projects in a carousel or grid layout.",
-      "children": [],
+      "id": "skills-section",
+      "title": "Skills Section",
+      "prompt": "The skills section lists technical and soft skills in a visually appealing way.",
+      "children": [
+        {
+          "id": "skills-container",
+          "title": "Skills Container"
+        }
+      ],
       "parentId": "portfolio-page",
       "built": true,
-      "properties": [
-        {
-          "id": "work-bg-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#f9fafb"
-        }
-      ]
+      "properties": []
     },
     {
       "id": "contact-section",
       "title": "Contact Section",
-      "prompt": "Contact section with a form and social media links.",
-      "children": [],
+      "prompt": "This section provides a contact form and links for direct communication (email, LinkedIn, etc.).",
+      "children": [
+        {
+          "id": "contact-container",
+          "title": "Contact Container"
+        }
+      ],
       "parentId": "portfolio-page",
+      "built": true,
+      "properties": []
+    },
+    {
+      "id": "navigation-container",
+      "title": "Navigation Container",
+      "prompt": "This container holds navigation items and logo within the header section.",
+      "children": [
+        {
+          "id": "nav-links-component",
+          "title": "Navigation Links Component"
+        },
+        {
+          "id": "logo-element",
+          "title": "Logo Element"
+        }
+      ],
+      "parentId": "header-section",
+      "built": true,
+      "properties": []
+    },
+    {
+      "id": "about-me-container",
+      "title": "About Me Container",
+      "prompt": "This container organizes the profile image and biography of the Software Engineer.",
+      "children": [
+        {
+          "id": "profile-image-element",
+          "title": "Profile Image Element"
+        },
+        {
+          "id": "bio-text-element",
+          "title": "Bio Text Element"
+        }
+      ],
+      "parentId": "about-me-section",
+      "built": true,
+      "properties": []
+    },
+    {
+      "id": "projects-container",
+      "title": "Projects Container",
+      "prompt": "This container organizes the layout for showcasing multiple project cards.",
+      "children": [
+        {
+          "id": "project-card-component",
+          "title": "Project Card Component"
+        }
+      ],
+      "parentId": "projects-section",
+      "built": true,
+      "properties": []
+    },
+    {
+      "id": "skills-container",
+      "title": "Skills Container",
+      "prompt": "This container organizes the presentation of technical and soft skills in a grid layout.",
+      "children": [
+        {
+          "id": "skills-badge-component",
+          "title": "Skills Badge Component"
+        }
+      ],
+      "parentId": "skills-section",
+      "built": true,
+      "properties": []
+    },
+    {
+      "id": "contact-container",
+      "title": "Contact Container",
+      "prompt": "This container accommodates the form and direct communication links such as email and LinkedIn.",
+      "children": [
+        {
+          "id": "contact-form-component",
+          "title": "Contact Form Component"
+        },
+        {
+          "id": "social-links-component",
+          "title": "Social Links Component"
+        }
+      ],
+      "parentId": "contact-section",
+      "built": true,
+      "properties": []
+    },
+    {
+      "id": "nav-links-component",
+      "title": "Navigation Links Component",
+      "prompt": "This component contains navigation links to various sections of the portfolio page.",
+      "children": [],
+      "parentId": "navigation-container",
       "built": true,
       "properties": [
         {
-          "id": "contact-bg-color",
+          "id": "nav-links-component-text-color",
+          "title": "Navigation Text Color",
+          "type": "color",
+          "value": "#000000"
+        },
+        {
+          "id": "nav-links-component-hover-color",
+          "title": "Navigation Hover Color",
+          "type": "color",
+          "value": "#3b82f6"
+        },
+        {
+          "id": "nav-links-component-font-size",
+          "title": "Font Size",
+          "type": "number",
+          "value": 16,
+          "min": 12,
+          "max": 24
+        }
+      ]
+    },
+    {
+      "id": "logo-element",
+      "title": "Logo Element",
+      "prompt": "This element displays the portfolio's logo for branding purposes.",
+      "children": [],
+      "parentId": "navigation-container",
+      "built": true,
+      "properties": [
+        {
+          "id": "logo-element-image-src",
+          "title": "Logo Image Source",
+          "type": "text",
+          "value": "public/logo.svg",
+          "maxLength": 100
+        },
+        {
+          "id": "logo-element-alt-text",
+          "title": "Logo Alt Text",
+          "type": "text",
+          "value": "Portfolio Logo",
+          "maxLength": 50
+        },
+        {
+          "id": "logo-element-width",
+          "title": "Logo Width",
+          "type": "number",
+          "value": 50,
+          "min": 10,
+          "max": 100,
+          "step": 1
+        },
+        {
+          "id": "logo-element-height",
+          "title": "Logo Height",
+          "type": "number",
+          "value": 50,
+          "min": 10,
+          "max": 100,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "profile-image-element",
+      "title": "Profile Image Element",
+      "prompt": "This element displays the Software Engineer's profile image.",
+      "children": [],
+      "parentId": "about-me-container",
+      "built": true,
+      "properties": [
+        {
+          "id": "profile-image-element-src",
+          "title": "Image Source",
+          "type": "text",
+          "value": "public/profile.jpg",
+          "maxLength": 100
+        },
+        {
+          "id": "profile-image-element-alt-text",
+          "title": "Alt Text",
+          "type": "text",
+          "value": "Profile Image",
+          "maxLength": 50
+        },
+        {
+          "id": "profile-image-element-width",
+          "title": "Width",
+          "type": "number",
+          "value": 150,
+          "min": 50,
+          "max": 300
+        },
+        {
+          "id": "profile-image-element-height",
+          "title": "Height",
+          "type": "number",
+          "value": 150,
+          "min": 50,
+          "max": 300
+        },
+        {
+          "id": "profile-image-element-border-radius",
+          "title": "Border Radius",
+          "type": "number",
+          "value": 50,
+          "min": 0,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "id": "bio-text-element",
+      "title": "Bio Text Element",
+      "prompt": "This element contains the biography text for the Software Engineer.",
+      "children": [],
+      "parentId": "about-me-container",
+      "built": true,
+      "properties": [
+        {
+          "id": "bio-text-element-content",
+          "title": "Biography Content",
+          "type": "text",
+          "value": "Software Engineer with a passion for building impactful applications and exploring innovative technologies.",
+          "maxLength": 300
+        },
+        {
+          "id": "bio-text-element-font-size",
+          "title": "Font Size",
+          "type": "number",
+          "value": 16,
+          "min": 12,
+          "max": 24
+        },
+        {
+          "id": "bio-text-element-line-height",
+          "title": "Line Height",
+          "type": "number",
+          "value": 1.5,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "bio-text-element-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#333333"
+        }
+      ]
+    },
+    {
+      "id": "project-card-component",
+      "title": "Project Card Component",
+      "prompt": "This component represents individual projects, displaying an image, title, description, and link to more details.",
+      "children": [],
+      "parentId": "projects-container",
+      "built": true,
+      "properties": [
+        {
+          "id": "project-card-component-image-src",
+          "title": "Image Source",
+          "type": "text",
+          "value": "public/project.jpg",
+          "maxLength": 100
+        },
+        {
+          "id": "project-card-component-title",
+          "title": "Project Title",
+          "type": "text",
+          "value": "Project Title",
+          "maxLength": 100
+        },
+        {
+          "id": "project-card-component-description",
+          "title": "Project Description",
+          "type": "text",
+          "value": "A brief description of the project.",
+          "maxLength": 200
+        },
+        {
+          "id": "project-card-component-link-url",
+          "title": "Project Link URL",
+          "type": "text",
+          "value": "https://github.com",
+          "maxLength": 100
+        },
+        {
+          "id": "project-card-component-card-background-color",
+          "title": "Card Background Color",
+          "type": "color",
+          "value": "#f5f4f4"
+        },
+        {
+          "id": "project-card-component-card-border-radius",
+          "title": "Card Border Radius",
+          "type": "number",
+          "value": 10,
+          "min": 0,
+          "max": 20
+        },
+        {
+          "id": "project-card-component-card-shadow",
+          "title": "Card Shadow",
+          "type": "text",
+          "value": "0px 4px 6px rgba(0,0,0,0.1)",
+          "maxLength": 50
+        }
+      ]
+    },
+    {
+      "id": "skills-badge-component",
+      "title": "Skills Badge Component",
+      "prompt": "This component represents individual skills as badges with dynamic styling.",
+      "children": [],
+      "parentId": "skills-container",
+      "built": true,
+      "properties": [
+        {
+          "id": "skills-badge-component-skill-text",
+          "title": "Skill Text",
+          "type": "text",
+          "value": "Skill Name",
+          "maxLength": 100
+        },
+        {
+          "id": "skills-badge-component-badge-color",
+          "title": "Badge Color",
+          "type": "color",
+          "value": "#9e45d9"
+        },
+        {
+          "id": "skills-badge-component-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#ffffff"
+        },
+        {
+          "id": "skills-badge-component-font-size",
+          "title": "Font Size",
+          "type": "number",
+          "value": 14,
+          "min": 10,
+          "max": 20
+        }
+      ]
+    },
+    {
+      "id": "contact-form-component",
+      "title": "Contact Form Component",
+      "prompt": "This component contains the contact form with fields for name, email, and message.",
+      "children": [],
+      "parentId": "contact-container",
+      "built": true,
+      "properties": [
+        {
+          "id": "contact-form-component-background-color",
           "title": "Background Color",
           "type": "color",
           "value": "#ffffff"
-        }
-      ]
-    },
-    {
-      "id": "footer-section",
-      "title": "Footer Section",
-      "prompt": "Footer section with copyright info and additional links.",
-      "children": [],
-      "parentId": "portfolio-page",
-      "built": true,
-      "properties": [
-        {
-          "id": "footer-bg-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#0f0f0f"
-        }
-      ]
-    },
-    {
-      "id": "logo-component",
-      "title": "Logo",
-      "prompt": "Logo component for displaying the site logo.",
-      "children": [],
-      "parentId": "header-section",
-      "built": true,
-      "properties": [
-        {
-          "id": "logo-src",
-          "title": "Logo Source",
-          "type": "text",
-          "value": "public/file.svg"
         },
         {
-          "id": "logo-alt-text",
-          "title": "Alt Text",
-          "type": "text",
-          "value": "Portfolio Logo"
+          "id": "contact-form-component-border-radius",
+          "title": "Border Radius",
+          "type": "number",
+          "value": 10,
+          "min": 0,
+          "max": 20
+        },
+        {
+          "id": "contact-form-component-field-text-color",
+          "title": "Field Text Color",
+          "type": "color",
+          "value": "#000000"
+        },
+        {
+          "id": "contact-form-component-submit-button-color",
+          "title": "Submit Button Color",
+          "type": "color",
+          "value": "#224887"
         }
       ]
     },
     {
-      "id": "navigation-menu",
-      "title": "Navigation Menu",
-      "prompt": "Navigation menu with responsive links to different sections of the portfolio.",
+      "id": "social-links-component",
+      "title": "Social Links Component",
+      "prompt": "This component contains the Software Engineer's social links (e.g., LinkedIn, GitHub).",
       "children": [],
-      "parentId": "header-section",
+      "parentId": "contact-container",
       "built": true,
       "properties": [
         {
-          "id": "nav-menu-links",
-          "title": "Links",
-          "type": "select",
-          "value": "Home",
-          "options": [
-            "Home",
-            "About",
-            "Work",
-            "Contact"
-          ]
+          "id": "social-links-component-link-text",
+          "title": "Link Text",
+          "type": "text",
+          "value": "LinkedIn",
+          "maxLength": 50
+        },
+        {
+          "id": "social-links-component-link-url",
+          "title": "Link URL",
+          "type": "text",
+          "value": "https://linkedin.com",
+          "maxLength": 100
+        },
+        {
+          "id": "social-links-component-icon-color",
+          "title": "Icon Color",
+          "type": "color",
+          "value": "#0a66c2"
+        },
+        {
+          "id": "social-links-component-hover-color",
+          "title": "Hover Color",
+          "type": "color",
+          "value": "#3b82f6"
         }
       ]
     }

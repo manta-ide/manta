@@ -18,7 +18,7 @@ interface Position {
 }
 
 export default function FloatingChat() {
-  const { currentFile, selection, setSelection, setCurrentFile } = useProjectStore();
+  const { currentFile, selection, setSelection, setCurrentFile, selectedNodeId, selectedNode, setSelectedNode } = useProjectStore();
   const [input, setInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -26,11 +26,29 @@ export default function FloatingChat() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
+  
+  // Local state to track what context should be included in the next message
+  const [includeFile, setIncludeFile] = useState(true);
+  const [includeSelection, setIncludeSelection] = useState(true);
+  const [includeNode, setIncludeNode] = useState(true);
 
   // Use simplified chat service
   const { state, actions } = useChatService();
   const { messages, loading } = state;
   const { sendMessage, clearMessages } = actions;
+
+  // Reset context flags when actual selections change
+  useEffect(() => {
+    if (currentFile) setIncludeFile(true);
+  }, [currentFile]);
+
+  useEffect(() => {
+    if (selection) setIncludeSelection(true);
+  }, [selection]);
+
+  useEffect(() => {
+    if (selectedNodeId) setIncludeNode(true);
+  }, [selectedNodeId]);
 
   // Get only the last 2 messages
   const lastTwoMessages = messages.slice(-2);
@@ -76,7 +94,11 @@ export default function FloatingChat() {
 
     const messageToSend = input;
     setInput(''); // Clear input immediately
-    await sendMessage(messageToSend);
+    await sendMessage(messageToSend, {
+      includeFile,
+      includeSelection,
+      includeNode
+    });
   };
 
   const handleClear = async () => {
@@ -282,6 +304,8 @@ export default function FloatingChat() {
               <MessageBadges
                 currentFile={m.messageContext?.currentFile}
                 selection={m.messageContext?.selection}
+                selectedNodeId={m.variables?.SELECTED_NODE_ID}
+                selectedNode={m.variables?.SELECTED_NODE_TITLE ? { title: m.variables.SELECTED_NODE_TITLE } : null}
                 variant={m.role === 'user' ? 'light' : 'dark'}
               />
               <ReactMarkdown 
@@ -300,10 +324,13 @@ export default function FloatingChat() {
         <form onSubmit={handleSubmit} className="space-y-2">
           {/* Show current selection badges above input for context */}
           <SelectionBadges
-            currentFile={currentFile}
-            selection={selection}
-            onRemoveFile={() => setCurrentFile(null)}
-            onRemoveSelection={() => setSelection(null)}
+            currentFile={includeFile ? currentFile : null}
+            selection={includeSelection ? selection : null}
+            selectedNodeId={includeNode ? selectedNodeId : null}
+            selectedNode={includeNode ? selectedNode : null}
+            onRemoveFile={() => setIncludeFile(false)}
+            onRemoveSelection={() => setIncludeSelection(false)}
+            onRemoveNode={() => setIncludeNode(false)}
           />
           
           <div className="flex gap-2 items-end">

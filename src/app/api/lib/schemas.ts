@@ -52,6 +52,9 @@ export const MessageVariablesSchema = z.object({
   PREVIOUS_PROMPT: z.string().optional(),
   NEW_PROMPT: z.string().optional(),
   SELECTED_NODE_IDS: z.string().optional(),
+  SELECTED_NODE_ID: z.string().optional(),
+  SELECTED_NODE_TITLE: z.string().optional(),
+  SELECTED_NODE_PROMPT: z.string().optional(),
   STRICT_EDIT_MODE: z.string().optional(),
   EDIT_HINTS: z.string().optional(),
   
