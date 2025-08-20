@@ -46,7 +46,7 @@ function generateGraphHTML(graph: any): string {
   const nodes = graph.nodes || [];
   
   const nodeHTML = nodes.map((node: any) => `
-    <div class="node" id="node-element-${node.id}" data-node-id="${node.id}">
+    <div class="node" id="${node.id}" data-node-id="${node.id}">
       <div class="node-header">
         <h3>${node.title}</h3>
         <span class="node-kind">${node.kind}</span>

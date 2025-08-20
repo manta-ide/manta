@@ -18,7 +18,7 @@ Example (illustrative):
   "type": "button",
   "properties": {
     {
-          "id": "node-element-portfolio-page-header-text-color",
+          "id": "portfolio-page-header-text-color",
           "title": "Header Text Color",
           "propertyType": {
             "type": "color",

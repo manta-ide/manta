@@ -9,7 +9,7 @@ Available Information:
 
 Key Rules:  
 1. Focus ONLY on the unbuilt nodes provided in the graph data. Do not modify existing built nodes.
-2. Each graph node → HTML element with `id="node-element-{NODE_ID}"`
+2. Each graph node → HTML element with `id="{NODE_ID}"`
 3. Use Tailwind CSS, shadcn components from the component library, accessibility attributes, and Next.js best practices.
 4. Ensure responsive design, proper imports/exports, and TypeScript type safety.
 5. Make sure that the page is fully visible on UI, and that the created components are imported and used there.
@@ -40,7 +40,7 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-white">
       <section 
-        id="node-element-about-section" 
+        id="about-section" 
         style={{ background: aboutBgColor }}
         className="py-16 px-8"
       >
@@ -49,7 +49,7 @@ export default function Page() {
       </section>
       
       <section 
-        id="node-element-projects-section" 
+        id="projects-section" 
         style={{ background: projectsBgColor }}
         className="py-16 px-8"
       >
@@ -87,7 +87,7 @@ export default function Page() {
   
   return (
     <main>
-      <section id="node-element-about-section">
+      <section id="about-section">
         <h2>{sectionTitle}</h2>
         {/* ... */}
       </section>

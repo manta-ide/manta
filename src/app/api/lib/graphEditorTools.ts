@@ -273,7 +273,7 @@ const ChildLinkSchema = z.object({
 
 const AddNodeParamsSchema = z.object({
   parentId: z.string().describe('ID of the parent node to add the new node as a child'),
-  nodeId: z.string().describe('Unique ID for the new node (should follow pattern node-element-*)'),
+  nodeId: z.string().describe('Unique ID for the new node'),
   title: z.string().describe('Display title for the new node'),
   prompt: z.string().describe('Description/prompt for the new node'),
   properties: z.array(PropertySchema).optional().describe('Array of property objects'),

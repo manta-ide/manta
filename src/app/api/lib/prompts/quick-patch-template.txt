@@ -39,7 +39,7 @@ Rules:
 
 Matching guidance when context doesn’t line up perfectly:
 - Prefer the smallest possible, localized change. Do not add or remove large blocks.
-- If the exact context lines in the edit are not found, extract unique tokens from the edit (e.g., id attributes like id="node-element-…", text like "View on GitHub →", className tokens like bg-green-600) and search for the closest occurrences in the current file content.
+- If the exact context lines in the edit are not found, extract unique tokens from the edit (e.g., id attributes like id="…", text like "View on GitHub →", className tokens like bg-green-600) and search for the closest occurrences in the current file content.
 - Apply token-level replacements at those locations (e.g., replace className tokens or label strings) while preserving the surrounding code exactly.
 - Do NOT invent new components or wrappers if they don’t exist in the current file; modify only what is present.
 - If nothing can be confidently matched, keep the original content unchanged for that area.

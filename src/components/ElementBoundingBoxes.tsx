@@ -5,6 +5,38 @@ import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { GraphNode } from '@/app/api/lib/schemas';
 
+// Configuration variables for customization
+const CONFIG = {
+  // Border/outline settings
+  borderWidth: '3px',
+  edgeIndicatorWidth: '3.5px',
+  
+  // Colors
+  selectedBoxColor: '#93c5fd', // blue-300
+  selectedBoxBackground: 'rgba(147, 196, 253, 0.37)', // blue-300 with opacity
+  unbuiltBoxColor: '#facc15', // yellow-400
+  unbuiltBoxBackground: 'rgba(254, 240, 138, 0.1)', // yellow-200/10
+  unbuiltLabelBackground: '#eab308', // yellow-500
+  
+  // Glow/shadow effects
+  boxShadow: '0 0 4px rgba(42, 114, 196, 0.5)',
+  unbuiltBoxShadow: '0 0 4px rgba(250, 204, 21, 0.5)',
+  
+  // Border radius
+  borderRadius: '3px',
+  
+  // Padding for bounding box calculations
+  padding: 4,
+  
+  // Z-index layering
+  zIndex: {
+    container: 9998,
+    statusBoxes: 9999,
+    selectedBox: 10000,
+    edgeIndicators: 10001,
+  },
+} as const;
+
 interface ElementBoundingBoxesProps {
   isEditMode: boolean;
   document: Document | null;
@@ -26,19 +58,6 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
   const [allBoxes, setAllBoxes] = useState<Array<ElementInfo & { id: string }>>([]);
   const [builtStatus, setBuiltStatus] = useState<Record<string, boolean>>({});
 
-  const isRootNodeElement = (el: HTMLElement | null): boolean => {
-    if (!el) return false;
-    const id = el.id || '';
-    if (!id.startsWith('node-element-')) return false;
-    let parent: HTMLElement | null = el.parentElement;
-    while (parent) {
-      const pid = parent.id || '';
-      if (pid.startsWith('node-element-')) return false;
-      parent = parent.parentElement;
-    }
-    return true;
-  };
-
   useEffect(() => {
     if (!isEditMode || !doc || !win) {
       setSelectedBox(null);
@@ -53,12 +72,12 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       }
       const overlayRoot = doc.getElementById('selection-overlay-root');
       const el = doc.getElementById(selectedNodeId) as HTMLElement | null;
-      if (!el || (overlayRoot && overlayRoot.contains(el)) || isRootNodeElement(el)) {
+      if (!el || (overlayRoot && overlayRoot.contains(el))) {
         setSelectedBox(null);
         return;
       }
       const rect = el.getBoundingClientRect();
-      const padding = 4;
+      const padding = CONFIG.padding;
       const x = rect.left + win.scrollX - padding;
       const y = rect.top + win.scrollY - padding;
       const width = rect.width + padding * 2;
@@ -70,10 +89,8 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       if (!doc || !win) { setAllBoxes([]); return; }
       const overlayRoot = doc.getElementById('selection-overlay-root');
       const byId = new Map<string, { left: number; top: number; right: number; bottom: number }>();
-      doc.querySelectorAll<HTMLElement>('[id^="node-element-"]').forEach(el => {
+      doc.querySelectorAll<HTMLElement>('[id]').forEach(el => {
         if (overlayRoot && overlayRoot.contains(el)) return;
-        // Exclude the root node from bounding boxes dynamically
-        if (isRootNodeElement(el)) return;
         const r = el.getBoundingClientRect();
         const left = r.left + win.scrollX;
         const top = r.top + win.scrollY;
@@ -89,7 +106,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
           acc.bottom = Math.max(acc.bottom, bottom);
         }
       });
-      const padding = 4;
+      const padding = CONFIG.padding;
       const infos: Array<ElementInfo & { id: string }> = [];
       for (const [id, bb] of byId.entries()) {
         const x = bb.left - padding;
@@ -150,7 +167,11 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          zIndex: 9998, // Just below the selection overlay
+          zIndex: CONFIG.zIndex.container, // Just below the selection overlay
+          // Ensure this overlay doesn't affect the document flow
+          contain: 'layout style paint',
+          // Ensure it's rendered above the iframe content
+          isolation: 'isolate',
         }}
       >
         {/* Global status boxes for unbuilt */}
@@ -162,15 +183,22 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
             <div
               key={`status-${box.id}`}
               style={{
-                position: 'absolute',
+                position: 'fixed',
                 pointerEvents: 'none',
-                border: '2px solid #facc15', // yellow-400
-                backgroundColor: 'rgba(254, 240, 138, 0.1)', // yellow-200/10
-                borderRadius: 3,
+                border: `${CONFIG.borderWidth} solid ${CONFIG.unbuiltBoxColor}`,
+                backgroundColor: CONFIG.unbuiltBoxBackground,
+                borderRadius: CONFIG.borderRadius,
                 left: `${box.x}px`,
                 top: `${box.y}px`,
                 width: `${box.width}px`,
                 height: `${box.height}px`,
+                zIndex: CONFIG.zIndex.statusBoxes,
+                // Ensure the box is completely isolated
+                contain: 'layout style paint',
+                // Prevent any layout impact on the document
+                transform: 'translateZ(0)',
+                // Ensure it's rendered above everything
+                isolation: 'isolate',
               }}
             >
               <div
@@ -180,9 +208,9 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
                   left: 0,
                   fontSize: 10,
                   color: '#fff',
-                  backgroundColor: '#eab308', // yellow-500
+                  backgroundColor: CONFIG.unbuiltLabelBackground,
                   padding: '2px 4px',
-                  borderRadius: 3,
+                  borderRadius: CONFIG.borderRadius,
                 }}
               >
                 {label}
@@ -193,19 +221,93 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
 
         {/* Selected box overlay */}
         {selectedBox && (
-          <div
-            style={{
-              position: 'absolute',
-              pointerEvents: 'none',
-              border: '2px solid #93c5fd', // blue-300
-              borderRadius: 3,
-              left: `${selectedBox.x}px`,
-              top: `${selectedBox.y}px`,
-              width: `${selectedBox.width}px`,
-              height: `${selectedBox.height}px`,
-            }}
-            title={`Element: ${selectedBox.id}`}
-          />
+          <>
+            <div
+              style={{
+                position: 'fixed',
+                pointerEvents: 'none',
+                border: `${CONFIG.borderWidth} solid ${CONFIG.selectedBoxColor}`,
+                borderRadius: CONFIG.borderRadius,
+                left: `${selectedBox.x}px`,
+                top: `${selectedBox.y}px`,
+                width: `${selectedBox.width}px`,
+                height: `${selectedBox.height}px`,
+                zIndex: CONFIG.zIndex.selectedBox,
+                // Ensure the box is completely isolated
+                contain: 'layout style paint',
+                // Prevent any layout impact on the document
+                transform: 'translateZ(0)',
+                // Ensure it's rendered above everything
+                isolation: 'isolate',
+              }}
+              title={`Element: ${selectedBox.id}`}
+            />
+            
+            {/* Edge indicators for when selected box extends beyond viewport */}
+            {selectedBox.x < 0 && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: '-1px',
+                  top: `${Math.max(0, selectedBox.y)}px`,
+                  width: CONFIG.edgeIndicatorWidth,
+                  height: `${Math.max(1, selectedBox.height)}px`,
+                  backgroundColor: CONFIG.selectedBoxColor,
+                  zIndex: CONFIG.zIndex.edgeIndicators,
+                  pointerEvents: 'none',
+                  boxShadow: CONFIG.boxShadow,
+                }}
+              />
+            )}
+            
+            {selectedBox.y < 0 && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: `${Math.max(0, selectedBox.x)}px`,
+                  top: '0px',
+                  width: `${Math.max(1, selectedBox.width)}px`,
+                  height: CONFIG.edgeIndicatorWidth,
+                  backgroundColor: CONFIG.selectedBoxColor,
+                  zIndex: CONFIG.zIndex.edgeIndicators,
+                  pointerEvents: 'none',
+                  boxShadow: CONFIG.boxShadow,
+                }}
+              />
+            )}
+            
+            {selectedBox.x + selectedBox.width > (win?.innerWidth || 0) && (
+              <div
+                style={{
+                  position: 'fixed',
+                  right: '0px',
+                  top: `${Math.max(0, selectedBox.y)}px`,
+                  width: CONFIG.edgeIndicatorWidth,
+                  height: `${Math.max(1, selectedBox.height)}px`,
+                  backgroundColor: CONFIG.selectedBoxColor,
+                  zIndex: CONFIG.zIndex.edgeIndicators,
+                  pointerEvents: 'none',
+                  boxShadow: CONFIG.boxShadow,
+                }}
+              />
+            )}
+            
+            {selectedBox.y + selectedBox.height > (win?.innerHeight || 0) && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: `${Math.max(1, selectedBox.x)}px`,
+                  bottom: '0px',
+                  width: `${Math.max(1, selectedBox.width)}px`,
+                  height: CONFIG.edgeIndicatorWidth,
+                  backgroundColor: CONFIG.selectedBoxColor,
+                  zIndex: CONFIG.zIndex.edgeIndicators,
+                  pointerEvents: 'none',
+                  boxShadow: CONFIG.boxShadow,
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     </>

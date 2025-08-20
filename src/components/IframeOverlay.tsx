@@ -44,7 +44,7 @@ export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayPr
   useEffect(() => {
     if (!isEditMode || !document) return;
 
-    const nodeElements = document.querySelectorAll<HTMLElement>('[id^="node-element-"]');
+    const nodeElements = document.querySelectorAll<HTMLElement>('[id]');
     const nodesMap = new Map<string, GraphNode>();
 
     for (const element of nodeElements) {
@@ -65,6 +65,12 @@ export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayPr
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
+        // Ensure this overlay doesn't affect the document flow
+        zIndex: 9999,
+        // Prevent any layout impact
+        contain: 'layout style paint',
+        // Ensure it's rendered above the iframe content
+        isolation: 'isolate',
       }}
     >
       <ElementBoundingBoxes 

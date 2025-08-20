@@ -141,7 +141,7 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
         const elementsAtPoint = doc.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[];
         const target = elementsAtPoint.find(el => {
           if (!el || (overlayRoot && overlayRoot.contains(el))) return false;
-          return (el as HTMLElement).id?.startsWith?.('node-element-');
+          return (el as HTMLElement).id;
         }) as HTMLElement | undefined;
 
         if (target) {
@@ -179,6 +179,10 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
         inset: 0,
         pointerEvents: isEditMode ? 'auto' : 'none',
         cursor: isEditMode && isSelecting ? 'crosshair' : 'default',
+        // Ensure this overlay doesn't affect the document flow
+        zIndex: 10000,
+        // Prevent any layout impact
+        contain: 'layout style paint',
       }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -189,8 +193,8 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
       {isEditMode && selection && (
         <div
           style={{
-            position: 'absolute',
-            zIndex: 9999,
+            position: 'fixed',
+            zIndex: 10001,
             pointerEvents: 'none',
             border: '2px solid #3b82f6',
             backgroundColor: 'rgba(191, 219, 254, 0.2)',
@@ -198,6 +202,12 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
             top: `${selection.y}px`,
             width: `${selection.width}px`,
             height: `${selection.height}px`,
+            // Ensure the selection box is completely isolated
+            contain: 'layout style paint',
+            // Prevent any layout impact on the document
+            transform: 'translateZ(0)',
+            // Ensure it's rendered above everything
+            isolation: 'isolate',
           }}
         />
       )}

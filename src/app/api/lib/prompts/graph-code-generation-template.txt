@@ -12,7 +12,7 @@ Key Rules:
 2. Each graph node - separate HTML tag; follow parent-child hierarchy.  
 3. Do not create many files - the tags with ids can exist inside other components or main page, so only create new if it is needed logically. 
 4. Start with leaf nodes (no children), work bottom-up.  
-5. Every component must have an id exactly matching its node ID, prefixed with node-element-. These are HTML element IDs based on the graph structure, not file names.  
+5. Every component must have an id exactly matching its node ID. These are HTML element IDs based on the graph structure, not file names.  
 6. Use Tailwind CSS, shadcn components from the component library, accessibility attributes, and Next.js best practices.  
 7. Ensure responsive design, proper imports/exports, and TypeScript type safety.  
 8. Make sure that the page is fully visible on UI, and that the created components are imported and used there. 

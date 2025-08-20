@@ -1,57 +1,131 @@
+// src/app/page.tsx
+import { getVar, resolvePlaceholders } from "@/lib/vars";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function Page() {
-  // About Section variables
-  const aboutTitle = getVar<string>("node-element-about-title", "About Me");
-  const aboutBgColor = getVar<string>("node-element-about-bg-color", "#f0f0f0");
-  const aboutBio = resolvePlaceholders(
-    "Hello, I'm a software engineer with a passion for building scalable web applications."
-  );
+  // Header variables
+  const headerBg = getVar<string>("header.background-color", "#ffffff");
+  const logoSrc = getVar<string>("logo.src", "/logo.svg");
+  const logoAlt = getVar<string>("logo.alt", "Portfolio Owner Logo");
+  const navLinks = getVar<string[]>("nav-menu.links", ["Home", "About Me", "Projects", "Resume", "Contact"]);
 
-  // Projects Section variables
-  const projectsTitle = getVar<string>("node-element-projects-title", "My Projects");
-  const projectsBgColor = getVar<string>("node-element-projects-bg-color", "#ffffff");
-  const projectsIntro = resolvePlaceholders(
-    "Here are some of my favorite projects I've worked on."
-  );
+  // Hero Section variables
+  const heroBg = getVar<string>("hero-section.background-color", "#f3f4f6");
+  const introText = resolvePlaceholders(getVar<string>("introductory-text.content-text", "Hi, I'm [Your Name]. Welcome to my portfolio!"));
+  const ctaText1 = getVar<string>("action-buttons.button-1", "View Projects");
+  const ctaText2 = getVar<string>("action-buttons.button-2", "Contact Me");
+
+  // Main Content variables
+  const aboutContent = getVar<string>("about-me.about-me-text", "I'm a software engineer passionate about building impactful applications.");
+  const projectsTitle = getVar<string>("projects.section-title", "Projects");
+  const techList = getVar<string>("technologies.list", "JavaScript, TypeScript, React, Node.js, Tailwind CSS").
+    split(",")
+    .map((tech) => tech.trim());
+
+  // Footer variables
+  const footerBg = getVar<string>("footer.background-color", "#e5e7eb");
+  const social1Title = getVar<string>("social-links.link-1", "GitHub");
+  const social1Url = getVar<string>("social-links.link-1-url", "https://github.com/yourusername");
+  const social2Title = getVar<string>("social-links.link-2", "LinkedIn");
+  const social2Url = getVar<string>("social-links.link-2-url", "https://linkedin.com/in/yourusername");
+  const copyrightText = getVar<string>("copyright.text", "© 2023. All rights reserved.");
 
   return (
-    <main className="flex flex-col space-y-16">
-      <section
-        id="node-element-node-element-about-section"
-        style={{ backgroundColor: aboutBgColor }}
-        className="py-12 px-6"
+    <main className="flex flex-col min-h-screen">
+      {/* Header */}
+      <header
+        id="node-element-header"
+        className="fixed top-0 w-full z-10 shadow"
+        style={{ backgroundColor: headerBg }}
       >
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">{aboutTitle}</h2>
-          <p className="text-lg text-gray-700">{aboutBio}</p>
+        <div className="max-w-7xl mx-auto flex items-center justify-between py-4 px-6">
+          <div id="node-element-logo">
+            <img src={logoSrc} alt={logoAlt} className="h-8 w-auto" />
+          </div>
+          <nav id="node-element-nav-menu">
+            <ul className="flex space-x-6">
+              {navLinks.map((link) => {
+                const href =
+                  link === "Home"
+                    ? "/"
+                    : `#${link.toLowerCase().replace(/ /g, "-")}`;
+                return (
+                  <li key={link}>
+                    <Link href={href} className="text-gray-700 hover:text-gray-900">
+                      {link}
+</Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
         </div>
-      </section>
+      </header>
 
+      {/* Hero Section */}
       <section
-        id="node-element-node-element-projects-section"
-        style={{ backgroundColor: projectsBgColor }}
-        className="py-12 px-6"
+        id="node-element-hero-section"
+        className="pt-20 flex-1 flex items-center justify-center"
+        style={{ backgroundColor: heroBg }}
       >
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4 text-center">{projectsTitle}</h2>
-          <p className="text-lg text-gray-700 text-center mb-8">{projectsIntro}</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Placeholder project cards */}
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition">
-              <h3 className="text-xl font-semibold mb-2">Project One</h3>
-              <p className="text-gray-600">A brief description of project one.</p>
-            </div>
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition">
-              <h3 className="text-xl font-semibold mb-2">Project Two</h3>
-              <p className="text-gray-600">A brief description of project two.</p>
-            </div>
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition">
-              <h3 className="text-xl font-semibold mb-2">Project Three</h3>
-              <p className="text-gray-600">A brief description of project three.</p>
-            </div>
+        <div className="text-center px-6">
+          <p id="node-element-intro-text" className="text-2xl md:text-4xl font-semibold mb-6">
+            {introText}
+          </p>
+          <div id="node-element-action-buttons" className="space-x-4">
+            <Button onClick={() => window.location.assign("#projects")}>{ctaText1}</Button>
+            <Button variant="outline" onClick={() => window.location.assign("#contact")}>{ctaText2}</Button>
           </div>
         </div>
       </section>
+
+      {/* Main Content */}
+      <div id="node-element-main-content" className="flex-1 max-w-7xl mx-auto py-16 px-6 space-y-16">
+        {/* About Me */}
+        <section id="node-element-about-me" className="prose mx-auto">
+          <h2 className="text-3xl font-bold mb-4">About Me</h2>
+          <p>{aboutContent}</p>
+        </section>
+
+        {/* Projects */}
+        <section id="node-element-projects" className="prose mx-auto"> // anchor via id for navigation
+          <h2 className="text-3xl font-bold mb-4">{projectsTitle}</h2>
+          {/* Project items can be added here */}
+        </section>
+
+        {/* Technologies */}
+        <section id="node-element-technologies" className="prose mx-auto">
+          <h2 className="text-3xl font-bold mb-4">Technologies</h2>
+          <div className="flex flex-wrap gap-2">
+            {techList.map((tech) => (
+              <Badge key={tech}>{tech}</Badge>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Footer */}
+      <footer
+        id="node-element-footer"
+        className="py-8 mt-auto"
+        style={{ backgroundColor: footerBg }}
+      >
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between">
+          <div id="node-element-social-links" className="flex space-x-6 mb-4 md:mb-0">
+            <Link href={social1Url} className="text-gray-700 hover:text-gray-900">
+              {social1Title}
+            </Link>
+            <Link href={social2Url} className="text-gray-700 hover:text-gray-900">
+              {social2Title}
+            </Link>
+          </div>
+          <div id="node-element-copyright" className="text-gray-500 text-sm">
+            {copyrightText}
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

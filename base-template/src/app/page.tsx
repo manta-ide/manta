@@ -1,214 +1,154 @@
-import { getVar, resolvePlaceholders } from "@/lib/vars";
+// src/app/page.tsx
 import Link from "next/link";
+import { getVar, resolvePlaceholders } from "@/lib/vars";
 
 export default function Page() {
-  // Navbar variables
-  const navLinkColor = getVar<string>("navbar.link-color", "#4f46e5");
-  const navBgColor = getVar<string>("navbar.background-color", "#ffffff");
+  // Header Section Variables
+  const headerBg = getVar<string>("header-section.background-color", "#ffffff");
+  const logoSrc = getVar<string>("logo-component.logo-src", "/logo.svg");
+  const logoAlt = getVar<string>("logo-component.alt-text", "Portfolio Logo");
+  const navLinks = getVar<string>("navigation-menu.links", "Home, About, Work, Contact").split(", ");
 
-  // About Section variables
-  const aboutTitle = getVar<string>("about-section.section-title", "About");
-  const aboutBgColor = getVar<string>("about-section.background-color", "#f9fafb");
-  const summaryText = getVar<string>("professional-summary.summary-text", "Experienced Software Engineer with a passion for creating scalable and efficient solutions.");
+  // Hero Section Variables
+  const heroBg = getVar<string>("hero-section.background-color", "#f9fafb");
+  const heroTitle = getVar<string>("hero-section.section-title", "Hi, I'm Jane Doe");
+  const heroSubtitle = getVar<string>("hero-section.subtitle", "Software Engineer");
+  const heroCta = getVar<string>("hero-section.cta-text", "View My Work");
 
-  // Projects Section variables
-  const projectsTitle = getVar<string>("projects-section.section-title", "Projects");
-  const projectsBgColor = getVar<string>("projects-section.background-color", "#ffffff");
-  const projectTitleDefault = getVar<string>("project-entry.project-title", "Project Title");
-  const projectDescDefault = getVar<string>("project-entry.project-description", "A brief description of the project.");
-  const projectRepoDefault = getVar<string>("project-entry.repository-link", "https://github.com/example");
+  // About Section Variables
+  const aboutBg = getVar<string>("about-section.background-color", "#ffffff");
+  const aboutTitle = getVar<string>("about-section.section-title", "About Me");
+  const aboutText = getVar<string>("about-section.text", "Passionate software engineer specializing in full-stack development. Experienced in React, Node.js, and AWS.");
 
-  // Skills Section variables
-  const skillsTitle = getVar<string>("skills-section.section-title", "Skills");
-  const skillsBgColor = getVar<string>("skills-section.background-color", "#ffffff");
-  const skillsBarColor = getVar<string>("skills-list.proficiency-bar-color", "#34d399");
+  // Work Section Variables
+  const workBg = getVar<string>("work-section.background-color", "#f9fafb");
+  const workTitle = getVar<string>("work-section.section-title", "My Work");
+  const workIntro = getVar<string>("work-section.text", "Here are a few projects I've worked on recently.");
 
-  // Contact Section variables
-  const contactTitle = getVar<string>("contact-section.section-title", "Contact");
-  const contactBgColor = getVar<string>("contact-section.background-color", "#f3f4f6");
+  // Contact Section Variables
+  const contactBg = getVar<string>("contact-section.background-color", "#ffffff");
+  const contactTitle = getVar<string>("contact-section.section-title", "Contact Me");
+
+  // Footer Section Variables
+  const footerBg = getVar<string>("footer-section.background-color", "#000000");
+  const footerText = getVar<string>("footer-section.text", "© 2024 Jane Doe. All rights reserved.");
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <main className="min-h-screen">
       <header
-        id="node-element-header"
-        style={{ backgroundColor: navBgColor }}
-        className="fixed w-full top-0 left-0 shadow z-10"
+        id="header-section"
+        style={{ background: headerBg }}
+        className="py-4 px-8 flex items-center justify-between"
       >
-        <div
-          id="node-element-navbar"
-          className="container mx-auto flex items-center justify-between py-4 px-6"
-        >
-          <h1 className="text-xl font-bold">Software Engineer</h1>
-          <nav aria-label="Main Navigation" className="space-x-6">
-            <Link href="#node-element-about-section">
-              <span
-                className="text-lg font-medium"
-                style={{ color: navLinkColor }}
-              >
-                {aboutTitle}
-              </span>
-            </Link>
-            <Link href="#node-element-projects-section">
-              <span
-                className="text-lg font-medium"
-                style={{ color: navLinkColor }}
-              >
-                {projectsTitle}
-              </span>
-            </Link>
-            <Link href="#node-element-skills-section">
-              <span
-                className="text-lg font-medium"
-                style={{ color: navLinkColor }}
-              >
-                {skillsTitle}
-              </span>
-            </Link>
-            <Link href="#node-element-contact-section">
-              <span
-                className="text-lg font-medium"
-                style={{ color: navLinkColor }}
-              >
-                {contactTitle}
-              </span>
-            </Link>
-          </nav>
+        <div id="logo-component">
+          <img src={resolvePlaceholders(logoSrc)} alt={resolvePlaceholders(logoAlt)} className="h-8 w-auto" />
         </div>
+        <nav id="navigation-menu" className="space-x-6">
+          {navLinks.map((link) => (
+            <Link key={link} href={`#${link.toLowerCase()}`}>
+              {resolvePlaceholders(link)}
+            </Link>
+          ))}
+        </nav>
       </header>
 
-      {/* About Section */}
       <section
-        id="node-element-about-section"
-        style={{ backgroundColor: aboutBgColor }}
-        className="pt-24 pb-16 px-6"
+        id="hero-section"
+        style={{ background: heroBg }}
+        className="flex flex-col items-center justify-center text-center py-20 px-4"
       >
-        <h2 className="text-3xl font-bold mb-4">{aboutTitle}</h2>
-        <p className="text-lg text-gray-700">{summaryText}</p>
-      </section>
-
-      {/* Projects Section */}
-      <section
-        id="node-element-projects-section"
-        style={{ backgroundColor: projectsBgColor }}
-        className="py-16 px-6"
-      >
-        <h2 className="text-3xl font-bold mb-8">{projectsTitle}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div
-            id="node-element-project-entry"
-            className="bg-white shadow rounded-lg overflow-hidden"
-          >
-            <div className="p-6">
-              <h3 className="text-xl font-semibold mb-2">
-                {projectTitleDefault}
-              </h3>
-              <p className="text-gray-600 mb-4">{projectDescDefault}</p>
-              <Link href={projectRepoDefault}>
-                <span className="text-indigo-600 hover:underline">
-                  {resolvePlaceholders("View Code")}
-                </span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Skills Section */}
-      <section
-        id="node-element-skills-section"
-        style={{ backgroundColor: skillsBgColor }}
-        className="py-16 px-6"
-      >
-        <h2 className="text-3xl font-bold mb-8">{skillsTitle}</h2>
-        <div id="node-element-skills-list" className="space-y-4">
-          {[
-            "JavaScript",
-            "React",
-            "Node.js",
-            "TypeScript",
-            "Tailwind CSS",
-          ].map((skill) => (
-            <div key={skill} className="flex flex-col">
-              <div className="flex justify-between mb-1">
-                <span className="font-medium text-gray-700">{skill}</span>
-                <span className="text-sm text-gray-600">90%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="h-2 rounded-full"
-                  style={{ width: "90%", backgroundColor: skillsBarColor }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section
-        id="node-element-contact-section"
-        style={{ backgroundColor: contactBgColor }}
-        className="py-16 px-6"
-      >
-        <h2 className="text-3xl font-bold mb-8">{contactTitle}</h2>
-        <form
-          id="node-element-contact-form"
-          className="max-w-md mx-auto space-y-4"
+        <h1 className="text-5xl font-bold mb-4">{resolvePlaceholders(heroTitle)}</h1>
+        <p className="text-xl text-gray-600 mb-6">{resolvePlaceholders(heroSubtitle)}</p>
+        <Link
+          href="#work-section"
+          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
-          <div className="flex flex-col">
-            <label
-              htmlFor="name"
-              className="mb-1 font-medium text-gray-700"
-            >
+          {resolvePlaceholders(heroCta)}
+        </Link>
+      </section>
+
+      <section
+        id="about-section"
+        style={{ background: aboutBg }}
+        className="py-16 px-8"
+      >
+        <h2 className="text-3xl font-bold mb-4">{resolvePlaceholders(aboutTitle)}</h2>
+        <p className="text-lg text-gray-700">{resolvePlaceholders(aboutText)}</p>
+      </section>
+
+      <section
+        id="work-section"
+        style={{ background: workBg }}
+        className="py-16 px-8"
+      >
+        <h2 className="text-3xl font-bold mb-4">{resolvePlaceholders(workTitle)}</h2>
+        <p className="text-lg text-gray-700 mb-8">{resolvePlaceholders(workIntro)}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Project cards will go here */}
+        </div>
+      </section>
+
+      <section
+        id="contact-section"
+        style={{ background: contactBg }}
+        className="py-16 px-8"
+      >
+        <h2 className="text-3xl font-bold mb-4">{resolvePlaceholders(contactTitle)}</h2>
+        <form action="#" className="max-w-md space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
               Name
             </label>
             <input
+              type="text"
               id="name"
               name="name"
-              type="text"
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+              placeholder="Your Name"
             />
           </div>
-          <div className="flex flex-col">
-            <label
-              htmlFor="email"
-              className="mb-1 font-medium text-gray-700"
-            >
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email
             </label>
             <input
+              type="email"
               id="email"
               name="email"
-              type="email"
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+              placeholder="you@example.com"
             />
           </div>
-          <div className="flex flex-col">
-            <label
-              htmlFor="message"
-              className="mb-1 font-medium text-gray-700"
-            >
+          <div>
+            <label htmlFor="message" className="block text-sm font-medium text-gray-700">
               Message
             </label>
             <textarea
               id="message"
               name="message"
-              rows={5}
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
+              rows={4}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+              placeholder="Your message"
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition"
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            {resolvePlaceholders("Send Message")}
+            Send Message
           </button>
         </form>
       </section>
+
+      <footer
+        id="footer-section"
+        style={{ background: footerBg }}
+        className="py-4 px-8"
+      >
+        <p className="text-center text-sm text-gray-400">
+          {resolvePlaceholders(footerText)}
+        </p>
+      </footer>
     </main>
   );
 }
