@@ -17,44 +17,44 @@ Key Rules:
 7. When all unbuilt nodes are completed - end with a simple and short explanation of what you did.
 
 **CRITICAL: Variable Integration**
-- Import the variable functions: `import { getVar, resolvePlaceholders } from "@/lib/vars";`
-- Use `getVar<T>(variableName, defaultValue)` to get individual variable values
-- Use `resolvePlaceholders(templateString)` to resolve placeholders in strings
+- Import the variable function: `import { getVar } from "@/lib/vars";`
+- Use `getVar(variableName, defaultValue)` inline within JSX for dynamic values
 - Variable names are based on node titles and property titles (e.g., "about-section.section-title", "projects-section.background-color")
 - Always provide default values for getVar calls
+- Use inline getVar calls directly in style attributes, text content, and other JSX properties
 
 **Full Page Example:**
 ```tsx
 // src/app/page.tsx
-import { getVar, resolvePlaceholders } from "@/lib/vars";
+import { getVar } from "@/lib/vars";
 
 export default function Page() {
-  const aboutTitle = getVar<string>("about-section.section-title", "About Me");
-  const aboutBgColor = getVar<string>("about-section.background-color", "#f0f0f0");
-  const projectsTitle = getVar<string>("projects-section.section-title", "My Projects");
-  const projectsBgColor = getVar<string>("projects-section.background-color", "#ede8e8");
-  
-  const aboutGreeting = resolvePlaceholders("Welcome to {about-section.section-title}!");
-  const projectsIntro = resolvePlaceholders("Check out {projects-section.section-title}");
-
   return (
     <main className="min-h-screen bg-white">
       <section 
         id="about-section" 
-        style={{ background: aboutBgColor }}
+        style={{ background: getVar("about-section.background-color", "#f0f0f0") }}
         className="py-16 px-8"
       >
-        <h2 className="text-3xl font-bold mb-4">{aboutTitle}</h2>
-        <p className="text-lg text-gray-700">{aboutGreeting}</p>
+        <h2 className="text-3xl font-bold mb-4">
+          {getVar("about-section.section-title", "About Me")}
+        </h2>
+        <p className="text-lg text-gray-700">
+          Welcome to {getVar("about-section.section-title", "About Me")}!
+        </p>
       </section>
       
       <section 
         id="projects-section" 
-        style={{ background: projectsBgColor }}
+        style={{ background: getVar("projects-section.background-color", "#ede8e8") }}
         className="py-16 px-8"
       >
-        <h2 className="text-3xl font-bold mb-4">{projectsTitle}</h2>
-        <p className="text-lg text-gray-700">{projectsIntro}</p>
+        <h2 className="text-3xl font-bold mb-4">
+          {getVar("projects-section.section-title", "My Projects")}
+        </h2>
+        <p className="text-lg text-gray-700">
+          Check out {getVar("projects-section.section-title", "My Projects")}
+        </p>
       </section>
     </main>
   );
@@ -64,8 +64,8 @@ export default function Page() {
 Tool Usage:  
 - readFile: inspect existing files  
 - createFile: add new files  
-- updateFile: replace a file entirely  
-- patchFile: make targeted changes (preferred for modifications)
+- updateFile: replace a file entirely or do large edits
+- patchFile: make targeted changes (preferred for small modifications)
 - deleteFile: remove files  
 
 Component instructions:
@@ -80,15 +80,13 @@ Patch Format:
 Use minimal context with `// ... existing code ...` markers:
 ```
 // ... existing code ...
-import { getVar, resolvePlaceholders } from "@/lib/vars";
+import { getVar } from "@/lib/vars";
 
 export default function Page() {
-  const sectionTitle = getVar<string>("about-section.section-title", "About Me");
-  
   return (
     <main>
       <section id="about-section">
-        <h2>{sectionTitle}</h2>
+        <h2>{getVar("about-section.section-title", "About Me")}</h2>
         {/* ... */}
       </section>
     </main>
@@ -99,7 +97,8 @@ export default function Page() {
 
 SUPER CRITICAL:
 GENERATE ALL CODE INSIDE page.tsx
-ALWAYS USE getVar AND resolvePlaceholders FOR DYNAMIC CONTENT FROM THE GRAPH
+ALWAYS USE getVar INLINE FOR DYNAMIC CONTENT FROM THE GRAPH
+CREATE ONLY STATIC PAGES, NO "use client" or "onMouseEvent" or "onSubmit"
 
 Goal:  
 Implement only the unbuilt nodes as working components integrated into the main page, ready to run without errors. Focus on surgical updates rather than complete rewrites. Use the variable system to make content dynamic and editable.

@@ -42,11 +42,48 @@ export async function buildProject(filePath?: string) {
       ),
     );
 
+  // Load existing variables from vars.json
+  let existingVars: Record<string, any> = {};
+  try {
+    const varsPath = join(PROJECT_ROOT, '.graph', 'vars.json');
+    if (existsSync(varsPath)) {
+      const varsContent = readFileSync(varsPath, 'utf-8');
+      existingVars = JSON.parse(varsContent);
+    }
+  } catch (error) {
+    console.warn('Failed to load vars.json:', error);
+  }
+
+  // Check getVar calls in the file if provided
+  let getVarErrors: string[] = [];
+  if (filePath) {
+    try {
+      const fileContent = readFileSync(filePath, 'utf-8');
+      // More robust regex to capture getVar calls with different quote types and multiline
+      const getVarRegex = /getVar\s*\(\s*['"`]([^'"`]+)['"`]/g;
+      let match;
+      const usedVars = new Set<string>();
+      
+      while ((match = getVarRegex.exec(fileContent)) !== null) {
+        const varName = match[1];
+        usedVars.add(varName);
+        
+        if (!(varName in existingVars)) {
+          getVarErrors.push(`getVar("${varName}") references undefined variable`);
+        }
+      }
+      console.log("usedVars", Array.from(usedVars));
+      console.log("existingVars keys", Object.keys(existingVars));
+    } catch (error) {
+      console.warn('Failed to check getVar calls:', error);
+    }
+  }
+
   // If no file path provided, do full build
   if (!filePath) {
     const { ok, out } = await run('npx tsc --noEmit --pretty false');
     
-    if (ok) return { success: true };
+    if (ok && getVarErrors.length === 0) return { success: true };
 
     // strip ANSI colour codes
     const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
@@ -55,11 +92,18 @@ export async function buildProject(filePath?: string) {
     const errorLines =
       (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
 
-    return { success: false, errorLines };
+    // Combine TypeScript errors with getVar errors
+    const allErrors = [...errorLines, ...getVarErrors];
+
+    return { success: false, errorLines: allErrors };
   }
 
   const ext = (filePath.split(".").pop() || "").toLowerCase();
-  if (!["ts", "tsx"].includes(ext)) return { success: true };
+  if (!["ts", "tsx"].includes(ext)) {
+    return getVarErrors.length > 0 
+      ? { success: false, errorLines: getVarErrors }
+      : { success: true };
+  }
 
   /* ─── 1 ▪ syntax-only guard (cheap) ─── */
   const tsNodeCmd =
@@ -70,7 +114,7 @@ export async function buildProject(filePath?: string) {
       module: "ESNext",
     })}' ${filePath}`;
   let { ok, out } = await run(tsNodeCmd);
-  if (ok) return { success: true };
+  if (ok && getVarErrors.length === 0) return { success: true };
 
   /* ─── 2 ▪ project-aware tsc (resolves @/ aliases) ─── */
   const tsConfig = await findTsConfig(path.dirname(filePath));
@@ -81,7 +125,7 @@ export async function buildProject(filePath?: string) {
       `npx tsc --noEmit --pretty false --jsx react-jsx --esModuleInterop --skipLibCheck ${filePath}`;
 
   ({ ok, out } = await run(tscCmd));
-  if (ok) return { success: true };
+  if (ok && getVarErrors.length === 0) return { success: true };
 
   /* ─── 3 ▪ diagnostic filter ─── */
   const IGNORE = new Set(["1259", "17004"]);
@@ -95,8 +139,11 @@ export async function buildProject(filePath?: string) {
     return !m || !IGNORE.has(m[1]);
   });
 
-  return keep.length
-    ? { success: false, errorLines: keep.slice(0, 30) }
+  // Combine TypeScript errors with getVar errors
+  const allErrors = [...keep, ...getVarErrors];
+
+  return allErrors.length
+    ? { success: false, errorLines: allErrors.slice(0, 30) }
     : { success: true };
 }
 
@@ -289,9 +336,8 @@ export const codeEditorTools: ToolSet = {
           .filter((l) => l.trim().length > 0 && !l.includes('// ... existing code ...'));
         const anchorCount = normalizedCandidates.reduce((acc, line) => acc + (line.length >= 3 && currentContent.includes(line) ? 1 : 0), 0);
         const isLikelyInstruction = anchorCount === 0 && !hasEditMarker;
-        const isTooLarge = description.length > 10000; // safety guard
 
-        if (isLikelyInstruction || isTooLarge) {
+        if (isLikelyInstruction) {
           return {
             success: false,
             message:
@@ -300,62 +346,9 @@ export const codeEditorTools: ToolSet = {
           };
         }
         
-        // Helper: find a focused code block in the current file that best matches the patch anchors
-        const selectFocusedBlock = (
-          fileText: string,
-          patchText: string,
-          anchorLines: string[],
-          contextChars: number = 1200
-        ): { start: number; end: number; block: string; reducedPatch: string } | null => {
-          const presentAnchors = anchorLines
-            .map((s) => ({ text: s, pos: fileText.indexOf(s) }))
-            .filter((e) => e.pos >= 0);
-
-          if (presentAnchors.length === 0) return null;
-
-          let minPos = Infinity;
-          let maxPos = -1;
-          for (const a of presentAnchors) {
-            const start = a.pos;
-            const end = a.pos + a.text.length;
-            if (start < minPos) minPos = start;
-            if (end > maxPos) maxPos = end;
-          }
-
-          if (!isFinite(minPos) || maxPos < 0) return null;
-
-          // Expand to line boundaries with a small character context window
-          const pre = Math.max(0, minPos - contextChars);
-          const post = Math.min(fileText.length, maxPos + contextChars);
-          const lineStart = fileText.lastIndexOf('\n', pre - 1) + 1;
-          const lineEndIdx = fileText.indexOf('\n', post);
-          const lineEnd = lineEndIdx === -1 ? fileText.length : lineEndIdx;
-
-          const block = fileText.slice(lineStart, lineEnd);
-
-          // Reduce patch to the vicinity of anchors found inside the original patch text
-          const patchLines = patchText.split('\n');
-          const patchAnchorIdxs: number[] = [];
-          for (const a of presentAnchors) {
-            const idx = patchLines.findIndex((l) => l.includes(a.text));
-            if (idx >= 0) patchAnchorIdxs.push(idx);
-          }
-          let reducedPatch = patchText;
-          if (patchAnchorIdxs.length) {
-            const k = 28; // lines of context around anchors in patch
-            const pMin = Math.max(0, Math.min(...patchAnchorIdxs) - k);
-            const pMax = Math.min(patchLines.length, Math.max(...patchAnchorIdxs) + k + 1);
-            reducedPatch = patchLines.slice(pMin, pMax).join('\n');
-          }
-
-          return { start: lineStart, end: lineEnd, block, reducedPatch };
-        };
-
-        const focus = selectFocusedBlock(currentContent, description, normalizedCandidates);
-
-        // Decide which content to send: focused block (preferred) or full file (fallback)
-        const payloadContent = focus?.block ?? currentContent;
-        const payloadPatch = focus?.reducedPatch ?? patchDescription;
+        // Always send the FULL file content to the patch API to avoid truncation/splitting issues
+        const payloadContent = currentContent;
+        const payloadPatch = patchDescription;
 
         // Call the quick patch API with only the focused block
         const response = await fetch('http://localhost:3000/api/agents/quick-patch', {
@@ -468,17 +461,8 @@ export const codeEditorTools: ToolSet = {
         const rawPatched = String(result.patchedContent ?? '');
         const noFences = stripFences(rawPatched);
 
-        let adjusted: string;
-        if (focus) {
-          // Splice the patched block back into the original file
-          adjusted =
-            currentContent.slice(0, focus.start) +
-            noFences +
-            currentContent.slice(focus.end);
-        } else {
-          // Full-file replacement path: preserve/normalize top-of-file directives
-          adjusted = preserveTopDirective(currentContent, noFences);
-        }
+        // Full-file replacement: preserve/normalize top-of-file directives
+        const adjusted: string = preserveTopDirective(currentContent, noFences);
 
         // If nothing changed, treat as a failure so the caller can try a different strategy
         if (adjusted === currentContent) {

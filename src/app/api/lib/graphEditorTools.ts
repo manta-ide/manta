@@ -506,6 +506,10 @@ export const graphEditorTools = {
           return { success: false, message: `Node with ID ${nodeId} not found`, operation: { type: 'edit_node', nodeId } };
         }
 
+        // Keep originals for change detection
+        const originalPrompt = nodeToEdit.prompt;
+        const originalProperties = Array.isArray(nodeToEdit.properties) ? [...nodeToEdit.properties] : undefined;
+
         if (title !== undefined) {
           nodeToEdit.title = title;
           modifiedGraph.nodes.forEach((n) => {
@@ -543,6 +547,38 @@ export const graphEditorTools = {
         const validationResult = GraphSchema.safeParse(modifiedGraph);
         if (!validationResult.success) {
           return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'edit_node', nodeId } };
+        }
+
+        // Auto mark node as unbuilt if prompt or properties structure changed
+        const didPromptChange = typeof prompt === 'string' && prompt !== originalPrompt;
+        const didPropertyStructureChange = (() => {
+          if (properties === undefined) return false;
+          const before = originalProperties || [];
+          const after = Array.isArray(properties) ? properties : [];
+          if (before.length !== after.length) return true;
+          // Compare structural fields only (id, title, type, options, constraints), ignore value changes
+          const normalize = (p: any) => ({
+            id: p?.id ?? '',
+            title: p?.title ?? '',
+            type: p?.type ?? '',
+            maxLength: p?.maxLength ?? undefined,
+            min: p?.min ?? undefined,
+            max: p?.max ?? undefined,
+            step: p?.step ?? undefined,
+            options: Array.isArray(p?.options) ? [...p.options] : undefined,
+          });
+          for (let i = 0; i < before.length; i++) {
+            const a = normalize(before[i]);
+            const b = normalize(after[i]);
+            const aKey = JSON.stringify(a);
+            const bKey = JSON.stringify(b);
+            if (aKey !== bKey) return true;
+          }
+          return false;
+        })();
+
+        if (didPromptChange || didPropertyStructureChange) {
+          nodeToEdit.built = false;
         }
 
         const saveSuccess = await saveGraphThroughAPI(modifiedGraph);

@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
         ],
         generationConfig: {
           temperature: QuickPatchConfig.temperature,
+          maxOutputTokens: 8192,
         },
       }),
       signal: req.signal,

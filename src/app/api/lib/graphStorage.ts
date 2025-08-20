@@ -108,6 +108,23 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
     const cb = b.children[i];
     if (ca.id !== cb.id || ca.title !== cb.title) return false;
   }
+  // Compare properties structure (ignore values). If structure differs, treat as changed
+  const normalizeProps = (props?: any[]) => {
+    if (!Array.isArray(props)) return [] as any[];
+    return props.map((p) => ({
+      id: p?.id ?? '',
+      title: p?.title ?? '',
+      type: p?.type ?? '',
+      maxLength: p?.maxLength ?? undefined,
+      min: p?.min ?? undefined,
+      max: p?.max ?? undefined,
+      step: p?.step ?? undefined,
+      options: Array.isArray(p?.options) ? [...p.options] : undefined,
+    }));
+  };
+  const aStruct = JSON.stringify(normalizeProps(a.properties));
+  const bStruct = JSON.stringify(normalizeProps(b.properties));
+  if (aStruct !== bStruct) return false;
   return true;
 }
 

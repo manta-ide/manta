@@ -1,190 +1,191 @@
-// src/app/page.tsx
-import { getVar, resolvePlaceholders } from "@/lib/vars";
+import { getVar } from "@/lib/vars";
 import Link from "next/link";
 
 export default function Page() {
-  // Header - Navigation
-  const navTextColor = getVar<string>("nav-links-component.text-color", "#000000");
-  const navHoverColor = getVar<string>("nav-links-component.hover-color", "#3b82f6");
-  const navFontSize = getVar<number>("nav-links-component.font-size", 16);
-  const logoSrc = getVar<string>("logo-element.image-src", "public/logo.svg");
-  const logoAlt = getVar<string>("logo-element.alt-text", "Portfolio Logo");
-  const logoWidth = getVar<number>("logo-element.width", 50);
-  const logoHeight = getVar<number>("logo-element.height", 50);
-
-  // About Me
-  const aboutTitle = getVar<string>("about-me-section.section-title", "About Me");
-  const aboutBg = getVar<string>("about-me-section.background-color", "#f3f4f6");
-  const profileSrc = getVar<string>("profile-image-element.src", "public/profile.jpg");
-  const profileAlt = getVar<string>("profile-image-element.alt-text", "Profile Image");
-  const profileWidth = getVar<number>("profile-image-element.width", 150);
-  const profileHeight = getVar<number>("profile-image-element.height", 150);
-  const profileRadius = getVar<number>("profile-image-element.border-radius", 50);
-  const bioContent = getVar<string>("bio-text-element.content", "Software Engineer with a passion for building impactful applications and exploring innovative technologies.");
-  const bioFontSize = getVar<number>("bio-text-element.font-size", 16);
-  const bioLineHeight = getVar<number>("bio-text-element.line-height", 1.5);
-  const bioTextColor = getVar<string>("bio-text-element.text-color", "#333333");
-
-  // Projects
-  const projectsTitle = getVar<string>("projects-section.section-title", "Projects");
-  const projectsBg = getVar<string>("projects-section.background-color", "#ffffff");
-  const projectImg = getVar<string>("project-card-component.image-src", "public/project.jpg");
-  const projectTitle = getVar<string>("project-card-component.project-title", "Project Title");
-  const projectDesc = getVar<string>("project-card-component.description", "A brief description of the project.");
-  const projectUrl = getVar<string>("project-card-component.link-url", "https://github.com");
-  const projectBgColor = getVar<string>("project-card-component.card-background-color", "#ffffff");
-  const projectRadius = getVar<number>("project-card-component.card-border-radius", 10);
-  const projectShadow = getVar<string>("project-card-component.card-shadow", "0px 4px 6px rgba(0,0,0,0.1)");
-
-  // Skills
-  const skillsTitle = getVar<string>("skills-section.section-title", "Skills");
-  const skillsBg = getVar<string>("skills-section.background-color", "#f9fafb");
-  const badgeColor = getVar<string>("skills-badge-component.badge-color", "#3b82f6");
-  const badgeTextColor = getVar<string>("skills-badge-component.text-color", "#ffffff");
-  const badgeFontSize = getVar<number>("skills-badge-component.font-size", 14);
-
-  // Contact
-  const contactTitle = getVar<string>("contact-section.section-title", "Contact");
-  const contactBg = getVar<string>("contact-section.background-color", "#ffffff");
-  const formBg = getVar<string>("contact-form-component.background-color", "#ffffff");
-  const formRadius = getVar<number>("contact-form-component.border-radius", 10);
-  const formFieldColor = getVar<string>("contact-form-component.field-text-color", "#000000");
-  const submitColor = getVar<string>("contact-form-component.submit-button-color", "#3b82f6");
-  const socialText = getVar<string>("social-links-component.link-text", "LinkedIn");
-  const socialUrl = getVar<string>("social-links-component.link-url", "https://linkedin.com");
-  const socialIconColor = getVar<string>("social-links-component.icon-color", "#0a66c2");
-  const socialHover = getVar<string>("social-links-component.hover-color", "#3b82f6");
-
   return (
-    <main className="min-h-screen bg-white">
+    <main
+      id="portfolio-page"
+      className="min-h-screen"
+      style={{
+        background: getVar("portfolio-page.background-color", "#ffffff"),
+        color: getVar("portfolio-page.text-color", "#000000"),
+        fontFamily: getVar("portfolio-page.font-family", "Arial"),
+        fontSize: `${getVar("portfolio-page.font-size", 16)}px`,
+      }}
+    >
       {/* Header Section */}
-      <header id="header-section" className="sticky top-0 bg-white shadow-sm z-50">
-        <div id="navigation-container" className="max-w-6xl mx-auto flex items-center justify-between p-4">
-          <div id="logo-element">
-            <img src={logoSrc} alt={logoAlt} width={logoWidth} height={logoHeight} />
-          </div>
-          <nav id="nav-links-component">
-            <ul className="flex space-x-6">
-              {["Home", "About", "Projects", "Skills", "Contact"].map((item) => (
-                <li key={item}>
-                  <Link
-                    href={item === "Home" ? "/" : `#${item.toLowerCase()}`}
-                    style={{ color: navTextColor, fontSize: `${navFontSize}px` }}
-                    className="hover:underline"
-                  >
-                    {item}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+      <header
+        id="header"
+        className="flex items-center justify-between"
+        style={{
+          background: getVar("header-section.background-color", "#3b82f6"),
+          color: getVar("header-section.text-color", "#ffffff"),
+          padding: `${getVar("header-section.padding", 20)}px`,
+          fontSize: `${getVar("header-section.font-size", 18)}px`,
+        }}
+      >
+        {/* Logo Component */}
+        <div id="logo" className="flex items-center">
+          <img
+            src={getVar("logo-component.image-url", "")}
+            alt="Logo"
+            style={{
+              width: `${getVar("logo-component.logo-size", 50)}px`,
+              height: "auto",
+            }}
+          />
+          <span className="ml-2 font-bold">My Portfolio</span>
         </div>
-      </header>
-
-      {/* About Me Section */}
-      <section id="about-me-section" style={{ background: aboutBg }} className="py-16 px-4">
-        <h2 className="text-3xl font-bold mb-6">{aboutTitle}</h2>
-        <div id="about-me-container" className="flex flex-col md:flex-row items-center gap-8">
-          <div id="profile-image-element">
-            <img
-              src={profileSrc}
-              alt={profileAlt}
-              width={profileWidth}
-              height={profileHeight}
-              style={{ borderRadius: `${profileRadius}%` }}
-            />
-          </div>
-          <div id="bio-text-element">
-            <p
+        {/* Navigation Bar Component */}
+        <nav id="navbar" className="flex space-x-4">
+          {[
+            { id: "main-content", label: "Projects & Skills" },
+            { id: "footer", label: "Contact & Socials" },
+          ].map((link) => (
+            <Link
+              key={link.id}
+              href={`#${link.id}`}
               style={{
-                fontSize: `${bioFontSize}px`,
-                lineHeight: bioLineHeight,
-                color: bioTextColor,
+                color: getVar("navigation-bar-component.link-text-color", "#ffffff"),
+                background: getVar("navigation-bar-component.link-background-color", "#3b82f6"),
+                padding: `${getVar("navigation-bar-component.link-padding", 10)}px`,
+                fontSize: `${getVar("navigation-bar-component.link-font-size", 16)}px`,
+                borderRadius: "4px",
               }}
             >
-              {resolvePlaceholders(bioContent)}
-            </p>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      </header>
+
+      {/* Main Content Section */}
+      <section
+        id="main-content"
+        className="py-8"
+        style={{
+          background: getVar("main-content-section.background-color", "#f4f4f5"),
+          color: getVar("main-content-section.text-color", "#000000"),
+          padding: `${getVar("main-content-section.padding", 20)}px`,
+          fontSize: `${getVar("main-content-section.font-size", 16)}px`,
+        }}
+      >
+        {/* Projects Component */}
+        <div id="projects" className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">Projects</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div
+              className="rounded-lg"
+              style={{
+                background: getVar("projects-component.card-background-color", "#ffffff"),
+                boxShadow: getVar("projects-component.card-shadow", "0px 4px 6px rgba(0,0,0,0.1)"),
+                padding: `${getVar("projects-component.card-padding", 20)}px`,
+                fontSize: `${getVar("projects-component.font-size", 16)}px`,
+              }}
+            >
+              <h3 className="font-semibold text-xl mb-2">Project Title</h3>
+              <p className="text-gray-700">
+                Brief description of the project showcasing features and technologies used.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Skills Component */}
+        <div id="skills">
+          <h2 className="text-2xl font-bold mb-4">Skills</h2>
+          <div className="space-y-4">
+            {[
+              { name: "JavaScript", level: 80 },
+              { name: "React", level: 75 },
+              { name: "TypeScript", level: 70 },
+            ].map((skill) => (
+              <div key={skill.name}>
+                <div className="flex justify-between mb-1">
+                  <span style={{ fontSize: `${getVar("skills-component.font-size", 14)}px` }}>
+                    {skill.name}
+                  </span>
+                  <span style={{ fontSize: `${getVar("skills-component.font-size", 14)}px` }}>
+                    {skill.level}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="rounded-full h-2"
+                    style={{
+                      width: `${skill.level}%`,
+                      background: getVar("skills-component.progress-bar-color", "#3b82f6"),
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Projects Section */}
-      <section id="projects-section" style={{ background: projectsBg }} className="py-16 px-4">
-        <h2 className="text-3xl font-bold mb-6">{projectsTitle}</h2>
-        <div id="projects-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div
-            id="project-card-component"
-            className="p-4"
+      {/* Footer Section */}
+      <footer
+        id="footer"
+        className="mt-8"
+        style={{
+          background: getVar("footer-section.background-color", "#1f2937"),
+          color: getVar("footer-section.text-color", "#ffffff"),
+          padding: `${getVar("footer-section.padding", 20)}px`,
+          fontSize: `${getVar("footer-section.font-size", 14)}px`,
+        }}
+      >
+        {/* Contact Information Component */}
+        <div id="contact-info" className="mb-4">
+          <h2 className="font-bold mb-2">Contact Information</h2>
+          <p
             style={{
-              backgroundColor: projectBgColor,
-              borderRadius: `${projectRadius}px`,
-              boxShadow: projectShadow,
+              fontSize: `${getVar("contact-information-component.font-size", 14)}px`,
+              color: getVar("contact-information-component.text-color", "#ffffff"),
+              padding: `${getVar("contact-information-component.padding", 10)}px`,
             }}
           >
-            <img src={projectImg} alt={projectTitle} className="mb-4 rounded" />
-            <h3 className="text-xl font-semibold mb-2">{projectTitle}</h3>
-            <p className="text-gray-700 mb-4">{projectDesc}</p>
-            <Link href={projectUrl} className="text-blue-600 hover:underline">
-              View Project
-            </Link>
-          </div>
+            Email: example@example.com
+          </p>
+          <p
+            style={{
+              fontSize: `${getVar("contact-information-component.font-size", 14)}px`,
+              color: getVar("contact-information-component.text-color", "#ffffff"),
+            }}
+          >
+            Phone: (123) 456-7890
+          </p>
+          <p
+            style={{
+              fontSize: `${getVar("contact-information-component.font-size", 14)}px`,
+              color: getVar("contact-information-component.text-color", "#ffffff"),
+            }}
+          >
+            Location: City, Country
+          </p>
         </div>
-      </section>
 
-      {/* Skills Section */}
-      <section id="skills-section" style={{ background: skillsBg }} className="py-16 px-4">
-        <h2 className="text-3xl font-bold mb-6">{skillsTitle}</h2>
-        <div id="skills-container" className="flex flex-wrap gap-4">
-          {["JavaScript", "React", "Node.js", "TypeScript", "GraphQL"].map((skill) => (
-            <span
-              key={skill}
-              id="skills-badge-component"
-              className="px-3 py-1 rounded-full"
-              style={{ backgroundColor: badgeColor, color: badgeTextColor, fontSize: `${badgeFontSize}px` }}
+        {/* Social Media Links Component */}
+        <div id="social-links" className="flex space-x-4">
+          {[
+            { name: "LinkedIn", url: "#" },
+            { name: "GitHub", url: "#" },
+            { name: "Twitter", url: "#" },
+          ].map((social) => (
+            <Link
+              key={social.name}
+              href={social.url}
+              style={{
+                fontSize: `${getVar("social-media-links-component.icon-size", 24)}px`,
+                color: getVar("social-media-links-component.link-color", "#ffffff"),
+              }}
+              className="hover:opacity-80"
             >
-              {skill}
-            </span>
+              {social.name}
+            </Link>
           ))}
         </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact-section" style={{ background: contactBg }} className="py-16 px-4">
-        <h2 className="text-3xl font-bold mb-6">{contactTitle}</h2>
-        <div id="contact-container" className="flex flex-col md:flex-row gap-8">
-          <form
-            id="contact-form-component"
-            className="flex-1 p-6"
-            style={{ backgroundColor: formBg, borderRadius: `${formRadius}px` }}
-          >
-            <div className="mb-4">
-              <label className="block mb-1 text-gray-600">Name</label>
-              <input type="text" className="w-full border p-2 rounded" style={{ color: formFieldColor }} />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 text-gray-600">Email</label>
-              <input type="email" className="w-full border p-2 rounded" style={{ color: formFieldColor }} />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 text-gray-600">Message</label>
-              <textarea className="w-full border p-2 rounded" rows={5} style={{ color: formFieldColor }} />
-            </div>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded"
-              style={{ backgroundColor: submitColor, color: "#fff" }}
-            >
-              Send Message
-            </button>
-          </form>
-          <div id="social-links-component" className="flex-1 flex flex-col justify-center">
-            <h3 className="text-xl font-semibold mb-4">{socialText}</h3>
-            <Link href={socialUrl} style={{ color: socialIconColor }} className="hover:underline">
-              {socialText}
-            </Link>
-          </div>
-        </div>
-      </section>
+      </footer>
     </main>
   );
 }

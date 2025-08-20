@@ -310,7 +310,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Update the property value
+    // Update the property value; changing values does not affect built status
     graph.nodes[nodeIndex] = {
       ...node,
       properties: [

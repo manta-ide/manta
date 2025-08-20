@@ -50,6 +50,26 @@ export default function SelectedNodeSidebar() {
 		};
 	}, []);
 
+	// Reload freshest node data from backend after server-side updates
+	const reloadSelectedNodeFromBackend = useCallback(async () => {
+		if (!selectedNodeId) return;
+		try {
+			const res = await fetch('/api/backend/graph-api', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ nodeId: selectedNodeId })
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data?.success && data?.node) {
+					setSelectedNode(selectedNodeId, data.node);
+				}
+			}
+		} catch (e) {
+			console.warn('Failed to reload selected node from backend:', e);
+		}
+	}, [selectedNodeId, setSelectedNode]);
+
 	if (!selectedNodeId) return null;
 
 	const handleRebuild = async () => {
@@ -75,6 +95,7 @@ export default function SelectedNodeSidebar() {
 			const saved = await saveRes.json();
 			if (saved?.node) {
 				setSelectedNode(selectedNodeId, saved.node);
+				await reloadSelectedNodeFromBackend();
 			}
 
 			// 2) Trigger rebuild through chat service (agent-request orchestration)
@@ -100,6 +121,7 @@ export default function SelectedNodeSidebar() {
 				console.warn('Reload after rebuild failed:', e);
 			}
 			triggerRefresh();
+			await reloadSelectedNodeFromBackend();
 			
 			// 5) Show success message
 			setRebuildSuccess(true);
@@ -160,6 +182,8 @@ export default function SelectedNodeSidebar() {
 						
 						// Trigger refresh to ensure UI is updated
 						triggerRefresh();
+						// Reload node from backend to reflect built=false after structure change
+						await reloadSelectedNodeFromBackend();
 					} else {
 						console.error('Updated node not found in response');
 					}
