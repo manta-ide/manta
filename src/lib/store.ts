@@ -16,6 +16,7 @@ interface ProjectStore {
   graph: Graph | null;
   graphLoading: boolean;
   graphError: string | null;
+  graphConnected: boolean;
   
   // File operations
   loadProject: () => Promise<void>;
@@ -43,6 +44,10 @@ interface ProjectStore {
   disconnectFromGraphEvents: () => void;
 }
 
+// Private variable to track the EventSource connection
+let graphEventSource: EventSource | null = null;
+let reconnectTimeout: NodeJS.Timeout | null = null;
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   // File system state
   files: new Map(),
@@ -58,6 +63,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   graph: null,
   graphLoading: true,
   graphError: null,
+  graphConnected: false,
 
   loadProject: async () => {
     try {
@@ -250,14 +256,39 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   // Graph event handling
   connectToGraphEvents: () => {
-    const eventSource = new EventSource('/api/backend/graph-api?sse=true');
+    // Prevent multiple connections
+    if (graphEventSource && graphEventSource.readyState !== EventSource.CLOSED) {
+      console.log('🔗 Graph events already connected, skipping...');
+      return;
+    }
     
-    eventSource.onopen = () => {
+    // Also check the connection state
+    const state = get();
+    if (state.graphConnected) {
+      console.log('🔗 Graph events already connected (state check), skipping...');
+      return;
+    }
+    
+    // Clear any existing reconnection timeout
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
+    }
+    
+    // Close existing connection if it exists
+    if (graphEventSource) {
+      graphEventSource.close();
+    }
+    
+    console.log('🔗 Connecting to graph events...');
+    graphEventSource = new EventSource('/api/backend/graph-api?sse=true');
+    
+    graphEventSource.onopen = () => {
       console.log('🔗 Connected to graph events');
-      set({ graphError: null });
+      set({ graphError: null, graphConnected: true });
     };
 
-    eventSource.onmessage = (event) => {
+    graphEventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'graph-update') {
@@ -268,12 +299,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
     };
 
-    eventSource.onerror = (error) => {
+    graphEventSource.onerror = (error) => {
       console.error('❌ Graph event source error:', error);
-      set({ graphError: 'Connection lost. Reconnecting...' });
+      set({ graphError: 'Connection lost. Reconnecting...', graphConnected: false });
+      
+      // Close the current connection
+      if (graphEventSource) {
+        graphEventSource.close();
+        graphEventSource = null;
+      }
       
       // Attempt to reconnect after 3 seconds
-      setTimeout(() => {
+      reconnectTimeout = setTimeout(() => {
         console.log('🔄 Attempting to reconnect to graph events...');
         get().connectToGraphEvents();
       }, 3000);
@@ -281,7 +318,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   disconnectFromGraphEvents: () => {
-    // EventSource will be cleaned up by the browser when the component unmounts
-    console.log('🔌 Disconnected from graph events');
+    // Clear any pending reconnection timeout
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
+    }
+    
+    // Close the EventSource connection
+    if (graphEventSource) {
+      graphEventSource.close();
+      graphEventSource = null;
+      console.log('🔌 Disconnected from graph events');
+    }
+    
+    set({ graphConnected: false });
   },
 })); 

@@ -273,7 +273,7 @@ function GraphView() {
     return () => {
       disconnectFromGraphEvents();
     };
-  }, [connectToGraphEvents, disconnectFromGraphEvents]);
+  }, []); // Empty dependency array to run only once
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
