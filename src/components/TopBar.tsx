@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+// Remove SandboxService import - using direct API calls now
 
 interface TopBarProps {
   panels: {
@@ -26,13 +27,122 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const switchId = useId();
   const { user, signOut, loading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
   };
 
+  // Helper function to call Blaxel API
+  const callBlaxelAPI = async (action: string, params: any = {}) => {
+    const response = await fetch('/api/blaxel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...params }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  };
+
+  const handleConnectSandbox = async () => {
+    try {
+      setIsLoading(true);
+      const result = await callBlaxelAPI('connect');
+      setIsConnected(result.success);
+      console.log('Sandbox connection:', result);
+    } catch (error) {
+      console.error('Error connecting to sandbox:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateFile = async () => {
+    try {
+      setIsLoading(true);
+      const content = `// Updated at ${new Date().toISOString()}\nconsole.log("Hello from updated file!");`;
+      const result = await callBlaxelAPI('writeFile', {
+        path: '/test.js',
+        content,
+      });
+      console.log('File update result:', result);
+    } catch (error) {
+      console.error('Error updating file:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReadFile = async () => {
+    try {
+      setIsLoading(true);
+      const result = await callBlaxelAPI('readFile', {
+        path: '/test.js',
+      });
+      console.log('File content:', result.content);
+    } catch (error) {
+      console.error('Error reading file:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    try {
+      setIsLoading(true);
+      const result = await callBlaxelAPI('deleteFile', {
+        path: '/test.js',
+      });
+      console.log('File delete result:', result);
+    } catch (error) {
+      console.error('Error deleting file:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <header className="border-b border-zinc-700 bg-zinc-800 px-4 py-3">
+      <div className="flex items-center gap-2 mb-3">
+        <Button
+          onClick={handleConnectSandbox}
+          disabled={isLoading}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {isLoading ? 'Connecting...' : 'Connect Sandbox'}
+        </Button>
+        <Button
+          onClick={handleUpdateFile}
+          disabled={isLoading}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          {isLoading ? 'Updating...' : 'Update File'}
+        </Button>
+        <Button
+          onClick={handleReadFile}
+          disabled={isLoading}
+          className="bg-yellow-600 hover:bg-yellow-700 text-white"
+        >
+          {isLoading ? 'Reading...' : 'Read File'}
+        </Button>
+        <Button
+          onClick={handleDeleteFile}
+          disabled={isLoading}
+          className="bg-red-600 hover:bg-red-700 text-white"
+        >
+          {isLoading ? 'Deleting...' : 'Delete File'}
+        </Button>
+        {isConnected && (
+          <span className="text-green-400 text-sm">
+            ✓ Connected to Blaxel
+          </span>
+        )}
+      </div>
       <div className="flex items-center justify-between">
         {/* Left side - App title */}
         <div className="flex items-center">
