@@ -139,13 +139,13 @@
       "prompt": "This section includes a contact form for visitors to reach out.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "contact-section-margin",
           "title": "Margin",
           "type": "number",
-          "value": 20,
+          "value": 10,
           "min": 0,
           "max": 50,
           "step": 1
