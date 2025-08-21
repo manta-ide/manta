@@ -33,8 +33,8 @@ function extractVariablesFromGraph(graph: Graph): Record<string, any> {
         const propertyTitle = property.title?.toLowerCase().replace(/\s+/g, '-') || `property-${index}`;
         
         // Generate both formats: with node-element prefix and without
-        const varNameWithPrefix = `${nodeTitle}.${propertyTitle}`;
-        const varNameWithoutPrefix = `${nodeTitle}.${propertyTitle}`;
+        const varNameWithPrefix = `${nodeTitle}-${propertyTitle}`;
+        const varNameWithoutPrefix = `${nodeTitle}-${propertyTitle}`;
         
         // Store both formats for flexibility - just the value, no metadata
         vars[varNameWithPrefix] = property.value;

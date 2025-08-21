@@ -306,11 +306,11 @@ export const codeEditorTools: ToolSet = {
   }),
 
   patchFile: tool({
-    description: 'Apply contextual edits to an existing file using edit_file-style format with // ... existing code ... markers',
+    description: 'Apply precise code edits to existing files. REQUIRES exact code context with BEFORE/AFTER format. DO NOT provide natural language instructions.',
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to patch this file'), */
       path: z.string().describe('The file path relative to the project root'),
-      patchDescription: z.string().describe('Edit specification using minimal contextual snippets separated by // ... existing code ...'),
+      patchDescription: z.string().describe('EXACT code replacement format: "// Original code:\n[exact lines from file]\n\n// Updated code:\n[new lines with changes]" - Must include verbatim context from the target file'),
     }),
     execute: async ({ path, patchDescription }) => {
       try {
@@ -341,7 +341,7 @@ export const codeEditorTools: ToolSet = {
           return {
             success: false,
             message:
-              'PATCH_DESCRIPTION_INVALID: Provide concrete code edits with verbatim context lines copied from the current file. Include one or more anchors (exact lines from the file) and optionally use "// ... existing code ..." to omit unrelated sections. Avoid natural-language instructions.',
+              'PATCH_DESCRIPTION_INVALID: You must provide EXACT code in this format:\n\n// Original code:\n[copy exact lines from the file here]\n\n// Updated code:\n[your modified version here]\n\nExample:\n// Original code:\n<section id="projects-section" className="relative">\n\n// Updated code:\n<section id="projects-section" className="relative m-4">\n\nDO NOT use natural language descriptions. Copy actual code from the file.',
             operation: { type: 'patch', path, patchDescription },
           };
         }

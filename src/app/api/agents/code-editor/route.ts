@@ -7,7 +7,7 @@ import { markNodesBuilt } from '@/app/api/lib/graphStorage';
 import { fetchGraphFromApi, fetchUnbuiltNodeIdsFromApi } from '@/app/api/lib/graphApiUtils';
 
 const CODE_EDITOR_CONFIG = {
-  model: 'gpt-5',
+  model: 'gpt-4o',
   maxSteps: 50,
   streaming: false,
   temperature: 1,
@@ -15,7 +15,7 @@ const CODE_EDITOR_CONFIG = {
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
-    system: 'website-template',
+    system: 'code-editor-template',
   },
   structuredOutput: false,
   toolsetName: 'code-editor'
