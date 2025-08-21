@@ -12,5 +12,6 @@
   "projects-section-text-color": "#000000",
   "projects-section-card-shadow": "0px 4px 6px rgba(0, 0, 0, 0.1)",
   "projects-section-max-projects": 3,
+  "projects-section-card-color": "#e0e0e0",
   "contact-section-margin": 10
 }

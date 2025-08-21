@@ -167,8 +167,8 @@ console.log(">>>>>>>>>>>>>>>>>headerTagline", headerTagline)
               {projects.map((p, i) => (
                 <Card
                   key={i}
-                  className="group relative overflow-hidden rounded-2xl border-black/10 bg-white/70 backdrop-blur transition-transform will-change-transform hover:-translate-y-1"
-                  style={{ boxShadow: cardShadow }}
+                  className="group relative overflow-hidden rounded-2xl border-black/10 backdrop-blur transition-transform will-change-transform hover:-translate-y-1"
+                  style={{ boxShadow: cardShadow, backgroundColor: getVar("projects-section-card-color", "#ff0000") }}
                 >
                   <CardHeader className="flex min-h-28 flex-row items-start gap-4">
                     <div className="relative">

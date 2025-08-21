@@ -122,6 +122,7 @@ When using `edit_node`, set `built: false` when:
 - This is a **Next.js** project using **TypeScript** and **Tailwind CSS**
 - **CRITICAL**: Complete the entire structure in one operation - do not ask for continuation
 - **CRITICAL**: Include all child element properties in parent nodes, not as separate nodes
+- If the user's request does not require change of node description or properties - just set it to unbuilt and pass it forward, the coding agent will implement the change after you
 
 ## Workflow
 1. Understand the user's request

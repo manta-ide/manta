@@ -1,156 +1,19 @@
 {
-  "nodes": [
-    {
-      "id": "portfolio-page",
-      "title": "Portfolio Page",
-      "prompt": "Create a portfolio page for a software engineer. It includes sections for header, project showcase, skills display, and a contact form, all styled using Tailwind CSS and shadcn/ui components.",
-      "children": [
-        {
-          "id": "header-section",
-          "title": "Header Section"
-        },
-        {
-          "id": "projects-section",
-          "title": "Projects Section"
-        },
-        {
-          "id": "contact-section",
-          "title": "Contact Section"
-        }
-      ],
-      "built": true,
-      "properties": [
-        {
-          "id": "portfolio-page-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "portfolio-page-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#080808"
-        },
-        {
-          "id": "portfolio-page-font-family",
-          "title": "Font Family",
-          "type": "text",
-          "value": "Inter, sans-serif"
-        },
-        {
-          "id": "portfolio-page-section-padding",
-          "title": "Section Padding",
-          "type": "number",
-          "value": 23,
-          "min": 0,
-          "max": 100,
-          "step": 1
-        }
-      ]
-    },
-    {
-      "id": "header-section",
-      "title": "Header Section",
-      "prompt": "This section contains a header with logo and navigation menu.",
-      "children": [],
-      "parentId": "portfolio-page",
-      "built": true,
-      "properties": [
-        {
-          "id": "header-section-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "header-section-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#0a0a0a"
-        },
-        {
-          "id": "header-section-padding",
-          "title": "Padding",
-          "type": "number",
-          "value": 12,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        },
-        {
-          "id": "header-section-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 20,
-          "min": 12,
-          "max": 36,
-          "step": 1
-        },
-        {
-          "id": "header-section-tagline",
-          "title": "Tagline",
-          "type": "text",
-          "value": "Welcome",
-          "maxLength": 100
-        }
-      ]
-    },
-    {
-      "id": "projects-section",
-      "title": "Projects Section",
-      "prompt": "This section showcases projects in a grid layout with individual project cards.",
-      "children": [],
-      "parentId": "portfolio-page",
-      "built": true,
-      "properties": [
-        {
-          "id": "projects-section-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "projects-section-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#000000"
-        },
-        {
-          "id": "projects-section-card-shadow",
-          "title": "Card Shadow",
-          "type": "text",
-          "value": "0px 4px 6px rgba(0, 0, 0, 0.1)"
-        },
-        {
-          "id": "projects-section-max-projects",
-          "title": "Max Projects",
-          "type": "number",
-          "value": 3,
-          "min": 1,
-          "max": 20,
-          "step": 1
-        }
-      ]
-    },
-    {
-      "id": "contact-section",
-      "title": "Contact Section",
-      "prompt": "This section includes a contact form for visitors to reach out.",
-      "children": [],
-      "parentId": "portfolio-page",
-      "built": false,
-      "properties": [
-        {
-          "id": "contact-section-margin",
-          "title": "Margin",
-          "type": "number",
-          "value": 20,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        }
-      ]
-    }
-  ]
+  "portfolio-page-background-color": "#ffffff",
+  "portfolio-page-text-color": "#080808",
+  "portfolio-page-font-family": "Inter, sans-serif",
+  "portfolio-page-section-padding": 23,
+  "header-section-background-color": "#ffffff",
+  "header-section-text-color": "#0a0a0a",
+  "header-section-padding": 12,
+  "header-section-font-size": 20,
+  "header-section-tagline": "Welcome",
+  "projects-section-background-color": "#ffffff",
+  "projects-section-text-color": "#000000",
+  "projects-section-card-shadow": "0px 4px 6px rgba(0, 0, 0, 0.1)",
+  "projects-section-max-projects": 3,
+  "projects-section-card-color": "#ff0000",
+  "contact-section-margin": 10,
+  "contact-section-font-size": 16,
+  "contact-section-form-placeholder-text": "Enter your message"
 }

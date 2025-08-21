@@ -130,6 +130,12 @@
           "min": 1,
           "max": 20,
           "step": 1
+        },
+        {
+          "id": "projects-section-card-color",
+          "title": "Card Color",
+          "type": "color",
+          "value": "#e0e0e0"
         }
       ]
     },

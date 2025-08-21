@@ -64,34 +64,17 @@ export default function SelectionBox({ isEditMode, document: doc, window: win, s
         selLeft < rRight && selRight > rLeft &&
         selTop < rBottom && selBottom > rTop;
 
-      const STYLE_KEYS = [
-        'display',
-        'position',
-        'color',
-        'backgroundColor',
-        'fontSize',
-        'fontWeight',
-      ] as const;
-
-      type PickedStyle = { [K in (typeof STYLE_KEYS)[number]]: string };
-
       interface SelectedDescriptor {
         tag: string;
         text: string;
-        style: PickedStyle;
         coverage: number;
       }
 
       const buildDescriptor = (el: HTMLElement, coverage: number): SelectedDescriptor => {
-        const cs = win.getComputedStyle(el);
-        const picked: PickedStyle = {} as PickedStyle;
-        STYLE_KEYS.forEach(k => (picked[k] = cs[k as any] || ''));
-
         const txt = el.innerText ? el.innerText.trim().replace(/\s+/g, ' ').slice(0, 80) : '';
         return {
           tag: el.tagName.toLowerCase(),
           text: txt,
-          style: picked,
           coverage: Number(coverage.toFixed(1)),
         };
       };
