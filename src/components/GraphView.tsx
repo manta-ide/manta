@@ -239,6 +239,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
 function GraphView() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [isRebuilding, setIsRebuilding] = useState(false);
   const { setSelectedNode, selectedNodeId } = useProjectStore();
   
   // Use the store for graph data
@@ -264,6 +265,40 @@ function GraphView() {
       }
     } catch (error) {
       console.error('❌ Error deleting graph:', error);
+    }
+  }, []);
+
+  // Function to rebuild the full graph
+  const rebuildFullGraph = useCallback(async () => {
+    if (!confirm('Are you sure you want to rebuild the entire graph? This will regenerate code for all nodes.')) {
+      return;
+    }
+
+    setIsRebuilding(true);
+    try {
+      const response = await fetch('/api/backend/agent-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: {
+            role: 'user',
+            content: 'Rebuild the entire graph and generate code for all nodes',
+            variables: {}
+          },
+          rebuildAll: true
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Full graph rebuild started successfully');
+        // The graph will be automatically updated via SSE
+      } else {
+        console.error('❌ Failed to rebuild graph');
+      }
+    } catch (error) {
+      console.error('❌ Error rebuilding graph:', error);
+    } finally {
+      setIsRebuilding(false);
     }
   }, []);
 
@@ -507,40 +542,83 @@ function GraphView() {
         <Background color="#f8f9fa" gap={20} />
       </ReactFlow>
       
-      {/* Delete Graph Button */}
-      <button
-        onClick={deleteGraph}
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: 'rgba(255, 255, 255, 0.9)',
-          border: '1px solid #ef4444',
-          padding: '6px 12px',
-          borderRadius: '20px',
-          fontSize: '12px',
-          color: '#ef4444',
-          fontWeight: '500',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          zIndex: 1000,
-          transition: 'all 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-          e.currentTarget.style.color = '#dc2626';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-          e.currentTarget.style.color = '#ef4444';
-        }}
-        title="Delete graph"
-      >
-        🗑️ Delete Graph
-      </button>
+      {/* Action Buttons */}
+      <div style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        display: 'flex',
+        gap: '8px',
+        zIndex: 1000,
+      }}>
+        {/* Rebuild Full Graph Button */}
+        <button
+          onClick={rebuildFullGraph}
+          disabled={isRebuilding}
+          style={{
+            background: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid #3b82f6',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            color: isRebuilding ? '#9ca3af' : '#3b82f6',
+            fontWeight: '500',
+            cursor: isRebuilding ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.2s ease',
+            opacity: isRebuilding ? 0.6 : 1
+          }}
+          onMouseEnter={(e) => {
+            if (!isRebuilding) {
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+              e.currentTarget.style.color = '#2563eb';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isRebuilding) {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+              e.currentTarget.style.color = '#3b82f6';
+            }
+          }}
+          title={isRebuilding ? "Rebuilding graph..." : "Rebuild entire graph and generate code for all nodes"}
+        >
+          {isRebuilding ? '⏳' : '🔄'} {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
+        </button>
+        
+        {/* Delete Graph Button */}
+        <button
+          onClick={deleteGraph}
+          style={{
+            background: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid #ef4444',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            color: '#ef4444',
+            fontWeight: '500',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+            e.currentTarget.style.color = '#dc2626';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+            e.currentTarget.style.color = '#ef4444';
+          }}
+          title="Delete graph"
+        >
+          🗑️ Delete Graph
+        </button>
+      </div>
     </div>
   );
 }

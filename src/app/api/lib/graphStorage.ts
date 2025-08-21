@@ -219,6 +219,26 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
 }
 
 /**
+ * Mark nodes as unbuilt and persist to file
+ */
+export async function markNodesUnbuilt(nodeIds: string[]): Promise<void> {
+  if (!currentGraph) return;
+  const idSet = new Set(nodeIds);
+  const updated: Graph = {
+    ...currentGraph,
+    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: false } : n)),
+  };
+  currentGraph = updated;
+  
+  try {
+    const graphFilePath = path.join(PROJECT_ROOT, '.graph', 'graph.json');
+    await fs.writeFile(graphFilePath, JSON.stringify(updated, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error persisting unbuilt flags:', error);
+  }
+}
+
+/**
  * Initialize graph from files on startup
  */
 export async function initializeGraphsFromFiles(): Promise<void> {

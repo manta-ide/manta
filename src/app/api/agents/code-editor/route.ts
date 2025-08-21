@@ -7,11 +7,11 @@ import { markNodesBuilt } from '@/app/api/lib/graphStorage';
 import { fetchGraphFromApi, fetchUnbuiltNodeIdsFromApi } from '@/app/api/lib/graphApiUtils';
 
 const CODE_EDITOR_CONFIG = {
-  model: 'o4-mini',
+  model: 'gpt-5',
   maxSteps: 50,
   streaming: false,
   temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'high' } },
+  providerOptions: { azure: { reasoning_effort: 'minimal' } },
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
@@ -21,7 +21,10 @@ const CODE_EDITOR_CONFIG = {
   toolsetName: 'code-editor'
 } as const;
 
-const RequestSchema = z.object({ userMessage: MessageSchema });
+const RequestSchema = z.object({ 
+  userMessage: MessageSchema,
+  rebuildAll: z.boolean().optional().default(false)
+});
 
 async function buildParsedMessages(
   userMessage: Message,
@@ -78,7 +81,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { userMessage } = parsed.data;
+    const { userMessage, rebuildAll } = parsed.data;
     
     // Get graph from API
     const graph = await fetchGraphFromApi(req);
@@ -90,22 +93,33 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Get unbuilt node IDs from API
-    const unbuiltNodeIds = await fetchUnbuiltNodeIdsFromApi(req);
+    // Get node IDs to process
+    let nodeIdsToProcess: string[];
+    let filteredGraph: any;
     
-    if (unbuiltNodeIds.length === 0) {
-      return new Response(JSON.stringify({ 
-        success: true,
-        message: 'No unbuilt nodes found. All nodes are already built.',
-        unbuiltNodeIds: []
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (rebuildAll) {
+      // For rebuild, process all nodes
+      nodeIdsToProcess = graph.nodes.map((node: any) => node.id);
+      filteredGraph = graph; // Use full graph
+      console.log(`🔄 Rebuild mode: processing all ${nodeIdsToProcess.length} nodes`);
+    } else {
+      // Normal mode: only process unbuilt nodes
+      nodeIdsToProcess = await fetchUnbuiltNodeIdsFromApi(req);
+      
+      if (nodeIdsToProcess.length === 0) {
+        return new Response(JSON.stringify({ 
+          success: true,
+          message: 'No unbuilt nodes found. All nodes are already built.',
+          unbuiltNodeIds: []
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Filter graph to only include unbuilt nodes
+      filteredGraph = filterGraphForUnbuiltNodes(graph, nodeIdsToProcess);
     }
-
-    // Filter graph to only include unbuilt nodes
-    const filteredGraph = filterGraphForUnbuiltNodes(graph, unbuiltNodeIds);
 
     // Get project files for the prompt template
     const projectFilesRes = await fetch(`${req.nextUrl.origin}/api/files?list=true`);
@@ -126,7 +140,7 @@ export async function POST(req: NextRequest) {
     );
 
     console.log('🔄 Calling code editor agent with config:', JSON.stringify(CODE_EDITOR_CONFIG, null, 2));
-    console.log('🔄 Unbuilt node IDs:', unbuiltNodeIds);
+    console.log('🔄 Node IDs to process:', nodeIdsToProcess);
     console.log('🔄 Filtered graph nodes:', filteredGraph.nodes.length);
     
     const codeEditorResponse = await callAgent(req, {
@@ -148,9 +162,9 @@ export async function POST(req: NextRequest) {
     
     console.log('📝 Code editor result:', JSON.stringify(result, null, 2));
     
-    // Mark unbuilt nodes as built
+    // Mark processed nodes as built
     try {
-      await markNodesBuilt(unbuiltNodeIds);
+      await markNodesBuilt(nodeIdsToProcess);
     } catch (error) {
       console.warn('Failed to mark nodes as built:', error);
     }
@@ -162,9 +176,11 @@ export async function POST(req: NextRequest) {
       success: true,
       result: result,
       generatedCode: generatedCode,
-      unbuiltNodeIds: unbuiltNodeIds,
+      processedNodeIds: nodeIdsToProcess,
       processedNodes: filteredGraph.nodes.length,
-      message: 'Code generation completed successfully for unbuilt nodes'
+      message: rebuildAll 
+        ? 'Code generation completed successfully for all nodes (rebuild mode)'
+        : 'Code generation completed successfully for unbuilt nodes'
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

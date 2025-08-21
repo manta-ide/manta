@@ -335,6 +335,60 @@ export async function POST(req: NextRequest) {
       });
     }
     console.log(tools)
+
+    // Real-time step logging callback
+    const onStepFinish = (event: any) => {
+      const stepIndex = totalSteps + 1;
+      writeLog(`[${operationName}] === STEP ${stepIndex} COMPLETED ===`);
+      writeLog(`[${operationName}] Step Type: ${event.type}`);
+      writeLog(`[${operationName}] Step ID: ${event.stepId || 'N/A'}`);
+      writeLog(`[${operationName}] Message ID: ${event.messageId || 'N/A'}`);
+
+      // Log tool calls in this step
+      if (event.toolCalls && event.toolCalls.length > 0) {
+        writeLog(`[${operationName}] Tool Calls in Step ${stepIndex}:`);
+        event.toolCalls.forEach((toolCall: any, index: number) => {
+          writeLog(`[${operationName}]   Tool Call ${index + 1}:`);
+          writeLog(`[${operationName}]     Tool Name: ${toolCall.toolName || 'N/A'}`);
+          writeLog(`[${operationName}]     Tool Call ID: ${toolCall.toolCallId || 'N/A'}`);
+          if (toolCall.args) {
+            writeLog(`[${operationName}]     Arguments: ${JSON.stringify(toolCall.args, null, 2)}`);
+          }
+        });
+      }
+
+      // Log tool results in this step
+      if (event.toolResults && event.toolResults.length > 0) {
+        writeLog(`[${operationName}] Tool Results in Step ${stepIndex}:`);
+        event.toolResults.forEach((toolResult: any, index: number) => {
+          writeLog(`[${operationName}]   Tool Result ${index + 1}:`);
+          writeLog(`[${operationName}]     Tool Call ID: ${toolResult.toolCallId || 'N/A'}`);
+          writeLog(`[${operationName}]     Result: ${JSON.stringify(toolResult.result, null, 2)}`);
+        });
+      }
+
+      // Log text content if any
+      if (event.text) {
+        writeLog(`[${operationName}] Text Content in Step ${stepIndex}: ${event.text}`);
+      }
+
+      // Log finish reason if available
+      if (event.finishReason) {
+        writeLog(`[${operationName}] Step Finish Reason: ${event.finishReason}`);
+      }
+
+      // Log usage statistics for this step if available
+      if (event.usage) {
+        writeLog(`[${operationName}] Step Usage Statistics:`);
+        writeLog(`[${operationName}]   Prompt Tokens: ${event.usage.promptTokens || 'N/A'}`);
+        writeLog(`[${operationName}]   Completion Tokens: ${event.usage.completionTokens || 'N/A'}`);
+        writeLog(`[${operationName}]   Total Tokens: ${event.usage.totalTokens || 'N/A'}`);
+      }
+
+      writeLog(`[${operationName}] === END STEP ${stepIndex} ===\n`);
+      totalSteps = stepIndex;
+    };
+
     // Non-streaming mode only
     const result = await generateText({
       model: selectModel(config.model, config.provider) as any,
@@ -342,18 +396,17 @@ export async function POST(req: NextRequest) {
       tools: tools,
       maxSteps: config.maxSteps,
       abortSignal: req.signal,
-      temperature: config.temperature
+      temperature: config.temperature,
+      onStepFinish: onStepFinish
     });
     const text = await result.text;
 
-    // Get step count from result if available
-    if (result.steps) {
-      totalSteps = result.steps.length;
-      
-      // Collect all tool calls and their results from all steps
+    // Log final summary
+    if (result.steps && result.steps.length > 0) {
+      // Collect all tool calls and their results from all steps for final summary
       const allToolCalls = result.steps.flatMap(step => step.toolCalls || []);
       const allToolResults = result.steps.flatMap(step => step.toolResults || []);
-      
+
       // Create a map of tool call results by toolCallId
       const toolResultsMap = new Map();
       allToolResults.forEach((result: any) => {
@@ -361,31 +414,31 @@ export async function POST(req: NextRequest) {
           toolResultsMap.set(result.toolCallId, result);
         }
       });
-      
-      // Log tool calls summary
-      writeLog(`[${operationName}] === TOOL CALLS SUMMARY ===`);
+
+      // Log final tool calls summary
+      writeLog(`[${operationName}] === FINAL TOOL CALLS SUMMARY ===`);
+      writeLog(`[${operationName}] Total Steps: ${result.steps.length}`);
       writeLog(`[${operationName}] Total Tool Calls: ${allToolCalls.length}`);
-      
+
       if (allToolCalls.length > 0) {
         allToolCalls.forEach((toolCall: any, index: number) => {
           writeLog(`[${operationName}] Tool Call ${index + 1}:`);
-          writeLog(`[${operationName}]   Tool ID: ${toolCall.toolId || 'N/A'}`);
           writeLog(`[${operationName}]   Tool Name: ${toolCall.toolName || 'N/A'}`);
           writeLog(`[${operationName}]   Tool Call ID: ${toolCall.toolCallId || 'N/A'}`);
           if (toolCall.args) {
             writeLog(`[${operationName}]   Arguments: ${JSON.stringify(toolCall.args, null, 2)}`);
           }
-          
+
           // Get the result for this tool call
           const toolResult = toolCall.toolCallId ? toolResultsMap.get(toolCall.toolCallId) : null;
           if (toolResult) {
-            writeLog(`[${operationName}]   Result: ${JSON.stringify(toolResult, null, 2)}`);
+            writeLog(`[${operationName}]   Result: ${JSON.stringify(toolResult.result, null, 2)}`);
           } else {
             writeLog(`[${operationName}]   Result: Not found`);
           }
         });
       }
-      writeLog(`[${operationName}] === END STEP DETAILS ===`);
+      writeLog(`[${operationName}] === END FINAL SUMMARY ===`);
     } else {
       totalSteps = 1; // Default to 1 step if no step information available
     }

@@ -1,254 +1,251 @@
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 export default function Page() {
-  const projects = [
-    {
-      title: "Project One",
-      subtitle: "Full-Stack App",
-      description:
-        "A cutting-edge web platform built with React, Node.js, and GraphQL to deliver real-time data insights.",
-      tags: ["React", "Node.js", "GraphQL"],
-      link: "#",
-    },
-    {
-      title: "Project Two",
-      subtitle: "Mobile Experience",
-      description:
-        "A cross-platform mobile application leveraging React Native and TypeScript for a seamless user experience.",
-      tags: ["React Native", "TypeScript", "Expo"],
-      link: "#",
-    },
-    {
-      title: "Project Three",
-      subtitle: "Data Visualization",
-      description:
-        "An interactive dashboard built with D3.js and Next.js, empowering users to explore complex datasets intuitively.",
-      tags: ["D3.js", "Next.js", "TailwindCSS"],
-      link: "#",
-    },
-  ];
-
-  const skills = [
-    { name: "JavaScript", icon: "🟨" },
-    { name: "TypeScript", icon: "🔷" },
-    { name: "React", icon: "⚛️" },
-    { name: "Next.js", icon: "⏭️" },
-    { name: "Node.js", icon: "🟩" },
-    { name: "GraphQL", icon: "🔺" },
-    { name: "TailwindCSS", icon: "🌬️" },
-    { name: "D3.js", icon: "📊" },
-  ];
-
   return (
-    <main className="bg-white text-gray-800 font-sans">
-      {/* Header */}
-      <header className="fixed w-full bg-white/80 backdrop-blur-md z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <img
-              src="https://example.com/logo.png"
-              alt="Logo"
-              className="h-12 w-12 object-contain mr-3"
-            />
-            <span className="font-bold text-xl">MyPortfolio</span>
+    <main className="relative min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-violet-500 selection:text-white">
+      {/* Subtle background aesthetics: grid + soft gradients */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_20%_0%,rgba(124,58,237,0.25),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(70%_50%_at_100%_20%,rgba(79,70,229,0.18),transparent_60%)]" />
+        <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)] bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:24px_24px]" />
+      </div>
+
+      {/* Portfolio wrapper section for graph mapping */}
+      <section id="portfolio-page" className="relative">
+        {/* Header / Navigation */}
+        <section id="header-section" className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <Link href="#portfolio-page" className="group inline-flex items-center gap-3">
+              <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-500/20">
+                <span className="absolute inset-0 rounded-md bg-white/10 opacity-0 transition-opacity group-hover:opacity-10" />
+                <span className="text-sm font-bold">AC</span>
+              </span>
+              <div className="leading-tight">
+                <div className="text-sm uppercase tracking-widest text-slate-400">Welcome to My Portfolio</div>
+                <div className="text-lg font-semibold text-white">Avery Chen</div>
+              </div>
+            </Link>
+
+            <nav className="hidden gap-6 md:flex">
+              <Link href="#projects-section" className="text-sm text-slate-300 transition-colors hover:text-white">
+                Projects
+              </Link>
+              <Link href="#skills-section" className="text-sm text-slate-300 transition-colors hover:text-white">
+                Skills
+              </Link>
+              <Link href="#contact-section" className="text-sm text-slate-300 transition-colors hover:text-white">
+                Contact
+              </Link>
+            </nav>
+
+            <div className="hidden md:block">
+              <Button asChild size="sm" className="bg-white text-slate-900 hover:bg-slate-200">
+                <Link href="/file.svg">Resume</Link>
+              </Button>
+            </div>
           </div>
-          <nav>
-            <ul className="flex space-x-8 text-gray-700">
-              {['Home', 'Projects', 'Skills', 'Contact'].map((item) => (
-                <li key={item} className="group">
-                  <Link
-                    href={`#${item.toLowerCase()}`}
-                    className="relative transition-colors hover:text-blue-600"
-                  >
-                    {item}
-                    <span className="absolute -bottom-1 left-0 w-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 transition-all group-hover:w-full"></span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      </header>
+        </section>
 
-      {/* Hero Section */}
-      <section
-        id="home"
-        className="relative h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 text-white"
-      >
-        <div className="text-center px-6 max-w-2xl">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 leading-tight">
-            Welcome to My Portfolio
-          </h1>
-          <p className="text-lg md:text-xl opacity-90 mb-6">
-            I'm a Software Engineer passionate about crafting high-performance,
-            scalable web applications that delight users.
-          </p>
-          <Button
-            size="lg"
-            className="bg-white text-purple-600 hover:bg-gray-100 px-8 py-4 rounded-full shadow-lg transition-transform hover:scale-105"
-          >
-            Explore My Work
-          </Button>
+        {/* Hero inside the portfolio page wrapper */}
+        <div className="mx-auto max-w-6xl px-6 pt-20 pb-10">
+          <div className="max-w-3xl">
+            <Badge className="mb-6 bg-violet-600/20 text-violet-300 ring-1 ring-inset ring-violet-500/30">
+              Software Engineer • Product-minded • Systems at scale
+            </Badge>
+            <h1 className="bg-gradient-to-br from-white via-slate-200 to-violet-200 bg-clip-text text-5xl font-bold leading-tight text-transparent md:text-7xl">
+              Engineering elegant, resilient systems
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg text-slate-400">
+              I design and build fast, reliable products—balancing delightful user experiences with rigorous, well-tested infrastructure.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-4">
+              <Button asChild size="lg" className="bg-white text-slate-900 transition-transform hover:scale-[1.02] hover:bg-slate-200">
+                <Link href="#projects-section">Explore my work</Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="border-slate-700 bg-transparent text-white hover:bg-slate-900">
+                <Link href="#contact-section">Get in touch</Link>
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="absolute bottom-10 animate-bounce">
-          <svg
-            className="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </div>
-      </section>
 
-      {/* Projects Section */}
-      <section id="projects" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-4xl font-bold text-center mb-12">
-            Featured <span className="text-purple-600">Projects</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {projects.map((project) => (
-              <Card
-                key={project.title}
-                className="shadow-lg hover:shadow-purple-500/30 transition-shadow duration-300"
-              >
+        {/* Projects */}
+        <section id="projects-section" className="relative py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mx-auto mb-12 max-w-3xl text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-white md:text-5xl">Selected Work</h2>
+              <p className="mt-4 text-slate-400">
+                A snapshot of recent projects that blend thoughtful design with robust engineering.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Project 1 */}
+              <Card className="group relative overflow-hidden border-slate-800 bg-slate-900/60 backdrop-blur transition-transform hover:-translate-y-1">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-violet-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                 <CardHeader>
-                  <CardTitle className="text-xl font-semibold">
-                    {project.title}
-                  </CardTitle>
-                  <CardDescription className="text-gray-500">
-                    {project.subtitle}
-                  </CardDescription>
+                  <CardTitle className="text-xl text-white">Realtime Collaboration Dashboard</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700">
-                    {project.description}
+                <CardContent className="space-y-4 text-slate-400">
+                  <p>
+                    Low-latency multiplayer workspace with CRDT sync, presence, and optimistic UI across web and mobile.
                   </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {project.tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        className="bg-gray-100 text-gray-800"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="mt-6">
-                    <Link
-                      href={project.link}
-                      className="text-purple-600 font-medium hover:underline"
-                    >
-                      View Project →
-                    </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className="bg-slate-800 text-slate-300">Next.js</Badge>
+                    <Badge className="bg-slate-800 text-slate-300">WebSockets</Badge>
+                    <Badge className="bg-slate-800 text-slate-300">Edge</Badge>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Skills Section */}
-      <section id="skills" className="py-24 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="text-4xl font-bold text-center mb-12">
-            My <span className="text-blue-600">Skills</span>
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8">
-            {skills.map((skill) => (
-              <div
-                key={skill.name}
-                className="flex flex-col items-center text-center"
-              >
-                <div className="p-4 bg-white rounded-full shadow-md mb-4">
-                  <span className="text-4xl">{skill.icon}</span>
+              {/* Project 2 */}
+              <Card className="group relative overflow-hidden border-slate-800 bg-slate-900/60 backdrop-blur transition-transform hover:-translate-y-1">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <CardHeader>
+                  <CardTitle className="text-xl text-white">AI Documentation Summarizer</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-slate-400">
+                  <p>
+                    Semantic chunking, embeddings, and RAG with streaming responses to turn sprawling docs into precise answers.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className="bg-slate-800 text-slate-300">TypeScript</Badge>
+                    <Badge className="bg-slate-800 text-slate-300">Vercel AI</Badge>
+                    <Badge className="bg-slate-800 text-slate-300">Postgres</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Project 3 */}
+              <Card className="group relative overflow-hidden border-slate-800 bg-slate-900/60 backdrop-blur transition-transform hover:-translate-y-1">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-fuchsia-500/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <CardHeader>
+                  <CardTitle className="text-xl text-white">Design System & Component Library</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-slate-400">
+                  <p>
+                    A cohesive design system built on Radix and Tailwind, with accessibility-first components and theming.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className="bg-slate-800 text-slate-300">Radix</Badge>
+                    <Badge className="bg-slate-800 text-slate-300">Tailwind</Badge>
+                    <Badge className="bg-slate-800 text-slate-300">shadcn/ui</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Skills */}
+        <section id="skills-section" className="relative border-t border-white/10 py-24">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-white md:text-5xl">Skills & Tools</h2>
+              <p className="mt-4 text-slate-400">
+                From product discovery to systems design, I bring a full-stack toolkit to ship with quality and speed.
+              </p>
+            </div>
+
+            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
+              {[
+                { label: "TypeScript" },
+                { label: "React" },
+                { label: "Next.js" },
+                { label: "Node.js" },
+                { label: "Postgres" },
+                { label: "Tailwind" },
+              ].map((s, i) => (
+                <div
+                  key={i}
+                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60 p-4 text-center transition-colors hover:border-violet-600/40"
+                >
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="mx-auto mb-2 h-8 w-8 rounded-md bg-gradient-to-br from-violet-500/30 to-indigo-500/30" />
+                  <div className="text-sm text-slate-300">{s.label}</div>
                 </div>
-                <span className="text-lg font-medium text-gray-800">
-                  {skill.name}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            <div className="mx-auto mt-8 max-w-3xl text-center text-sm text-slate-500">
+              I care deeply about code quality, accessibility, and performance. Great teams ship great products—together.
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="py-24 bg-white">
-        <div className="max-w-xl mx-auto px-6">
-          <h2 className="text-4xl font-bold text-center mb-8">
-            Get In <span className="text-purple-600">Touch</span>
-          </h2>
-          <form className="space-y-6">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Name
-              </label>
-              <Input id="name" placeholder="Your Name" />
+        {/* Contact */}
+        <section id="contact-section" className="relative border-t border-white/10 py-24">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-white md:text-5xl">Let’s build something great</h2>
+              <p className="mt-4 text-slate-400">
+                Tell me about your product, challenges, and timelines. I’ll reply with ideas and pragmatic next steps.
+              </p>
             </div>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="message"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Message
-              </label>
-              <Textarea
-                id="message"
-                placeholder="Enter your message here"
-                className="min-h-[120px]"
-              />
-            </div>
-            <div className="text-center">
-              <Button
-                size="lg"
-                className="bg-gradient-to-r from-purple-600 to-blue-500 text-white px-8 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
-              >
-                Submit
-              </Button>
-            </div>
-          </form>
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="py-6 bg-gray-100 text-center text-gray-600">
-        © {new Date().getFullYear()} MyPortfolio. All rights reserved.
-      </footer>
+            <div className="mx-auto max-w-2xl">
+              <Card className="border-white/10 bg-slate-900/60 backdrop-blur">
+                <CardContent className="p-8">
+                  <form action="#" method="post" className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="text-slate-300">Your name</Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          placeholder="Ada Lovelace"
+                          className="border-slate-800 bg-slate-950/50 text-slate-100 placeholder:text-slate-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-slate-300">Email</Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="you@company.com"
+                          className="border-slate-800 bg-slate-950/50 text-slate-100 placeholder:text-slate-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="message" className="text-slate-300">Message</Label>
+                      <Textarea
+                        id="message"
+                        name="message"
+                        placeholder="Enter your message"
+                        className="min-h-[140px] resize-y border-slate-800 bg-slate-950/50 text-slate-100 placeholder:text-slate-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-500">
+                        By clicking send, you consent to be contacted about your inquiry.
+                      </p>
+                      <Button type="submit" className="bg-white text-slate-900 hover:bg-slate-200">Send message</Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t border-white/10 py-10">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-sm text-slate-500">
+            <div>© {new Date().getFullYear()} Avery Chen. All rights reserved.</div>
+            <div className="flex gap-4">
+              <Link href="#portfolio-page" className="hover:text-slate-300">Back to top</Link>
+            </div>
+          </div>
+        </footer>
+      </section>
     </main>
   );
 }

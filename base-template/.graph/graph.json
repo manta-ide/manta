@@ -3,7 +3,7 @@
     {
       "id": "portfolio-page",
       "title": "Portfolio Page",
-      "prompt": "This is the main Software Engineer portfolio page containing sections like header, projects, skills, and contact. Each section showcases relevant portfolio information.",
+      "prompt": "Create a portfolio page for a software engineer. It includes sections for header, project showcase, skills display, and a contact form, all styled using Tailwind CSS and shadcn/ui components.",
       "children": [
         {
           "id": "header-section",
@@ -25,140 +25,77 @@
       "built": false,
       "properties": [
         {
-          "id": "page-background-color",
+          "id": "portfolio-page-background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#ffffff"
+          "value": "#d09f9f"
         },
         {
-          "id": "page-text-color",
+          "id": "portfolio-page-text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#000000"
+          "value": "#080808"
         },
         {
-          "id": "page-font-family",
+          "id": "portfolio-page-font-family",
           "title": "Font Family",
           "type": "text",
           "value": "Inter, sans-serif"
         },
         {
-          "id": "page-section-padding",
+          "id": "portfolio-page-section-padding",
           "title": "Section Padding",
           "type": "number",
           "value": 20,
           "min": 0,
           "max": 100,
-          "step": 5
+          "step": 1
         }
       ]
     },
     {
       "id": "header-section",
       "title": "Header Section",
-      "prompt": "The header section of the portfolio page containing the logo and a navigation menu.",
-      "children": [
-        {
-          "id": "logo-component",
-          "title": "Logo Component"
-        },
-        {
-          "id": "navigation-menu-component",
-          "title": "Navigation Menu Component"
-        }
-      ],
+      "prompt": "This section contains a header with logo and navigation menu.",
+      "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "header-background-color",
+          "id": "header-section-background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#f8f9fa"
+          "value": "#e8e8ee"
         },
         {
-          "id": "header-text-color",
+          "id": "header-section-text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#000000"
+          "value": "#0a0a0a"
         },
         {
-          "id": "header-padding",
+          "id": "header-section-padding",
           "title": "Padding",
           "type": "number",
           "value": 20,
           "min": 0,
-          "max": 100,
-          "step": 5
+          "max": 50,
+          "step": 1
         },
         {
-          "id": "header-font-size",
+          "id": "header-section-font-size",
           "title": "Font Size",
           "type": "number",
           "value": 24,
-          "min": 8,
-          "max": 48,
-          "step": 2
+          "min": 12,
+          "max": 36,
+          "step": 1
         },
         {
-          "id": "header-tagline",
+          "id": "header-section-tagline",
           "title": "Tagline",
           "type": "text",
-          "value": "Welcome to My Portfolio",
-          "maxLength": 100
-        }
-      ]
-    },
-    {
-      "id": "logo-component",
-      "title": "Logo Component",
-      "prompt": "A logo component that includes the company or personal branding logo.",
-      "children": [],
-      "parentId": "header-section",
-      "built": false,
-      "properties": [
-        {
-          "id": "logo-image-url",
-          "title": "Logo Image URL",
-          "type": "text",
-          "value": "https://example.com/logo.png"
-        },
-        {
-          "id": "logo-size",
-          "title": "Logo Size",
-          "type": "number",
-          "value": 50,
-          "min": 10,
-          "max": 200,
-          "step": 10
-        }
-      ]
-    },
-    {
-      "id": "navigation-menu-component",
-      "title": "Navigation Menu Component",
-      "prompt": "A navigation menu component with links to various sections of the portfolio.",
-      "children": [],
-      "parentId": "header-section",
-      "built": false,
-      "properties": [
-        {
-          "id": "nav-link-color",
-          "title": "Link Color",
-          "type": "color",
-          "value": "#000000"
-        },
-        {
-          "id": "nav-hover-color",
-          "title": "Hover Color",
-          "type": "color",
-          "value": "#007bff"
-        },
-        {
-          "id": "nav-menu-items",
-          "title": "Menu Items",
-          "type": "text",
-          "value": "Home, About, Projects, Skills, Contact",
+          "value": "Welcome",
           "maxLength": 100
         }
       ]
@@ -166,130 +103,83 @@
     {
       "id": "projects-section",
       "title": "Projects Section",
-      "prompt": "Section showcasing projects. Features individual project cards.",
-      "children": [
-        {
-          "id": "project-card-component",
-          "title": "Project Card Component"
-        }
-      ],
+      "prompt": "This section showcases projects in a grid layout with individual project cards.",
+      "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "projects-background-color",
+          "id": "projects-section-background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#ffffff"
+          "value": "#dd2c2c"
         },
         {
-          "id": "projects-text-color",
+          "id": "projects-section-text-color",
           "title": "Text Color",
           "type": "color",
           "value": "#000000"
         },
         {
-          "id": "projects-card-shadow",
+          "id": "projects-section-card-shadow",
           "title": "Card Shadow",
           "type": "text",
           "value": "0px 4px 6px rgba(0, 0, 0, 0.1)"
         },
         {
-          "id": "projects-max-projects",
+          "id": "projects-section-max-projects",
           "title": "Max Projects",
           "type": "number",
-          "value": 6,
+          "value": 3,
           "min": 1,
           "max": 20,
           "step": 1
-        }
-      ]
-    },
-    {
-      "id": "project-card-component",
-      "title": "Project Card Component",
-      "prompt": "A card component displaying individual project details.",
-      "children": [],
-      "parentId": "projects-section",
-      "built": false,
-      "properties": [
-        {
-          "id": "card-title-text-color",
-          "title": "Title Text Color",
-          "type": "color",
-          "value": "#000000"
-        },
-        {
-          "id": "card-description-text-color",
-          "title": "Description Text Color",
-          "type": "color",
-          "value": "#555555"
-        },
-        {
-          "id": "card-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "card-border-radius",
-          "title": "Border Radius",
-          "type": "number",
-          "value": 10,
-          "min": 0,
-          "max": 50,
-          "step": 5
         }
       ]
     },
     {
       "id": "skills-section",
       "title": "Skills Section",
-      "prompt": "Section showcasing skills with icons and descriptions.",
-      "children": [
-        {
-          "id": "skill-item-component",
-          "title": "Skill Item Component"
-        }
-      ],
+      "prompt": "This section displays a grid of skill badges with corresponding icons.",
+      "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "skills-background-color",
+          "id": "skills-section-background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#f8f9fa"
+          "value": "#f7f7f7"
         },
         {
-          "id": "skills-text-color",
+          "id": "skills-section-text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#000000"
+          "value": "#0f0f0f"
         },
         {
-          "id": "skills-padding",
-          "title": "Padding",
+          "id": "skills-section-padding",
+          "title": "Section Padding",
           "type": "number",
           "value": 20,
           "min": 0,
-          "max": 100,
-          "step": 5
+          "max": 50,
+          "step": 1
         },
         {
-          "id": "skills-icon-size",
+          "id": "skills-section-icon-size",
           "title": "Icon Size",
           "type": "number",
-          "value": 40,
-          "min": 10,
+          "value": 20,
+          "min": 20,
           "max": 100,
-          "step": 5
+          "step": 1
         },
         {
-          "id": "skills-max-icons",
+          "id": "skills-section-max-icons",
           "title": "Max Icons",
           "type": "number",
-          "value": 8,
+          "value": 5,
           "min": 1,
           "max": 20,
           "step": 1
@@ -297,114 +187,40 @@
       ]
     },
     {
-      "id": "skill-item-component",
-      "title": "Skill Item Component",
-      "prompt": "An individual skill item with an icon and a name.",
-      "children": [],
-      "parentId": "skills-section",
-      "built": false,
-      "properties": [
-        {
-          "id": "skill-icon-color",
-          "title": "Icon Color",
-          "type": "color",
-          "value": "#007bff"
-        },
-        {
-          "id": "skill-name-text-color",
-          "title": "Skill Name Text Color",
-          "type": "color",
-          "value": "#000000"
-        },
-        {
-          "id": "skill-border-radius",
-          "title": "Border Radius",
-          "type": "number",
-          "value": 10,
-          "min": 0,
-          "max": 50,
-          "step": 5
-        }
-      ]
-    },
-    {
       "id": "contact-section",
       "title": "Contact Section",
-      "prompt": "Section for users to get in contact through a form.",
-      "children": [
-        {
-          "id": "contact-form-component",
-          "title": "Contact Form Component"
-        }
-      ],
+      "prompt": "This section includes a contact form for visitors to reach out.",
+      "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "contact-background-color",
+          "id": "contact-section-background-color",
           "title": "Background Color",
           "type": "color",
           "value": "#ffffff"
         },
         {
-          "id": "contact-text-color",
+          "id": "contact-section-text-color",
           "title": "Text Color",
           "type": "color",
           "value": "#000000"
         },
         {
-          "id": "contact-font-size",
+          "id": "contact-section-font-size",
           "title": "Font Size",
           "type": "number",
           "value": 16,
-          "min": 8,
-          "max": 48,
-          "step": 2
+          "min": 12,
+          "max": 24,
+          "step": 1
         },
         {
-          "id": "contact-placeholder-text",
+          "id": "contact-section-placeholder-text",
           "title": "Form Placeholder Text",
           "type": "text",
-          "value": "Enter your message here",
+          "value": "Enter your message",
           "maxLength": 100
-        }
-      ]
-    },
-    {
-      "id": "contact-form-component",
-      "title": "Contact Form Component",
-      "prompt": "A form component for submitting contact inquiries.",
-      "children": [],
-      "parentId": "contact-section",
-      "built": false,
-      "properties": [
-        {
-          "id": "form-input-border-color",
-          "title": "Input Border Color",
-          "type": "color",
-          "value": "#ced4da"
-        },
-        {
-          "id": "form-button-background-color",
-          "title": "Button Background Color",
-          "type": "color",
-          "value": "#007bff"
-        },
-        {
-          "id": "form-button-text",
-          "title": "Button Text",
-          "type": "text",
-          "value": "Submit",
-          "maxLength": 50
-        },
-        {
-          "id": "form-button-padding",
-          "title": "Button Padding",
-          "type": "number",
-          "value": 15,
-          "min": 0,
-          "max": 100,
-          "step": 5
         }
       ]
     }
