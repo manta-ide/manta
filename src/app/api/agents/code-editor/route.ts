@@ -7,7 +7,7 @@ import { markNodesBuilt } from '@/app/api/lib/graphStorage';
 import { fetchGraphFromApi, fetchUnbuiltNodeIdsFromApi } from '@/app/api/lib/graphApiUtils';
 
 const CODE_EDITOR_CONFIG = {
-  model: 'gpt-4o',
+  model: 'gpt-5',
   maxSteps: 50,
   streaming: false,
   temperature: 1,
