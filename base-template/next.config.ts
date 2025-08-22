@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "**" },
     ],
+    dangerouslyAllowSVG: true,
   },
   basePath: "/iframe",
 

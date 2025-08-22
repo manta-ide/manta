@@ -1,313 +1,496 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getVar } from "@/lib/vars";
 
 export default function Page() {
-  const rootStyle = {
-    "--font-family": getVar("font-family", "Poppins"),
-    "--primary-color": getVar("primary-color", "#06b6d4"),
-    "--secondary-color": getVar("secondary-color", "#a78bfa"),
-    "--accent-color": getVar("accent-color", "#f59e0b"),
-    "--background-color": getVar("background-color", "#0b1022"),
-    "--text-color": getVar("text-color", "#e5e7eb"),
-    "--container-max-width": `${getVar("container-max-width", 1200)}px`,
-    "--page-padding-x": `${getVar("page-padding-x", 24)}px`,
-    "--section-spacing": `${getVar("section-spacing", 96)}px`,
-    "--background-gradient-enabled": getVar("background-gradient-enabled", true) ? "1" : "0",
-    "--background-gradient-from": getVar("background-gradient-from", "#0b1022"),
-    "--background-gradient-to": getVar("background-gradient-to", "#111827"),
-    "--background-gradient-angle": `${getVar("background-gradient-angle", 45)}deg`,
-  } as React.CSSProperties;
-
-  const navLinks = (getVar("nav-links", "Product,Pricing,Docs,Blog,Changelog") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
-  const trustLogos = (getVar("trust-logos", "/vercel.svg,/next.svg,/globe.svg") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
-
-  const features = [
-    {
-      icon: getVar("card-1-icon", "/globe.svg"),
-      title: getVar("card-1-title", "Graph-based editor"),
-      desc: getVar("card-1-desc", "Compose systems visually with a fast, snap-to-grid graph and powerful node tooling."),
-      href: getVar("card-1-link-href", "/product/graph-editor"),
-      linkText: getVar("card-1-link-text", "Explore graphs →"),
-    },
-    {
-      icon: getVar("card-2-icon", "/globe.svg"),
-      title: getVar("card-2-title", "Integrated AI chat"),
-      desc: getVar("card-2-desc", "Ask for refactors, generate nodes, or document flows—right inside the canvas."),
-      href: getVar("card-2-link-href", "/product/ai-chat"),
-      linkText: getVar("card-2-link-text", "Chat with Manta →"),
-    },
-    {
-      icon: getVar("card-3-icon", "/globe.svg"),
-      title: getVar("card-3-title", "Figma-level precision"),
-      desc: getVar("card-3-desc", "Pixel-perfect controls, constraints, and versioned design tokens for production."),
-      href: getVar("card-3-link-href", "/product/editor"),
-      linkText: getVar("card-3-link-text", "See the editor →"),
-    },
-  ];
-
-  const showcaseTabs = [
-    getVar("tab-1-label", "Graph"),
-    getVar("tab-2-label", "Chat"),
-    getVar("tab-3-label", "Code"),
-  ];
-
-  // normalize values to avoid TS literal comparison issues
-  const heroAlignment = String(getVar("hero-alignment", "center"));
-  const navbarTransparency = Number(getVar("navbar-transparency", 70)) || 70;
-
   return (
     <main
-      id="landing-page"
-      style={rootStyle}
-      className={`min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/30 selection:text-white`}>
-
-      {/* subtle animated gradient */}
-      {getVar("background-gradient-enabled", true) ? (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div
-            className="absolute inset-0 blur-3xl opacity-30"
-            style={{
-              backgroundImage: `linear-gradient(var(--background-gradient-angle), var(--background-gradient-from), var(--background-gradient-to))`,
-              transform: "rotate(0.01deg)",
-            }}
-          />
-        </div>
-      ) : null}
-
-      {/* Header / Navbar */}
+      id="swe-portfolio-page"
+      className={`min-h-screen flex flex-col antialiased`}
+      style={{
+        paddingInline: getVar("page-horizontal-padding", "24px"),
+        background: getVar(
+          "page-enable-gradient-background",
+          true
+        )
+          ? `linear-gradient(135deg, ${getVar(
+              "page-gradient-from-color",
+              "#90e0ef"
+            )}, ${getVar("page-gradient-to-color", "#caf0f8")})`
+          : getVar("page-background-color", "#caf0f8"),
+        color: getVar("page-text-color", "#03045e"),
+        fontFamily:
+          `${getVar("page-primary-font-family", "Lato")}, ${getVar(
+            "page-secondary-font-family",
+            "Lora"
+          )}`,
+        transition: getVar("page-transition-style", "all 200ms ease-out"),
+      }}
+    >
+      {/* Site Header */}
       <header
-        id="hero-nav"
-        className="sticky top-0 z-40 backdrop-blur-md"
-        style={{ backgroundColor: `rgba(6,9,20,${navbarTransparency / 100})`, height: `${getVar("navbar-height", 64)}px` }}>
-        <div className="mx-auto flex h-full w-full max-w-[var(--container-max-width)] items-center justify-between px-[var(--page-padding-x)]">
-          <div className="flex items-center gap-3">
-            <img src={getVar("logo-src", "/globe.svg")} alt={getVar("brand-name", "Manta")} className="h-8 w-8" />
-            <span className="font-medium tracking-tight" style={{ fontFamily: `var(--font-family)` }}>{getVar("brand-name", "Manta")}</span>
-          </div>
+        id="site-header"
+        className={`w-full flex items-center justify-between shadow-sm z-30`}
+        style={{
+          backgroundColor: getVar("header-background-color", "#caf0f8"),
+          color: getVar("header-text-color", "#03045e"),
+          borderBottom: `1px solid ${getVar(
+            "header-border-color",
+            "#90e0ef"
+          )}`,
+          height: getVar("header-height", "64px"),
+          paddingInline: getVar("header-padding-inline", "24px"),
+          backdropFilter: "blur(6px)",
+          boxShadow: getVar("page-shadow-style", "0 10px 30px rgba(3,4,94,0.08)"),
+          position: getVar("header-sticky-enabled", true) ? "sticky" : "relative",
+          top: getVar("header-sticky-enabled", true) ? 0 : "auto",
+        }}
+      >
+        <div id="header-brand" className="flex items-center gap-3">
+          {getVar("header-brand-use-image", false) ? (
+            <Link href="#swe-portfolio-page" aria-label={getVar("header-brand-image-alt-text", "Alex Doe logo")}>
+              <Image
+                src={getVar(
+                  "header-brand-image-src",
+                  "https://placehold.co/128x40/90e0ef/03045e?text=AD&font=roboto"
+                )}
+                alt={getVar("header-brand-image-alt-text", "Alex Doe logo")}
+                width={128}
+                height={40}
+                style={{
+                  width: "auto",
+                  height: getVar("header-brand-font-size", "20px"),
+                }}
+              />
+            </Link>
+          ) : (
+            <Link
+              href="#swe-portfolio-page"
+              className="font-semibold leading-none"
+              style={{
+                color: getVar("header-brand-text-color", "#03045e"),
+                fontSize: getVar("header-brand-font-size", "20px"),
+                fontFamily: getVar("header-brand-font-family", "Lato"),
+                textDecoration: "none",
+              }}
+            >
+              {getVar("header-brand-text", "Alex Doe")}
+            </Link>
+          )}
+        </div>
 
-          <nav className="hidden items-center gap-6 md:flex">
-            {navLinks.map((label: string) => (
-              <Link key={label} href={`#${label.toLowerCase()}`} className="text-sm text-[var(--text-color)]/80 hover:text-white">
-                {label}
+        {/* Navigation - desktop */}
+        <nav id="header-navigation" className="hidden md:flex items-center gap-6">
+          {Array.isArray(JSON.parse(getVar("header-nav-links-json", "[]"))) &&
+            JSON.parse(getVar("header-nav-links-json", "[]")).map((link: any) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm font-medium"
+                style={{
+                  color: getVar("header-navigation-link-text-color", "#023e8a"),
+                  fontSize: getVar("header-navigation-font-size", "14px"),
+                  marginLeft: getVar("header-navigation-gap", "20px"),
+                }}
+              >
+                {link.label}
               </Link>
             ))}
-          </nav>
+        </nav>
 
-          <div className="hidden items-center gap-[var(--cta-gap)] md:flex">
-            <Link href={getVar("cta-secondary-link", "/demo")} className={`rounded-md px-3 py-2 text-sm ring-1 ring-white/8 text-[var(--text-color)]/90 hover:bg-white/4`}>{getVar("cta-secondary-text", "Live demo")}</Link>
-            <Link href={getVar("cta-primary-link", "/signup")} className={`rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-black`}>{getVar("cta-primary-text", "Start building")}</Link>
-          </div>
+        {/* CTA */}
+        <div id="header-cta-button" className="flex items-center gap-3">
+          <Link
+            href={getVar("header-cta-button-href-text", "/api/resume.pdf")}
+            style={{
+              backgroundColor: getVar(
+                "header-cta-button-background-color",
+                "#0077b6"
+              ),
+              color: getVar("header-cta-button-text-color", "#caf0f8"),
+              padding: getVar("header-cta-button-padding", "10px 16px"),
+              borderRadius: getVar("header-cta-button-border-radius", "10px"),
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
+            id="header-cta"
+          >
+            {getVar("header-cta-button-text", "Get Resume")}
+          </Link>
 
-          {/* mobile menu placeholder */}
-          <div className="md:hidden" aria-hidden>
-            <button className="rounded-md bg-white/3 p-2" />
+          {/* Mobile hamburger */}
+          <div id="header-mobile-menu" className="md:hidden flex items-center">
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                display: "grid",
+                placeItems: "center",
+                background: "transparent",
+                color: getVar("header-mobile-menu-icon-color", "#03045e"),
+              }}
+              aria-hidden
+            >
+              <svg
+                width="20"
+                height="14"
+                viewBox="0 0 20 14"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <rect width="20" height="2" rx="1" fill={getVar("header-mobile-menu-icon-color", "#03045e")} />
+                <rect y="6" width="20" height="2" rx="1" fill={getVar("header-mobile-menu-icon-color", "#03045e")} />
+                <rect y="12" width="20" height="2" rx="1" fill={getVar("header-mobile-menu-icon-color", "#03045e")} />
+              </svg>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section
-        id="hero"
-        className="relative px-[var(--page-padding-x)]"
-        style={{ paddingTop: `${getVar("hero-padding-y", 80)}px`, paddingBottom: `${getVar("hero-padding-y", 80)}px` }}>
-        <div className="mx-auto flex w-full max-w-[var(--container-max-width)] flex-col items-center gap-8 md:flex-row md:items-start">
-          <div className={`w-full md:w-1/2 ${heroAlignment === "left" ? "md:items-start" : heroAlignment === "right" ? "md:items-end" : "md:items-center"}`}>
-            {getVar("show-announcement-badge", true) ? (
-              <Link href={getVar("badge-link", "/beta")} className="mb-4 inline-flex items-center rounded-full bg-white/6 px-3 py-1 text-sm text-[var(--accent-color)]">
-                {getVar("badge-text", "New: Private beta open")}
-              </Link>
-            ) : null}
-
-            <h1 className="text-center text-4xl font-extrabold leading-tight tracking-tight text-white md:text-left md:text-5xl" style={{ fontFamily: `var(--font-family)` }}>{getVar("headline", "Design, code, and orchestrate with Manta")}</h1>
-
-            <p className="mt-4 max-w-2xl text-center text-lg text-[var(--text-color)]/80 md:text-left">
-              {getVar("subheadline", "A graphical IDE that fuses a graph-based editor, AI chat, and Figma-level controls—so teams ship complex systems faster.")}
-            </p>
-
-            <div className="mt-6 flex flex-col items-center gap-3 md:flex-row md:items-center">
-              <Link href={getVar("cta-primary-link", "/signup")} className="inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-5 py-3 text-sm font-semibold text-black shadow-md md:mr-3">{getVar("cta-primary-text", "Start building")}</Link>
-              <Link href={getVar("cta-secondary-link", "/demo")} className="inline-flex items-center justify-center rounded-lg border border-white/6 px-4 py-3 text-sm text-[var(--text-color)]/90">{getVar("cta-secondary-text", "Live demo")}</Link>
-            </div>
-
-            {getVar("show-trust-logos", true) ? (
-              <div className="mt-8 flex items-center gap-6 opacity-80">
-                {trustLogos.map((src: string, i: number) => (
-                  <img key={i} src={src} alt={`partner-${i}`} className="h-6 w-auto grayscale opacity-80" />
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="order-first w-full md:order-last md:w-1/2">
-            <div className="mx-auto w-full max-w-[700px] rounded-2xl bg-gradient-to-br from-white/3 to-black/5 p-3 shadow-xl md:p-6" role="img" aria-label={getVar("hero-image-alt", "Screenshot of Manta’s graph-based editor") }>
-              <img src={getVar("hero-image-src", "https://placehold.co/1024x640/orange/black?text=Manta+Graph+Editor&font=roboto")} alt={getVar("hero-image-alt", "Screenshot of Manta’s graph-based editor")} className="w-full rounded-xl" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section
-        id="features"
-        className="px-[var(--page-padding-x)]"
-        style={{
-          paddingTop: `${getVar("section-padding-y", 72)}px`,
-          paddingBottom: `${getVar("section-padding-y", 72)}px`,
-          // dynamic CSS custom properties driven by the graph
-          ...( { } as React.CSSProperties ),
-          // injected vars
-          ["--card-corner-radius"]: `${getVar("card-corner-radius", 16)}px`,
-          ["--card-border-rgba"]: `rgba(255,255,255,${(Number(getVar("card-border-opacity", 24)) || 24) / 100})`,
-          ["--grid-gap"]: `${getVar("grid-gap", 20)}px`,
-          ["--use-card-gradients"]: getVar("use-card-gradients", true) ? "1" : "0",
-          ["--card-gradient-angle"]: `${getVar("card-gradient-angle", 45)}deg`,
-          ["--card-1-gradient-from"]: getVar("card-1-gradient-from", "#06b6d4"),
-          ["--card-1-gradient-to"]: getVar("card-1-gradient-to", "#3b82f6"),
-          ["--card-2-gradient-from"]: getVar("card-2-gradient-from", "#fa8cf5"),
-          ["--card-2-gradient-to"]: getVar("card-2-gradient-to", "#8b5cf6"),
-          ["--card-3-gradient-from"]: getVar("card-3-gradient-from", "#10b981"),
-          ["--card-3-gradient-to"]: getVar("card-3-gradient-to", "#06b6d4"),
-          ["--card-text-color"]: getVar("card-text-color", "#f8f3f3"),
-          ["--link-color"]: getVar("link-color", "#ffffff"),
-          ["--link-hover-color"]: getVar("link-hover-color", "#f59e0b"),
-          ["--card-1-icon-tint"]: getVar("card-1-icon-tint", "#ffffff"),
-          ["--card-2-icon-tint"]: getVar("card-2-icon-tint", "#ffffff"),
-          ["--card-3-icon-tint"]: getVar("card-3-icon-tint", "#ffffff"),
-          ["--card-hover-elevation"]: getVar("card-hover-elevation", "lg"),
-        } as React.CSSProperties}
-      >
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium uppercase text-[var(--secondary-color)]">{getVar("section-eyebrow", "Why Manta")}</p>
-            <h2 className="mt-3 text-3xl font-semibold text-white">{getVar("section-heading", "One canvas. Three superpowers.")}</h2>
-            <p className="mt-4 text-base text-[var(--text-color)]/80">{getVar("section-kicker", "Everything you need to design, orchestrate, and ship complex systems—without leaving the canvas.")}</p>
-          </div>
-
-          <div className={`mt-10 grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-3`}> 
-            {features.map((f, idx) => {
-              const i = idx + 1;
-              const gradientBg = `linear-gradient(var(--card-gradient-angle), var(--card-${i}-gradient-from), var(--card-${i}-gradient-to)` + ")";
-              const useGrad = getVar("use-card-gradients", true);
-              const hoverElevation = String(getVar("card-hover-elevation", "lg"));
-              const hoverClass = hoverElevation === "sm" ? "hover:shadow-md" : hoverElevation === "md" ? "hover:shadow-lg" : "hover:shadow-2xl";
-
-              return (
-                <article
-                  key={idx}
-                  className={`group rounded-[var(--card-corner-radius)] border p-6 transition-transform duration-300 ${hoverClass} hover:-translate-y-1`} 
+      {/* Mobile menu overlay (non-interactive fallback) */}
+      {getVar("header-mobile-menu-enabled", true) && (
+        <div
+          className="md:hidden fixed inset-x-4 bottom-6 z-20 rounded-lg p-6"
+          style={{
+            backgroundColor: getVar(
+              "header-mobile-menu-overlay-background-color",
+              "#03045e"
+            ),
+            opacity: getVar("header-mobile-menu-overlay-opacity", 0.92),
+            color: getVar("header-mobile-menu-link-text-color", "#caf0f8"),
+          }}
+          aria-hidden
+        >
+          <div className="flex flex-col items-start gap-4">
+            {Array.isArray(JSON.parse(getVar("header-nav-links-json", "[]"))) &&
+              JSON.parse(getVar("header-nav-links-json", "[]")).map((link: any) => (
+                <Link
+                  key={link.href + "-mobile"}
+                  href={link.href}
                   style={{
-                    borderColor: "var(--card-border-rgba)",
-                    background: useGrad ? gradientBg : "rgba(255,255,255,0.02)",
-                    color: "var(--card-text-color)",
-                    borderRadius: "var(--card-corner-radius)",
-                  } as React.CSSProperties}
+                    color: getVar("header-mobile-menu-link-text-color", "#caf0f8"),
+                    fontSize: "18px",
+                    display: "block",
+                    padding: getVar("header-mobile-menu-link-gap", "24px"),
+                    textDecoration: "none",
+                  }}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className={`flex h-10 w-10 items-center justify-center flex-none rounded-md`} style={{ background: `linear-gradient(135deg, var(--card-${i}-gradient-from), var(--card-${i}-gradient-to))` }}>
-                      <img src={f.icon} alt="" className="h-6 w-6" style={{ filter: "brightness(0) invert(1)", opacity: 0.95 }} />
-                    </div>
+                  {link.label}
+                </Link>
+              ))}
 
-                    <div>
-                      <h3 className="text-lg font-semibold" style={{ color: "var(--card-text-color)" }}>{f.title}</h3>
-                      <p className="mt-2 text-sm" style={{ color: "var(--card-text-color)" }}>{f.desc}</p>
-                      <Link href={f.href} className="mt-4 inline-block text-sm font-medium transition-colors" style={{ color: "var(--link-color)" }}>
-                        <span className="hover:text-[var(--link-hover-color)]">{f.linkText}</span>
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            <Link
+              href={getVar("header-cta-button-href-text", "/api/resume.pdf")}
+              style={{
+                backgroundColor: getVar(
+                  "header-cta-button-background-color",
+                  "#0077b6"
+                ),
+                color: getVar("header-cta-button-text-color", "#caf0f8"),
+                padding: getVar("header-cta-button-padding", "10px 16px"),
+                borderRadius: getVar("header-cta-button-border-radius", "10px"),
+                textDecoration: "none",
+                fontWeight: 600,
+              }}
+            >
+              {getVar("header-cta-label-text", "Get Resume")}
+            </Link>
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Editor Showcase */}
-      <section id="editor-showcase" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 84)}px`, paddingBottom: `${getVar("section-padding-y", 84)}px` }}>
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="mx-auto max-w-3xl text-center">
-            <h3 className="text-lg font-medium text-[var(--secondary-color)]">{getVar("showcase-heading", "Meet the canvas")}</h3>
-            <p className="mt-3 text-2xl font-semibold text-white">{getVar("showcase-desc", "A unified workspace where diagrams, code, and conversations stay in sync.")}</p>
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <Link href={getVar("action-1-href", "/video")} className="text-sm font-medium text-[var(--primary-color)]">{getVar("action-1-text", "Watch video")}</Link>
-              <Link href={getVar("action-2-href", "/docs")} className="text-sm font-medium text-[var(--text-color)]/90">{getVar("action-2-text", "View docs")}</Link>
-            </div>
-          </div>
+      {/* Hero */}
+      <section
+        id="hero-section"
+        className="w-full flex flex-col md:flex-row items-center mx-auto"
+        style={{
+          paddingBlock: getVar("hero-padding-block", "80px"),
+          gap: getVar("hero-gap", "24px"),
+          backgroundColor: getVar("hero-background-color", "#ade8f4"),
+          color: getVar("hero-text-color", "#03045e"),
+        }}
+      >
+        <div className="flex-1 px-6 md:px-12 max-w-[var(--page-container-max-width)]" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <p
+            className="inline-block rounded-full text-sm font-medium px-3 py-1 mb-4"
+            style={{
+              background: `linear-gradient(90deg, ${getVar("page-primary-color", "#0077b6")}, ${getVar("page-secondary-color", "#00b4d8")})`,
+              color: getVar("page-card-surface-color", "#ade8f4"),
+              borderRadius: getVar("page-border-radius", "12px"),
+            }}
+          >
+            {getVar("page-meta-description-text", "Portfolio of Alex Doe, a software engineer...")}
+          </p>
 
-          <div className="mt-8 flex justify-center">
-            <div className="w-full max-w-[1100px] rounded-[var(--frame-corner-radius)] border bg-[var(--background-color)] p-4" style={{ borderColor: `rgba(255,255,255,${(Number(getVar("frame-border-opacity", 14)) || 14) / 100})` }}>
-              <div className="flex items-center gap-4 border-b border-white/6 pb-3">
-                {showcaseTabs.map((t, i) => (
-                  <div key={i} className={`rounded-md px-3 py-1 text-sm ${i === 0 ? "bg-white/6 text-white" : "text-[var(--text-color)]/70"}`}>{t}</div>
+          <h1
+            id="hero-heading"
+            className="font-extrabold leading-tight"
+            style={{
+              fontFamily: getVar("hero-heading-font-family", "Poppins"),
+              fontSize: getVar("hero-heading-font-size-desktop", "38px"),
+              color: getVar("hero-heading-color", "#03045e"),
+            }}
+          >
+            <span className="bg-clip-text text-transparent" style={{
+              background: `linear-gradient(90deg, ${getVar("page-primary-color", "#0077b6")}, ${getVar("page-accent-color", "#0096c7")})`
+            }}>
+              {getVar("hero-heading-text", "Building reliable, delightful software.")}
+            </span>
+          </h1>
+
+          <p
+            id="hero-subheading"
+            className="mt-4 max-w-2xl leading-relaxed"
+            style={{
+              fontFamily: getVar("hero-subheading-font-family", "Roboto"),
+              fontSize: getVar("hero-subheading-font-size-desktop", "18px"),
+              color: getVar("hero-subheading-color", "#023e8a"),
+            }}
+          >
+            {getVar(
+              "hero-subheading-text",
+              "I’m Alex Doe, a full‑stack engineer crafting scalable web apps and polished developer experiences."
+            )}
+          </p>
+
+          <div
+            id="hero-cta-group"
+            className="mt-8 flex flex-col sm:flex-row items-start sm:items-center"
+            style={{ gap: getVar("hero-cta-gap", "12px") }}
+          >
+            <Link
+              href={getVar("hero-primary-cta-href", "#projects-section")}
+              style={{
+                backgroundColor: getVar("hero-primary-cta-background-color", "#0077b6"),
+                color: getVar("hero-primary-cta-text-color", "#caf0f8"),
+                padding: getVar("hero-primary-cta-padding", "12px 18px"),
+                borderRadius: getVar("hero-primary-cta-border-radius", "12px"),
+                textDecoration: "none",
+                fontWeight: 700,
+              }}
+            >
+              {getVar("hero-primary-cta-text", "View Projects")}
+            </Link>
+
+            <Link
+              href={getVar("hero-secondary-cta-href", "#contact-section")}
+              style={{
+                backgroundColor: getVar("hero-secondary-cta-background-color", "#90e0ef"),
+                color: getVar("hero-secondary-cta-text-color", "#03045e"),
+                padding: getVar("hero-secondary-cta-padding", "12px 18px"),
+                borderRadius: getVar("hero-secondary-cta-border-radius", "12px"),
+                textDecoration: "none",
+                fontWeight: 700,
+              }}
+            >
+              {getVar("hero-secondary-cta-text", "Get in Touch")}
+            </Link>
+
+            {/* Social links */}
+            <div id="hero-social-links" className="mt-4 sm:mt-0 flex items-center" style={{ gap: getVar("hero-social-link-gap", "14px") }}>
+              {Array.isArray(JSON.parse(getVar("hero-social-links-json", "[]"))) &&
+                JSON.parse(getVar("hero-social-links-json", "[]")).map((s: any) => (
+                  <Link
+                    key={s.href}
+                    href={s.href}
+                    aria-label={s.label}
+                    style={{
+                      color: getVar("hero-social-link-color", "#023e8a"),
+                      textDecoration: "none",
+                      marginRight: getVar("hero-social-link-gap", "14px"),
+                    }}
+                  >
+                    <span className="font-medium">{s.label}</span>
+                  </Link>
                 ))}
-              </div>
-
-              <div className="mt-4 relative overflow-hidden rounded-md bg-gradient-to-b from-white/2 to-black/5">
-                {getVar("overlay-grid", true) ? (
-                  <svg className="absolute inset-0 h-full w-full opacity-10" viewBox="0 0 800 450" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                    <defs>
-                      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.12" />
-                      </pattern>
-                    </defs>
-                    <rect width="100%" height="100%" fill="url(#grid)" fillOpacity="0.06" />
-                  </svg>
-                ) : null}
-
-                <img src={getVar("canvas-image-src", "https://placehold.co/1280x720/111827/e5e7eb?text=Manta+Canvas&font=roboto")} alt={getVar("canvas-image-alt", "Manta editor canvas with nodes and connections")} className="relative w-full rounded-md" />
-
-                {/* subtle node-link hints */}
-                <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-30" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                  <g stroke={getVar("primary-color", "#06b6d4")} strokeWidth="2" strokeOpacity="0.08" fill="none">
-                    <path d="M120 480 C 220 420, 320 300, 420 260" />
-                    <circle cx="120" cy="480" r="6" fill={getVar("accent-color", "#f59e0b")} />
-                    <circle cx="420" cy="260" r="5" fill={getVar("secondary-color", "#a78bfa")} />
-                  </g>
-                </svg>
-              </div>
             </div>
+          </div>
+        </div>
+
+        <div className="flex-1 px-6 md:px-12 flex justify-center items-center">
+          <div
+            id="hero-profile-image"
+            style={{
+              borderRadius: getVar("hero-profile-image-border-radius", "16px"),
+              boxShadow: getVar("hero-profile-image-shadow", "0 10px 30px rgba(3,4,94,0.15)"),
+              padding: 6,
+              background: `linear-gradient(180deg, ${getVar("hero-profile-image-ring-color", "#48cae4")}, transparent)`,
+              display: "inline-block",
+            }}
+          >
+            <Image
+              src={getVar(
+                "hero-profile-image-src",
+                "https://placehold.co/512x400/orange/black?text=Hello+World&font=roboto"
+              )}
+              alt={getVar("hero-profile-image-alt-text", "Portrait of Alex Doe")}
+              width={420}
+              height={320}
+              style={{
+                borderRadius: getVar("hero-profile-image-border-radius", "16px"),
+                display: "block",
+                maxWidth: "100%",
+              }}
+              loading="lazy"
+              decoding="async"
+            />
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer id="footer" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 64)}px`, paddingBottom: `${getVar("section-padding-y", 64)}px` }}>
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="flex flex-col gap-8 md:flex-row md:justify-between">
-            <div className="max-w-sm">
-              <div className="flex items-center gap-3">
-                <img src={getVar("logo-src", "/globe.svg")} alt={getVar("brand-name", "Manta")} className="h-8 w-8" />
-                <div>
-                  <div className="font-medium text-white">{getVar("brand-name", "Manta")}</div>
-                  <div className="text-sm text-[var(--text-color)]/80">{getVar("brand-tagline", "Design, code, and orchestrate on one canvas.")}</div>
+      {/* About Section */}
+      <section
+        id="about-section"
+        className="w-full px-6 md:px-12 py-12"
+        style={{
+          backgroundColor: getVar("about-background-color", "#caf0f8"),
+          color: getVar("about-text-color", "#03045e"),
+          gap: getVar("about-gap", "20px"),
+        }}
+      >
+        <div className="mx-auto" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <h2 id="about-heading" style={{ fontSize: getVar("about-heading-font-size", "28px"), color: getVar("about-heading-color", "#03045e") }} className="font-bold">
+            {getVar("about-heading-text", "About")}
+          </h2>
+
+          <p id="about-bio" className="mt-4 max-w-3xl leading-relaxed" style={{ fontSize: getVar("about-bio-font-size", "15px"), color: getVar("about-bio-color", "#023e8a") }}>
+            {getVar(
+              "about-bio-text",
+              "I’m a software engineer focused on building reliable systems, great UX, and efficient developer tooling."
+            )}
+          </p>
+
+          <ul id="about-highlights-list" className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {Array.isArray(JSON.parse(getVar("about-highlights-json", "[]"))) &&
+              JSON.parse(getVar("about-highlights-json", "[]")).map((h: any, idx: number) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <span style={{ color: getVar("about-highlights-bullet-color", "#0077b6") }}>•</span>
+                  <span style={{ color: getVar("about-highlights-text-color", "#03045e"), marginLeft: getVar("about-highlights-gap", "8px") }}>{h.text}</span>
+                </li>
+              ))}
+          </ul>
+
+          <div id="about-stats-list" className="mt-8 flex flex-wrap gap-4">
+            {Array.isArray(JSON.parse(getVar("about-stats-json", "[]"))) &&
+              JSON.parse(getVar("about-stats-json", "[]")).map((s: any) => (
+                <div key={s.label} style={{
+                  backgroundColor: getVar("about-stats-card-background-color", "#ade8f4"),
+                  color: getVar("about-stats-card-text-color", "#03045e"),
+                  borderRadius: getVar("about-stats-card-radius", "12px"),
+                  padding: getVar("about-stats-card-padding", "12px 16px"),
+                  minWidth: 120,
+                }}>
+                  <div className="text-2xl font-bold">{s.value}</div>
+                  <div className="text-sm">{s.label}</div>
                 </div>
-              </div>
+              ))}
+          </div>
+        </div>
+      </section>
 
-              {getVar("newsletter-enabled", true) ? (
-                <form action="#" method="POST" className="mt-6 flex w-full max-w-md flex-col gap-3">
-                  <label htmlFor="email" className="sr-only">{getVar("newsletter-heading", "Get product updates")}</label>
-                  <input id="email" name="email" type="email" placeholder={getVar("newsletter-placeholder", "you@company.com")} required className="rounded-md bg-white/3 px-3 py-2 text-[var(--text-color)] placeholder:text-[var(--text-color)]/50" />
-                  <div className="flex gap-2">
-                    <button type="submit" className="rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-black">{getVar("newsletter-button-text", "Subscribe")}</button>
-                    <div className="text-sm text-[var(--text-color)]/70">{getVar("copyright", "© 2025 Manta Labs, Inc.")}</div>
+      {/* Skills Section */}
+      <section
+        id="skills-section"
+        className="w-full px-6 md:px-12 py-12"
+        style={{ backgroundColor: getVar("skills-background-color", "#ade8f4"), color: getVar("skills-text-color", "#03045e") }}
+      >
+        <div className="mx-auto" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <h2 id="skills-heading" style={{ fontSize: getVar("skills-heading-font-size", "28px"), color: getVar("skills-heading-color", "#03045e") }} className="font-bold">
+            {getVar("skills-heading-text", "Skills")}
+          </h2>
+
+          <div id="skills-category-list" className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.isArray(JSON.parse(getVar("skills-categories-json", "[]"))) &&
+              JSON.parse(getVar("skills-categories-json", "[]")).map((cat: any) => (
+                <div key={cat.category} style={{ display: "flex", flexDirection: "column", gap: getVar("skills-category-gap", "16px") }}>
+                  <div className="text-lg font-semibold mb-2">{cat.category}</div>
+                  <div className="flex flex-wrap" style={{ gap: getVar("skills-badge-gap", "8px") }}>
+                    {Array.isArray(cat.skills) && cat.skills.map((skill: any) => (
+                      <div key={skill.name} style={{
+                        backgroundColor: getVar("skills-badge-background-color", "#90e0ef"),
+                        color: getVar("skills-badge-text-color", "#03045e"),
+                        borderRadius: getVar("skills-badge-radius", "9999px"),
+                        padding: getVar("skills-badge-padding", "6px 10px"),
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 6,
+                      }}>
+                        <span className="text-sm font-medium">{skill.name}</span>
+
+                        {getVar("skills-level-indicator-enabled", true) && (
+                          <span style={{ display: "inline-flex", gap: getVar("skills-level-indicator-gap", "4px") }}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span key={i} style={{
+                                width: getVar("skills-level-indicator-size", "8px"),
+                                height: getVar("skills-level-indicator-size", "8px"),
+                                borderRadius: 99,
+                                backgroundColor: i < skill.level ? getVar("skills-level-indicator-active-color", "#047aba") : getVar("skills-level-indicator-inactive-color", "#90e0ef"),
+                                display: "inline-block",
+                                marginLeft: 2,
+                              }} />
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </form>
-              ) : null}
-            </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      </section>
 
-            <div className="grid grid-cols-2 gap-[var(--column-gap)] md:grid-cols-4">
-              {/** Utility to parse columns from properties **/}
-              <nav aria-label="footer-product">
-                <h4 className="mb-3 text-sm font-semibold text-white">Product</h4>
-                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
-                  {(getVar("product-links", "") || "").split(",").map((l: string, i: number) => {
-                    const [label, href] = l.split(":");
-                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
-                  })}
-                </ul>
-              </nav>
+      {/* Placeholder sections for Projects, Experience, Education, Contact, Footer */}
+      <section id="projects-section" className="w-full px-6 md:px-12 py-12">
+        <div className="mx-auto" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <h2 className="font-bold text-2xl">Projects</h2>
+          <p className="mt-3 text-sm text-[var(--page-muted-text-color)]" style={{ color: getVar("page-muted-text-color", "#023e8a") }}>{getVar("page-title-text", "Alex Doe — Software Engineer")}</p>
+        </div>
+      </section>
 
-              <nav aria-label="footer-company">
-                <h4 className="mb-3 text-sm font-semibold text-white">Company</h4>
-                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
-                  {(getVar("company-links",
+      <section id="experience-section" className="w-full px-6 md:px-12 py-12">
+        <div className="mx-auto" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <h2 className="font-bold text-2xl">Experience</h2>
+          <p className="mt-3 text-sm" style={{ color: getVar("page-muted-text-color", "#023e8a") }}>Years: {getVar("about-stats-json", "[]")}</p>
+        </div>
+      </section>
+
+      <section id="education-section" className="w-full px-6 md:px-12 py-12">
+        <div className="mx-auto" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <h2 className="font-bold text-2xl">Education</h2>
+          <p className="mt-3 text-sm" style={{ color: getVar("page-muted-text-color", "#023e8a") }}>Alma mater: {getVar("header-brand-text", "Alex Doe")}</p>
+        </div>
+      </section>
+
+      <section id="contact-section" className="w-full px-6 md:px-12 py-12 flex-1">
+        <div className="mx-auto" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <h2 className="font-bold text-2xl">Contact</h2>
+          <p className="mt-3 text-sm" style={{ color: getVar("page-muted-text-color", "#023e8a") }}>{getVar("page-meta-description-text", "Portfolio of Alex Doe, a software engineer...")}</p>
+
+          <div className="mt-6">
+            <Link href={getVar("header-cta-button-href-text", "/api/resume.pdf")} style={{
+              backgroundColor: getVar("page-card-surface-color", "#ade8f4"),
+              padding: "12px 18px",
+              borderRadius: getVar("page-border-radius", "12px"),
+              color: getVar("page-primary-color", "#0077b6"),
+              textDecoration: "none",
+              fontWeight: 700,
+            }}>
+              {getVar("header-cta-label-text", "Get Resume")}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <footer id="site-footer" className="w-full px-6 md:px-12 py-6">
+        <div className="mx-auto flex items-center justify-between" style={{ maxWidth: getVar("page-container-max-width", "1200px") }}>
+          <div style={{ color: getVar("page-muted-text-color", "#023e8a") }}>{getVar("header-brand-text", "Alex Doe")}</div>
+          <div style={{ color: getVar("page-muted-text-color", "#023e8a") }}>{getVar("page-meta-description-text", "Portfolio of Alex Doe, a software engineer...")}</div>
+        </div>
+      </footer>
+    </main>
+  );
+}
