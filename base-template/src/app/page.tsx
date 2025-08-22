@@ -147,7 +147,33 @@ export default function Page() {
       </section>
 
       {/* Features */}
-      <section id="features" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 72)}px`, paddingBottom: `${getVar("section-padding-y", 72)}px` }}>
+      <section
+        id="features"
+        className="px-[var(--page-padding-x)]"
+        style={{
+          paddingTop: `${getVar("section-padding-y", 72)}px`,
+          paddingBottom: `${getVar("section-padding-y", 72)}px`,
+          // injected vars
+          ["--card-corner-radius"]: `${getVar("card-corner-radius", 16)}px`,
+          ["--card-border-rgba"]: `rgba(255,255,255,${(Number(getVar("card-border-opacity", 24)) || 24) / 100})`,
+          ["--grid-gap"]: `${getVar("grid-gap", 20)}px`,
+          ["--use-card-gradients"]: getVar("use-card-gradients", true) ? "1" : "0",
+          ["--card-gradient-angle"]: `${getVar("card-gradient-angle", 45)}deg`,
+          ["--card-1-gradient-from"]: getVar("card-1-gradient-from", "#06b6d4"),
+          ["--card-1-gradient-to"]: getVar("card-1-gradient-to", "#3b82f6"),
+          ["--card-2-gradient-from"]: getVar("card-2-gradient-from", "#fa8cf5"),
+          ["--card-2-gradient-to"]: getVar("card-2-gradient-to", "#8b5cf6"),
+          ["--card-3-gradient-from"]: getVar("card-3-gradient-from", "#10b981"),
+          ["--card-3-gradient-to"]: getVar("card-3-gradient-to", "#06b6d4"),
+          ["--card-text-color"]: getVar("card-text-color", "#f8f3f3"),
+          ["--link-color"]: getVar("link-color", "#ffffff"),
+          ["--link-hover-color"]: getVar("link-hover-color", "#f59e0b"),
+          ["--card-1-icon-tint"]: getVar("card-1-icon-tint", "#ffffff"),
+          ["--card-2-icon-tint"]: getVar("card-2-icon-tint", "#ffffff"),
+          ["--card-3-icon-tint"]: getVar("card-3-icon-tint", "#ffffff"),
+          ["--card-hover-elevation"]: getVar("card-hover-elevation", "lg"),
+        } as React.CSSProperties}
+      >
         <div className="mx-auto w-full max-w-[var(--container-max-width)]">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-medium uppercase text-[var(--secondary-color)]">{getVar("section-eyebrow", "Why Manta")}</p>
@@ -156,18 +182,40 @@ export default function Page() {
           </div>
 
           <div className={`mt-10 grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-3`}> 
-            {features.map((f, idx) => (
-              <article key={idx} className="rounded-[var(--card-corner-radius)] border bg-[rgba(255,255,255,0.02)] p-6 shadow-sm hover:shadow-lg" style={{ borderColor: `rgba(255,255,255,${(Number(getVar("card-border-opacity", 12)) || 12) / 100})` }}>
-                <div className="flex items-start gap-4">
-                  <img src={f.icon} alt="" className="h-10 w-10 flex-none rounded-md" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{f.title}</h3>
-                    <p className="mt-2 text-sm text-[var(--text-color)]/80">{f.desc}</p>
-                    <Link href={f.href} className="mt-4 inline-block text-sm font-medium text-[var(--primary-color)]">{f.linkText}</Link>
+            {features.map((f, idx) => {
+              const i = idx + 1;
+              const gradientBg = `linear-gradient(var(--card-gradient-angle), var(--card-${i}-gradient-from), var(--card-${i}-gradient-to))`;
+              const useGrad = getVar("use-card-gradients", true);
+              const hoverElevation = String(getVar("card-hover-elevation", "lg"));
+              const hoverClass = hoverElevation === "sm" ? "hover:shadow-md" : hoverElevation === "md" ? "hover:shadow-lg" : "hover:shadow-2xl";
+
+              return (
+                <article
+                  key={idx}
+                  className={`group rounded-[var(--card-corner-radius)] border p-6 transition-transform duration-300 ${hoverClass} hover:-translate-y-1`} 
+                  style={{
+                    borderColor: "var(--card-border-rgba)",
+                    background: useGrad ? gradientBg : "rgba(255,255,255,0.02)",
+                    color: "var(--card-text-color)",
+                    borderRadius: "var(--card-corner-radius)",
+                  } as React.CSSProperties}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-10 w-10 items-center justify-center flex-none rounded-md`} style={{ background: `linear-gradient(135deg, var(--card-${i}-gradient-from), var(--card-${i}-gradient-to))` }}>
+                      <img src={f.icon} alt="" className="h-6 w-6" style={{ filter: "brightness(0) invert(1)", opacity: 0.95 }} />
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold" style={{ color: "var(--card-text-color)" }}>{f.title}</h3>
+                      <p className="mt-2 text-sm" style={{ color: "var(--card-text-color)" }}>{f.desc}</p>
+                      <Link href={f.href} className="mt-4 inline-block text-sm font-medium transition-colors" style={{ color: "var(--link-color)" }}>
+                        <span className="hover:text-[var(--link-hover-color)]">{f.linkText}</span>
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>

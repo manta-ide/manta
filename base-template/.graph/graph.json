@@ -198,7 +198,7 @@
           "id": "navbar-transparency",
           "title": "Navbar Transparency (0-100%)",
           "type": "number",
-          "value": 70,
+          "value": 100,
           "min": 0,
           "max": 100,
           "step": 5
@@ -327,7 +327,7 @@
       "prompt": "Build a responsive 3-card features section highlighting Manta’s pillars: Graph Editor, AI Chat, and Figma-level Editing. Each card has icon, title, description, and a small action link. The section includes an optional eyebrow and heading, plus a short kicker paragraph. Align with the page theme (colors, fonts, spacing), supporting dark background. Cards should have subtle borders, hover elevation, and accessible contrast. Responsive grid should stack 1/2/3 across mobile/tablet/desktop. No separate child nodes; include all properties here.",
       "children": [],
       "parentId": "landing-page",
-      "built": true,
+      "built": false,
       "properties": [
         {
           "id": "section-eyebrow",
@@ -459,7 +459,7 @@
           "id": "card-corner-radius",
           "title": "Card Corner Radius (px)",
           "type": "number",
-          "value": 14,
+          "value": 16,
           "min": 4,
           "max": 32,
           "step": 2
@@ -468,7 +468,7 @@
           "id": "card-border-opacity",
           "title": "Card Border Opacity (%)",
           "type": "number",
-          "value": 12,
+          "value": 24,
           "min": 0,
           "max": 100,
           "step": 2
@@ -477,7 +477,7 @@
           "id": "card-hover-elevation",
           "title": "Card Hover Elevation",
           "type": "select",
-          "value": "md",
+          "value": "lg",
           "options": [
             "sm",
             "md",
@@ -488,7 +488,7 @@
           "id": "grid-gap",
           "title": "Grid Gap (px)",
           "type": "number",
-          "value": 16,
+          "value": 20,
           "min": 8,
           "max": 40,
           "step": 2
@@ -501,6 +501,93 @@
           "min": 32,
           "max": 160,
           "step": 4
+        },
+        {
+          "id": "use-card-gradients",
+          "title": "Use Card Gradients",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "card-gradient-angle",
+          "title": "Card Gradient Angle (deg)",
+          "type": "number",
+          "value": 45,
+          "min": 0,
+          "max": 360,
+          "step": 5
+        },
+        {
+          "id": "card-1-gradient-from",
+          "title": "Card 1 Gradient From",
+          "type": "color",
+          "value": "#06b6d4"
+        },
+        {
+          "id": "card-1-gradient-to",
+          "title": "Card 1 Gradient To",
+          "type": "color",
+          "value": "#3b82f6"
+        },
+        {
+          "id": "card-2-gradient-from",
+          "title": "Card 2 Gradient From",
+          "type": "color",
+          "value": "#fa8cf5"
+        },
+        {
+          "id": "card-2-gradient-to",
+          "title": "Card 2 Gradient To",
+          "type": "color",
+          "value": "#8b5cf6"
+        },
+        {
+          "id": "card-3-gradient-from",
+          "title": "Card 3 Gradient From",
+          "type": "color",
+          "value": "#10b981"
+        },
+        {
+          "id": "card-3-gradient-to",
+          "title": "Card 3 Gradient To",
+          "type": "color",
+          "value": "#e358c8"
+        },
+        {
+          "id": "card-text-color",
+          "title": "Card Text Color",
+          "type": "color",
+          "value": "#f8f3f3"
+        },
+        {
+          "id": "link-color",
+          "title": "Link Color",
+          "type": "color",
+          "value": "#ffffff"
+        },
+        {
+          "id": "link-hover-color",
+          "title": "Link Hover Color",
+          "type": "color",
+          "value": "#f59e0b"
+        },
+        {
+          "id": "card-1-icon-tint",
+          "title": "Card 1 Icon Tint",
+          "type": "color",
+          "value": "#ffffff"
+        },
+        {
+          "id": "card-2-icon-tint",
+          "title": "Card 2 Icon Tint",
+          "type": "color",
+          "value": "#ffffff"
+        },
+        {
+          "id": "card-3-icon-tint",
+          "title": "Card 3 Icon Tint",
+          "type": "color",
+          "value": "#ffffff"
         }
       ]
     },
