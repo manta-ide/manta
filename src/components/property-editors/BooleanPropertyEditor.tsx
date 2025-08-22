@@ -23,12 +23,12 @@ export default function BooleanPropertyEditor({ property, onChange }: BooleanPro
         {property.title}
       </Label>
       <div
-        className="group inline-flex items-center gap-2"
+        className="group flex items-center gap-2"
         data-state={value ? "checked" : "unchecked"}
       >
         <span
           id={`${id}-off`}
-          className="group-data-[state=checked]:text-zinc-500 flex-1 cursor-pointer text-right text-sm font-medium text-white"
+          className="group-data-[state=checked]:text-zinc-500 cursor-pointer text-right text-sm font-medium text-white min-w-[24px]"
           aria-controls={id}
           onClick={() => onChange(false)}
         >
@@ -39,10 +39,11 @@ export default function BooleanPropertyEditor({ property, onChange }: BooleanPro
           checked={value}
           onCheckedChange={onChange}
           aria-labelledby={`${id}-off ${id}-on`}
+          className="data-[state=unchecked]:bg-zinc-700 data-[state=checked]:bg-blue-600"
         />
         <span
           id={`${id}-on`}
-          className="group-data-[state=unchecked]:text-zinc-500 flex-1 cursor-pointer text-left text-sm font-medium text-white"
+          className="group-data-[state=unchecked]:text-zinc-500 cursor-pointer text-left text-sm font-medium text-white min-w-[24px]"
           aria-controls={id}
           onClick={() => onChange(true)}
         >

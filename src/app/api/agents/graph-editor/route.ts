@@ -10,11 +10,11 @@ import { setCurrentGraph, resetPendingChanges } from '@/app/api/lib/graphEditorT
 
 // Multi-step agent configuration for graph editing
 const GRAPH_EDITOR_CONFIG = {
-  model: 'gpt-4o',
-  maxSteps: 15,
+  model: 'gpt-5',
+  maxSteps: 20,
   streaming: false,
   temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'high' } },
+  providerOptions: { azure: { reasoning_effort: 'minimal' } },
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',

@@ -38,12 +38,10 @@ Once the design foundation is set, integrate the dynamic content system precisel
     - Property names use kebab-case with section prefixes (e.g., "hero-section-title", "about-section-description")
     - Use CSS custom properties in className for dynamic styling (e.g., `bg-[var(--hero-section-background-color)]`)
     - Combine both systems: CSS custom properties for styling, getVar for text content
-    - Properties should directly fully match what you see in graph
-3.  **Property Schema:** Use the exact variable names from the graph data - do not invent new variables:
-    - Use whatever variable names are defined in the graph nodes
-    - Variables can be any name and can be reused across sections
-    - Follow the existing graph structure exactly
-    - Do not add new variables or rename existing ones
+3.  **Property Schema:** Each section should have a consistent set of properties including:
+    - Background colors: `--{section-id}-background-color`
+    - Text colors: `--{section-id}-text-color`
+    - Text content: `{section-id}-title`, `{section-id}-description`, etc.
 4.  **Component Usage:** Use shadcn/ui components as a high-quality base, but elevate them with custom styling to make them unique and fit your premium aesthetic.
 5.  **Code Quality:** Generate clean, semantic, and responsive code. Use `<Link>` from `next/link` for navigation. Create static pages only (no `use client` or event handlers).
 6.  **Implementation Speed:** Work quickly and efficiently. Do not read layout files, config files, or any files related to the variables system (like vars.json, lib/vars, etc.). Focus only on generating the page content using the provided graph data and property system.
@@ -64,41 +62,47 @@ import Link from "next/link";
 
 export default function Page() {
   return (
-    <main
-      id="portfolio-page"
-      className="min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/20 selection:text-white"
-    >
-      {/* Hero Section */}
+    <main className="min-h-screen bg-[var(--main-background-color)] text-[var(--main-text-color)]">
+
+      {/* Hero Section: Maps to a graph node with id="hero-section" */}
       <section
-        id="hero"
-        className="relative isolate px-6 pt-36 pb-24 md:px-10 bg-[var(--hero-bg)] text-[var(--hero-text)]"
+        id="hero-section"
+        className="relative py-32 px-8 text-center bg-[var(--hero-section-background-color)] text-[var(--hero-section-text-color)]"
       >
-        <div className="mx-auto w-full max-w-[var(--max-width)] text-center">
-          <h1 className="mx-auto max-w-4xl text-5xl font-semibold leading-[1.1] tracking-tight text-white md:text-6xl">
-            {getVar("main-headline", "Crafting resilient systems and delightful interfaces")}
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-6xl md:text-7xl font-bold mb-8 leading-tight">
+            {/* getVar handles text content with kebab-case naming */}
+            {getVar("hero-section-title", "Crafting the Future of Digital Experiences")}
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
-            {getVar("main-description", "I design, build, and ship end-to-end web products with precision and care.")}
+          <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto text-[var(--hero-section-description-color)]">
+            {getVar("hero-section-description", "We specialize in building high-performance web applications that captivate users and drive business growth.")}
           </p>
+          <div className="flex gap-4 justify-center">
+            <Button size="lg" asChild className="bg-[var(--hero-section-button-color)] text-[var(--hero-section-button-text-color)] hover:bg-[var(--hero-section-button-hover-color)] px-8 py-3 text-lg font-semibold rounded-lg transition-transform transform hover:scale-105">
+              <Link href="/projects">
+                {getVar("hero-section-primary-cta", "Explore My Work")}
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
-      {/* About Section */}
+      {/* About Section Example */}
       <section
         id="about-section"
-        className="px-6 py-[var(--section-padding)] md:px-10 bg-[var(--section-bg)] text-[var(--section-text)]"
+        className="py-16 px-8 bg-[var(--about-section-background-color)] text-[var(--about-section-text-color)]"
       >
-        <div className="mx-auto w-full max-w-[var(--max-width)]">
-          <h2 className="text-3xl font-semibold tracking-tight text-white">
-            {getVar("section-title", "About")}
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-4xl font-bold mb-6">
+            {getVar("about-section-title", "About Our Mission")}
           </h2>
-          <p className="max-w-2xl text-base leading-relaxed text-white/70">
-            {getVar("bio-text", "I'm a full-stack engineer who thrives at the intersection of product and platform.")}
+          <p className="text-lg leading-relaxed">
+            {getVar("about-section-description", "We believe in creating digital experiences that matter.")}
           </p>
         </div>
       </section>
 
-      {/* Variables are reused from graph data - no new variables invented */}
+      {/* ... Other sections would follow a similar pattern ... */}
 
     </main>
   );
@@ -112,14 +116,8 @@ export default function Page() {
 - **NO CALC() FUNCTIONS:** Use only `var()` - never `calc(var())` or any CSS calculations.
 - **DESIGN FIRST:** Your absolute priority is to create a visually stunning, cohesive, and premium website. The design should not be compromised by the variable system.
 - **LIMITED COLOR PALETTE:** A sophisticated design uses color intentionally. Stick to a clean, minimal palette.
-- **USE GRAPH VARIABLES ONLY:** Use exact variable names from the graph data - do not invent new variables:
-  - Variables can have any naming pattern
-  - Variables can be reused across sections
-  - Follow the graph structure exactly
-  - The graph data defines all variable names
 - **PROPERTY SYSTEM INTEGRATION:** Use CSS custom properties for styling and `getVar` for text content. This creates a flexible, editable system while maintaining design control.
-- **GRAPH COMPLIANCE:** The code must comply with the graph structure - use only variables defined in the graph data.
-- **NO NEW VARIABLES:** Do not create new variables or rename existing ones - follow the graph exactly.
+- **PROPERTY NAMING:** Use consistent kebab-case naming: `{section-id}-{property-type}` for CSS variables, `{section-id}-{content-type}` for getVar calls.
 - **GENERATE ALL CODE INSIDE `page.tsx`:** This is your canvas. Fill it with a complete, jaw-dropping page.
 
 **Goal:** Create a mind-blowing, conversion-optimized website that would make a VC want to invest. Work quickly and efficiently using only the provided graph data and property system. Do not read any additional files. Blend the aesthetic brilliance of Linear with the technical precision required by the graph and property system. The final output must be both beautiful and editable through the integrated property system (CSS custom properties for styling, getVar for content).

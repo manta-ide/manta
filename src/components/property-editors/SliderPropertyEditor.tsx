@@ -11,7 +11,9 @@ interface SliderPropertyEditorProps {
 }
 
 export default function SliderPropertyEditor({ property, onChange }: SliderPropertyEditorProps) {
-  const value = property.value as number[] || [50]; // Default to 50 if no value
+  const value = Array.isArray(property.value)
+    ? property.value as number[]
+    : [typeof property.value === 'number' ? property.value : 50]; // Default to 50 if no valid value
 
   return (
     <div className="flex flex-col gap-2 py-2">

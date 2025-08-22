@@ -168,49 +168,96 @@ function getRuntimeError() {
 }
 export const codeEditorTools: ToolSet = {
   readFile: tool({
-    description: 'Read a file and return its content. Returns error if file not found or too long.',
+    description: 'Read a file and return its content. Can read entire file or specific line ranges. Returns error if file not found or too long.',
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to read this file'), */
       path: z.string().describe('The file path relative to the project root'),
+      offset: z.number().optional().describe('Line number to start reading from (1-indexed, optional)'),
+      limit: z.number().optional().describe('Number of lines to read (optional, if not provided reads from offset to end)'),
     }),
-    execute: async ({ path }) => {
+    execute: async ({ path, offset, limit }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
-        
+
         if (!existsSync(fullPath)) {
-          return { 
-            success: false, 
+          return {
+            success: false,
             message: `File not found: ${path}`,
             error: 'FILE_NOT_FOUND'
           };
         }
-        
+
         // Read file content
         const content = readFileSync(fullPath, 'utf-8');
-        const lines = content.split('\n');
-        
-        if (lines.length > MAX_FILE_LINES) {
-          return { 
-            success: false, 
-            message: `File too long: ${path} has ${lines.length} lines (max: ${MAX_FILE_LINES})`,
+        const allLines = content.split('\n');
+
+        if (allLines.length > MAX_FILE_LINES) {
+          return {
+            success: false,
+            message: `File too long: ${path} has ${allLines.length} lines (max: ${MAX_FILE_LINES})`,
             error: 'FILE_TOO_LONG',
-            lines: lines.length,
+            lines: allLines.length,
             maxLines: MAX_FILE_LINES
           };
         }
-        
+
+        // Handle partial reading if offset is specified
+        let contentToUse = content;
+        let linesToUse = allLines;
+        let startLine = 1;
+        let endLine = allLines.length;
+
+        if (offset !== undefined) {
+          if (offset < 1 || offset > allLines.length) {
+            return {
+              success: false,
+              message: `Invalid offset: ${offset}. File has ${allLines.length} lines.`,
+              error: 'INVALID_OFFSET'
+            };
+          }
+
+          startLine = offset;
+          if (limit !== undefined) {
+            if (limit < 1) {
+              return {
+                success: false,
+                message: `Invalid limit: ${limit}. Must be positive.`,
+                error: 'INVALID_LIMIT'
+              };
+            }
+            endLine = Math.min(startLine + limit - 1, allLines.length);
+          } else {
+            endLine = allLines.length;
+          }
+
+          // Extract the specific lines
+          linesToUse = allLines.slice(startLine - 1, endLine);
+          contentToUse = linesToUse.join('\n');
+        }
+
         const runtimeError = await buildProject(fullPath);
           if(runtimeError.success === true) {
-            return { 
-              success: true, 
-              message: `Successfully read file: ${path}`,
-              content: content,
-              lines: lines.length,
-              path: path
+            return {
+              success: true,
+              message: offset !== undefined
+                ? `Successfully read file: ${path} (lines ${startLine}-${endLine})`
+                : `Successfully read file: ${path}`,
+              content: contentToUse,
+              lines: linesToUse.length,
+              path: path,
+              totalLines: allLines.length,
+              ...(offset !== undefined && { startLine, endLine })
             };
           }
           else {
-            return {success: true, message: "Error in file " + JSON.stringify(runtimeError) + "\n" + content, lines: lines.length, path: path};
+            return {
+              success: true,
+              message: "Error in file " + JSON.stringify(runtimeError) + "\n" + contentToUse,
+              lines: linesToUse.length,
+              path: path,
+              totalLines: allLines.length,
+              ...(offset !== undefined && { startLine, endLine })
+            };
           }
       } catch (error) {
         return { 

@@ -81,7 +81,7 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-zinc-900">
       <TopBar panels={panels} onTogglePanel={togglePanel} isEditMode={isEditMode} setIsEditMode={setIsEditMode} />
-
+      
       {/* Re-key when the visible layout changes */}
       <ResizablePanelGroup
         direction="horizontal"

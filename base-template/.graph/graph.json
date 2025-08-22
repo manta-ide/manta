@@ -2,159 +2,686 @@
   "nodes": [
     {
       "id": "portfolio-page",
-      "title": "Portfolio Page",
-      "prompt": "Create a portfolio page for a software engineer. It includes sections for header, project showcase, skills display, and a contact form, all styled using Tailwind CSS and shadcn/ui components.",
+      "title": "SWE Portfolio Page",
+      "prompt": "Build a responsive, accessible Software Engineer portfolio page using Next.js (App Router), TypeScript, and Tailwind CSS. Use shadcn/ui primitives where appropriate (Button, Card, Badge, Input, Textarea, Sheet, Tooltip). The page should include a combined header+hero section, projects gallery, about section, and a combined contact+footer section. Ensure mobile-first layout, smooth scrolling to in-page anchors, and dark/light theme support. Respect the configurable properties for styling, layout, content, and behavior.",
       "children": [
         {
-          "id": "header-section",
-          "title": "Header Section"
+          "id": "hero",
+          "title": "Hero & Navigation"
         },
         {
           "id": "projects-section",
-          "title": "Projects Section"
+          "title": "Projects Gallery"
         },
         {
-          "id": "contact-section",
-          "title": "Contact Section"
+          "id": "about-section",
+          "title": "About"
+        },
+        {
+          "id": "contact-footer",
+          "title": "Contact & Footer"
         }
       ],
+      "parentId": "root",
       "built": false,
       "properties": [
         {
-          "id": "portfolio-page-background-color",
+          "id": "site-title",
+          "title": "Site Title",
+          "type": "text",
+          "value": "Your Name — Software Engineer",
+          "maxLength": 80
+        },
+        {
+          "id": "meta-description",
+          "title": "Meta Description",
+          "type": "text",
+          "value": "Portfolio of a Software Engineer specializing in TypeScript, React, Next.js, and cloud-native systems.",
+          "maxLength": 160
+        },
+        {
+          "id": "theme",
+          "title": "Theme",
+          "type": "select",
+          "value": "system",
+          "options": [
+            "light",
+            "dark",
+            "system"
+          ]
+        },
+        {
+          "id": "primary-color",
+          "title": "Primary Color",
+          "type": "color",
+          "value": "#25d9c9"
+        },
+        {
+          "id": "accent-color",
+          "title": "Accent Color",
+          "type": "color",
+          "value": "#a921c4"
+        },
+        {
+          "id": "background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#fefefe"
+          "value": "#0e022a"
         },
         {
-          "id": "portfolio-page-text-color",
+          "id": "text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#080808"
+          "value": "#e7e8ec"
         },
         {
-          "id": "portfolio-page-font-family",
+          "id": "font-family",
           "title": "Font Family",
-          "type": "text",
-          "value": "Inter, sans-serif"
+          "type": "select",
+          "value": "Inter",
+          "options": [
+            "Inter",
+            "Manrope",
+            "Roboto Mono",
+            "System UI"
+          ]
         },
         {
-          "id": "portfolio-page-section-padding",
-          "title": "Section Padding",
+          "id": "container-max-width",
+          "title": "Container Max Width",
+          "type": "select",
+          "value": "7xl",
+          "options": [
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "7xl"
+          ]
+        },
+        {
+          "id": "section-spacing",
+          "title": "Section Vertical Spacing (px)",
+          "type": "text",
+          "value": "50px"
+        },
+        {
+          "id": "show-noise-background",
+          "title": "Show Subtle Noise Background",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "noise-opacity",
+          "title": "Noise Opacity",
           "type": "number",
-          "value": 23,
+          "value": 0.06,
           "min": 0,
-          "max": 100,
-          "step": 1
+          "max": 1,
+          "step": 0.01
+        },
+        {
+          "id": "enable-smooth-scroll",
+          "title": "Enable Smooth Scroll",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "favicon-url",
+          "title": "Favicon URL",
+          "type": "text",
+          "value": "/favicon.ico",
+          "maxLength": 120
         }
       ]
     },
     {
-      "id": "header-section",
-      "title": "Header Section",
-      "prompt": "This section contains a header with logo and navigation menu.",
+      "id": "hero",
+      "title": "Hero & Navigation",
+      "prompt": "Create a sticky header with logo/title, navigation links (About, Projects, Contact), and a theme toggle. Below it, implement a hero section with name, role, brief pitch, CTA buttons, and social icons. Add an animated background accent (subtle gradient blob or grid) honoring performance. Mobile: collapsible menu using Sheet. Desktop: inline nav. Ensure focus-visible rings and keyboard accessibility. Include smooth-scroll anchors to sections. Use shadcn/ui Button, Badge, Sheet, Tooltip components where relevant.",
       "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "header-section-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "header-section-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#0a0a0a"
-        },
-        {
-          "id": "header-section-padding",
-          "title": "Padding",
-          "type": "number",
-          "value": 12,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        },
-        {
-          "id": "header-section-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 20,
-          "min": 12,
-          "max": 36,
-          "step": 1
-        },
-        {
-          "id": "header-section-tagline",
-          "title": "Tagline",
+          "id": "logo-text",
+          "title": "Logo Text",
           "type": "text",
-          "value": "Welcome",
-          "maxLength": 100
+          "value": "AM",
+          "maxLength": 6
+        },
+        {
+          "id": "nav-links",
+          "title": "Nav Links",
+          "type": "text",
+          "value": "About|Projects",
+          "maxLength": 120
+        },
+        {
+          "id": "show-resume-button",
+          "title": "Show Resume Button",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "resume-url",
+          "title": "Resume URL",
+          "type": "text",
+          "value": "/resume.pdf",
+          "maxLength": 120
+        },
+        {
+          "id": "primary-cta-text",
+          "title": "Primary CTA Text",
+          "type": "text",
+          "value": "Get in car",
+          "maxLength": 40
+        },
+        {
+          "id": "primary-cta-link",
+          "title": "Primary CTA Link",
+          "type": "text",
+          "value": "#contact",
+          "maxLength": 120
+        },
+        {
+          "id": "secondary-cta-text",
+          "title": "Secondary CTA Text",
+          "type": "text",
+          "value": "View Projects",
+          "maxLength": 40
+        },
+        {
+          "id": "secondary-cta-link",
+          "title": "Secondary CTA Link",
+          "type": "text",
+          "value": "#projects",
+          "maxLength": 120
+        },
+        {
+          "id": "hero-name",
+          "title": "Hero Name",
+          "type": "text",
+          "value": "Mega Yehor",
+          "maxLength": 60
+        },
+        {
+          "id": "hero-role",
+          "title": "Hero Role",
+          "type": "text",
+          "value": "Software Engineer",
+          "maxLength": 60
+        },
+        {
+          "id": "hero-pitch",
+          "title": "Hero Pitch",
+          "type": "text",
+          "value": "I build reliable, scalable web apps with delightful UX.",
+          "maxLength": 160
+        },
+        {
+          "id": "show-socials",
+          "title": "Show Social Icons",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "github-url",
+          "title": "GitHub URL",
+          "type": "text",
+          "value": "https://github.com/username",
+          "maxLength": 120
+        },
+        {
+          "id": "linkedin-url",
+          "title": "LinkedIn URL",
+          "type": "text",
+          "value": "https://www.linkedin.com/in/artemmarunchenko/",
+          "maxLength": 120
+        },
+        {
+          "id": "x-url",
+          "title": "X/Twitter URL",
+          "type": "text",
+          "value": "https://x.com/username",
+          "maxLength": 120
+        },
+        {
+          "id": "email-address",
+          "title": "Email Address",
+          "type": "text",
+          "value": "you@example.com",
+          "maxLength": 120
+        },
+        {
+          "id": "hero-image-url",
+          "title": "Hero Image URL",
+          "type": "text",
+          "value": "",
+          "maxLength": 200
+        },
+        {
+          "id": "show-animated-accent",
+          "title": "Show Animated Accent",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "accent-style",
+          "title": "Accent Style",
+          "type": "select",
+          "value": "gradient-blob",
+          "options": [
+            "gradient-blob",
+            "grid",
+            "glow"
+          ]
+        },
+        {
+          "id": "header-transparency",
+          "title": "Header Transparency",
+          "type": "select",
+          "value": "translucent",
+          "options": [
+            "solid",
+            "translucent",
+            "transparent"
+          ]
+        },
+        {
+          "id": "sticky-header",
+          "title": "Sticky Header",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "nav-alignment",
+          "title": "Nav Alignment",
+          "type": "select",
+          "value": "right",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        {
+          "id": "hero-alignment",
+          "title": "Hero Alignment",
+          "type": "select",
+          "value": "center",
+          "options": [
+            "left",
+            "center"
+          ]
+        },
+        {
+          "id": "show-badges",
+          "title": "Show Tech Badges",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "badges",
+          "title": "Tech Badges (pipe-separated)",
+          "type": "text",
+          "value": "TypeScript|React|Next.js|Node.js|PostgreSQL|AWS",
+          "maxLength": 200
+        },
+        {
+          "id": "background-decoration",
+          "title": "Background Decoration",
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "grid",
+            "dots",
+            "mesh"
+          ]
+        },
+        {
+          "id": "header-shadow",
+          "title": "Header Shadow",
+          "type": "select",
+          "value": "sm",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
         }
       ]
     },
     {
       "id": "projects-section",
-      "title": "Projects Section",
-      "prompt": "This section showcases projects in a grid layout with individual project cards.",
+      "title": "Projects Gallery",
+      "prompt": "Create a responsive projects section with filterable/sortable project cards. Show at least 6 projects with title, short description, tech stack badges, links (GitHub/demo), and optional image/thumbnail. Include a compact toolbar with a search input, filter by tag (multi-select via badges/toggles), and sort select (Newest, Popular, A–Z). Use shadcn/ui Card, Badge, Input, Toggle/ToggleGroup, and Tooltip. Support client-side filtering/sorting without external data. Optimize for a11y: labels, roles, SR text, and focus management. Animate card hover and entrance transitions. Support grid/list toggle on larger screens.",
       "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "projects-section-background-color",
-          "title": "Background Color",
-          "type": "color",
-          "value": "#ffffff"
-        },
-        {
-          "id": "projects-section-text-color",
-          "title": "Text Color",
-          "type": "color",
-          "value": "#000000"
-        },
-        {
-          "id": "projects-section-card-shadow",
-          "title": "Card Shadow",
+          "id": "section-title",
+          "title": "Section Title",
           "type": "text",
-          "value": "0px 4px 6px rgba(0, 0, 0, 0.1)"
+          "value": "Projects",
+          "maxLength": 40
         },
         {
-          "id": "projects-section-max-projects",
-          "title": "Max Projects",
+          "id": "section-subtitle",
+          "title": "Section Subtitle",
+          "type": "text",
+          "value": "Things I’ve built recently",
+          "maxLength": 80
+        },
+        {
+          "id": "show-search",
+          "title": "Show Search",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "show-filters",
+          "title": "Show Filters",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "show-sort",
+          "title": "Show Sort",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "default-view",
+          "title": "Default View",
+          "type": "select",
+          "value": "grid",
+          "options": [
+            "grid",
+            "list"
+          ]
+        },
+        {
+          "id": "grid-columns-md",
+          "title": "Grid Columns (md)",
           "type": "number",
-          "value": 3,
+          "value": 2,
           "min": 1,
-          "max": 20,
+          "max": 4,
           "step": 1
         },
         {
-          "id": "projects-section-card-color",
-          "title": "Card Color",
-          "type": "color",
-          "value": "#e0e0e0"
+          "id": "grid-columns-lg",
+          "title": "Grid Columns (lg)",
+          "type": "number",
+          "value": 3,
+          "min": 1,
+          "max": 6,
+          "step": 1
+        },
+        {
+          "id": "card-hover-effect",
+          "title": "Card Hover Effect",
+          "type": "select",
+          "value": "lift",
+          "options": [
+            "none",
+            "lift",
+            "glow",
+            "tilt"
+          ]
+        },
+        {
+          "id": "enable-animations",
+          "title": "Enable Animations",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "project-items",
+          "title": "Project Items (JSON)",
+          "type": "text",
+          "value": "[{\"title\":\"Open Source Charts\",\"description\":\"Composable charts library built with React and D3.\",\"tags\":[\"React\",\"D3\",\"TypeScript\"],\"github\":\"https://github.com/username/charts\",\"demo\":\"https://charts.example.com\"},{\"title\":\"Infra Dashboard\",\"description\":\"Real-time observability with streaming metrics and alerts.\",\"tags\":[\"Next.js\",\"WebSockets\",\"Tailwind\"],\"github\":\"https://github.com/username/infra-dash\",\"demo\":\"https://infra.example.com\"},{\"title\":\"AI Code Assistant\",\"description\":\"Local-first coding companion with embeddings.\",\"tags\":[\"AI\",\"Rust\",\"Electron\"],\"github\":\"https://github.com/username/ai-assistant\",\"demo\":\"https://ai.example.com\"},{\"title\":\"Design Tokens CLI\",\"description\":\"CLI to generate cross-platform design tokens.\",\"tags\":[\"Node.js\",\"CLI\"],\"github\":\"https://github.com/username/tokens-cli\",\"demo\":\"https://npmjs.com/tokens-cli\"},{\"title\":\"Serverless Image Proxy\",\"description\":\"Edge-optimized image resizing and caching.\",\"tags\":[\"Cloudflare\",\"Workers\",\"Images\"],\"github\":\"https://github.com/username/image-proxy\",\"demo\":\"https://img.example.com\"},{\"title\":\"Kanban Pro\",\"description\":\"Collaborative kanban board with offline support.\",\"tags\":[\"PWA\",\"React\",\"Dexie\"],\"github\":\"https://github.com/username/kanban-pro\",\"demo\":\"https://kanban.example.com\"}]",
+          "maxLength": 5000
+        },
+        {
+          "id": "available-tags",
+          "title": "Available Tags (pipe-separated)",
+          "type": "text",
+          "value": "React|Next.js|TypeScript|Node.js|Tailwind|D3|AI|Rust|Electron|CLI|PWA|Cloudflare|Workers|Images|WebSockets|Dexie",
+          "maxLength": 400
+        },
+        {
+          "id": "default-selected-tags",
+          "title": "Default Selected Tags (pipe-separated)",
+          "type": "text",
+          "value": "",
+          "maxLength": 200
+        },
+        {
+          "id": "default-sort",
+          "title": "Default Sort",
+          "type": "select",
+          "value": "Newest",
+          "options": [
+            "Newest",
+            "Popular",
+            "A–Z"
+          ]
+        },
+        {
+          "id": "enable-list-view",
+          "title": "Enable List View Toggle",
+          "type": "boolean",
+          "value": true
         }
       ]
     },
     {
-      "id": "contact-section",
-      "title": "Contact Section",
-      "prompt": "This section includes a contact form for visitors to reach out.",
+      "id": "about-section",
+      "title": "About",
+      "prompt": "Create an about section with a profile image, bio, key skills grid, and experience/education timeline. Emphasize concise storytelling and impact. Use Cards for skill highlights, Badges for skill tags, and an accessible timeline layout for experience. Include a download resume button if enabled. Ensure responsive layout with image left/top on larger screens and stacked on mobile. Add subtle entrance animations. Provide alt text for images. Keep content configurable via properties.",
       "children": [],
       "parentId": "portfolio-page",
       "built": false,
       "properties": [
         {
-          "id": "contact-section-margin",
-          "title": "Margin",
-          "type": "number",
-          "value": 10,
-          "min": 0,
-          "max": 50,
-          "step": 1
+          "id": "section-title",
+          "title": "Section Title",
+          "type": "text",
+          "value": "About",
+          "maxLength": 40
+        },
+        {
+          "id": "profile-image-url",
+          "title": "Profile Image URL",
+          "type": "text",
+          "value": "",
+          "maxLength": 200
+        },
+        {
+          "id": "profile-image-alt",
+          "title": "Profile Image Alt",
+          "type": "text",
+          "value": "Headshot of Your Name",
+          "maxLength": 120
+        },
+        {
+          "id": "bio",
+          "title": "Bio",
+          "type": "text",
+          "value": "I’m a software engineer focused on building resilient systems and great developer experiences.",
+          "maxLength": 400
+        },
+        {
+          "id": "skills",
+          "title": "Skills (pipe-separated)",
+          "type": "text",
+          "value": "TypeScript|React|Next.js|Node.js|PostgreSQL|GraphQL|AWS|Docker|Kubernetes|CI/CD",
+          "maxLength": 400
+        },
+        {
+          "id": "experience-items",
+          "title": "Experience Items (JSON)",
+          "type": "text",
+          "value": "[{\"role\":\"Senior Software Engineer\",\"company\":\"Acme Corp\",\"period\":\"2022–Present\",\"summary\":\"Leading the frontend platform and performance initiatives.\",\"highlights\":[\"Cut LCP by 40%\",\"Built design system\",\"Mentored 4 engineers\"]},{\"role\":\"Software Engineer\",\"company\":\"Beta Inc\",\"period\":\"2019–2022\",\"summary\":\"Full-stack features across product areas.\",\"highlights\":[\"Shipped multi-tenant auth\",\"Improved DX with CI pipelines\"]}]",
+          "maxLength": 4000
+        },
+        {
+          "id": "education-items",
+          "title": "Education Items (JSON)",
+          "type": "text",
+          "value": "[{\"degree\":\"B.S. Computer Science\",\"school\":\"State University\",\"period\":\"2015–2019\",\"details\":\"Graduated with honors, research in HCI.\"}]",
+          "maxLength": 2000
+        },
+        {
+          "id": "show-resume",
+          "title": "Show Resume Button",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "resume-url",
+          "title": "Resume URL",
+          "type": "text",
+          "value": "/resume.pdf",
+          "maxLength": 200
+        },
+        {
+          "id": "show-download-vcard",
+          "title": "Show Download vCard",
+          "type": "boolean",
+          "value": false
+        },
+        {
+          "id": "layout-variant",
+          "title": "Layout Variant",
+          "type": "select",
+          "value": "image-left",
+          "options": [
+            "image-left",
+            "image-top"
+          ]
+        },
+        {
+          "id": "enable-animations",
+          "title": "Enable Animations",
+          "type": "boolean",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "contact-footer",
+      "title": "Contact & Footer",
+      "prompt": "Create a contact section with a simple form (name, email, message) using shadcn/ui Form, Input, Textarea, and Button. Client-side validate required fields; on submit, POST to /api with JSON and show success/error states. Include alternate contact options (email link and social badges). Below the contact, add a compact footer with copyright, nav-to-top link, and small link list (GitHub, LinkedIn, Resume). Respect theme and color properties; ensure good contrast. Add a back-to-top floating action button that appears after scroll.",
+      "children": [],
+      "parentId": "portfolio-page",
+      "built": false,
+      "properties": [
+        {
+          "id": "section-title",
+          "title": "Section Title",
+          "type": "text",
+          "value": "Contact",
+          "maxLength": 40
+        },
+        {
+          "id": "section-subtitle",
+          "title": "Section Subtitle",
+          "type": "text",
+          "value": "Let’s build something great together.",
+          "maxLength": 100
+        },
+        {
+          "id": "show-phone-field",
+          "title": "Show Phone Field",
+          "type": "boolean",
+          "value": false
+        },
+        {
+          "id": "success-message",
+          "title": "Success Message",
+          "type": "text",
+          "value": "Thanks! I’ll get back to you soon.",
+          "maxLength": 120
+        },
+        {
+          "id": "error-message",
+          "title": "Error Message",
+          "type": "text",
+          "value": "Something went wrong. Please try again.",
+          "maxLength": 120
+        },
+        {
+          "id": "submit-button-text",
+          "title": "Submit Button Text",
+          "type": "text",
+          "value": "Send Message",
+          "maxLength": 40
+        },
+        {
+          "id": "show-alt-contact",
+          "title": "Show Alternate Contact",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "alt-email-label",
+          "title": "Alt Email Label",
+          "type": "text",
+          "value": "you@example.com",
+          "maxLength": 120
+        },
+        {
+          "id": "show-social-badges",
+          "title": "Show Social Badges",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "footer-links",
+          "title": "Footer Links (JSON)",
+          "type": "text",
+          "value": "[{\"label\":\"GitHub\",\"href\":\"https://github.com/username\"},{\"label\":\"LinkedIn\",\"href\":\"https://linkedin.com/in/username\"},{\"label\":\"Resume\",\"href\":\"/resume.pdf\"}]",
+          "maxLength": 1000
+        },
+        {
+          "id": "show-back-to-top",
+          "title": "Show Back to Top FAB",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "footer-note",
+          "title": "Footer Note",
+          "type": "text",
+          "value": "© 2025 Your Name. All rights reserved.",
+          "maxLength": 120
+        },
+        {
+          "id": "privacy-url",
+          "title": "Privacy URL",
+          "type": "text",
+          "value": "",
+          "maxLength": 200
+        },
+        {
+          "id": "terms-url",
+          "title": "Terms URL",
+          "type": "text",
+          "value": "",
+          "maxLength": 200
+        },
+        {
+          "id": "enable-smooth-scroll",
+          "title": "Enable Smooth Scroll",
+          "type": "boolean",
+          "value": true
         }
       ]
     }

@@ -92,7 +92,6 @@ async function readDirectoryStructure(dirPath: string, relativePath: string = ''
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
     
-    console.log('entries', entries);
     for (const entry of entries) {
       // Skip excluded directories and files
       if (EXCLUDED_DIRS.has(entry.name) || EXCLUDED_FILES.has(entry.name)) {

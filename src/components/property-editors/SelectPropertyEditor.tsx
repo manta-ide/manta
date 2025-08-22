@@ -22,11 +22,15 @@ export default function SelectPropertyEditor({ property, onChange }: SelectPrope
             <SelectValue placeholder="Select option..." />
           </SelectTrigger>
           <SelectContent className="bg-zinc-800 border-zinc-700">
-            {property.options.map((option) => (
+            {Array.isArray(property.options) ? property.options.map((option) => (
               <SelectItem key={option} value={option} className="text-white hover:bg-zinc-700 focus:bg-zinc-700">
                 {option}
               </SelectItem>
-            ))}
+            )) : (
+              <SelectItem value="" className="text-white hover:bg-zinc-700 focus:bg-zinc-700">
+                No options available
+              </SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>

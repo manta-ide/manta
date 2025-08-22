@@ -34,9 +34,9 @@ function Slider({
 
   React.useEffect(() => {
     if (value !== undefined) {
-      setInternalValues(Array.isArray(value) ? value : [value])
+      setInternalValues(Array.isArray(value) ? value : [typeof value === 'number' ? value : min])
     }
-  }, [value])
+  }, [value, min])
 
   const handleValueChange = (newValue: number[]) => {
     setInternalValues(newValue)

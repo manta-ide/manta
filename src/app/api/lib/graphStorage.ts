@@ -29,12 +29,11 @@ function extractVariablesFromGraph(graph: Graph): Record<string, any> {
     if (node.properties) {
       node.properties.forEach((property, index) => {
         // Create variable names based on node title and property title
-        const nodeTitle = node.title?.toLowerCase().replace(/\s+/g, '-') || 'unknown';
-        const propertyTitle = property.title?.toLowerCase().replace(/\s+/g, '-') || `property-${index}`;
+        const propertyId = property.id?.toLowerCase().replace(/\s+/g, '-') || `property-${index}`;
         
         // Generate both formats: with node-element prefix and without
-        const varNameWithPrefix = `${nodeTitle}-${propertyTitle}`;
-        const varNameWithoutPrefix = `${nodeTitle}-${propertyTitle}`;
+        const varNameWithPrefix = `${propertyId}`;
+        const varNameWithoutPrefix = `${propertyId}`;
         
         // Store both formats for flexibility - just the value, no metadata
         vars[varNameWithPrefix] = property.value;

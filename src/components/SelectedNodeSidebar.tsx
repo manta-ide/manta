@@ -328,19 +328,19 @@ export default function SelectedNodeSidebar() {
 	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, triggerRefresh]);
 
 	return (
-		<div className="flex-none border-r border-zinc-700 bg-zinc-900 text-white overflow-y-auto">
-			<div className="p-4 border-b border-zinc-700">
-				<span className="font-bold text-base truncate max-w-[320px] leading-tight" title={selectedNode?.title || selectedNodeId}>
+		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
+			<div className="p-3 border-b border-zinc-700">
+				<span className="font-bold text-sm truncate max-w-[280px] leading-tight" title={selectedNode?.title || selectedNodeId}>
 					{selectedNode?.title || selectedNodeId}
 				</span>
 			</div>
-			<div className="p-4 space-y-6">
+			<div className="overflow-y-auto max-h-[calc(100vh-7rem)] p-3 space-y-4">
 				{selectedNode && (
 					<>
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
-							<div className="space-y-4">
+							<div className="space-y-2">
 								{selectedNode.properties?.map((property: Property, index: number) => (
-									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/30 pb-4 mb-4" : ""}>
+									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-2 mb-2" : ""}>
 										<PropertyEditor
 											property={{
 												...property,
@@ -355,10 +355,10 @@ export default function SelectedNodeSidebar() {
 
 						{selectedNode.children?.length > 0 && (
 							<div>
-								<div className="text-sm font-semibold text-zinc-200 border-b border-zinc-700/50 pb-2 mb-3">Children ({selectedNode.children.length})</div>
-								<ul className="space-y-2">
+								<div className="text-sm font-semibold text-zinc-200 border-b border-zinc-700/30 pb-1 mb-2">Children ({selectedNode.children.length})</div>
+								<ul className="space-y-1">
 									{selectedNode.children.map((child: any) => (
-										<li key={child.id} className="text-sm font-medium text-zinc-300 bg-zinc-800/50 rounded-md p-2 border border-zinc-700/30">
+										<li key={child.id} className="text-xs font-medium text-zinc-300 bg-zinc-800/30 rounded p-1.5 border border-zinc-700/20">
 											{child.title}
 										</li>
 									))}
@@ -367,40 +367,40 @@ export default function SelectedNodeSidebar() {
 						)}
 
 						{/* Prompt Section - Collapsible */}
-						<div className="border-t border-zinc-700/50 pt-4">
+						<div className="border-t border-zinc-700/30 pt-3">
 							<Accordion type="single" collapsible className="w-full">
 								<AccordionItem value="prompt" className="border-none">
-									<AccordionTrigger className="py-2 text-sm font-semibold text-zinc-200 hover:text-zinc-100 hover:no-underline">
+									<AccordionTrigger className="py-1 text-sm font-semibold text-zinc-200 hover:text-zinc-100 hover:no-underline">
 										Prompt
 									</AccordionTrigger>
 									<AccordionContent className="pt-2 pb-0">
-										<div className="space-y-3">
+										<div className="space-y-2">
 											<textarea
-												className="w-full h-40 text-sm bg-zinc-800 border border-zinc-700 rounded-md p-3 text-white font-medium leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+												className="w-full h-32 text-sm bg-zinc-800 border border-zinc-700 rounded-md p-2 text-white font-medium leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
 												value={promptDraft}
 												onChange={(e) => setPromptDraft(e.target.value)}
 											/>
 											{rebuildError && (
-												<div className="text-sm text-red-300 bg-red-900/30 border border-red-700/50 rounded-md p-3 font-medium">
+												<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-2 font-medium">
 													{rebuildError}
 												</div>
 											)}
 											{rebuildSuccess && (
-												<div className="text-sm text-green-300 bg-green-900/30 border border-green-700/50 rounded-md p-3 font-medium">
+												<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-2 font-medium">
 													Node rebuilt successfully!
 												</div>
 											)}
-											<div className="flex gap-3 pt-2">
+											<div className="flex gap-2 pt-2">
 												<button
-													className={`px-4 py-2 rounded-md text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
+													className={`px-3 py-1.5 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
 													disabled={isRebuilding}
 													onClick={handleRebuild}
 												>{isRebuilding ? 'Rebuilding…' : 'Rebuild'}</button>
 												<button
-													className={`px-4 py-2 rounded-md text-sm font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
+													className={`px-3 py-1.5 rounded text-xs font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
 													disabled={isGeneratingProperties}
 													onClick={handleGenerateProperties}
-												>{isGeneratingProperties ? 'Generating…' : 'Generate Properties'}</button>
+												>{isGeneratingProperties ? 'Generating…' : 'Generate Props'}</button>
 											</div>
 										</div>
 									</AccordionContent>
