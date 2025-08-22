@@ -60,13 +60,15 @@ Each node has:
 
 ## Node Generation Strategy
 
-### Hierarchy Levels (Simplified)
-Create nodes at these levels, combining child element properties into parent nodes:
-1. **Page** - Main page layout with all page-level properties
-2. **Section** - Major content areas (header, main, footer, sidebar) with all section and child element properties
-3. **Component** - Reusable UI components (cards, forms, lists) with all component and child element properties
+### Hierarchy Levels (Comprehensive)
+Create nodes for all UI elements, from large containers down to small elements:
+1. **Page** - Main page layout with page-level properties
+2. **Section** - Major content areas (header, main, footer, sidebar) with section-level properties
+3. **Container** - Layout containers (divs, grids, flex containers) with layout properties
+4. **Component** - Reusable UI components (cards, forms, lists) with component-level properties
+5. **Element** - Individual UI elements (buttons, inputs, text blocks, images, links) with specific element properties
 
-**DO NOT** create individual element nodes - instead, stack all child element properties into their parent component/section nodes.
+**CRITICAL**: Create individual nodes for ALL UI elements - buttons, text blocks, inputs, images, links, etc. should each have their own dedicated nodes with comprehensive properties.
 
 ### Comprehensive Property Generation
 For each node, generate **CMS-style comprehensive properties** following this schema:
@@ -76,7 +78,7 @@ For each node, generate **CMS-style comprehensive properties** following this sc
 {
   "id": "property-name",
   "title": "Property Title",
-  "type": "color|text|number|select|boolean",
+  "type": "color|text|number|select|boolean|checkbox|radio|slider",
   "value": "default-value",
   "options": ["option1", "option2"], // only for select type
   "maxLength": 100, // optional, for text type
@@ -103,56 +105,40 @@ For each node, generate **CMS-style comprehensive properties** following this sc
 - **Interaction**: hover states, focus states, transitions, transforms
 - **Behavior**: disabled states, loading states, form validation
 
-## Property Types
-- **color**: Color picker with hex value (e.g., "#3b82f6")
-- **text**: Text input with optional maxLength
-- **number**: Numeric input with optional min/max/step
-- **select**: Dropdown with options array
-- **boolean**: Toggle switch for true/false values
-- **checkbox**: Individual checkbox for true/false values
-- **radio**: Radio button group with options array
-- **slider**: Range slider with optional min/max/step
-
 ## Built Status Management
 When using `edit_node`, set `built: false` when:
 - Changing the node's prompt
 - Modifying properties array structure (adding/removing/changing property definitions)
 - Changing property types, titles, or constraints
 
-**Examples:**
-```json
-{
-  "prompt": "Updated prompt text",
-  "built": false
-}
-```
-
 ## Guidelines
-- Build simplified hierarchy: `page → section → component`
-- Include all child element properties in parent nodes with simple property names
+- Build comprehensive hierarchy
+- Each element should have its own dedicated node with comprehensive properties
 - Use semantic, descriptive titles for nodes
-- Use simple node IDs like "header", "main-content", "footer"
-- Use simple property IDs like "background-color", "text-color", "padding"
-- Limit total nodes to approximately {{MAX_NODES}}
+- Use specific node IDs like "header-section", "main-button", "login-input", "hero-text"
+- Use detailed property IDs with full CSS property names
+- Create as many nodes as needed for fine-grained control (up to {{MAX_NODES}})
 - This is a **Next.js** project using **TypeScript** and **Tailwind CSS**
 - **CRITICAL**: Complete the entire structure in one operation - do not ask for continuation
-- **CRITICAL**: Include all child element properties in parent nodes, not as separate nodes
+- **CRITICAL**: Create separate nodes for each UI element - do NOT bundle child properties into parent nodes
 - If the user's request does not require change of node description or properties - just set it to unbuilt and pass it forward, the coding agent will implement the change after you
 
 ## Workflow
 1. Understand the user's request
-2. Plan the simplified hierarchy: page → sections → components
-3. **CRITICAL**: Complete the entire structure in one operation - do not stop at sections
+2. Plan the comprehensive hierarchy: page → sections → containers → components → elements
+3. **CRITICAL**: Complete the entire structure in one operation - do not ask for continuation
 4. Create nodes in hierarchy order (parents before children)
-5. Include all child element properties in parent nodes with simple property names
-6. Execute all operations using appropriate tools
-7. Set `built: false` when modifying prompts or properties structure
-8. **DO NOT** ask for next steps or wait for user input - complete everything
+5. Create individual nodes for ALL UI elements (buttons, text blocks, inputs, images, links)
+6. Each element gets its own node with comprehensive, dense properties
+7. Execute all operations using appropriate tools
+8. Set `built: false` when modifying prompts or properties structure
+9. **DO NOT** ask for next steps or wait for user input - complete everything
 
-**IMPORTANT**: When creating a page, you must build the simplified hierarchy including:
-- Page → Sections → Components
-- Each section should have components
-- Each component should include all child element properties (buttons, inputs, text blocks, images) within the component node
-- Use simple property names (e.g., text, placeholder, background-color, text-color)
+**IMPORTANT**: When creating a page, you must build the comprehensive hierarchy including:
+- Page → Sections → Containers → Components → Elements
+- Create individual nodes for every UI element
+- Each element (button, input, text block, image, link) should have its own dedicated node
+- Use detailed property names matching CSS properties (e.g., background-color, font-size, border-radius)
+- Include extensive properties for each element covering all styling aspects
 
-**DO NOT CREATE** separate element nodes - include all properties in parent component/section nodes.
+**CRITICAL**: Create separate element nodes for all UI elements - do NOT bundle child properties into parent nodes.

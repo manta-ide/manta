@@ -11,6 +11,7 @@ import { useChatService } from '@/lib/chatService';
 import { MessageRenderer } from './CodeBlock';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ShimmeringText } from '@/components/ui/shadcn-io/shimmering-text';
 
 interface Position {
   x: number;
@@ -94,6 +95,12 @@ export default function FloatingChat() {
 
     const messageToSend = input;
     setInput(''); // Clear input immediately
+
+    // Clear context flags after sending
+    setIncludeFile(false);
+    setIncludeSelection(false);
+    setIncludeNode(false);
+
     await sendMessage(messageToSend, {
       includeFile,
       includeSelection,
@@ -290,7 +297,21 @@ export default function FloatingChat() {
       </div>
 
       {/* Messages */}
-      <div className="max-h-64 overflow-y-auto p-3 space-y-2">
+      <div className="max-h-64 overflow-y-auto p-3 pb-0 space-y-2">
+        {lastTwoMessages.length === 0 && loading && (
+          <div className="w-full">
+            <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
+              <ShimmeringText
+                text="Processing your request..."
+                duration={0.8}
+                wave={true}
+                color="var(--color-zinc-400)"
+                shimmeringColor="var(--color-zinc-200)"
+                className="text-sm"
+              />
+            </div>
+          </div>
+        )}
         {lastTwoMessages.map((m, idx) => (
           <div key={idx} className="w-full">
             <div
@@ -300,15 +321,17 @@ export default function FloatingChat() {
                   : 'px-2 bg-zinc-900 text-zinc-200'
               }`}
             >
-              {/* Display badges for context */}
-              <MessageBadges
-                currentFile={m.messageContext?.currentFile}
-                selection={m.messageContext?.selection}
-                selectedNodeId={m.variables?.SELECTED_NODE_ID}
-                selectedNode={m.variables?.SELECTED_NODE_TITLE ? { title: m.variables.SELECTED_NODE_TITLE } : null}
-                variant={m.role === 'user' ? 'light' : 'dark'}
-              />
-              <ReactMarkdown 
+              {/* Display badges for context only for actual messages */}
+              {m.content && (
+                <MessageBadges
+                  currentFile={m.messageContext?.currentFile}
+                  selection={m.messageContext?.selection}
+                  selectedNodeId={m.variables?.SELECTED_NODE_ID}
+                  selectedNode={m.variables?.SELECTED_NODE_TITLE ? { title: m.variables.SELECTED_NODE_TITLE } : null}
+                  variant={m.role === 'user' ? 'light' : 'dark'}
+                />
+              )}
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
               >
@@ -320,7 +343,7 @@ export default function FloatingChat() {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-zinc-700">
+      <div className={`px-3 pb-3 pt-0 ${messages.length > 0 ? 'border-t border-zinc-700' : ''}`}>
         <form onSubmit={handleSubmit} className="space-y-2">
           {/* Show current selection badges above input for context */}
           <SelectionBadges

@@ -12,15 +12,17 @@ interface TextPropertyEditorProps {
 
 export default function TextPropertyEditor({ property, onChange }: TextPropertyEditorProps) {
   return (
-    <div className="space-y-2">
-      <Label className="text-xs text-zinc-400">Text</Label>
+    <div className="flex flex-col gap-2 py-2">
+      <Label className="text-sm font-bold text-white">
+        {property.title}
+      </Label>
       <Input
         type="text"
         value={property.value as string || ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Enter text..."
         maxLength={property.maxLength}
-        className="text-xs bg-zinc-800 border border-zinc-700"
+        className="w-full"
       />
     </div>
   );

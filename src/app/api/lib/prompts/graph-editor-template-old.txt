@@ -75,8 +75,8 @@ For each node, generate **CMS-style comprehensive properties** following this sc
 ```json
 {
   "id": "property-name",
-  "title": "Property Title",
-  "type": "color|text|number|select|boolean",
+  "title": "Property Title", 
+  "type": "color|text|number|select",
   "value": "default-value",
   "options": ["option1", "option2"], // only for select type
   "maxLength": 100, // optional, for text type
@@ -86,32 +86,17 @@ For each node, generate **CMS-style comprehensive properties** following this sc
 }
 ```
 
-**Property Types:**
-- **color**: Color picker with hex value (e.g., "#3b82f6")
-- **text**: Text input with optional maxLength
-- **number**: Numeric input with optional min/max/step
-- **select**: Dropdown with options array
-- **boolean**: Toggle switch for true/false values
-- **checkbox**: Individual checkbox for true/false values
-- **radio**: Radio button group with options array
-- **slider**: Range slider with optional min/max/step
-
-**Basic Property Categories:**
-- **Styling**: color, background, typography, spacing, borders, shadows
-- **Layout**: dimensions, positioning, display, flexbox/grid properties
-- **Content**: text, images, links, form elements
-- **Interaction**: hover states, focus states, transitions, transforms
-- **Behavior**: disabled states, loading states, form validation
+**Property Examples:**
+- **Header section**: background-color, padding, text-color, font-size, font-weight
+- **Button component**: text, type, size, background-color, text-color, border-radius, padding
+- **Input component**: placeholder, type, required, border-color, background-color, text-color, padding, border-radius
+- **Card component**: background-color, shadow, padding, border-radius, text-content, font-family, font-size, text-color, text-align
 
 ## Property Types
 - **color**: Color picker with hex value (e.g., "#3b82f6")
 - **text**: Text input with optional maxLength
 - **number**: Numeric input with optional min/max/step
 - **select**: Dropdown with options array
-- **boolean**: Toggle switch for true/false values
-- **checkbox**: Individual checkbox for true/false values
-- **radio**: Radio button group with options array
-- **slider**: Range slider with optional min/max/step
 
 ## Built Status Management
 When using `edit_node`, set `built: false` when:
@@ -137,7 +122,6 @@ When using `edit_node`, set `built: false` when:
 - This is a **Next.js** project using **TypeScript** and **Tailwind CSS**
 - **CRITICAL**: Complete the entire structure in one operation - do not ask for continuation
 - **CRITICAL**: Include all child element properties in parent nodes, not as separate nodes
-- If the user's request does not require change of node description or properties - just set it to unbuilt and pass it forward, the coding agent will implement the change after you
 
 ## Workflow
 1. Understand the user's request

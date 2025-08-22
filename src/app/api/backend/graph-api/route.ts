@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
              try {
                let graph = getGraphSession();
                if (!graph) {
-                 console.log('🔄 No graph in session, loading from file...');
                  try {
                    await loadGraphFromFile();
                    graph = getGraphSession();
@@ -79,7 +78,6 @@ export async function GET(req: NextRequest) {
       // Always try to load from file first to ensure we have the latest data
       let graph = getGraphSession();
       if (!graph) {
-        console.log('🔄 No graph in session, loading from file...');
         await loadGraphFromFile();
         graph = getGraphSession();
       }
@@ -110,7 +108,6 @@ export async function GET(req: NextRequest) {
     // Always try to load from file first to ensure we have the latest data
     let graph = getGraphSession();
     if (!graph) {
-      console.log('🔄 No graph in session, loading from file...');
       await loadGraphFromFile();
       graph = getGraphSession();
     }

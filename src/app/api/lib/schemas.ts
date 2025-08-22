@@ -108,7 +108,7 @@ export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 // Property schemas for graph node properties
 
 // Property type enum - defines the available property types for graph nodes
-export const PropertyTypeEnum = z.enum(['color', 'text', 'number', 'select']);
+export const PropertyTypeEnum = z.enum(['color', 'text', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider']);
 export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 
 // Property definition - represents a configurable property of a graph node

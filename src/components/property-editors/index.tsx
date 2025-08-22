@@ -6,6 +6,10 @@ import ColorPropertyEditor from './ColorPropertyEditor';
 import SelectPropertyEditor from './SelectPropertyEditor';
 import TextPropertyEditor from './TextPropertyEditor';
 import NumberPropertyEditor from './NumberPropertyEditor';
+import BooleanPropertyEditor from './BooleanPropertyEditor';
+import CheckboxPropertyEditor from './CheckboxPropertyEditor';
+import RadioPropertyEditor from './RadioPropertyEditor';
+import SliderPropertyEditor from './SliderPropertyEditor';
 
 interface PropertyEditorProps {
   property: Property;
@@ -43,6 +47,34 @@ export default function PropertyEditor({ property, onChange }: PropertyEditorPro
       return (
         <NumberPropertyEditor
           property={property as Property & { type: 'number' }}
+          onChange={handleChange}
+        />
+      );
+    case 'boolean':
+      return (
+        <BooleanPropertyEditor
+          property={property as Property & { type: 'boolean' }}
+          onChange={handleChange}
+        />
+      );
+    case 'checkbox':
+      return (
+        <CheckboxPropertyEditor
+          property={property as Property & { type: 'checkbox' }}
+          onChange={handleChange}
+        />
+      );
+    case 'radio':
+      return (
+        <RadioPropertyEditor
+          property={property as Property & { type: 'radio'; options: string[] }}
+          onChange={handleChange}
+        />
+      );
+    case 'slider':
+      return (
+        <SliderPropertyEditor
+          property={property as Property & { type: 'slider' }}
           onChange={handleChange}
         />
       );
