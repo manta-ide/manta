@@ -179,8 +179,9 @@ export async function POST(req: NextRequest) {
     const logStream = createWriteStream(logFilePath, { flags: 'a' });
     const writeLog = (s: string) => logStream.write(s.endsWith('\n') ? s : s + '\n');
 
-    // Initialize step counter
+    // Initialize step counter and timing
     let totalSteps = 0;
+    let stepStartTime: number | null = null;
     
     // Log available tools
     writeLog(`[${operationName}] available-tools:`);
@@ -338,7 +339,14 @@ export async function POST(req: NextRequest) {
     // Real-time step logging callback
     const onStepFinish = (event: any) => {
       const stepIndex = totalSteps + 1;
+      const stepEndTime = Date.now();
+      const stepDuration = stepStartTime ? stepEndTime - stepStartTime : 0;
+      const stepMinutes = Math.floor(stepDuration / 60000);
+      const stepSeconds = Math.floor((stepDuration % 60000) / 1000);
+      const stepMs = stepDuration % 1000;
+
       writeLog(`[${operationName}] === STEP ${stepIndex} COMPLETED ===`);
+      writeLog(`[${operationName}] Step Duration: ${stepMinutes}m ${stepSeconds}s ${stepMs}ms`);
       writeLog(`[${operationName}] Step Type: ${event.type}`);
       writeLog(`[${operationName}] Step ID: ${event.stepId || 'N/A'}`);
       writeLog(`[${operationName}] Message ID: ${event.messageId || 'N/A'}`);
@@ -385,8 +393,14 @@ export async function POST(req: NextRequest) {
       }
 
       writeLog(`[${operationName}] === END STEP ${stepIndex} ===\n`);
+
+      // Update step start time for the next step (if any)
+      stepStartTime = Date.now();
       totalSteps = stepIndex;
     };
+
+    // Set initial step start time
+    stepStartTime = Date.now();
 
     // Non-streaming mode only
     const result = await generateText({

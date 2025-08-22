@@ -43,7 +43,8 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root {
+/* Light theme variables (can be applied with .light class if needed) */
+.light {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
@@ -79,7 +80,9 @@
   --sidebar-ring: oklch(0.871 0.006 286.286);
 }
 
-.dark {
+/* Default (Dark) theme variables */
+:root {
+  --radius: 0.625rem;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.141 0.005 285.823);
@@ -114,86 +117,3 @@
   --sidebar-ring: oklch(0.442 0.017 285.786);
 }
 
-.select-none {
-  user-select: none;
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-    background: var(--background);
-    color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
-  }
-}
-
-.react-live-preview button {
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.react-live-preview button:hover {
-  background-color: #e0e0e0;
-}
-
-/* Custom scrollbar styles for chat sidebar */
-.chat-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(203 213 225) transparent;
-}
-
-.chat-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgb(203 213 225);
-  border-radius: 3px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.chat-scrollbar:hover::-webkit-scrollbar-thumb {
-  opacity: 1;
-}
-
-.chat-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(148 163 184);
-}
-
-/* Custom scrollbar for patch blocks */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(113, 113, 122, 0.4);
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(113, 113, 122, 0.6);
-}
-
-.custom-scrollbar::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-button {
-  display: none;
-}

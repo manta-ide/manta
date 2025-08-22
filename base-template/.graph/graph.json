@@ -1,305 +1,262 @@
 {
   "nodes": [
     {
-      "id": "portfolio-page",
-      "title": "SWE Portfolio Page",
-      "prompt": "Build a responsive, accessible Software Engineer portfolio page using Next.js (App Router), TypeScript, and Tailwind CSS. Use shadcn/ui primitives where appropriate (Button, Card, Badge, Input, Textarea, Sheet, Tooltip). The page should include a combined header+hero section, projects gallery, about section, and a combined contact+footer section. Ensure mobile-first layout, smooth scrolling to in-page anchors, and dark/light theme support. Respect the configurable properties for styling, layout, content, and behavior.",
+      "id": "landing-page",
+      "title": "Manta – Graphical IDE Landing Page",
+      "prompt": "Build a responsive, accessible landing page for Manta, a graphical IDE. Compose the page with these sections in order: Hero (with top navigation), Features (3 feature cards), Editor Showcase (large visual), Footer. Use TypeScript, Next.js App Router, and Tailwind CSS. Respect all CMS-style properties for styling, layout, content, interactions, and behavior. The page should: 1) Apply global theme (font, colors, background) and container width; 2) Render a subtle animated gradient background if enabled; 3) Center content with consistent section spacing; 4) Support dark-first aesthetics; 5) Be mobile-first and responsive up to large desktop; 6) Pass section-specific properties to each section component. Do not create extra nodes; sections will be separate nodes already defined in the graph. Render children sections in the order provided. Use semantic HTML (header, main, section, footer).",
       "children": [
         {
           "id": "hero",
-          "title": "Hero & Navigation"
+          "title": "Hero + Navigation"
         },
         {
-          "id": "projects-section",
-          "title": "Projects Gallery"
+          "id": "features",
+          "title": "Features Grid"
         },
         {
-          "id": "about-section",
-          "title": "About"
+          "id": "editor-showcase",
+          "title": "Editor Showcase"
         },
         {
-          "id": "contact-footer",
-          "title": "Contact & Footer"
+          "id": "footer",
+          "title": "Footer"
         }
       ],
       "parentId": "root",
-      "built": false,
+      "built": true,
       "properties": [
         {
-          "id": "site-title",
-          "title": "Site Title",
-          "type": "text",
-          "value": "Your Name — Software Engineer",
-          "maxLength": 80
-        },
-        {
-          "id": "meta-description",
-          "title": "Meta Description",
-          "type": "text",
-          "value": "Portfolio of a Software Engineer specializing in TypeScript, React, Next.js, and cloud-native systems.",
-          "maxLength": 160
-        },
-        {
-          "id": "theme",
-          "title": "Theme",
+          "id": "font-family",
+          "title": "Font Family",
           "type": "select",
-          "value": "system",
+          "value": "Poppins",
           "options": [
-            "light",
-            "dark",
-            "system"
+            "Lato",
+            "Lora",
+            "Montserrat",
+            "Noto Sans",
+            "Open Sans",
+            "Oswald",
+            "Playfair Display",
+            "Poppins",
+            "PT Sans",
+            "Raleway",
+            "Roboto",
+            "Source Sans Pro"
           ]
         },
         {
           "id": "primary-color",
           "title": "Primary Color",
           "type": "color",
-          "value": "#25d9c9"
+          "value": "#06b6d4"
+        },
+        {
+          "id": "secondary-color",
+          "title": "Secondary Color",
+          "type": "color",
+          "value": "#fa8cf5"
         },
         {
           "id": "accent-color",
           "title": "Accent Color",
           "type": "color",
-          "value": "#a921c4"
+          "value": "#f59e0b"
         },
         {
           "id": "background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#0e022a"
+          "value": "#13161f"
         },
         {
           "id": "text-color",
-          "title": "Text Color",
+          "title": "Base Text Color",
           "type": "color",
-          "value": "#e7e8ec"
-        },
-        {
-          "id": "font-family",
-          "title": "Font Family",
-          "type": "select",
-          "value": "Inter",
-          "options": [
-            "Inter",
-            "Manrope",
-            "Roboto Mono",
-            "System UI"
-          ]
+          "value": "#f8f3f3"
         },
         {
           "id": "container-max-width",
-          "title": "Container Max Width",
-          "type": "select",
-          "value": "7xl",
-          "options": [
-            "sm",
-            "md",
-            "lg",
-            "xl",
-            "2xl",
-            "7xl"
-          ]
+          "title": "Container Max Width (px)",
+          "type": "number",
+          "value": 1200,
+          "min": 640,
+          "max": 1600,
+          "step": 10
+        },
+        {
+          "id": "page-padding-x",
+          "title": "Page Horizontal Padding (px)",
+          "type": "number",
+          "value": 24,
+          "min": 0,
+          "max": 64,
+          "step": 2
         },
         {
           "id": "section-spacing",
-          "title": "Section Vertical Spacing (px)",
-          "type": "text",
-          "value": "50px"
-        },
-        {
-          "id": "show-noise-background",
-          "title": "Show Subtle Noise Background",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "noise-opacity",
-          "title": "Noise Opacity",
+          "title": "Vertical Spacing Between Sections (px)",
           "type": "number",
-          "value": 0.06,
-          "min": 0,
-          "max": 1,
-          "step": 0.01
+          "value": 96,
+          "min": 24,
+          "max": 200,
+          "step": 4
         },
         {
-          "id": "enable-smooth-scroll",
-          "title": "Enable Smooth Scroll",
+          "id": "background-gradient-enabled",
+          "title": "Enable Background Gradient",
           "type": "boolean",
           "value": true
         },
         {
-          "id": "favicon-url",
-          "title": "Favicon URL",
-          "type": "text",
-          "value": "/favicon.ico",
-          "maxLength": 120
+          "id": "background-gradient-from",
+          "title": "Background Gradient From",
+          "type": "color",
+          "value": "#0b1022"
+        },
+        {
+          "id": "background-gradient-to",
+          "title": "Background Gradient To",
+          "type": "color",
+          "value": "#111827"
+        },
+        {
+          "id": "background-gradient-angle",
+          "title": "Background Gradient Angle (deg)",
+          "type": "number",
+          "value": 45,
+          "min": 0,
+          "max": 360,
+          "step": 5
         }
       ]
     },
     {
       "id": "hero",
-      "title": "Hero & Navigation",
-      "prompt": "Create a sticky header with logo/title, navigation links (About, Projects, Contact), and a theme toggle. Below it, implement a hero section with name, role, brief pitch, CTA buttons, and social icons. Add an animated background accent (subtle gradient blob or grid) honoring performance. Mobile: collapsible menu using Sheet. Desktop: inline nav. Ensure focus-visible rings and keyboard accessibility. Include smooth-scroll anchors to sections. Use shadcn/ui Button, Badge, Sheet, Tooltip components where relevant.",
+      "title": "Hero + Navigation",
+      "prompt": "Create the top navigation and hero section for the Manta landing page. Use a sticky, semi-transparent navbar with blur. Include brand at left and CTA buttons at right. Hero should headline Manta’s core value: a next‑gen graphical IDE with graph editing, AI chat, and Figma‑level precision. Include subheading, 2 primary CTAs, 1 secondary link, trust badges, and a hero visual illustrating the graph editor. Use the page theme properties where possible. Keep layout centered in a max-width container; ensure good contrast over dark backgrounds. Include responsive behavior and accessibility attributes. Do not create separate child elements; expose their properties here.",
       "children": [],
-      "parentId": "portfolio-page",
-      "built": false,
+      "parentId": "landing-page",
+      "built": true,
       "properties": [
         {
-          "id": "logo-text",
-          "title": "Logo Text",
+          "id": "brand-name",
+          "title": "Brand Name",
           "type": "text",
-          "value": "AM",
-          "maxLength": 6
+          "value": "Manta",
+          "maxLength": 24
         },
         {
-          "id": "nav-links",
-          "title": "Nav Links",
+          "id": "logo-src",
+          "title": "Logo Source URL",
           "type": "text",
-          "value": "About|Projects",
-          "maxLength": 120
-        },
-        {
-          "id": "show-resume-button",
-          "title": "Show Resume Button",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "resume-url",
-          "title": "Resume URL",
-          "type": "text",
-          "value": "/resume.pdf",
-          "maxLength": 120
-        },
-        {
-          "id": "primary-cta-text",
-          "title": "Primary CTA Text",
-          "type": "text",
-          "value": "Get in car",
-          "maxLength": 40
-        },
-        {
-          "id": "primary-cta-link",
-          "title": "Primary CTA Link",
-          "type": "text",
-          "value": "#contact",
-          "maxLength": 120
-        },
-        {
-          "id": "secondary-cta-text",
-          "title": "Secondary CTA Text",
-          "type": "text",
-          "value": "View Projects",
-          "maxLength": 40
-        },
-        {
-          "id": "secondary-cta-link",
-          "title": "Secondary CTA Link",
-          "type": "text",
-          "value": "#projects",
-          "maxLength": 120
-        },
-        {
-          "id": "hero-name",
-          "title": "Hero Name",
-          "type": "text",
-          "value": "Mega Yehor",
-          "maxLength": 60
-        },
-        {
-          "id": "hero-role",
-          "title": "Hero Role",
-          "type": "text",
-          "value": "Software Engineer",
-          "maxLength": 60
-        },
-        {
-          "id": "hero-pitch",
-          "title": "Hero Pitch",
-          "type": "text",
-          "value": "I build reliable, scalable web apps with delightful UX.",
-          "maxLength": 160
-        },
-        {
-          "id": "show-socials",
-          "title": "Show Social Icons",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "github-url",
-          "title": "GitHub URL",
-          "type": "text",
-          "value": "https://github.com/username",
-          "maxLength": 120
-        },
-        {
-          "id": "linkedin-url",
-          "title": "LinkedIn URL",
-          "type": "text",
-          "value": "https://www.linkedin.com/in/artemmarunchenko/",
-          "maxLength": 120
-        },
-        {
-          "id": "x-url",
-          "title": "X/Twitter URL",
-          "type": "text",
-          "value": "https://x.com/username",
-          "maxLength": 120
-        },
-        {
-          "id": "email-address",
-          "title": "Email Address",
-          "type": "text",
-          "value": "you@example.com",
-          "maxLength": 120
-        },
-        {
-          "id": "hero-image-url",
-          "title": "Hero Image URL",
-          "type": "text",
-          "value": "",
+          "value": "/globe.svg",
           "maxLength": 200
         },
         {
-          "id": "show-animated-accent",
-          "title": "Show Animated Accent",
+          "id": "nav-links",
+          "title": "Navigation Links (comma-separated)",
+          "type": "text",
+          "value": "Product,Pricing,Docs,Blog,Changelog",
+          "maxLength": 200
+        },
+        {
+          "id": "cta-primary-text",
+          "title": "Primary CTA Text",
+          "type": "text",
+          "value": "Start building",
+          "maxLength": 40
+        },
+        {
+          "id": "cta-primary-link",
+          "title": "Primary CTA Link",
+          "type": "text",
+          "value": "/signup",
+          "maxLength": 200
+        },
+        {
+          "id": "cta-secondary-text",
+          "title": "Secondary CTA Text",
+          "type": "text",
+          "value": "Live demo",
+          "maxLength": 40
+        },
+        {
+          "id": "cta-secondary-link",
+          "title": "Secondary CTA Link",
+          "type": "text",
+          "value": "/demo",
+          "maxLength": 200
+        },
+        {
+          "id": "navbar-blur",
+          "title": "Navbar Blur Enabled",
           "type": "boolean",
           "value": true
         },
         {
-          "id": "accent-style",
-          "title": "Accent Style",
-          "type": "select",
-          "value": "gradient-blob",
-          "options": [
-            "gradient-blob",
-            "grid",
-            "glow"
-          ]
+          "id": "navbar-transparency",
+          "title": "Navbar Transparency (0-100%)",
+          "type": "number",
+          "value": 70,
+          "min": 0,
+          "max": 100,
+          "step": 5
         },
         {
-          "id": "header-transparency",
-          "title": "Header Transparency",
-          "type": "select",
-          "value": "translucent",
-          "options": [
-            "solid",
-            "translucent",
-            "transparent"
-          ]
+          "id": "headline",
+          "title": "Hero Headline",
+          "type": "text",
+          "value": "Design, code, and orchestrate with Manta",
+          "maxLength": 120
         },
         {
-          "id": "sticky-header",
-          "title": "Sticky Header",
-          "type": "boolean",
-          "value": true
+          "id": "subheadline",
+          "title": "Hero Subheadline",
+          "type": "text",
+          "value": "A graphical IDE that fuses a graph-based editor, AI chat, and Figma-level controls—so teams ship complex systems faster.",
+          "maxLength": 220
         },
         {
-          "id": "nav-alignment",
-          "title": "Nav Alignment",
+          "id": "badge-text",
+          "title": "Announcement Badge Text",
+          "type": "text",
+          "value": "New: Private beta open",
+          "maxLength": 80
+        },
+        {
+          "id": "badge-link",
+          "title": "Announcement Badge Link",
+          "type": "text",
+          "value": "/beta",
+          "maxLength": 200
+        },
+        {
+          "id": "trust-logos",
+          "title": "Trust Logos (comma-separated URLs)",
+          "type": "text",
+          "value": "/vercel.svg,/next.svg,/globe.svg",
+          "maxLength": 500
+        },
+        {
+          "id": "hero-image-src",
+          "title": "Hero Illustration Source",
+          "type": "text",
+          "value": "https://placehold.co/1024x640/orange/black?text=Manta+Graph+Editor&font=roboto",
+          "maxLength": 400
+        },
+        {
+          "id": "hero-image-alt",
+          "title": "Hero Illustration Alt",
+          "type": "text",
+          "value": "Screenshot of Manta’s graph-based editor",
+          "maxLength": 140
+        },
+        {
+          "id": "hero-alignment",
+          "title": "Hero Content Alignment",
           "type": "select",
-          "value": "right",
+          "value": "center",
           "options": [
             "left",
             "center",
@@ -307,381 +264,496 @@
           ]
         },
         {
-          "id": "hero-alignment",
-          "title": "Hero Alignment",
+          "id": "cta-secondary-variant",
+          "title": "Secondary CTA Variant",
           "type": "select",
-          "value": "center",
+          "value": "outline",
           "options": [
-            "left",
-            "center"
+            "ghost",
+            "outline",
+            "link"
           ]
         },
         {
-          "id": "show-badges",
-          "title": "Show Tech Badges",
+          "id": "show-trust-logos",
+          "title": "Show Trust Logos",
           "type": "boolean",
           "value": true
         },
         {
-          "id": "badges",
-          "title": "Tech Badges (pipe-separated)",
+          "id": "show-announcement-badge",
+          "title": "Show Announcement Badge",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "id": "scroll-indicator",
+          "title": "Show Scroll Indicator",
+          "type": "boolean",
+          "value": false
+        },
+        {
+          "id": "navbar-height",
+          "title": "Navbar Height (px)",
+          "type": "number",
+          "value": 64,
+          "min": 48,
+          "max": 88,
+          "step": 4
+        },
+        {
+          "id": "hero-padding-y",
+          "title": "Hero Vertical Padding (px)",
+          "type": "number",
+          "value": 80,
+          "min": 40,
+          "max": 200,
+          "step": 4
+        },
+        {
+          "id": "cta-gap",
+          "title": "CTA Gap (px)",
+          "type": "number",
+          "value": 12,
+          "min": 4,
+          "max": 40,
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "features",
+      "title": "Features Grid",
+      "prompt": "Build a responsive 3-card features section highlighting Manta’s pillars: Graph Editor, AI Chat, and Figma-level Editing. Each card has icon, title, description, and a small action link. The section includes an optional eyebrow and heading, plus a short kicker paragraph. Align with the page theme (colors, fonts, spacing), supporting dark background. Cards should have subtle borders, hover elevation, and accessible contrast. Responsive grid should stack 1/2/3 across mobile/tablet/desktop. No separate child nodes; include all properties here.",
+      "children": [],
+      "parentId": "landing-page",
+      "built": true,
+      "properties": [
+        {
+          "id": "section-eyebrow",
+          "title": "Section Eyebrow",
           "type": "text",
-          "value": "TypeScript|React|Next.js|Node.js|PostgreSQL|AWS",
+          "value": "Why Manta",
+          "maxLength": 60
+        },
+        {
+          "id": "section-heading",
+          "title": "Section Heading",
+          "type": "text",
+          "value": "One canvas. Three superpowers.",
+          "maxLength": 120
+        },
+        {
+          "id": "section-kicker",
+          "title": "Section Kicker",
+          "type": "text",
+          "value": "Everything you need to design, orchestrate, and ship complex systems—without leaving the canvas.",
           "maxLength": 200
         },
         {
-          "id": "background-decoration",
-          "title": "Background Decoration",
-          "type": "select",
-          "value": "none",
-          "options": [
-            "none",
-            "grid",
-            "dots",
-            "mesh"
-          ]
+          "id": "card-1-icon",
+          "title": "Card 1 Icon URL",
+          "type": "text",
+          "value": "/globe.svg",
+          "maxLength": 200
         },
         {
-          "id": "header-shadow",
-          "title": "Header Shadow",
+          "id": "card-1-title",
+          "title": "Card 1 Title",
+          "type": "text",
+          "value": "Graph-based editor",
+          "maxLength": 80
+        },
+        {
+          "id": "card-1-desc",
+          "title": "Card 1 Description",
+          "type": "text",
+          "value": "Compose systems visually with a fast, snap-to-grid graph and powerful node tooling.",
+          "maxLength": 200
+        },
+        {
+          "id": "card-1-link-text",
+          "title": "Card 1 Link Text",
+          "type": "text",
+          "value": "Explore graphs →",
+          "maxLength": 60
+        },
+        {
+          "id": "card-1-link-href",
+          "title": "Card 1 Link Href",
+          "type": "text",
+          "value": "/product/graph-editor",
+          "maxLength": 200
+        },
+        {
+          "id": "card-2-icon",
+          "title": "Card 2 Icon URL",
+          "type": "text",
+          "value": "/globe.svg",
+          "maxLength": 200
+        },
+        {
+          "id": "card-2-title",
+          "title": "Card 2 Title",
+          "type": "text",
+          "value": "Integrated AI chat",
+          "maxLength": 80
+        },
+        {
+          "id": "card-2-desc",
+          "title": "Card 2 Description",
+          "type": "text",
+          "value": "Ask for refactors, generate nodes, or document flows—right inside the canvas.",
+          "maxLength": 200
+        },
+        {
+          "id": "card-2-link-text",
+          "title": "Card 2 Link Text",
+          "type": "text",
+          "value": "Chat with Manta →",
+          "maxLength": 60
+        },
+        {
+          "id": "card-2-link-href",
+          "title": "Card 2 Link Href",
+          "type": "text",
+          "value": "/product/ai-chat",
+          "maxLength": 200
+        },
+        {
+          "id": "card-3-icon",
+          "title": "Card 3 Icon URL",
+          "type": "text",
+          "value": "/globe.svg",
+          "maxLength": 200
+        },
+        {
+          "id": "card-3-title",
+          "title": "Card 3 Title",
+          "type": "text",
+          "value": "Figma-level precision",
+          "maxLength": 80
+        },
+        {
+          "id": "card-3-desc",
+          "title": "Card 3 Description",
+          "type": "text",
+          "value": "Pixel-perfect controls, constraints, and versioned design tokens for production.",
+          "maxLength": 200
+        },
+        {
+          "id": "card-3-link-text",
+          "title": "Card 3 Link Text",
+          "type": "text",
+          "value": "See the editor →",
+          "maxLength": 60
+        },
+        {
+          "id": "card-3-link-href",
+          "title": "Card 3 Link Href",
+          "type": "text",
+          "value": "/product/editor",
+          "maxLength": 200
+        },
+        {
+          "id": "card-corner-radius",
+          "title": "Card Corner Radius (px)",
+          "type": "number",
+          "value": 14,
+          "min": 4,
+          "max": 32,
+          "step": 2
+        },
+        {
+          "id": "card-border-opacity",
+          "title": "Card Border Opacity (%)",
+          "type": "number",
+          "value": 12,
+          "min": 0,
+          "max": 100,
+          "step": 2
+        },
+        {
+          "id": "card-hover-elevation",
+          "title": "Card Hover Elevation",
           "type": "select",
-          "value": "sm",
+          "value": "md",
           "options": [
-            "none",
             "sm",
             "md",
             "lg"
           ]
+        },
+        {
+          "id": "grid-gap",
+          "title": "Grid Gap (px)",
+          "type": "number",
+          "value": 16,
+          "min": 8,
+          "max": 40,
+          "step": 2
+        },
+        {
+          "id": "section-padding-y",
+          "title": "Section Vertical Padding (px)",
+          "type": "number",
+          "value": 72,
+          "min": 32,
+          "max": 160,
+          "step": 4
         }
       ]
     },
     {
-      "id": "projects-section",
-      "title": "Projects Gallery",
-      "prompt": "Create a responsive projects section with filterable/sortable project cards. Show at least 6 projects with title, short description, tech stack badges, links (GitHub/demo), and optional image/thumbnail. Include a compact toolbar with a search input, filter by tag (multi-select via badges/toggles), and sort select (Newest, Popular, A–Z). Use shadcn/ui Card, Badge, Input, Toggle/ToggleGroup, and Tooltip. Support client-side filtering/sorting without external data. Optimize for a11y: labels, roles, SR text, and focus management. Animate card hover and entrance transitions. Support grid/list toggle on larger screens.",
+      "id": "editor-showcase",
+      "title": "Editor Showcase",
+      "prompt": "Create a bold visual section that showcases the Manta editor. Use a framed browser-style mock with tabs and a central canvas image. Include a small heading, a descriptive paragraph, and 2 small actions (Watch video, View docs). Emphasize the graph-based nature with node-link hints or subtle overlays. Should adapt to dark theme and remain performant. No separate child nodes; include all properties here.",
       "children": [],
-      "parentId": "portfolio-page",
-      "built": false,
+      "parentId": "landing-page",
+      "built": true,
       "properties": [
         {
-          "id": "section-title",
-          "title": "Section Title",
+          "id": "showcase-heading",
+          "title": "Showcase Heading",
           "type": "text",
-          "value": "Projects",
-          "maxLength": 40
-        },
-        {
-          "id": "section-subtitle",
-          "title": "Section Subtitle",
-          "type": "text",
-          "value": "Things I’ve built recently",
+          "value": "Meet the canvas",
           "maxLength": 80
         },
         {
-          "id": "show-search",
-          "title": "Show Search",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "show-filters",
-          "title": "Show Filters",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "show-sort",
-          "title": "Show Sort",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "default-view",
-          "title": "Default View",
-          "type": "select",
-          "value": "grid",
-          "options": [
-            "grid",
-            "list"
-          ]
-        },
-        {
-          "id": "grid-columns-md",
-          "title": "Grid Columns (md)",
-          "type": "number",
-          "value": 2,
-          "min": 1,
-          "max": 4,
-          "step": 1
-        },
-        {
-          "id": "grid-columns-lg",
-          "title": "Grid Columns (lg)",
-          "type": "number",
-          "value": 3,
-          "min": 1,
-          "max": 6,
-          "step": 1
-        },
-        {
-          "id": "card-hover-effect",
-          "title": "Card Hover Effect",
-          "type": "select",
-          "value": "lift",
-          "options": [
-            "none",
-            "lift",
-            "glow",
-            "tilt"
-          ]
-        },
-        {
-          "id": "enable-animations",
-          "title": "Enable Animations",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "project-items",
-          "title": "Project Items (JSON)",
+          "id": "showcase-desc",
+          "title": "Showcase Description",
           "type": "text",
-          "value": "[{\"title\":\"Open Source Charts\",\"description\":\"Composable charts library built with React and D3.\",\"tags\":[\"React\",\"D3\",\"TypeScript\"],\"github\":\"https://github.com/username/charts\",\"demo\":\"https://charts.example.com\"},{\"title\":\"Infra Dashboard\",\"description\":\"Real-time observability with streaming metrics and alerts.\",\"tags\":[\"Next.js\",\"WebSockets\",\"Tailwind\"],\"github\":\"https://github.com/username/infra-dash\",\"demo\":\"https://infra.example.com\"},{\"title\":\"AI Code Assistant\",\"description\":\"Local-first coding companion with embeddings.\",\"tags\":[\"AI\",\"Rust\",\"Electron\"],\"github\":\"https://github.com/username/ai-assistant\",\"demo\":\"https://ai.example.com\"},{\"title\":\"Design Tokens CLI\",\"description\":\"CLI to generate cross-platform design tokens.\",\"tags\":[\"Node.js\",\"CLI\"],\"github\":\"https://github.com/username/tokens-cli\",\"demo\":\"https://npmjs.com/tokens-cli\"},{\"title\":\"Serverless Image Proxy\",\"description\":\"Edge-optimized image resizing and caching.\",\"tags\":[\"Cloudflare\",\"Workers\",\"Images\"],\"github\":\"https://github.com/username/image-proxy\",\"demo\":\"https://img.example.com\"},{\"title\":\"Kanban Pro\",\"description\":\"Collaborative kanban board with offline support.\",\"tags\":[\"PWA\",\"React\",\"Dexie\"],\"github\":\"https://github.com/username/kanban-pro\",\"demo\":\"https://kanban.example.com\"}]",
-          "maxLength": 5000
-        },
-        {
-          "id": "available-tags",
-          "title": "Available Tags (pipe-separated)",
-          "type": "text",
-          "value": "React|Next.js|TypeScript|Node.js|Tailwind|D3|AI|Rust|Electron|CLI|PWA|Cloudflare|Workers|Images|WebSockets|Dexie",
-          "maxLength": 400
-        },
-        {
-          "id": "default-selected-tags",
-          "title": "Default Selected Tags (pipe-separated)",
-          "type": "text",
-          "value": "",
+          "value": "A unified workspace where diagrams, code, and conversations stay in sync.",
           "maxLength": 200
         },
         {
-          "id": "default-sort",
-          "title": "Default Sort",
-          "type": "select",
-          "value": "Newest",
-          "options": [
-            "Newest",
-            "Popular",
-            "A–Z"
-          ]
+          "id": "canvas-image-src",
+          "title": "Canvas Image Source",
+          "type": "text",
+          "value": "https://placehold.co/1280x720/111827/e5e7eb?text=Manta+Canvas&font=roboto",
+          "maxLength": 400
         },
         {
-          "id": "enable-list-view",
-          "title": "Enable List View Toggle",
+          "id": "canvas-image-alt",
+          "title": "Canvas Image Alt",
+          "type": "text",
+          "value": "Manta editor canvas with nodes and connections",
+          "maxLength": 140
+        },
+        {
+          "id": "tab-1-label",
+          "title": "Tab 1 Label",
+          "type": "text",
+          "value": "Graph",
+          "maxLength": 20
+        },
+        {
+          "id": "tab-2-label",
+          "title": "Tab 2 Label",
+          "type": "text",
+          "value": "Chat",
+          "maxLength": 20
+        },
+        {
+          "id": "tab-3-label",
+          "title": "Tab 3 Label",
+          "type": "text",
+          "value": "Code",
+          "maxLength": 20
+        },
+        {
+          "id": "action-1-text",
+          "title": "Action 1 Text",
+          "type": "text",
+          "value": "Watch video",
+          "maxLength": 40
+        },
+        {
+          "id": "action-1-href",
+          "title": "Action 1 Href",
+          "type": "text",
+          "value": "/video",
+          "maxLength": 200
+        },
+        {
+          "id": "action-2-text",
+          "title": "Action 2 Text",
+          "type": "text",
+          "value": "View docs",
+          "maxLength": 40
+        },
+        {
+          "id": "action-2-href",
+          "title": "Action 2 Href",
+          "type": "text",
+          "value": "/docs",
+          "maxLength": 200
+        },
+        {
+          "id": "frame-corner-radius",
+          "title": "Frame Corner Radius (px)",
+          "type": "number",
+          "value": 16,
+          "min": 4,
+          "max": 32,
+          "step": 2
+        },
+        {
+          "id": "frame-border-opacity",
+          "title": "Frame Border Opacity (%)",
+          "type": "number",
+          "value": 14,
+          "min": 0,
+          "max": 100,
+          "step": 2
+        },
+        {
+          "id": "overlay-grid",
+          "title": "Show Subtle Overlay Grid",
           "type": "boolean",
           "value": true
+        },
+        {
+          "id": "section-padding-y",
+          "title": "Section Vertical Padding (px)",
+          "type": "number",
+          "value": 84,
+          "min": 32,
+          "max": 160,
+          "step": 4
         }
       ]
     },
     {
-      "id": "about-section",
-      "title": "About",
-      "prompt": "Create an about section with a profile image, bio, key skills grid, and experience/education timeline. Emphasize concise storytelling and impact. Use Cards for skill highlights, Badges for skill tags, and an accessible timeline layout for experience. Include a download resume button if enabled. Ensure responsive layout with image left/top on larger screens and stacked on mobile. Add subtle entrance animations. Provide alt text for images. Keep content configurable via properties.",
+      "id": "footer",
+      "title": "Footer",
+      "prompt": "Build a compact footer suitable for a dark landing page. Include brand mark, short description, social icons, and 4 columns: Product, Company, Resources, Legal. Each column accepts comma-separated links. Include a newsletter email capture with validation, success/failure states, and a small disclosure. Ensure accessible color contrast, focus states, and keyboard navigation. No separate child nodes; expose all properties here.",
       "children": [],
-      "parentId": "portfolio-page",
-      "built": false,
+      "parentId": "landing-page",
+      "built": true,
       "properties": [
         {
-          "id": "section-title",
-          "title": "Section Title",
+          "id": "brand-name",
+          "title": "Brand Name",
           "type": "text",
-          "value": "About",
-          "maxLength": 40
+          "value": "Manta",
+          "maxLength": 24
         },
         {
-          "id": "profile-image-url",
-          "title": "Profile Image URL",
+          "id": "brand-tagline",
+          "title": "Brand Tagline",
           "type": "text",
-          "value": "",
-          "maxLength": 200
-        },
-        {
-          "id": "profile-image-alt",
-          "title": "Profile Image Alt",
-          "type": "text",
-          "value": "Headshot of Your Name",
+          "value": "Design, code, and orchestrate on one canvas.",
           "maxLength": 120
         },
         {
-          "id": "bio",
-          "title": "Bio",
+          "id": "logo-src",
+          "title": "Logo Source URL",
           "type": "text",
-          "value": "I’m a software engineer focused on building resilient systems and great developer experiences.",
+          "value": "/globe.svg",
+          "maxLength": 200
+        },
+        {
+          "id": "social-links",
+          "title": "Social Links (label:url comma-separated)",
+          "type": "text",
+          "value": "X:https://x.com,mastodon:https://mastodon.social/github,copilot:https://github.com",
           "maxLength": 400
         },
         {
-          "id": "skills",
-          "title": "Skills (pipe-separated)",
+          "id": "product-links",
+          "title": "Product Links (comma-separated label:url)",
           "type": "text",
-          "value": "TypeScript|React|Next.js|Node.js|PostgreSQL|GraphQL|AWS|Docker|Kubernetes|CI/CD",
-          "maxLength": 400
+          "value": "Graph Editor:/product/graph-editor,AI Chat:/product/ai-chat,Editor:/product/editor,Pricing:/pricing,Changelog:/changelog",
+          "maxLength": 600
         },
         {
-          "id": "experience-items",
-          "title": "Experience Items (JSON)",
+          "id": "company-links",
+          "title": "Company Links (comma-separated label:url)",
           "type": "text",
-          "value": "[{\"role\":\"Senior Software Engineer\",\"company\":\"Acme Corp\",\"period\":\"2022–Present\",\"summary\":\"Leading the frontend platform and performance initiatives.\",\"highlights\":[\"Cut LCP by 40%\",\"Built design system\",\"Mentored 4 engineers\"]},{\"role\":\"Software Engineer\",\"company\":\"Beta Inc\",\"period\":\"2019–2022\",\"summary\":\"Full-stack features across product areas.\",\"highlights\":[\"Shipped multi-tenant auth\",\"Improved DX with CI pipelines\"]}]",
-          "maxLength": 4000
+          "value": "About:/about,Careers:/careers,Press:/press,Contact:/contact",
+          "maxLength": 600
         },
         {
-          "id": "education-items",
-          "title": "Education Items (JSON)",
+          "id": "resources-links",
+          "title": "Resources Links (comma-separated label:url)",
           "type": "text",
-          "value": "[{\"degree\":\"B.S. Computer Science\",\"school\":\"State University\",\"period\":\"2015–2019\",\"details\":\"Graduated with honors, research in HCI.\"}]",
-          "maxLength": 2000
+          "value": "Docs:/docs,API:/api,Guides:/guides,Examples:/examples",
+          "maxLength": 600
         },
         {
-          "id": "show-resume",
-          "title": "Show Resume Button",
+          "id": "legal-links",
+          "title": "Legal Links (comma-separated label:url)",
+          "type": "text",
+          "value": "Privacy:/privacy,Terms:/terms,Security:/security,Licenses:/licenses",
+          "maxLength": 600
+        },
+        {
+          "id": "newsletter-enabled",
+          "title": "Enable Newsletter",
           "type": "boolean",
           "value": true
         },
         {
-          "id": "resume-url",
-          "title": "Resume URL",
+          "id": "newsletter-heading",
+          "title": "Newsletter Heading",
           "type": "text",
-          "value": "/resume.pdf",
-          "maxLength": 200
+          "value": "Get product updates",
+          "maxLength": 80
         },
         {
-          "id": "show-download-vcard",
-          "title": "Show Download vCard",
-          "type": "boolean",
-          "value": false
-        },
-        {
-          "id": "layout-variant",
-          "title": "Layout Variant",
-          "type": "select",
-          "value": "image-left",
-          "options": [
-            "image-left",
-            "image-top"
-          ]
-        },
-        {
-          "id": "enable-animations",
-          "title": "Enable Animations",
-          "type": "boolean",
-          "value": true
-        }
-      ]
-    },
-    {
-      "id": "contact-footer",
-      "title": "Contact & Footer",
-      "prompt": "Create a contact section with a simple form (name, email, message) using shadcn/ui Form, Input, Textarea, and Button. Client-side validate required fields; on submit, POST to /api with JSON and show success/error states. Include alternate contact options (email link and social badges). Below the contact, add a compact footer with copyright, nav-to-top link, and small link list (GitHub, LinkedIn, Resume). Respect theme and color properties; ensure good contrast. Add a back-to-top floating action button that appears after scroll.",
-      "children": [],
-      "parentId": "portfolio-page",
-      "built": false,
-      "properties": [
-        {
-          "id": "section-title",
-          "title": "Section Title",
+          "id": "newsletter-placeholder",
+          "title": "Newsletter Placeholder",
           "type": "text",
-          "value": "Contact",
+          "value": "you@company.com",
+          "maxLength": 80
+        },
+        {
+          "id": "newsletter-button-text",
+          "title": "Newsletter Button Text",
+          "type": "text",
+          "value": "Subscribe",
           "maxLength": 40
         },
         {
-          "id": "section-subtitle",
-          "title": "Section Subtitle",
+          "id": "copyright",
+          "title": "Copyright",
           "type": "text",
-          "value": "Let’s build something great together.",
-          "maxLength": 100
-        },
-        {
-          "id": "show-phone-field",
-          "title": "Show Phone Field",
-          "type": "boolean",
-          "value": false
-        },
-        {
-          "id": "success-message",
-          "title": "Success Message",
-          "type": "text",
-          "value": "Thanks! I’ll get back to you soon.",
+          "value": "© 2025 Manta Labs, Inc.",
           "maxLength": 120
         },
         {
-          "id": "error-message",
-          "title": "Error Message",
-          "type": "text",
-          "value": "Something went wrong. Please try again.",
-          "maxLength": 120
+          "id": "section-padding-y",
+          "title": "Section Vertical Padding (px)",
+          "type": "number",
+          "value": 64,
+          "min": 32,
+          "max": 160,
+          "step": 4
         },
         {
-          "id": "submit-button-text",
-          "title": "Submit Button Text",
-          "type": "text",
-          "value": "Send Message",
-          "maxLength": 40
+          "id": "column-gap",
+          "title": "Column Gap (px)",
+          "type": "number",
+          "value": 24,
+          "min": 12,
+          "max": 64,
+          "step": 2
         },
         {
-          "id": "show-alt-contact",
-          "title": "Show Alternate Contact",
+          "id": "show-top-border",
+          "title": "Show Top Border",
           "type": "boolean",
           "value": true
         },
         {
-          "id": "alt-email-label",
-          "title": "Alt Email Label",
-          "type": "text",
-          "value": "you@example.com",
-          "maxLength": 120
-        },
-        {
-          "id": "show-social-badges",
-          "title": "Show Social Badges",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "footer-links",
-          "title": "Footer Links (JSON)",
-          "type": "text",
-          "value": "[{\"label\":\"GitHub\",\"href\":\"https://github.com/username\"},{\"label\":\"LinkedIn\",\"href\":\"https://linkedin.com/in/username\"},{\"label\":\"Resume\",\"href\":\"/resume.pdf\"}]",
-          "maxLength": 1000
-        },
-        {
-          "id": "show-back-to-top",
-          "title": "Show Back to Top FAB",
-          "type": "boolean",
-          "value": true
-        },
-        {
-          "id": "footer-note",
-          "title": "Footer Note",
-          "type": "text",
-          "value": "© 2025 Your Name. All rights reserved.",
-          "maxLength": 120
-        },
-        {
-          "id": "privacy-url",
-          "title": "Privacy URL",
-          "type": "text",
-          "value": "",
-          "maxLength": 200
-        },
-        {
-          "id": "terms-url",
-          "title": "Terms URL",
-          "type": "text",
-          "value": "",
-          "maxLength": 200
-        },
-        {
-          "id": "enable-smooth-scroll",
-          "title": "Enable Smooth Scroll",
-          "type": "boolean",
-          "value": true
+          "id": "top-border-opacity",
+          "title": "Top Border Opacity (%)",
+          "type": "number",
+          "value": 12,
+          "min": 0,
+          "max": 100,
+          "step": 2
         }
       ]
     }

@@ -33,11 +33,18 @@ async function findTsConfig(start: string): Promise<string | null> {
 
 export async function buildProject(filePath?: string) {
   const { exec } = await import("child_process");
+
+  // Convert relative filePath to absolute path using PROJECT_ROOT
+  let absoluteFilePath: string | undefined;
+  if (filePath) {
+    absoluteFilePath = join(PROJECT_ROOT, filePath);
+  }
+
   const run = (cmd: string) =>
     new Promise<{ ok: boolean; out: string }>((res) =>
       exec(
         cmd,
-        { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
+        { cwd: PROJECT_ROOT, maxBuffer: 1024 * 1024 },
         (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
       ),
     );
@@ -56,9 +63,9 @@ export async function buildProject(filePath?: string) {
 
   // Check getVar calls in the file if provided
   let getVarErrors: string[] = [];
-  if (filePath) {
+  if (absoluteFilePath) {
     try {
-      const fileContent = readFileSync(filePath, 'utf-8');
+      const fileContent = readFileSync(absoluteFilePath, 'utf-8');
       // More robust regex to capture getVar calls with different quote types and multiline
       const getVarRegex = /getVar\s*\(\s*['"`]([^'"`]+)['"`]/g;
       let match;
@@ -78,7 +85,7 @@ export async function buildProject(filePath?: string) {
   }
 
   // If no file path provided, do full build
-  if (!filePath) {
+  if (!absoluteFilePath) {
     const { ok, out } = await run('npx tsc --noEmit --pretty false');
     
     if (ok && getVarErrors.length === 0) return { success: true };
@@ -96,9 +103,9 @@ export async function buildProject(filePath?: string) {
     return { success: false, errorLines: allErrors };
   }
 
-  const ext = (filePath.split(".").pop() || "").toLowerCase();
+  const ext = (absoluteFilePath.split(".").pop() || "").toLowerCase();
   if (!["ts", "tsx"].includes(ext)) {
-    return getVarErrors.length > 0 
+    return getVarErrors.length > 0
       ? { success: false, errorLines: getVarErrors }
       : { success: true };
   }
@@ -110,17 +117,17 @@ export async function buildProject(filePath?: string) {
       jsx: "react-jsx",
       esModuleInterop: true,
       module: "ESNext",
-    })}' ${filePath}`;
+    })}' ${absoluteFilePath}`;
   let { ok, out } = await run(tsNodeCmd);
   if (ok && getVarErrors.length === 0) return { success: true };
 
   /* ─── 2 ▪ project-aware tsc (resolves @/ aliases) ─── */
-  const tsConfig = await findTsConfig(path.dirname(filePath));
+  const tsConfig = await findTsConfig(path.dirname(absoluteFilePath));
   const tscCmd = tsConfig
     ? // respect baseUrl / paths / strictness the project already defines
       `npx tsc --noEmit --pretty false -p ${tsConfig}`
     : // fall back to the relaxed per-file compile we used before
-      `npx tsc --noEmit --pretty false --jsx react-jsx --esModuleInterop --skipLibCheck ${filePath}`;
+      `npx tsc --noEmit --pretty false --jsx react-jsx --esModuleInterop --skipLibCheck ${absoluteFilePath}`;
 
   ({ ok, out } = await run(tscCmd));
   if (ok && getVarErrors.length === 0) return { success: true };
@@ -235,30 +242,17 @@ export const codeEditorTools: ToolSet = {
           contentToUse = linesToUse.join('\n');
         }
 
-        const runtimeError = await buildProject(fullPath);
-          if(runtimeError.success === true) {
-            return {
-              success: true,
-              message: offset !== undefined
-                ? `Successfully read file: ${path} (lines ${startLine}-${endLine})`
-                : `Successfully read file: ${path}`,
-              content: contentToUse,
-              lines: linesToUse.length,
-              path: path,
-              totalLines: allLines.length,
-              ...(offset !== undefined && { startLine, endLine })
-            };
-          }
-          else {
-            return {
-              success: true,
-              message: "Error in file " + JSON.stringify(runtimeError) + "\n" + contentToUse,
-              lines: linesToUse.length,
-              path: path,
-              totalLines: allLines.length,
-              ...(offset !== undefined && { startLine, endLine })
-            };
-          }
+        return {
+          success: true,
+          message: offset !== undefined
+            ? `Successfully read file: ${path} (lines ${startLine}-${endLine})`
+            : `Successfully read file: ${path}`,
+          content: contentToUse,
+          lines: linesToUse.length,
+          path: path,
+          totalLines: allLines.length,
+          ...(offset !== undefined && { startLine, endLine })
+        };
       } catch (error) {
         return { 
           success: false, 
@@ -287,18 +281,11 @@ export const codeEditorTools: ToolSet = {
         }
         
         writeFileSync(fullPath, content, 'utf-8');
-        const runtimeError = await buildProject(fullPath);
-        console.log(">>>>>>>>>>createFile buildProject", runtimeError);
-          if(runtimeError.success === true) {
-            return { 
-              success: true, 
-              message: `Created file: ${path}`,
-              operation: { type: 'create', path, content }
-            };
-          }
-          else {
-            return {success: false, message: "Error in create" + JSON.stringify(runtimeError), operation: { type: 'create', path, content }};
-          }
+        return {
+          success: true,
+          message: `Created file: ${path}`,
+          operation: { type: 'create', path, content }
+        };
       } catch (error) {
         return { 
           success: false, 
@@ -329,17 +316,11 @@ export const codeEditorTools: ToolSet = {
         }
         
         writeFileSync(fullPath, content, 'utf-8');
-        const runtimeError = await buildProject(fullPath);
-          if(runtimeError.success === true) {
-            return { 
-              success: true, 
-              message: `Updated file: ${path}`,
-              operation: { type: 'update', path, content }
-            };
-          }
-          else {
-            return {success: false, message: "Error in update" + JSON.stringify(runtimeError), operation: { type: 'update', path, content }};
-          }
+        return {
+          success: true,
+          message: `Updated file: ${path}`,
+          operation: { type: 'update', path, content }
+        };
       } catch (error) {
         return { 
           success: false, 
@@ -521,21 +502,11 @@ export const codeEditorTools: ToolSet = {
         // Write the patched content
         writeFileSync(fullPath, adjusted, 'utf-8');
         writeFileSync("patchlog.txt", adjusted, 'utf-8');
-        const runtimeError = await buildProject(fullPath);
-        
-        if(runtimeError.success === true) {
-          return { 
-            success: true, 
-            message: `Patch applied successfully to: ${path}`,
-            operation: { type: 'patch', path, content }
-          };
-        } else {
-          return {
-            success: false, 
-            message: "Error in patch: " + JSON.stringify(runtimeError), 
-            operation: { type: 'patch', path, content }
-          };
-        }
+        return {
+          success: true,
+          message: `Patch applied successfully to: ${path}`,
+          operation: { type: 'patch', path, content }
+        };
       } catch (error) {
         return { 
           success: false, 
@@ -580,38 +551,19 @@ export const codeEditorTools: ToolSet = {
     },
   }),
 
-  /* buildProject: tool({
+  buildProject: tool({
     description:
-      'ALWAYS call this first when the user says “fix”, “debug” or similar but has not ' +
-      'pasted an error.  Runs `tsc --noEmit --pretty false` to surface syntax & type ' +
-      'errors (those are what show up in the red overlay). If it returns success:false, ' +
-      'inspect `errorLines`, patch the offending file, and call again until success:true.',
-    parameters: z.object({}), // no arguments
-    execute: async () => {
-      const { exec } = await import('child_process');
-      const run = (cmd: string) =>
-        new Promise<{ ok: boolean; out: string }>((res) =>
-          exec(
-            cmd,
-            { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
-            (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
-          ),
-        );
-
-      const { ok, out } = await run('npx tsc --noEmit --pretty false');
-
-      if (ok) return { success: true };
-
-      // strip ANSI colour codes
-      const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
-      const lines = plain.split('\n').filter((l) => l.trim());
-      const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
-      const errorLines =
-        (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
-
-      return { success: false, errorLines };
+      'Builds and validates the entire project to check for TypeScript errors, syntax issues, and undefined getVar references. ' +
+      'Call this AFTER making all your changes to ensure the project compiles correctly. ' +
+      'If errors are found, inspect errorLines and fix the issues before proceeding.',
+    parameters: z.object({
+      filePath: z.string().optional().describe('Optional specific file path to build (if not provided, builds entire project)')
+    }),
+    execute: async ({ filePath }) => {
+      const result = await buildProject(filePath);
+      return result;
     },
-  }), */
+  }),
  
   /* getRuntimeError: tool({
     description:

@@ -1,611 +1,307 @@
 import Link from "next/link";
 import { getVar } from "@/lib/vars";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 export default function Page() {
-  // Parse dynamic lists from graph properties
-  const navLabels = (getVar("nav-links", "About|Projects|Contact") || "")
-    .split("|")
-    .map((s: string) => s.trim())
-    .filter(Boolean);
+  const rootStyle = {
+    "--font-family": getVar("font-family", "Poppins"),
+    "--primary-color": getVar("primary-color", "#06b6d4"),
+    "--secondary-color": getVar("secondary-color", "#a78bfa"),
+    "--accent-color": getVar("accent-color", "#f59e0b"),
+    "--background-color": getVar("background-color", "#0b1022"),
+    "--text-color": getVar("text-color", "#e5e7eb"),
+    "--container-max-width": `${getVar("container-max-width", 1200)}px`,
+    "--page-padding-x": `${getVar("page-padding-x", 24)}px`,
+    "--section-spacing": `${getVar("section-spacing", 96)}px`,
+    "--background-gradient-enabled": getVar("background-gradient-enabled", true) ? "1" : "0",
+    "--background-gradient-from": getVar("background-gradient-from", "#0b1022"),
+    "--background-gradient-to": getVar("background-gradient-to", "#111827"),
+    "--background-gradient-angle": `${getVar("background-gradient-angle", 45)}deg`,
+  } as React.CSSProperties;
 
-  const badges = (getVar("badges", "TypeScript|React|Next.js|Node.js|PostgreSQL|AWS") || "")
-    .split("|")
-    .map((s: string) => s.trim())
-    .filter(Boolean);
+  const navLinks = (getVar("nav-links", "Product,Pricing,Docs,Blog,Changelog") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+  const trustLogos = (getVar("trust-logos", "/vercel.svg,/next.svg,/globe.svg") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
 
-  // Projects JSON
-  let projects: Array<{
-    title: string;
-    description: string;
-    tags?: string[];
-    github?: string;
-    demo?: string;
-    image?: string;
-  }> = [];
-  try {
-    const raw = getVar(
-      "project-items",
-      "[]"
-    ) as string;
-    projects = JSON.parse(raw || "[]");
-  } catch {}
+  const features = [
+    {
+      icon: getVar("card-1-icon", "/globe.svg"),
+      title: getVar("card-1-title", "Graph-based editor"),
+      desc: getVar("card-1-desc", "Compose systems visually with a fast, snap-to-grid graph and powerful node tooling."),
+      href: getVar("card-1-link-href", "/product/graph-editor"),
+      linkText: getVar("card-1-link-text", "Explore graphs →"),
+    },
+    {
+      icon: getVar("card-2-icon", "/globe.svg"),
+      title: getVar("card-2-title", "Integrated AI chat"),
+      desc: getVar("card-2-desc", "Ask for refactors, generate nodes, or document flows—right inside the canvas."),
+      href: getVar("card-2-link-href", "/product/ai-chat"),
+      linkText: getVar("card-2-link-text", "Chat with Manta →"),
+    },
+    {
+      icon: getVar("card-3-icon", "/globe.svg"),
+      title: getVar("card-3-title", "Figma-level precision"),
+      desc: getVar("card-3-desc", "Pixel-perfect controls, constraints, and versioned design tokens for production."),
+      href: getVar("card-3-link-href", "/product/editor"),
+      linkText: getVar("card-3-link-text", "See the editor →"),
+    },
+  ];
 
-  // Available tags for toolbar (static UI; no client handlers in server component)
-  const availableTags = (getVar(
-    "available-tags",
-    "React|Next.js|TypeScript|Node.js|Tailwind|D3|AI|Rust|Electron|CLI|PWA|Cloudflare|Workers|Images|WebSockets|Dexie"
-  ) || "")
-    .split("|")
-    .map((s: string) => s.trim())
-    .filter(Boolean);
+  const showcaseTabs = [
+    getVar("tab-1-label", "Graph"),
+    getVar("tab-2-label", "Chat"),
+    getVar("tab-3-label", "Code"),
+  ];
 
-  // Experience & education
-  let experience: Array<{
-    role: string;
-    company: string;
-    period: string;
-    summary?: string;
-    highlights?: string[];
-  }> = [];
-  try {
-    experience = JSON.parse(
-      (getVar(
-        "experience-items",
-        "[]"
-      ) as string) || "[]"
-    );
-  } catch {}
-
-  let education: Array<{
-    degree: string;
-    school: string;
-    period: string;
-    details?: string;
-  }> = [];
-  try {
-    education = JSON.parse(
-      (getVar(
-        "education-items",
-        "[]"
-      ) as string) || "[]"
-    );
-  } catch {}
-
-  // Helpers
-  const anchorFor = (label: string) => {
-    const l = label.toLowerCase();
-    if (l.includes("about")) return "#about-section";
-    if (l.includes("project")) return "#projects-section";
-    if (l.includes("contact")) return "#contact-footer";
-    return "#";
-  };
-
-  const heroImage = (getVar("hero-image-url", "") as string) || "";
+  // normalize values to avoid TS literal comparison issues
+  const heroAlignment = String(getVar("hero-alignment", "center"));
+  const navbarTransparency = Number(getVar("navbar-transparency", 70)) || 70;
 
   return (
     <main
-      id="portfolio-page"
-      className="min-h-screen w-full bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/20 selection:text-white scroll-smooth"
-      style={{ fontFamily: "var(--font-family)" }}
-    >
-      {/* Background noise (subtle) */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 opacity-[var(--noise-opacity)] mix-blend-overlay"
-        style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 160 160%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.8%27 numOctaves=%273%27 stitchTiles=%27stitch%27/%3E%3CfeColorMatrix type=%27saturate%27 values=%270%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.08%27/%3E%3C/svg%3E')" }}
-      />
+      id="landing-page"
+      style={rootStyle}
+      className={`min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/30 selection:text-white`}>
 
-      {/* Header + Hero */}
-      <header
-        className="sticky top-0 z-40 border-b border-white/10 bg-black/20 backdrop-blur supports-[backdrop-filter]:bg-black/10"
-        id="hero"
-      >
-        <div className="mx-auto w-full max-w-[var(--container-max-width)] px-6 md:px-8">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo / Title */}
-            <Link href="#portfolio-page" className="group inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded-md">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-color)] text-white font-semibold shadow-sm shadow-black/20">
-                {getVar("logo-text", "YN")}
-              </span>
-              <span className="hidden text-sm/6 text-white/80 md:block">
-                {getVar("site-title", "Your Name — Software Engineer")}
-              </span>
-            </Link>
-
-            {/* Desktop Nav */}
-            <nav className="hidden items-center gap-6 md:flex">
-              {navLabels.map((label) => (
-                <Link
-                  key={label}
-                  href={anchorFor(label)}
-                  className="text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded"
-                >
-                  {label}
-                </Link>
-              ))}
-              <Link
-                href={(getVar("resume-url", "/resume.pdf") as string) || "/resume.pdf"}
-                className="hidden md:inline-flex"
-              >
-                <Button className="bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)]/90">
-                  Resume
-                </Button>
-              </Link>
-            </nav>
-
-            {/* Mobile Nav */}
-            <div className="md:hidden">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white/80 hover:text-white">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="18" x2="21" y2="18" />
-                    </svg>
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="bg-[var(--background-color)] text-[var(--text-color)]">
-                  <SheetHeader>
-                    <SheetTitle className="text-white/90">
-                      {getVar("site-title", "Your Name — Software Engineer")}
-                    </SheetTitle>
-                  </SheetHeader>
-                  <nav className="mt-6 flex flex-col gap-3">
-                    {navLabels.map((label) => (
-                      <Link
-                        key={label}
-                        href={anchorFor(label)}
-                        className="rounded px-2 py-2 text-base text-white/80 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-                      >
-                        {label}
-                      </Link>
-                    ))}
-                    <Link href={(getVar("resume-url", "/resume.pdf") as string) || "/resume.pdf"} className="mt-2">
-                      <Button className="w-full bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)]/90">Resume</Button>
-                    </Link>
-                  </nav>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
+      {/* subtle animated gradient */}
+      {getVar("background-gradient-enabled", true) ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div
+            className="absolute inset-0 blur-3xl opacity-30"
+            style={{
+              backgroundImage: `linear-gradient(var(--background-gradient-angle), var(--background-gradient-from), var(--background-gradient-to))`,
+              transform: "rotate(0.01deg)",
+            }}
+          />
         </div>
+      ) : null}
 
-        {/* Hero Section */}
-        <div className="relative overflow-hidden">
-          {/* Animated gradient accent */}
-          <div aria-hidden className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,theme(colors.white/10),transparent)]">
-            <div className="absolute inset-0 animate-pulse rounded-full bg-[conic-gradient(from_90deg_at_50%_50%,var(--primary-color),var(--accent-color),transparent_60%)] blur-3xl opacity-30" />
+      {/* Header / Navbar */}
+      <header
+        id="hero-nav"
+        className="sticky top-0 z-40 backdrop-blur-md"
+        style={{ backgroundColor: `rgba(6,9,20,${navbarTransparency / 100})`, height: `${getVar("navbar-height", 64)}px` }}>
+        <div className="mx-auto flex h-full w-full max-w-[var(--container-max-width)] items-center justify-between px-[var(--page-padding-x)]">
+          <div className="flex items-center gap-3">
+            <img src={getVar("logo-src", "/globe.svg")} alt={getVar("brand-name", "Manta")} className="h-8 w-8" />
+            <span className="font-medium tracking-tight" style={{ fontFamily: `var(--font-family)` }}>{getVar("brand-name", "Manta")}</span>
           </div>
 
-          <div className="mx-auto w-full max-w-[var(--container-max-width)] px-6 pb-16 pt-12 md:px-8 md:pb-24 md:pt-16">
-            <div className="mx-auto max-w-3xl text-center">
-              <Badge className="mb-4 bg-white/10 text-white hover:bg-white/15">
-                {getVar("hero-role", "Software Engineer")}
-              </Badge>
-              <h1 className="text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                {getVar("hero-name", "Your Name")}
-              </h1>
-              <p className="mx-auto mt-4 max-w-2xl text-balance text-base leading-relaxed text-white/70 md:text-lg">
-                {getVar("hero-pitch", "I build reliable, scalable web apps with delightful UX.")}
-              </p>
+          <nav className="hidden items-center gap-6 md:flex">
+            {navLinks.map((label: string) => (
+              <Link key={label} href={`#${label.toLowerCase()}`} className="text-sm text-[var(--text-color)]/80 hover:text-white">
+                {label}
+              </Link>
+            ))}
+          </nav>
 
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                <Link href={(getVar("primary-cta-link", "#contact") as string) || "#contact-footer"}>
-                  <Button className="h-10 rounded-full bg-[var(--accent-color)] px-5 text-white hover:bg-[var(--accent-color)]/90">
-                    {getVar("primary-cta-text", "Get in touch")}
-                  </Button>
-                </Link>
-                <Link href={(getVar("secondary-cta-link", "#projects") as string) || "#projects-section"}>
-                  <Button variant="outline" className="h-10 rounded-full border-white/20 bg-white/5 px-5 text-white hover:bg-white/10">
-                    {getVar("secondary-cta-text", "View Projects")}
-                  </Button>
-                </Link>
-              </div>
+          <div className="hidden items-center gap-[var(--cta-gap)] md:flex">
+            <Link href={getVar("cta-secondary-link", "/demo")} className={`rounded-md px-3 py-2 text-sm ring-1 ring-white/8 text-[var(--text-color)]/90 hover:bg-white/4`}>{getVar("cta-secondary-text", "Live demo")}</Link>
+            <Link href={getVar("cta-primary-link", "/signup")} className={`rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-black`}>{getVar("cta-primary-text", "Start building")}</Link>
+          </div>
 
-              {/* Socials */}
-              <TooltipProvider>
-                <div className="mt-8 flex items-center justify-center gap-4">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={(getVar("github-url", "https://github.com/username") as string) || "#"}
-                        className="rounded p-2 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-                        aria-label="GitHub"
-                      >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                          <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.61-3.37-1.36-3.37-1.36-.45-1.18-1.11-1.5-1.11-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.93.86.09-.67.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.09 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.31.1-2.74 0 0 .84-.27 2.75 1.05A9.26 9.26 0 0 1 12 7.1c.85 0 1.7.12 2.5.34 1.9-1.32 2.74-1.05 2.74-1.05.56 1.43.21 2.48.1 2.74.64.71 1.03 1.62 1.03 2.74 0 3.96-2.34 4.82-4.57 5.07.36.32.68.93.68 1.88 0 1.36-.01 2.45-.01 2.78 0 .26.18.58.69.48A10.03 10.03 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
-                        </svg>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-white/10 text-white backdrop-blur">
-                      GitHub
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={(getVar("linkedin-url", "https://linkedin.com/in/username") as string) || "#"}
-                        className="rounded p-2 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-                        aria-label="LinkedIn"
-                      >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                          <path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1 4.98 2.12 4.98 3.5zM.5 8h4V23h-4V8zm7 0h3.8v2.05h.05c.53-1 1.83-2.05 3.77-2.05C20.42 8 23 10.03 23 14.3V23h-4v-7.35c0-1.75-.03-4-2.45-4-2.46 0-2.84 1.92-2.84 3.9V23h-4V8z" />
-                        </svg>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-white/10 text-white backdrop-blur">
-                      LinkedIn
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={(getVar("x-url", "https://x.com/username") as string) || "#"}
-                        className="rounded p-2 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-                        aria-label="X"
-                      >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                          <path d="M17.6 2H21l-7.4 8.46L22 22h-6.8L10.6 14.9 4.9 22H1.5l7.9-9.03L2 2h6.9l4.4 6.3L17.6 2Zm-1.2 18h2.2L8.7 3.9H6.4L16.4 20Z" />
-                        </svg>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-white/10 text-white backdrop-blur">
-                      X / Twitter
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={`mailto:${(getVar("email-address", "you@example.com") as string) || "you@example.com"}`}
-                        className="rounded p-2 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-                        aria-label="Email"
-                      >
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                          <path d="M2 5c-.55 0-1 .45-1 1v12c0 .55.45 1 1 1h20c.55 0 1-.45 1-1V6c0-.55-.45-1-1-1H2Zm1.4 2h17.2L12 12.47 3.4 7Z" />
-                        </svg>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-white/10 text-white backdrop-blur">
-                      Email
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </TooltipProvider>
-
-              {/* Tech badges */}
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-                {badges.map((b) => (
-                  <Badge key={b} className="bg-white/5 text-white/80 hover:bg-white/10">
-                    {b}
-                  </Badge>
-                ))}
-              </div>
-
-              {/* Optional hero image */}
-              {heroImage ? (
-                <div className="mx-auto mt-12 max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={heroImage} alt="Hero visual" className="h-auto w-full object-cover" />
-                </div>
-              ) : null}
-            </div>
+          {/* mobile menu placeholder */}
+          <div className="md:hidden" aria-hidden>
+            <button className="rounded-md bg-white/3 p-2" />
           </div>
         </div>
       </header>
 
-      {/* Projects Section */}
-      <section id="projects-section" className="relative z-10 px-6 py-[var(--section-spacing)] md:px-8">
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="mx-auto mb-10 max-w-2xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              {getVar("section-title", "Projects")}
-            </h2>
-            <p className="mt-3 text-white/70">
-              {getVar("section-subtitle", "Things I’ve built recently")}
+      {/* Hero Section */}
+      <section
+        id="hero"
+        className="relative px-[var(--page-padding-x)]"
+        style={{ paddingTop: `${getVar("hero-padding-y", 80)}px`, paddingBottom: `${getVar("hero-padding-y", 80)}px` }}>
+        <div className="mx-auto flex w-full max-w-[var(--container-max-width)] flex-col items-center gap-8 md:flex-row md:items-start">
+          <div className={`w-full md:w-1/2 ${heroAlignment === "left" ? "md:items-start" : heroAlignment === "right" ? "md:items-end" : "md:items-center"}`}>
+            {getVar("show-announcement-badge", true) ? (
+              <Link href={getVar("badge-link", "/beta")} className="mb-4 inline-flex items-center rounded-full bg-white/6 px-3 py-1 text-sm text-[var(--accent-color)]">
+                {getVar("badge-text", "New: Private beta open")}
+              </Link>
+            ) : null}
+
+            <h1 className="text-center text-4xl font-extrabold leading-tight tracking-tight text-white md:text-left md:text-5xl" style={{ fontFamily: `var(--font-family)` }}>{getVar("headline", "Design, code, and orchestrate with Manta")}</h1>
+
+            <p className="mt-4 max-w-2xl text-center text-lg text-[var(--text-color)]/80 md:text-left">
+              {getVar("subheadline", "A graphical IDE that fuses a graph-based editor, AI chat, and Figma-level controls—so teams ship complex systems faster.")}
             </p>
-          </div>
 
-          {/* Toolbar (static UI) */}
-          <div className="mb-8 flex flex-col items-stretch justify-between gap-4 md:flex-row md:items-center">
-            <div className="flex w-full items-center gap-3 md:w-auto">
-              <div className="relative w-full md:w-80">
-                <Input
-                  placeholder="Search projects"
-                  className="w-full border-white/10 bg-white/5 text-white placeholder:text-white/40"
-                />
-                <span className="sr-only">Search projects</span>
+            <div className="mt-6 flex flex-col items-center gap-3 md:flex-row md:items-center">
+              <Link href={getVar("cta-primary-link", "/signup")} className="inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-5 py-3 text-sm font-semibold text-black shadow-md md:mr-3">{getVar("cta-primary-text", "Start building")}</Link>
+              <Link href={getVar("cta-secondary-link", "/demo")} className="inline-flex items-center justify-center rounded-lg border border-white/6 px-4 py-3 text-sm text-[var(--text-color)]/90">{getVar("cta-secondary-text", "Live demo")}</Link>
+            </div>
+
+            {getVar("show-trust-logos", true) ? (
+              <div className="mt-8 flex items-center gap-6 opacity-80">
+                {trustLogos.map((src: string, i: number) => (
+                  <img key={i} src={src} alt={`partner-${i}`} className="h-6 w-auto grayscale opacity-80" />
+                ))}
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {availableTags.slice(0, 10).map((tag) => (
-                <Badge key={tag} variant="outline" className="cursor-default border-white/15 bg-transparent text-white/70">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+            ) : null}
           </div>
 
-          {/* Grid */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((p, idx) => (
-              <Card key={p.title + idx} className="group relative overflow-hidden border-white/10 bg-white/[0.04] transition will-change-transform hover:shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
-                <CardHeader>
-                  <CardTitle className="text-white">
-                    {p.title}
-                  </CardTitle>
-                  <CardDescription className="text-white/70">
-                    {p.description}
-                  </CardDescription>
-                </CardHeader>
-                {p.image ? (
-                  <div className="mx-4 mb-2 overflow-hidden rounded-lg border border-white/10">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.image} alt="Project image" className="h-40 w-full object-cover opacity-90 transition group-hover:scale-[1.02]" />
+          <div className="order-first w-full md:order-last md:w-1/2">
+            <div className="mx-auto w-full max-w-[700px] rounded-2xl bg-gradient-to-br from-white/3 to-black/5 p-3 shadow-xl md:p-6" role="img" aria-label={getVar("hero-image-alt", "Screenshot of Manta’s graph-based editor") }>
+              <img src={getVar("hero-image-src", "https://placehold.co/1024x640/orange/black?text=Manta+Graph+Editor&font=roboto")} alt={getVar("hero-image-alt", "Screenshot of Manta’s graph-based editor")} className="w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 72)}px`, paddingBottom: `${getVar("section-padding-y", 72)}px` }}>
+        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-medium uppercase text-[var(--secondary-color)]">{getVar("section-eyebrow", "Why Manta")}</p>
+            <h2 className="mt-3 text-3xl font-semibold text-white">{getVar("section-heading", "One canvas. Three superpowers.")}</h2>
+            <p className="mt-4 text-base text-[var(--text-color)]/80">{getVar("section-kicker", "Everything you need to design, orchestrate, and ship complex systems—without leaving the canvas.")}</p>
+          </div>
+
+          <div className={`mt-10 grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-3`}> 
+            {features.map((f, idx) => (
+              <article key={idx} className="rounded-[var(--card-corner-radius)] border bg-[rgba(255,255,255,0.02)] p-6 shadow-sm hover:shadow-lg" style={{ borderColor: `rgba(255,255,255,${(Number(getVar("card-border-opacity", 12)) || 12) / 100})` }}>
+                <div className="flex items-start gap-4">
+                  <img src={f.icon} alt="" className="h-10 w-10 flex-none rounded-md" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{f.title}</h3>
+                    <p className="mt-2 text-sm text-[var(--text-color)]/80">{f.desc}</p>
+                    <Link href={f.href} className="mt-4 inline-block text-sm font-medium text-[var(--primary-color)]">{f.linkText}</Link>
                   </div>
-                ) : null}
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {(p.tags || []).map((t) => (
-                      <Badge key={t} className="bg-white/5 text-white/70">
-                        {t}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {p.github ? (
-                      <Link href={p.github} className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-white/80 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="opacity-80"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.61-3.37-1.36-3.37-1.36-.45-1.18-1.11-1.5-1.11-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.93.86.09-.67.35-1.12.63-1.38-2.22-.26-4.55-1.14-4.55-5.09 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.31.1-2.74 0 0 .84-.27 2.75 1.05A9.26 9.26 0 0 1 12 7.1c.85 0 1.7.12 2.5.34 1.9-1.32 2.74-1.05 2.74-1.05.56 1.43.21 2.48.1 2.74.64.71 1.03 1.62 1.03 2.74 0 3.96-2.34 4.82-4.57 5.07.36.32.68.93.68 1.88 0 1.36-.01 2.45-.01 2.78 0 .26.18.58.69.48A10.03 10.03 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z"/></svg>
-                        <span>Code</span>
-                      </Link>
-                    ) : null}
-                    {p.demo ? (
-                      <Link href={p.demo} className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm text-white/80 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="opacity-80"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3ZM5 5h5v2H7v10h10v-3h2v5H5V5Z"/></svg>
-                        <span>Demo</span>
-                      </Link>
-                    ) : null}
-                  </div>
-                </CardFooter>
-              </Card>
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* About */}
-      <section id="about-section" className="px-6 py-[var(--section-spacing)] md:px-8">
-        <div className="mx-auto grid w-full max-w-[var(--container-max-width)] grid-cols-1 items-start gap-10 md:grid-cols-5">
-          {/* Image / avatar */}
-          <div className="md:col-span-2">
-            {((getVar("profile-image-url", "") as string) || "") ? (
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={(getVar("profile-image-url", "") as string) || ""}
-                  alt={(getVar("profile-image-alt", "Headshot of Your Name") as string) || "Profile"}
-                  className="h-auto w-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="flex h-56 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 md:h-72">
-                <span className="text-5xl font-semibold text-white/70">
-                  {(getVar("logo-text", "YN") as string) || "YN"}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Bio & skills */}
-          <div className="md:col-span-3">
-            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              {getVar("section-title", "About")}
-            </h2>
-            <p className="mt-4 max-w-2xl text-white/70">
-              {getVar(
-                "bio",
-                "I’m a software engineer focused on building resilient systems and great developer experiences."
-              )}
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              {(getVar(
-                "skills",
-                "TypeScript|React|Next.js|Node.js|PostgreSQL|GraphQL|AWS|Docker|Kubernetes|CI/CD"
-              ) as string)
-                .split("|")
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .map((skill) => (
-                  <Badge key={skill} className="bg-white/5 text-white/80">
-                    {skill}
-                  </Badge>
-                ))}
-            </div>
-
-            {/* Experience */}
-            <div className="mt-10">
-              <h3 className="mb-4 text-xl font-semibold text-white">Experience</h3>
-              <ol className="relative space-y-6 border-l border-white/10 pl-4">
-                {experience.map((item, i) => (
-                  <li key={i} className="space-y-2">
-                    <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-[var(--accent-color)]" aria-hidden />
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="text-base font-medium text-white">{item.role}</span>
-                      <span className="text-white/60">@ {item.company}</span>
-                      <span className="text-white/40">• {item.period}</span>
-                    </div>
-                    {item.summary ? (
-                      <p className="text-sm text-white/70">{item.summary}</p>
-                    ) : null}
-                    {Array.isArray(item.highlights) && item.highlights.length ? (
-                      <ul className="ml-4 list-disc text-sm text-white/70">
-                        {item.highlights.map((h, idx) => (
-                          <li key={idx}>{h}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Education */}
-            <div className="mt-10">
-              <h3 className="mb-4 text-xl font-semibold text-white">Education</h3>
-              <ol className="space-y-6">
-                {education.map((ed, i) => (
-                  <li key={i} className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-base font-medium text-white">{ed.degree}</span>
-                      <span className="text-white/60">— {ed.school}</span>
-                      <span className="text-white/40">({ed.period})</span>
-                    </div>
-                    {ed.details ? (
-                      <p className="mt-2 text-sm text-white/70">{ed.details}</p>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Download resume */}
-            <div className="mt-10">
-              <Link href={(getVar("resume-url", "/resume.pdf") as string) || "/resume.pdf"}>
-                <Button className="bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)]/90">
-                  Download Resume
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact */}
-      <section id="contact-footer" className="px-6 pb-16 pt-[var(--section-spacing)] md:px-8">
+      {/* Editor Showcase */}
+      <section id="editor-showcase" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 84)}px`, paddingBottom: `${getVar("section-padding-y", 84)}px` }}>
         <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="mx-auto mb-10 max-w-2xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              {getVar("section-title", "Contact")}
-            </h2>
-            <p className="mt-3 text-white/70">
-              {getVar("section-subtitle", "Let’s build something great together.")}
-            </p>
+          <div className="mx-auto max-w-3xl text-center">
+            <h3 className="text-lg font-medium text-[var(--secondary-color)]">{getVar("showcase-heading", "Meet the canvas")}</h3>
+            <p className="mt-3 text-2xl font-semibold text-white">{getVar("showcase-desc", "A unified workspace where diagrams, code, and conversations stay in sync.")}</p>
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <Link href={getVar("action-1-href", "/video")} className="text-sm font-medium text-[var(--primary-color)]">{getVar("action-1-text", "Watch video")}</Link>
+              <Link href={getVar("action-2-href", "/docs")} className="text-sm font-medium text-[var(--text-color)]/90">{getVar("action-2-text", "View docs")}</Link>
+            </div>
           </div>
 
-          {/* Form (static, posts to /api) */}
-          <div className="mx-auto max-w-2xl">
-            <form action="/api" method="post" className="space-y-4">
-              <div>
-                <label htmlFor="name" className="mb-1 block text-sm text-white/80">
-                  Name
-                </label>
-                <Input id="name" name="name" required className="border-white/10 bg-white/5 text-white placeholder:text-white/40" placeholder="Your name" />
+          <div className="mt-8 flex justify-center">
+            <div className="w-full max-w-[1100px] rounded-[var(--frame-corner-radius)] border bg-[var(--background-color)] p-4" style={{ borderColor: `rgba(255,255,255,${(Number(getVar("frame-border-opacity", 14)) || 14) / 100})` }}>
+              <div className="flex items-center gap-4 border-b border-white/6 pb-3">
+                {showcaseTabs.map((t, i) => (
+                  <div key={i} className={`rounded-md px-3 py-1 text-sm ${i === 0 ? "bg-white/6 text-white" : "text-[var(--text-color)]/70"}`}>{t}</div>
+                ))}
               </div>
-              <div>
-                <label htmlFor="email" className="mb-1 block text-sm text-white/80">
-                  Email
-                </label>
-                <Input id="email" name="email" type="email" required className="border-white/10 bg-white/5 text-white placeholder:text-white/40" placeholder="you@example.com" />
-              </div>
-              {(getVar("show-phone-field", "false") as string) === "true" ? (
-                <div>
-                  <label htmlFor="phone" className="mb-1 block text-sm text-white/80">
-                    Phone
-                  </label>
-                  <Input id="phone" name="phone" type="tel" className="border-white/10 bg-white/5 text-white placeholder:text-white/40" placeholder="Optional" />
-                </div>
-              ) : null}
-              <div>
-                <label htmlFor="message" className="mb-1 block text-sm text-white/80">
-                  Message
-                </label>
-                <Textarea id="message" name="message" required rows={6} className="min-h-[140px] border-white/10 bg-white/5 text-white placeholder:text-white/40" placeholder="Tell me a little about your project..." />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-white/50">
-                  Or email me at {getVar("alt-email-label", "you@example.com")}
-                </div>
-                <Button type="submit" className="bg-[var(--accent-color)] text-white hover:bg-[var(--accent-color)]/90">
-                  {getVar("submit-button-text", "Send Message")}
-                </Button>
-              </div>
-            </form>
-          </div>
 
-          {/* Footer */}
-          <div className="mt-16 border-t border-white/10 pt-8">
-            <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-              <div className="text-sm text-white/50">
-                {getVar("footer-note", "© 2025 Your Name. All rights reserved.")}
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                {(() => {
-                  let links: Array<{ label: string; href: string }> = [];
-                  try {
-                    links = JSON.parse(
-                      (getVar(
-                        "footer-links",
-                        "[]"
-                      ) as string) || "[]"
-                    );
-                  } catch {}
-                  return links.map((l) => (
-                    <Link key={l.label} href={l.href} className="text-white/70 hover:text-white">
-                      {l.label}
-                    </Link>
-                  ));
-                })()}
+              <div className="mt-4 relative overflow-hidden rounded-md bg-gradient-to-b from-white/2 to-black/5">
+                {getVar("overlay-grid", true) ? (
+                  <svg className="absolute inset-0 h-full w-full opacity-10" viewBox="0 0 800 450" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <defs>
+                      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.12" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" fillOpacity="0.06" />
+                  </svg>
+                ) : null}
+
+                <img src={getVar("canvas-image-src", "https://placehold.co/1280x720/111827/e5e7eb?text=Manta+Canvas&font=roboto")} alt={getVar("canvas-image-alt", "Manta editor canvas with nodes and connections")} className="relative w-full rounded-md" />
+
+                {/* subtle node-link hints */}
+                <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-30" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <g stroke={getVar("primary-color", "#06b6d4")} strokeWidth="2" strokeOpacity="0.08" fill="none">
+                    <path d="M120 480 C 220 420, 320 300, 420 260" />
+                    <circle cx="120" cy="480" r="6" fill={getVar("accent-color", "#f59e0b")} />
+                    <circle cx="420" cy="260" r="5" fill={getVar("secondary-color", "#a78bfa")} />
+                  </g>
+                </svg>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Back to top FAB */}
-        {(getVar("show-back-to-top", "true") as string) === "true" ? (
-          <Link
-            href="#portfolio-page"
-            className="fixed bottom-6 right-6 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary-color)] text-white shadow-lg shadow-black/30 transition hover:bg-[var(--primary-color)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-            aria-label="Back to top"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <polyline points="18 15 12 9 6 15"></polyline>
-            </svg>
-          </Link>
-        ) : null}
       </section>
+
+      {/* Footer */}
+      <footer id="footer" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 64)}px`, paddingBottom: `${getVar("section-padding-y", 64)}px` }}>
+        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
+          <div className="flex flex-col gap-8 md:flex-row md:justify-between">
+            <div className="max-w-sm">
+              <div className="flex items-center gap-3">
+                <img src={getVar("logo-src", "/globe.svg")} alt={getVar("brand-name", "Manta")} className="h-8 w-8" />
+                <div>
+                  <div className="font-medium text-white">{getVar("brand-name", "Manta")}</div>
+                  <div className="text-sm text-[var(--text-color)]/80">{getVar("brand-tagline", "Design, code, and orchestrate on one canvas.")}</div>
+                </div>
+              </div>
+
+              {getVar("newsletter-enabled", true) ? (
+                <form action="#" method="POST" className="mt-6 flex w-full max-w-md flex-col gap-3">
+                  <label htmlFor="email" className="sr-only">{getVar("newsletter-heading", "Get product updates")}</label>
+                  <input id="email" name="email" type="email" placeholder={getVar("newsletter-placeholder", "you@company.com")} required className="rounded-md bg-white/3 px-3 py-2 text-[var(--text-color)] placeholder:text-[var(--text-color)]/50" />
+                  <div className="flex gap-2">
+                    <button type="submit" className="rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-black">{getVar("newsletter-button-text", "Subscribe")}</button>
+                    <div className="text-sm text-[var(--text-color)]/70">{getVar("copyright", "© 2025 Manta Labs, Inc.")}</div>
+                  </div>
+                </form>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-[var(--column-gap)] md:grid-cols-4">
+              {/** Utility to parse columns from properties **/}
+              <nav aria-label="footer-product">
+                <h4 className="mb-3 text-sm font-semibold text-white">Product</h4>
+                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
+                  {(getVar("product-links", "") || "").split(",").map((l: string, i: number) => {
+                    const [label, href] = l.split(":");
+                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
+                  })}
+                </ul>
+              </nav>
+
+              <nav aria-label="footer-company">
+                <h4 className="mb-3 text-sm font-semibold text-white">Company</h4>
+                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
+                  {(getVar("company-links", "") || "").split(",").map((l: string, i: number) => {
+                    const [label, href] = l.split(":");
+                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
+                  })}
+                </ul>
+              </nav>
+
+              <nav aria-label="footer-resources">
+                <h4 className="mb-3 text-sm font-semibold text-white">Resources</h4>
+                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
+                  {(getVar("resources-links", "") || "").split(",").map((l: string, i: number) => {
+                    const [label, href] = l.split(":");
+                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
+                  })}
+                </ul>
+              </nav>
+
+              <nav aria-label="footer-legal">
+                <h4 className="mb-3 text-sm font-semibold text-white">Legal</h4>
+                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
+                  {(getVar("legal-links", "") || "").split(",").map((l: string, i: number) => {
+                    const [label, href] = l.split(":");
+                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
+                  })}
+                </ul>
+              </nav>
+            </div>
+          </div>
+
+          <div className={`mt-6 border-t pt-6 text-sm text-[var(--text-color)]/70 ${getVar("show-top-border", true) ? "border-white/10" : "border-transparent"}`}>
+            <div className="flex items-center justify-between">
+              <div>{getVar("copyright", "© 2025 Manta Labs, Inc.")}</div>
+              <div className="flex items-center gap-4">
+                {(getVar("social-links", "") || "").split(",").map((s: string, i: number) => {
+                  const [label, url] = s.split(":");
+                  return label ? (<Link key={i} href={url ? url.trim() : "#"} className="text-[var(--text-color)]/80 hover:text-white">{label}</Link>) : null;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

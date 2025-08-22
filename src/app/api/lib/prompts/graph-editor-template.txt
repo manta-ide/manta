@@ -126,6 +126,24 @@ When using `edit_node`, set `built: false` when:
 }
 ```
 
+
+For placeholder images, use this as src: 
+https://placehold.co/512x400/orange/black?text=Hello+World&font=roboto
+
+All properties can be changed, make sure colors and texts align with the page, available fonts are 
+Lato
+Lora
+Montserrat
+Noto Sans
+Open Sans
+Oswald
+Playfair Display
+Poppins
+PT Sans
+Raleway
+Roboto
+Source Sans Pro
+
 ## Guidelines
 - Build simplified hierarchy: `page → section → component`
 - Include all child element properties in parent nodes with simple property names
