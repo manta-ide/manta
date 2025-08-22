@@ -334,7 +334,6 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    console.log(tools)
 
     // Real-time step logging callback
     const onStepFinish = (event: any) => {

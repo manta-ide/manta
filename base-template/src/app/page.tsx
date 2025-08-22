@@ -1,334 +1,293 @@
 import Link from "next/link";
 import { getVar } from "@/lib/vars";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 export default function Page() {
-  const headerLinks = String(getVar("header-header-links", "Home, About, Projects, Contact"))
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  type Project = {
+    title: string;
+    description: string;
+    tags: string[];
+    imageText: string;
+    repo?: string;
+    demo?: string;
+  };
 
-  function sectionHref(label: string): string {
-    const key = label.toLowerCase();
-    if (key === "home") return "#portfolio-page";
-    if (key === "about") return "#about-section";
-    if (key === "projects") return "#projects-section";
-    if (key === "contact") return "#contact-section";
-    return "#portfolio-page";
-  }
-
-  const skills = String(
-    getVar("about-section-skills", "JavaScript, TypeScript, React, Node.js, GraphQL")
-  )
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const projectTitle = String(getVar("projects-section-project-card-title", "Title Placeholder"));
-  const projectDesc = String(
-    getVar("projects-section-project-card-description", "Description Placeholder")
-  );
-  const projectLink = String(getVar("projects-section-project-card-link", "https://example.com"));
-
-  const socialLinks = String(getVar("footer-social-media-links", "LinkedIn, GitHub, Twitter"))
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  function socialHref(name: string): string {
-    const key = name.toLowerCase();
-    if (key.includes("github")) return "https://github.com";
-    if (key.includes("linkedin")) return "https://www.linkedin.com";
-    if (key.includes("twitter") || key.includes("x")) return "https://twitter.com";
-    return "#";
-  }
+  const projects: Project[] = [
+    {
+      title: "Realtime Analytics Dashboard",
+      description:
+        "A high-performance dashboard powered by Next.js App Router, streaming server components, and edge functions.",
+      tags: ["Next.js", "Tailwind", "Edge", "Postgres"],
+      imageText: "Analytics+Dashboard",
+      repo: "#",
+      demo: "#",
+    },
+    {
+      title: "AI Code Review Bot",
+      description:
+        "A GitHub bot that reviews pull requests using LLMs with structured feedback and inline suggestions.",
+      tags: ["TypeScript", "OpenAI", "GitHub Apps"],
+      imageText: "AI+Code+Review",
+      repo: "#",
+      demo: "#",
+    },
+    {
+      title: "E-commerce Platform",
+      description:
+        "Modular commerce stack with payments, inventory, and CMS integrations. Fully typed end-to-end.",
+      tags: ["tRPC", "Prisma", "Stripe", "NextAuth"],
+      imageText: "E-commerce",
+      repo: "#",
+      demo: "#",
+    },
+    {
+      title: "Open Source UI Kit",
+      description:
+        "A composable UI kit built on top of shadcn/ui with extensive documentation and examples.",
+      tags: ["UI", "Radix", "shadcn/ui"],
+      imageText: "UI+Kit",
+      repo: "#",
+      demo: "#",
+    },
+  ];
 
   return (
     <main
       id="portfolio-page"
-      className="min-h-screen bg-[var(--portfolio-page-background-color)] text-[var(--portfolio-page-text-color)] p-[var(--portfolio-page-padding)]"
+      className="min-h-screen antialiased bg-[var(--portfolio-page-background-color)] text-[var(--portfolio-page-text-color)]"
       style={{
-        ["--portfolio-page-background-color" as any]: String(
-          getVar("portfolio-page-background-color", "#ffffff")
+        // Portfolio Page Vars
+        ["--portfolio-page-background-color" as any]: getVar(
+          "portfolio-page-background-color",
+          "#fefefe"
         ),
-        ["--portfolio-page-text-color" as any]: String(
-          getVar("portfolio-page-text-color", "#000000")
+        ["--portfolio-page-text-color" as any]: getVar(
+          "portfolio-page-text-color",
+          "#080808"
         ),
-        ["--portfolio-page-padding" as any]: String(getVar("portfolio-page-padding", "20px")),
+        ["--portfolio-page-section-padding" as any]: `${getVar(
+          "portfolio-page-section-padding",
+          "23"
+        )}px`,
+        fontFamily: getVar("portfolio-page-font-family", "Inter, sans-serif"),
       }}
     >
-      <header
-        id="header"
-        className="sticky top-0 z-40 border-b border-black/5 bg-[var(--header-background-color)] text-[var(--header-text-color)]"
-        style={{
-          ["--header-background-color" as any]: String(
-            getVar("header-background-color", "#e2e8f0")
-          ),
-          ["--header-text-color" as any]: String(getVar("header-text-color", "#1a202c")),
-          ["--header-padding" as any]: String(getVar("header-padding", "15px")),
-        }}
-        aria-label="Site header"
-      >
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-[var(--header-padding)]">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded bg-black/10" aria-hidden="true" />
-            <span className="text-base font-semibold tracking-tight">
-              {String(getVar("header-logo-or-name", "SWE Portfolio"))}
-            </span>
-          </div>
-          <nav className="hidden gap-6 md:flex" aria-label="Primary">
-            {headerLinks.map((label) => (
-              <Link
-                key={label}
-                href={sectionHref(label)}
-                className="text-sm font-medium text-[var(--header-text-color)]/80 transition-colors hover:text-[var(--header-text-color)]"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <div className="md:hidden" aria-hidden="true">
-            <span className="text-sm text-[var(--header-text-color)]/70">Menu</span>
-          </div>
-        </div>
-      </header>
-
+      {/* Header Section */}
       <section
-        id="about-section"
-        className="relative bg-[var(--about-section-background-color)] text-[var(--about-section-text-color)]"
+        id="header-section"
+        className="sticky top-0 z-40 w-full border-b bg-[var(--header-section-background-color)] text-[var(--header-section-text-color)]/90 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--header-section-background-color)_80%,transparent)]"
         style={{
-          ["--about-section-background-color" as any]: String(
-            getVar("about-section-background-color", "#f9fafb")
+          ["--header-section-background-color" as any]: getVar(
+            "header-section-background-color",
+            "#ffffff"
           ),
-          ["--about-section-text-color" as any]: String(
-            getVar("about-section-text-color", "#1a202c")
+          ["--header-section-text-color" as any]: getVar(
+            "header-section-text-color",
+            "#0a0a0a"
           ),
-          ["--about-section-padding" as any]: String(getVar("about-section-padding", "20px")),
+          ["--header-section-padding" as any]: `${getVar(
+            "header-section-padding",
+            "12"
+          )}px`,
+          ["--header-section-font-size" as any]: `${getVar(
+            "header-section-font-size",
+            "20"
+          )}px`,
         }}
+        aria-label="Header and navigation"
       >
-        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-[var(--about-section-padding)] md:grid-cols-2">
-          <div className="order-2 md:order-1">
-            <h1 className="text-3xl font-bold leading-tight md:text-4xl">
-              {String(getVar("header-logo-or-name", "SWE Portfolio"))}
-            </h1>
-            <p className="mt-4 max-w-prose text-base/7 text-black/70">
-              {String(
-                getVar(
-                  "about-section-biography",
-                  "A software engineer passionate about building scalable and maintainable applications."
-                )
-              )}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2" aria-label="Skills">
-              {skills.map((skill) => (
-                <Badge key={skill} variant="secondary" className="rounded-full px-3 py-1 text-xs">
-                  {skill}
-                </Badge>
-              ))}
+        <div className="mx-auto max-w-7xl px-6 py-[var(--header-section-padding)]">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="size-9 rounded-md bg-gradient-to-br from-black/10 to-black/5 flex items-center justify-center shadow-sm"
+                aria-hidden="true"
+              >
+                <span className="sr-only">Logo</span>
+                <span className="text-base font-bold">SE</span>
+              </div>
+              <div className="flex flex-col">
+                <span
+                  className="text-[length:var(--header-section-font-size)] leading-none font-semibold"
+                  aria-label="Site name"
+                >
+                  Software Engineer
+                </span>
+                <span className="text-sm text-black/60 dark:text-black/70">
+                  {getVar("header-section-tagline", "Welcome")}
+                </span>
+              </div>
+            </div>
+
+            <nav className="hidden md:flex items-center gap-6" aria-label="Primary">
+              <Link href="#projects-section">Projects</Link>
+              <Link href="#contact-section">Contact</Link>
+            </nav>
+
+            <div className="md:hidden">
+              <Link href="#contact-section" className="">
+                Contact
+              </Link>
             </div>
           </div>
-          <div className="order-1 md:order-2">
-            <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={String(
-                  getVar(
-                    "about-section-image-url",
-                    "https://placehold.co/800x800/f3f4f6/0f172a?text=Your+Photo&font=Poppins"
-                  )
-                )}
-                alt={String(getVar("header-logo-or-name", "SWE Portfolio")) + " portrait"}
-                className="h-full w-full object-cover"
-              />
-            </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            {[
+              "TypeScript",
+              "React",
+              "Next.js",
+              "Node.js",
+              "Tailwind CSS",
+              "GraphQL",
+            ].map((s) => (
+              <Badge key={s} variant="secondary" className="px-3 py-1">
+                {s}
+              </Badge>
+            ))}
           </div>
         </div>
       </section>
 
+      {/* Projects Section */}
       <section
         id="projects-section"
-        className="relative bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)]"
+        className="relative py-[var(--portfolio-page-section-padding)] bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)]"
         style={{
-          ["--projects-section-background-color" as any]: String(
-            getVar("projects-section-background-color", "#ffffff")
+          ["--projects-section-background-color" as any]: getVar(
+            "projects-section-background-color",
+            "#ffffff"
           ),
-          ["--projects-section-text-color" as any]: String(
-            getVar("projects-section-text-color", "#333333")
+          ["--projects-section-text-color" as any]: getVar(
+            "projects-section-text-color",
+            "#000000"
           ),
-          ["--projects-section-padding" as any]: String(getVar("projects-section-padding", "15px")),
+          ["--projects-section-card-shadow" as any]: getVar(
+            "projects-section-card-shadow",
+            "0px 4px 6px rgba(0, 0, 0, 0.1)"
+          ),
+          ["--projects-section-card-color" as any]: getVar(
+            "projects-section-card-color",
+            "#e0e0e0"
+          ),
         }}
+        aria-labelledby="projects-heading"
       >
-        <div className="mx-auto max-w-6xl px-4 py-[var(--projects-section-padding)]">
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Projects</h2>
-            <Link
-              href="#contact-section"
-              className="inline-flex items-center rounded-md bg-black px-3 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-black/10 transition hover:bg-black/90"
-            >
-              Work with me
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <Card className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-lg">{projectTitle}</CardTitle>
-                <CardDescription>{projectDesc}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://placehold.co/600x360/e2e8f0/0f172a?text=Project+Preview&font=Poppins"
-                  alt={projectTitle + " preview"}
-                  className="h-40 w-full rounded-md object-cover"
-                />
-              </CardContent>
-              <CardFooter className="mt-auto">
-                <Link
-                  href={projectLink}
-                  className="text-sm font-medium text-blue-600 underline underline-offset-4 hover:text-blue-700"
-                >
-                  Visit project
-                </Link>
-              </CardFooter>
-            </Card>
+        <div className="mx-auto max-w-7xl px-6">
+          <header className="mb-8">
+            <h2 id="projects-heading" className="text-3xl font-bold tracking-tight">
+              Project Showcase
+            </h2>
+            <p className="mt-2 text-muted-foreground/80">
+              Selected work that highlights product thinking, DX, and elegant systems.
+            </p>
+          </header>
 
-            <Card className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-lg">Modern Dashboard</CardTitle>
-                <CardDescription>Analytics dashboard with Next.js and Tailwind.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://placehold.co/600x360/d9f99d/0f172a?text=Analytics+App&font=Poppins"
-                  alt="Modern Dashboard preview"
-                  className="h-40 w-full rounded-md object-cover"
-                />
-              </CardContent>
-              <CardFooter className="mt-auto">
-                <Link
-                  href="#"
-                  className="text-sm font-medium text-blue-600 underline underline-offset-4 hover:text-blue-700"
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {projects
+              .slice(0, Number(getVar("projects-section-max-projects", "3")) || 3)
+              .map((p) => (
+                <Card
+                  key={p.title}
+                  className="overflow-hidden border-0 bg-[var(--projects-section-card-color)]"
+                  style={{ boxShadow: "var(--projects-section-card-shadow)" }}
                 >
-                  View details
-                </Link>
-              </CardFooter>
-            </Card>
-
-            <Card className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-lg">Realtime Chat</CardTitle>
-                <CardDescription>Websocket-powered chat with robust UX.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://placehold.co/600x360/bfd3f8/0f172a?text=Chat+App&font=Poppins"
-                  alt="Realtime Chat preview"
-                  className="h-40 w-full rounded-md object-cover"
-                />
-              </CardContent>
-              <CardFooter className="mt-auto">
-                <Link
-                  href="#"
-                  className="text-sm font-medium text-blue-600 underline underline-offset-4 hover:text-blue-700"
-                >
-                  View details
-                </Link>
-              </CardFooter>
-            </Card>
+                  <div className="aspect-[16/10] w-full overflow-hidden">
+                    <img
+                      src={`https://placehold.co/1024x640/0f172a/ffffff?text=${encodeURIComponent(
+                        p.imageText
+                      )}&font=Inter`}
+                      alt={`${p.title} preview`}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      width={1024}
+                      height={640}
+                    />
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="text-xl">{p.title}</CardTitle>
+                    <CardDescription>{p.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {p.tags.map((t) => (
+                        <Badge key={t} variant="outline">
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex items-center justify-between gap-3">
+                    <Link href={p.repo ?? "#"}>View Repo</Link>
+                    <Separator orientation="vertical" className="h-5" />
+                    <Link href={p.demo ?? "#"}>Live Demo</Link>
+                  </CardFooter>
+                </Card>
+              ))}
           </div>
         </div>
       </section>
 
+      {/* Contact Section */}
       <section
         id="contact-section"
-        className="relative bg-[var(--contact-section-background-color)] text-[var(--contact-section-text-color)]"
+        className="py-[var(--portfolio-page-section-padding)] m-[var(--contact-section-margin)]"
         style={{
-          ["--contact-section-background-color" as any]: String(
-            getVar("contact-section-background-color", "#f1f5f9")
-          ),
-          ["--contact-section-text-color" as any]: String(
-            getVar("contact-section-text-color", "#1a202c")
-          ),
-          ["--contact-section-padding" as any]: String(getVar("contact-section-padding", "20px")),
+          ["--contact-section-margin" as any]: `${getVar("contact-section-margin", "10")}px`,
         }}
+        aria-labelledby="contact-heading"
       >
-        <div className="mx-auto max-w-3xl px-4 py-[var(--contact-section-padding)]">
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Contact</h2>
-          <p className="mt-2 text-sm text-black/60">
-            I’d love to hear about your project. Fill the form and I’ll get back to you.
-          </p>
-          <form action="#" method="post" className="mt-8 grid grid-cols-1 gap-6" aria-label="Contact form">
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder={String(getVar("contact-section-name-placeholder", "Your name"))}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder={String(getVar("contact-section-email-placeholder", "Your email"))}
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="message">Message</Label>
-              <Textarea
-                id="message"
-                name="message"
-                placeholder={String(getVar("contact-section-message-placeholder", "Your message"))}
-                className="min-h-[140px]"
-              />
-            </div>
-            <div>
-              <button
-                type="submit"
-                className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-black/10 transition hover:bg-black/90"
-              >
-                {String(getVar("contact-section-submit-button-text", "Send"))}
-              </button>
-            </div>
-          </form>
+        <div className="mx-auto max-w-3xl px-6">
+          <Card className="border-gray-200">
+            <CardHeader>
+              <CardTitle id="contact-heading" className="text-2xl">
+                Get in touch
+              </CardTitle>
+              <CardDescription>
+                I’m open to new opportunities, collaborations, and interesting problems.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="grid gap-6" noValidate>
+                <div className="grid gap-2">
+                  <label htmlFor="name" className="text-sm font-medium">
+                    Name
+                  </label>
+                  <Input id="name" name="name" placeholder="Ada Lovelace" aria-required="true" />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </label>
+                  <Input id="email" name="email" type="email" placeholder="ada@example.com" aria-required="true" />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="message" className="text-sm font-medium">
+                    Message
+                  </label>
+                  <Textarea id="message" name="message" placeholder="Tell me about your project..." rows={5} aria-required="true" />
+                </div>
+                <div className="flex items-center justify-end">
+                  <Button type="submit" aria-disabled={true} disabled>
+                    Send Message
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </section>
-
-      <footer
-        id="footer"
-        className="bg-[var(--footer-background-color)] text-[var(--footer-text-color)]"
-        style={{
-          ["--footer-background-color" as any]: String(getVar("footer-background-color", "#1a202c")),
-          ["--footer-text-color" as any]: String(getVar("footer-text-color", "#f9fafb")),
-          ["--footer-padding" as any]: String(getVar("footer-padding", "10px")),
-        }}
-        aria-label="Site footer"
-      >
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-[var(--footer-padding)] sm:flex-row">
-          <p className="text-xs/6 opacity-80">
-            {String(getVar("footer-copyright-text", "© 2023 SWE Portfolio"))}
-          </p>
-          <div className="flex flex-wrap items-center gap-4">
-            {socialLinks.map((name) => (
-              <Link
-                key={name}
-                href={socialHref(name)}
-                className="text-xs font-medium opacity-80 transition hover:opacity-100"
-              >
-                {name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }

@@ -51,7 +51,6 @@ async function buildParsedMessages(
 }
 
 async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
-  console.log('🔄 Calling code editor agent with config:', JSON.stringify(body, null, 2));
   return fetch('http://localhost:3000/api/llm-agent/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -140,9 +139,6 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    console.log('🔄 Calling code editor agent with config:', JSON.stringify(CODE_EDITOR_CONFIG, null, 2));
-    console.log('🔄 Node IDs to process:', nodeIdsToProcess);
-    console.log('🔄 Filtered graph nodes:', filteredGraph.nodes.length);
     
     const codeEditorResponse = await callAgent(req, {
       sessionId: codeEditorSessionId,

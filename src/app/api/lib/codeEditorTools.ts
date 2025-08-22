@@ -72,8 +72,6 @@ export async function buildProject(filePath?: string) {
           getVarErrors.push(`getVar("${varName}") references undefined variable`);
         }
       }
-      console.log("usedVars", Array.from(usedVars));
-      console.log("existingVars keys", Object.keys(existingVars));
     } catch (error) {
       console.warn('Failed to check getVar calls:', error);
     }

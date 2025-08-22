@@ -19,9 +19,9 @@ const EXCLUDED_DIRS = new Set([
   'logs',
   'tmp',
   'temp',
-  'src/app/lib',
-  'src/app/api',
-  '.graph'
+  'src/api',
+  '.graph',
+  '.gitignore',
 ]);
 
 const EXCLUDED_FILES = new Set([
@@ -34,7 +34,12 @@ const EXCLUDED_FILES = new Set([
   'yarn.lock',
   'pnpm-lock.yaml',
   '.DS_Store',
-  'Thumbs.db'
+  'Thumbs.db',
+  'vars.ts',
+  'vars-client.ts',
+  'use-mobile.ts',
+  'use-outside-edges.ts',
+  'use-theme.ts',
 ]);
 
 // Function to save graph data to JSON file
@@ -87,6 +92,7 @@ async function readDirectoryStructure(dirPath: string, relativePath: string = ''
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
     
+    console.log('entries', entries);
     for (const entry of entries) {
       // Skip excluded directories and files
       if (EXCLUDED_DIRS.has(entry.name) || EXCLUDED_FILES.has(entry.name)) {

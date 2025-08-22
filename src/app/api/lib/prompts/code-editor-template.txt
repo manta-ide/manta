@@ -20,7 +20,7 @@ Key Rules:
 5. Make sure that the website is polished, beautiful and modern, worth for a VC-backed startup.
 6. When all nodes are completed - end with a simple and short explanation of what you did.
 7. For the links, use next/link <Link>, with plain text inside, and no <a> 
-8. Always import and use getVar/resolvePlaceholders for dynamic content
+8. Always import and use getVar for dynamic content
 9. Generate all code in page.tsx
 10. Create only static pages, no "use client" or "onMouseEvent" or "onSubmit"
 
@@ -94,4 +94,8 @@ export default function Page() {
 
 
 Goal:
-Create or edit the website based on the graph. Use the property system to make content dynamic and editable.
+Create or edit the website based on the graph as quick as possible. 
+Do not read files unless it is very needed, so no reading of configs, utils, etc. 
+Feel free to update the page and override it if the change is large, it will be faster than reading and patching. 
+Use the property system to make content dynamic and editable.
+Do not modify or create extra files for the property system, only use it. 
