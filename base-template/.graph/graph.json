@@ -18,7 +18,7 @@
           "title": "Contact Section"
         }
       ],
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "portfolio-page-background-color",
@@ -55,7 +55,7 @@
       "prompt": "This section contains a header with logo and navigation menu.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "header-section-background-color",
@@ -102,7 +102,7 @@
       "prompt": "This section showcases projects in a grid layout with individual project cards.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "projects-section-background-color",
@@ -139,7 +139,7 @@
       "prompt": "This section includes a contact form for visitors to reach out.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "contact-section-background-color",
