@@ -310,9 +310,9 @@ export const codeEditorTools: ToolSet = {
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to patch this file'), */
       path: z.string().describe('The file path relative to the project root'),
-      patchDescription: z.string().describe('EXACT code replacement format: "// Original code:\n[exact lines from file]\n\n// Updated code:\n[new lines with changes]" - Must include verbatim context from the target file'),
+      content: z.string().describe('EXACT code replacement format: "// Original code:\n[exact lines from file]\n\n// Updated code:\n[new lines with changes]" - Must include verbatim context from the target file'),
     }),
-    execute: async ({ path, patchDescription }) => {
+    execute: async ({ path, content }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
@@ -320,7 +320,7 @@ export const codeEditorTools: ToolSet = {
           return { 
             success: false, 
             message: `File does not exist: ${path}`,
-            operation: { type: 'patch', path, patchDescription }
+            operation: { type: 'patch', path, content }
           };
         }
         
@@ -328,7 +328,7 @@ export const codeEditorTools: ToolSet = {
         const currentContent = readFileSync(fullPath, 'utf-8');
 
         // Validate patchDescription is edit_file-style with contextual code (be permissive but guard against pure instructions)
-        const description = patchDescription || '';
+        const description = content || '';
         const hasEditMarker = description.includes('// ... existing code ...');
         const lines = description.split('\n');
         const normalizedCandidates = lines
@@ -342,13 +342,13 @@ export const codeEditorTools: ToolSet = {
             success: false,
             message:
               'PATCH_DESCRIPTION_INVALID: You must provide EXACT code in this format:\n\n// Original code:\n[copy exact lines from the file here]\n\n// Updated code:\n[your modified version here]\n\nExample:\n// Original code:\n<section id="projects-section" className="relative">\n\n// Updated code:\n<section id="projects-section" className="relative m-4">\n\nDO NOT use natural language descriptions. Copy actual code from the file.',
-            operation: { type: 'patch', path, patchDescription },
+            operation: { type: 'patch', path, content },
           };
         }
         
         // Always send the FULL file content to the patch API to avoid truncation/splitting issues
         const payloadContent = currentContent;
-        const payloadPatch = patchDescription;
+        const payloadPatch = content;
 
         // Call the quick patch API with only the focused block
         const response = await fetch('http://localhost:3000/api/agents/quick-patch', {
@@ -365,7 +365,7 @@ export const codeEditorTools: ToolSet = {
           return { 
             success: false, 
             message: `Patch API failed: ${response.statusText}`,
-            operation: { type: 'patch', path, patchDescription }
+            operation: { type: 'patch', path, content }
           };
         }
 
@@ -375,7 +375,7 @@ export const codeEditorTools: ToolSet = {
           return { 
             success: false, 
             message: `Patch failed: ${result.error}`,
-            operation: { type: 'patch', path, patchDescription }
+            operation: { type: 'patch', path, content }
           };
         }
         console.log(">>>>>>>>>>patchFile result", result);
@@ -469,7 +469,7 @@ export const codeEditorTools: ToolSet = {
           return {
             success: false,
             message: 'PATCH_NOOP: No changes were applied to the file. Ensure your patch uses verbatim context from the target file and touches the intended code.',
-            operation: { type: 'patch', path, patchDescription }
+            operation: { type: 'patch', path, content }
           };
         }
 
@@ -482,20 +482,20 @@ export const codeEditorTools: ToolSet = {
           return { 
             success: true, 
             message: `Patch applied successfully to: ${path}`,
-            operation: { type: 'patch', path, patchDescription }
+            operation: { type: 'patch', path, content }
           };
         } else {
           return {
             success: false, 
             message: "Error in patch: " + JSON.stringify(runtimeError), 
-            operation: { type: 'patch', path, patchDescription }
+            operation: { type: 'patch', path, content }
           };
         }
       } catch (error) {
         return { 
           success: false, 
           message: `Failed to patch file: ${error}`,
-          operation: { type: 'patch', path, patchDescription }
+          operation: { type: 'patch', path, content }
         };
       }
     },

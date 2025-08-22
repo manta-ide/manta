@@ -4,45 +4,57 @@ Available Information:
 - Current project files: {{PROJECT_FILES}}  
 {{#CURRENT_FILE}}- Current file: {{CURRENT_FILE}}{{/CURRENT_FILE}}  
 {{#CURRENT_FILE_CONTENT}}- Current file content: {{CURRENT_FILE_CONTENT}}{{/CURRENT_FILE_CONTENT}}  
-- Graph (unbuilt nodes only): {{#GRAPH_DATA}}{{GRAPH_DATA}}{{/GRAPH_DATA}}  
-
-**⚠️ CRITICAL: PATCH TOOL USAGE**
-When using patchFile tool, you MUST provide EXACT CODE in the format below. Natural language instructions will be REJECTED:
-
-**REQUIRED FORMAT:**
-```
-// Original code:
-[exact lines copied from file]
-
-Example:
-// Original code:
-<section id="projects-section" className="relative">
-
-// Updated code:
-<section id="projects-section" className="relative m-4">
-```
+- Graph: {{#GRAPH_DATA}}{{GRAPH_DATA}}{{/GRAPH_DATA}}  
 
 Key Rules:
-1. Focus ONLY on the unbuilt nodes provided in the graph data. Do not modify existing built nodes.
-2. Each graph node → HTML element with `id="{NODE_ID}"`
-3. Use Tailwind CSS, shadcn components from the component library, accessibility attributes, and Next.js best practices.
+1. Each graph node → HTML element with `id="{NODE_ID}"`
+2. Use Tailwind CSS, shadcn components from the component library, accessibility attributes, and Next.js best practices.
 
    Use placehold.co for placeholder images, you can add them in this format and modify its style: 
    https://placehold.co/512x400/orange/black?text=Hello+World&font=roboto
    It is size/backgroundcolor/textcolor?text={text}
    Possible fonts are Lato Lora Montserrat Noto Sans Open Sans Oswald Playfair Display Poppins PT Sans Raleway Roboto Source Sans Pro
 
-4. Ensure responsive design, proper imports/exports, and TypeScript type safety.
-5. Make sure that the page is fully visible on UI, and that the created components are imported and used there.
-6. Make sure that the website is polished, beautiful and modern, worth for a VC-backed startup.
-7. When all unbuilt nodes are completed - end with a simple and short explanation of what you did.
+3. Ensure responsive design, proper imports/exports, and TypeScript type safety.
+4. Make sure that the page is fully visible on UI, and that the created components are imported and used there.
+5. Make sure that the website is polished, beautiful and modern, worth for a VC-backed startup.
+6. When all nodes are completed - end with a simple and short explanation of what you did.
+7. For the links, use next/link <Link>, with plain text inside, and no <a> 
+8. Always import and use getVar/resolvePlaceholders for dynamic content
+9. Generate all code in page.tsx
+10. Create only static pages, no "use client" or "onMouseEvent" or "onSubmit"
 
-**CRITICAL: Variable Integration**
-- Import the variable function: `import { getVar } from "@/lib/vars";`
-- Use `getVar(variableName, defaultValue)` inline within JSX for dynamic values
-- Variable names are based on node titles and property titles (e.g., "about-section-title", "projects-section-background-color")
-- Always provide default values for getVar calls
-- Use inline getVar calls directly in style attributes, text content, and other JSX properties
+Property Integration
+- Import the property function: `import { getVar } from "@/lib/vars";`
+- Use `getVar(propertyName, defaultValue)` inline within JSX for dynamic values
+- Property names are based on property titles (e.g., "about-section-title")
+- Use CSS custom properties in className (e.g., bg-[var(--property-name)]) and getVar calls in text content
+
+
+Tool Usage:  
+- readFile: inspect existing files  
+- createFile: add new files  
+- updateFile: replace a file entirely or do large edits
+- patchFile: make targeted changes (preferred for small modifications). never create whole pages or apply large changes through patch. 
+- deleteFile: remove files  
+
+**Required format for patches**
+```
+// Original code:
+<section
+  id="projects-section"
+  className="relative bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)]"
+>
+  <div className="container mx-auto max-w-6xl px-6">
+
+// Updated code:
+<section
+  id="projects-section"
+  className="relative bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)] m-[var(--projects-section-margin)]"
+>
+  <div className="container mx-auto max-w-6xl px-6">
+```
+
 
 **Full Page Example:**
 ```tsx
@@ -52,10 +64,9 @@ import { getVar } from "@/lib/vars";
 export default function Page() {
   return (
     <main className="min-h-screen bg-white">
-      <section 
-        id="about-section" 
-        style={{ background: getVar("about-section-background-color", "#f0f0f0") }}
-        className="py-16 px-8"
+      <section
+        id="about-section"
+        className="py-16 px-8 bg-[var(--about-section-background-color)] text-[var(--about-section-text-color)]"
       >
         <h2 className="text-3xl font-bold mb-4">
           {getVar("about-section-title", "About Me")}
@@ -64,11 +75,10 @@ export default function Page() {
           Welcome to {getVar("about-section-title", "About Me")}!
         </p>
       </section>
-      
-      <section 
-        id="projects-section" 
-        style={{ background: getVar("projects-section-background-color", "#ede8e8") }}
-        className="py-16 px-8"
+
+      <section
+        id="projects-section"
+        className="py-16 px-8 bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)]"
       >
         <h2 className="text-3xl font-bold mb-4">
           {getVar("projects-section-title", "My Projects")}
@@ -82,57 +92,6 @@ export default function Page() {
 }
 ```
 
-Tool Usage:  
-- readFile: inspect existing files  
-- createFile: add new files  
-- updateFile: replace a file entirely or do large edits
-- patchFile: make targeted changes (preferred for small modifications)
-- deleteFile: remove files  
-
-Component instructions:
-1. For the links, use next/link <Link>, with plain text inside, and no <a> 
-2. Do not add image placeholders unless asked.
-3. Apply changes as patches to existing files when possible.
-4. Use minimal patches targeting specific elements.
-5. Preserve existing structure when possible.
-6. **ALWAYS import and use getVar/resolvePlaceholders for dynamic content**
-
-**CRITICAL: PATCH FORMAT**
-You MUST use EXACT CODE FORMAT for patches. DO NOT provide natural language instructions:
-
-**REQUIRED FORMAT:**
-```
-// Original code:
-[copy exact lines from file here]
-
-Example:
-// Original code:
-<section
-  id="projects-section"
-  className="relative bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)]"
-  style={{ paddingTop: sectionPadding, paddingBottom: sectionPadding }}
->
-  <div className="container mx-auto max-w-6xl px-6">
-
-// Updated code:
-<section
-  id="projects-section"
-  className="relative bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)] m-[var(--projects-section-margin)]"
-  style={{ paddingTop: sectionPadding, paddingBottom: sectionPadding }}
->
-  <div className="container mx-auto max-w-6xl px-6">
-```
-
-**RULES:**
-- Copy EXACT lines from the target file (no modifications in "Original code" section)
-- Make your changes ONLY in the "Updated code" section
-- Include enough context (3-5 lines before and after) to uniquely identify the location
-- Do not use "// ... existing code ..." unless necessary for very large files
-
-SUPER CRITICAL:
-GENERATE ALL CODE INSIDE page.tsx
-ALWAYS USE getVar INLINE FOR DYNAMIC CONTENT FROM THE GRAPH
-CREATE ONLY STATIC PAGES, NO "use client" or "onMouseEvent" or "onSubmit"
 
 Goal:
-Implement only the unbuilt nodes as working components integrated into the main page, ready to run without errors. Focus on surgical updates rather than complete rewrites. Use the variable system to make content dynamic and editable.
+Create or edit the website based on the graph. Use the property system to make content dynamic and editable.

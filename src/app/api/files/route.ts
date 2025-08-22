@@ -18,7 +18,10 @@ const EXCLUDED_DIRS = new Set([
   '.idea',
   'logs',
   'tmp',
-  'temp'
+  'temp',
+  'src/app/lib',
+  'src/app/api',
+  '.graph'
 ]);
 
 const EXCLUDED_FILES = new Set([

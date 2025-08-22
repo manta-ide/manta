@@ -3,11 +3,15 @@
     {
       "id": "portfolio-page",
       "title": "Portfolio Page",
-      "prompt": "Create a portfolio page for a software engineer. It includes sections for header, project showcase, skills display, and a contact form, all styled using Tailwind CSS and shadcn/ui components.",
+      "prompt": "A portfolio page for a Software Engineer showcasing information including a header with the engineer's name and links, an about section with skills and biography, a projects section displaying work (projects/cards), a contact section with form, and a footer.",
       "children": [
         {
-          "id": "header-section",
-          "title": "Header Section"
+          "id": "header",
+          "title": "Header"
+        },
+        {
+          "id": "about-section",
+          "title": "About Section"
         },
         {
           "id": "projects-section",
@@ -16,158 +20,256 @@
         {
           "id": "contact-section",
           "title": "Contact Section"
+        },
+        {
+          "id": "footer",
+          "title": "Footer"
         }
       ],
-      "built": true,
+      "parentId": "root",
+      "built": false,
       "properties": [
         {
-          "id": "portfolio-page-background-color",
+          "id": "background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#e2e4e2"
+          "value": "#ffffff"
         },
         {
-          "id": "portfolio-page-text-color",
+          "id": "text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#201f1f"
+          "value": "#000000"
         },
         {
-          "id": "portfolio-page-font-family",
-          "title": "Font Family",
+          "id": "padding",
+          "title": "Padding",
           "type": "text",
-          "value": "Inter, sans-serif"
-        },
-        {
-          "id": "portfolio-page-section-padding",
-          "title": "Section Padding",
-          "type": "number",
-          "value": 23,
-          "min": 0,
-          "max": 100,
-          "step": 1
+          "value": "20px"
         }
       ]
     },
     {
-      "id": "header-section",
-      "title": "Header Section",
-      "prompt": "This section contains a header with logo and navigation menu.",
+      "id": "header",
+      "title": "Header",
+      "prompt": "The header for the portfolio page, including the engineer's name/logo and navigational links.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "built": false,
       "properties": [
         {
-          "id": "header-section-background-color",
+          "id": "header-logo",
+          "title": "Logo or Name",
+          "type": "text",
+          "value": "SWE Portfolio"
+        },
+        {
+          "id": "header-links",
+          "title": "Header Links",
+          "type": "text",
+          "value": "Home, About, Projects, Contact"
+        },
+        {
+          "id": "background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#e8e8ee"
+          "value": "#e2e8f0"
         },
         {
-          "id": "header-section-text-color",
+          "id": "text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#0a0a0a"
+          "value": "#1a202c"
         },
         {
-          "id": "header-section-padding",
+          "id": "padding",
           "title": "Padding",
-          "type": "number",
-          "value": 12,
-          "min": 0,
-          "max": 50,
-          "step": 1
-        },
-        {
-          "id": "header-section-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 20,
-          "min": 12,
-          "max": 36,
-          "step": 1
-        },
-        {
-          "id": "header-section-tagline",
-          "title": "Tagline",
           "type": "text",
-          "value": "Welcome",
-          "maxLength": 100
+          "value": "15px"
+        }
+      ]
+    },
+    {
+      "id": "about-section",
+      "title": "About Section",
+      "prompt": "The about section including a biography of the engineer, list of skills, and possibly an image.",
+      "children": [],
+      "parentId": "portfolio-page",
+      "built": false,
+      "properties": [
+        {
+          "id": "biography-text",
+          "title": "Biography",
+          "type": "text",
+          "value": "A software engineer passionate about building scalable and maintainable applications."
+        },
+        {
+          "id": "skills-list",
+          "title": "Skills",
+          "type": "text",
+          "value": "JavaScript, TypeScript, React, Node.js, GraphQL"
+        },
+        {
+          "id": "image-url",
+          "title": "Image URL",
+          "type": "text",
+          "value": "https://example.com/profile.jpg"
+        },
+        {
+          "id": "background-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#f9fafb"
+        },
+        {
+          "id": "text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#1a202c"
+        },
+        {
+          "id": "padding",
+          "title": "Padding",
+          "type": "text",
+          "value": "20px"
         }
       ]
     },
     {
       "id": "projects-section",
       "title": "Projects Section",
-      "prompt": "This section showcases projects in a grid layout with individual project cards.",
+      "prompt": "A section displaying the engineer's projects in card format, including the title, description, and links for each project.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "built": false,
       "properties": [
         {
-          "id": "projects-section-background-color",
+          "id": "project-card-title",
+          "title": "Project Card Title",
+          "type": "text",
+          "value": "Title Placeholder"
+        },
+        {
+          "id": "project-card-description",
+          "title": "Project Card Description",
+          "type": "text",
+          "value": "Description Placeholder"
+        },
+        {
+          "id": "project-card-link",
+          "title": "Project Card Link",
+          "type": "text",
+          "value": "https://example.com"
+        },
+        {
+          "id": "background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#cfd3d0"
+          "value": "#ffffff"
         },
         {
-          "id": "projects-section-text-color",
+          "id": "text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#000000"
+          "value": "#333333"
         },
         {
-          "id": "projects-section-card-shadow",
-          "title": "Card Shadow",
+          "id": "padding",
+          "title": "Padding",
           "type": "text",
-          "value": "0px 4px 6px rgba(0, 0, 0, 0.1)"
-        },
-        {
-          "id": "projects-section-max-projects",
-          "title": "Max Projects",
-          "type": "number",
-          "value": 3,
-          "min": 1,
-          "max": 20,
-          "step": 1
+          "value": "15px"
         }
       ]
     },
     {
       "id": "contact-section",
       "title": "Contact Section",
-      "prompt": "This section includes a contact form for visitors to reach out.",
+      "prompt": "A contact form for the portfolio page, including fields for name, email, and message with a submit button.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "built": false,
       "properties": [
         {
-          "id": "contact-section-background-color",
+          "id": "form-name-placeholder",
+          "title": "Name Placeholder",
+          "type": "text",
+          "value": "Your name"
+        },
+        {
+          "id": "form-email-placeholder",
+          "title": "Email Placeholder",
+          "type": "text",
+          "value": "Your email"
+        },
+        {
+          "id": "form-message-placeholder",
+          "title": "Message Placeholder",
+          "type": "text",
+          "value": "Your message"
+        },
+        {
+          "id": "form-submit-text",
+          "title": "Submit Button Text",
+          "type": "text",
+          "value": "Send"
+        },
+        {
+          "id": "background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#c6cdc7"
+          "value": "#f1f5f9"
         },
         {
-          "id": "contact-section-text-color",
+          "id": "text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#000000"
+          "value": "#1a202c"
         },
         {
-          "id": "contact-section-font-size",
-          "title": "Font Size",
-          "type": "number",
-          "value": 16,
-          "min": 12,
-          "max": 24,
-          "step": 1
-        },
-        {
-          "id": "contact-section-placeholder-text",
-          "title": "Form Placeholder Text",
+          "id": "padding",
+          "title": "Padding",
           "type": "text",
-          "value": "Enter your message",
-          "maxLength": 100
+          "value": "20px"
+        }
+      ]
+    },
+    {
+      "id": "footer",
+      "title": "Footer",
+      "prompt": "The footer including links to social media and copyright information.",
+      "children": [],
+      "parentId": "portfolio-page",
+      "built": false,
+      "properties": [
+        {
+          "id": "copyright-text",
+          "title": "Copyright Text",
+          "type": "text",
+          "value": "© 2023 SWE Portfolio"
+        },
+        {
+          "id": "social-media-links",
+          "title": "Social Media Links",
+          "type": "text",
+          "value": "LinkedIn, GitHub, Twitter"
+        },
+        {
+          "id": "background-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#1a202c"
+        },
+        {
+          "id": "text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#f9fafb"
+        },
+        {
+          "id": "padding",
+          "title": "Padding",
+          "type": "text",
+          "value": "10px"
         }
       ]
     }

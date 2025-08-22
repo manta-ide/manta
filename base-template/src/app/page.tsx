@@ -1,241 +1,334 @@
-import { getVar } from "@/lib/vars";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { getVar } from "@/lib/vars";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 export default function Page() {
-  const projectsCount = Number(getVar("projects-section-max-projects", 3) as number);
+  const headerLinks = String(getVar("header-links", "Home, About, Projects, Contact"))
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  function sectionHref(label: string): string {
+    const key = label.toLowerCase();
+    if (key === "home") return "#portfolio-page";
+    if (key === "about") return "#about-section";
+    if (key === "projects") return "#projects-section";
+    if (key === "contact") return "#contact-section";
+    return "#portfolio-page";
+  }
+
+  const skills = String(
+    getVar("about-section-skills-list", "JavaScript, TypeScript, React, Node.js, GraphQL")
+  )
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const projectTitle = String(getVar("projects-section-project-card-title", "Title Placeholder"));
+  const projectDesc = String(
+    getVar("projects-section-project-card-description", "Description Placeholder")
+  );
+  const projectLink = String(getVar("projects-section-project-card-link", "https://example.com"));
+
+  const socialLinks = String(getVar("footer-social-media-links", "LinkedIn, GitHub, Twitter"))
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  function socialHref(name: string): string {
+    const key = name.toLowerCase();
+    if (key.includes("github")) return "https://github.com";
+    if (key.includes("linkedin")) return "https://www.linkedin.com";
+    if (key.includes("twitter") || key.includes("x")) return "https://twitter.com";
+    return "#";
+  }
 
   return (
     <main
       id="portfolio-page"
-      className="min-h-screen"
+      className="min-h-screen bg-[var(--portfolio-page-background-color)] text-[var(--portfolio-page-text-color)] p-[var(--portfolio-page-padding)]"
       style={{
-        background: String(getVar("portfolio-page-background-color", "#f5ebeb")),
-        color: String(getVar("portfolio-page-text-color", "#080808")),
-        fontFamily: String(getVar("portfolio-page-font-family", "Inter, sans-serif")),
+        ["--portfolio-page-background-color" as any]: String(
+          getVar("portfolio-page-background-color", "#ffffff")
+        ),
+        ["--portfolio-page-text-color" as any]: String(
+          getVar("portfolio-page-text-color", "#000000")
+        ),
+        ["--portfolio-page-padding" as any]: String(getVar("portfolio-page-padding", "20px")),
       }}
     >
-      {/* Header Section */}
-      <section
-        id="header-section"
-        className="sticky top-0 z-40 border-b/50 border-b backdrop-blur supports-[backdrop-filter]:bg-white/70"
+      <header
+        id="header"
+        className="sticky top-0 z-40 border-b border-black/5 bg-[var(--header-background-color)] text-[var(--header-text-color)]"
         style={{
-          background: String(getVar("header-section-background-color", "#ffffff")),
-          color: String(getVar("header-section-text-color", "#0a0a0a")),
-          paddingTop: Number(getVar("header-section-padding", 12) as number),
-          paddingBottom: Number(getVar("header-section-padding", 12) as number),
+          ["--header-background-color" as any]: String(
+            getVar("header-background-color", "#e2e8f0")
+          ),
+          ["--header-text-color" as any]: String(getVar("header-text-color", "#1a202c")),
+          ["--header-padding" as any]: String(getVar("header-padding", "15px")),
         }}
-        aria-label="Site header with navigation"
+        aria-label="Site header"
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-[var(--header-padding)]">
           <div className="flex items-center gap-3">
-            <div
-              className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-zinc-900 to-zinc-700 text-white shadow"
-              aria-label="Logo"
-            >
-              SE
-            </div>
-            <div className="flex flex-col">
-              <span
-                className="font-semibold leading-tight"
-                style={{ fontSize: Number(getVar("header-section-font-size", 20) as number) }}
+            <div className="h-8 w-8 rounded bg-black/10" aria-hidden="true" />
+            <span className="text-base font-semibold tracking-tight">
+              {String(getVar("header-logo", "SWE Portfolio"))}
+            </span>
+          </div>
+          <nav className="hidden gap-6 md:flex" aria-label="Primary">
+            {headerLinks.map((label) => (
+              <Link
+                key={label}
+                href={sectionHref(label)}
+                className="text-sm font-medium text-[var(--header-text-color)]/80 transition-colors hover:text-[var(--header-text-color)]"
               >
-                Software Engineer
-              </span>
-              <span className="text-sm text-muted-foreground/80">
-                {String(getVar("header-section-tagline", "Welcome"))}
-              </span>
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <div className="md:hidden" aria-hidden="true">
+            <span className="text-sm text-[var(--header-text-color)]/70">Menu</span>
+          </div>
+        </div>
+      </header>
+
+      <section
+        id="about-section"
+        className="relative bg-[var(--about-section-background-color)] text-[var(--about-section-text-color)]"
+        style={{
+          ["--about-section-background-color" as any]: String(
+            getVar("about-section-background-color", "#f9fafb")
+          ),
+          ["--about-section-text-color" as any]: String(
+            getVar("about-section-text-color", "#1a202c")
+          ),
+          ["--about-section-padding" as any]: String(getVar("about-section-padding", "20px")),
+        }}
+      >
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-[var(--about-section-padding)] md:grid-cols-2">
+          <div className="order-2 md:order-1">
+            <h1 className="text-3xl font-bold leading-tight md:text-4xl">
+              {String(getVar("header-logo", "SWE Portfolio"))}
+            </h1>
+            <p className="mt-4 max-w-prose text-base/7 text-black/70">
+              {String(
+                getVar(
+                  "about-section-biography-text",
+                  "A software engineer passionate about building scalable and maintainable applications."
+                )
+              )}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2" aria-label="Skills">
+              {skills.map((skill) => (
+                <Badge key={skill} variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                  {skill}
+                </Badge>
+              ))}
             </div>
           </div>
-          <nav aria-label="Primary">
-            <ul className="flex items-center gap-6 font-medium"
-              style={{ fontSize: Number(getVar("header-section-font-size", 20) as number) }}
-            >
-              <li>
-                <Link href="#header-section" className="hover:underline underline-offset-4">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link href="#projects-section" className="hover:underline underline-offset-4">
-                  Projects
-                </Link>
-              </li>
-              <li>
-                <Link href="#contact-section" className="hover:underline underline-offset-4">
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </nav>
+          <div className="order-1 md:order-2">
+            <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={String(
+                  getVar(
+                    "about-section-image-url",
+                    "https://placehold.co/800x800/f3f4f6/0f172a?text=Your+Photo&font=Poppins"
+                  )
+                )}
+                alt={String(getVar("header-logo", "SWE Portfolio")) + " portrait"}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Projects Section */}
       <section
         id="projects-section"
-        className="w-full"
+        className="relative bg-[var(--projects-section-background-color)] text-[var(--projects-section-text-color)]"
         style={{
-          background: String(getVar("projects-section-background-color", "#ffffff")),
-          color: String(getVar("projects-section-text-color", "#000000")),
-          paddingTop: Number(getVar("portfolio-page-section-padding", 24) as number),
-          paddingBottom: Number(getVar("portfolio-page-section-padding", 24) as number),
+          ["--projects-section-background-color" as any]: String(
+            getVar("projects-section-background-color", "#ffffff")
+          ),
+          ["--projects-section-text-color" as any]: String(
+            getVar("projects-section-text-color", "#333333")
+          ),
+          ["--projects-section-padding" as any]: String(getVar("projects-section-padding", "15px")),
         }}
-        aria-labelledby="projects-heading"
       >
-        <div className="mx-auto max-w-7xl px-6">
-          <header className="mb-10 flex items-end justify-between gap-4">
-            <div>
-              <h2 id="projects-heading" className="text-3xl font-bold tracking-tight">
-                Selected Projects
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                A curated collection of work showcasing product thinking and execution.
-              </p>
-            </div>
-            <div className="hidden sm:flex items-center gap-2">
-              <Badge variant="secondary">Next.js</Badge>
-              <Badge variant="secondary">TypeScript</Badge>
-              <Badge variant="secondary">Tailwind</Badge>
-            </div>
-          </header>
-
+        <div className="mx-auto max-w-6xl px-4 py-[var(--projects-section-padding)]">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Projects</h2>
+            <Link
+              href="#contact-section"
+              className="inline-flex items-center rounded-md bg-black px-3 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-black/10 transition hover:bg-black/90"
+            >
+              Work with me
+            </Link>
+          </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: projectsCount }).map((_, i) => (
-              <Card
-                key={i}
-                className="overflow-hidden transition-transform duration-200 hover:-translate-y-0.5"
-                style={{
-                  background: String(getVar("projects-section-card-color", "#e0e0e0")),
-                  boxShadow: String(
-                    getVar(
-                      "projects-section-card-shadow",
-                      "0px 4px 6px rgba(0, 0, 0, 0.1)"
-                    )
-                  ),
-                }}
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="text-lg">{projectTitle}</CardTitle>
+                <CardDescription>{projectDesc}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://placehold.co/600x360/e2e8f0/0f172a?text=Project+Preview&font=Poppins"
+                  alt={projectTitle + " preview"}
+                  className="h-40 w-full rounded-md object-cover"
+                />
+              </CardContent>
+              <CardFooter className="mt-auto">
+                <Link
+                  href={projectLink}
+                  className="text-sm font-medium text-blue-600 underline underline-offset-4 hover:text-blue-700"
+                >
+                  Visit project
+                </Link>
+              </CardFooter>
+            </Card>
+
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="text-lg">Modern Dashboard</CardTitle>
+                <CardDescription>Analytics dashboard with Next.js and Tailwind.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://placehold.co/600x360/d9f99d/0f172a?text=Analytics+App&font=Poppins"
+                  alt="Modern Dashboard preview"
+                  className="h-40 w-full rounded-md object-cover"
+                />
+              </CardContent>
+              <CardFooter className="mt-auto">
+                <Link
+                  href="#"
+                  className="text-sm font-medium text-blue-600 underline underline-offset-4 hover:text-blue-700"
+                >
+                  View details
+                </Link>
+              </CardFooter>
+            </Card>
+
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="text-lg">Realtime Chat</CardTitle>
+                <CardDescription>Websocket-powered chat with robust UX.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://placehold.co/600x360/bfd3f8/0f172a?text=Chat+App&font=Poppins"
+                  alt="Realtime Chat preview"
+                  className="h-40 w-full rounded-md object-cover"
+                />
+              </CardContent>
+              <CardFooter className="mt-auto">
+                <Link
+                  href="#"
+                  className="text-sm font-medium text-blue-600 underline underline-offset-4 hover:text-blue-700"
+                >
+                  View details
+                </Link>
+              </CardFooter>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="contact-section"
+        className="relative bg-[var(--contact-section-background-color)] text-[var(--contact-section-text-color)]"
+        style={{
+          ["--contact-section-background-color" as any]: String(
+            getVar("contact-section-background-color", "#f1f5f9")
+          ),
+          ["--contact-section-text-color" as any]: String(
+            getVar("contact-section-text-color", "#1a202c")
+          ),
+          ["--contact-section-padding" as any]: String(getVar("contact-section-padding", "20px")),
+        }}
+      >
+        <div className="mx-auto max-w-3xl px-4 py-[var(--contact-section-padding)]">
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Contact</h2>
+          <p className="mt-2 text-sm text-black/60">
+            I’d love to hear about your project. Fill the form and I’ll get back to you.
+          </p>
+          <form action="#" method="post" className="mt-8 grid grid-cols-1 gap-6" aria-label="Contact form">
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder={String(getVar("contact-section-form-name-placeholder", "Your name"))}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder={String(getVar("contact-section-form-email-placeholder", "Your email"))}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Label htmlFor="message">Message</Label>
+              <Textarea
+                id="message"
+                name="message"
+                placeholder={String(getVar("contact-section-form-message-placeholder", "Your message"))}
+                className="min-h-[140px]"
+              />
+            </div>
+            <div>
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-black/10 transition hover:bg-black/90"
               >
-                <CardHeader>
-                  <CardTitle className="text-xl">Project #{i + 1}</CardTitle>
-                  <CardDescription>
-                    A modern web application focused on performance and DX.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm/6">
-                    Built with Next.js, TypeScript, and Tailwind CSS. Implements best practices for accessibility, security, and developer productivity.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge>Next.js</Badge>
-                    <Badge variant="outline">TypeScript</Badge>
-                    <Badge variant="secondary">Tailwind</Badge>
-                  </div>
-                </CardContent>
-                <CardFooter className="justify-between">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="#">View details</Link>
-                  </Button>
-                  <Button size="sm">Live demo</Button>
-                </CardFooter>
-              </Card>
+                {String(getVar("contact-section-form-submit-text", "Send"))}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <footer
+        id="footer"
+        className="bg-[var(--footer-background-color)] text-[var(--footer-text-color)]"
+        style={{
+          ["--footer-background-color" as any]: String(getVar("footer-background-color", "#1a202c")),
+          ["--footer-text-color" as any]: String(getVar("footer-text-color", "#f9fafb")),
+          ["--footer-padding" as any]: String(getVar("footer-padding", "10px")),
+        }}
+        aria-label="Site footer"
+      >
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-[var(--footer-padding)] sm:flex-row">
+          <p className="text-xs/6 opacity-80">
+            {String(getVar("footer-copyright-text", "© 2023 SWE Portfolio"))}
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            {socialLinks.map((name) => (
+              <Link
+                key={name}
+                href={socialHref(name)}
+                className="text-xs font-medium opacity-80 transition hover:opacity-100"
+              >
+                {name}
+              </Link>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Contact Section */}
-      <section
-        id="contact-section"
-        className="w-full"
-        style={{
-          paddingTop: Number(getVar("portfolio-page-section-padding", 24) as number),
-          paddingBottom: Number(getVar("portfolio-page-section-padding", 24) as number),
-          marginTop: Number(getVar("contact-section-margin", 10) as number),
-          marginBottom: Number(getVar("contact-section-margin", 10) as number),
-        }}
-        aria-labelledby="contact-heading"
-      >
-        <div className="mx-auto max-w-3xl px-6">
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle id="contact-heading" className="text-2xl">
-                Get in touch
-              </CardTitle>
-              <CardDescription>
-                Have a question or want to collaborate? Fill out the form and I'll get back to you.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                aria-label="Contact form"
-                className="grid grid-cols-1 gap-4"
-                action="#"
-                method="post"
-              >
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="name" className="text-sm font-medium">
-                      Name
-                    </label>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="Jane Doe"
-                      required
-                      aria-required="true"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="email" className="text-sm font-medium">
-                      Email
-                    </label>
-                    <Input
-                      id="email"
-                      type="email"
-                      name="email"
-                      placeholder="jane@example.com"
-                      required
-                      aria-required="true"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="message" className="text-sm font-medium">
-                    Message
-                  </label>
-                  <Textarea
-                    id="message"
-                    name="message"
-                    rows={5}
-                    placeholder="Tell me a bit about your project, timeline, and goals."
-                    required
-                    aria-required={true}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    By submitting this form, you agree to be contacted back regarding your inquiry.
-                  </p>
-                  <Button type="submit" className="min-w-32">
-                    Send message
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      </footer>
     </main>
   );
 }
