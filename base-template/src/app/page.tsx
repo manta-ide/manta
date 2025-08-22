@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 export default function Page() {
-  const headerLinks = String(getVar("header-links", "Home, About, Projects, Contact"))
+  const headerLinks = String(getVar("header-header-links", "Home, About, Projects, Contact"))
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
@@ -22,7 +22,7 @@ export default function Page() {
   }
 
   const skills = String(
-    getVar("about-section-skills-list", "JavaScript, TypeScript, React, Node.js, GraphQL")
+    getVar("about-section-skills", "JavaScript, TypeScript, React, Node.js, GraphQL")
   )
     .split(",")
     .map((s) => s.trim())
@@ -77,7 +77,7 @@ export default function Page() {
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded bg-black/10" aria-hidden="true" />
             <span className="text-base font-semibold tracking-tight">
-              {String(getVar("header-logo", "SWE Portfolio"))}
+              {String(getVar("header-logo-or-name", "SWE Portfolio"))}
             </span>
           </div>
           <nav className="hidden gap-6 md:flex" aria-label="Primary">
@@ -113,12 +113,12 @@ export default function Page() {
         <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-[var(--about-section-padding)] md:grid-cols-2">
           <div className="order-2 md:order-1">
             <h1 className="text-3xl font-bold leading-tight md:text-4xl">
-              {String(getVar("header-logo", "SWE Portfolio"))}
+              {String(getVar("header-logo-or-name", "SWE Portfolio"))}
             </h1>
             <p className="mt-4 max-w-prose text-base/7 text-black/70">
               {String(
                 getVar(
-                  "about-section-biography-text",
+                  "about-section-biography",
                   "A software engineer passionate about building scalable and maintainable applications."
                 )
               )}
@@ -141,7 +141,7 @@ export default function Page() {
                     "https://placehold.co/800x800/f3f4f6/0f172a?text=Your+Photo&font=Poppins"
                   )
                 )}
-                alt={String(getVar("header-logo", "SWE Portfolio")) + " portrait"}
+                alt={String(getVar("header-logo-or-name", "SWE Portfolio")) + " portrait"}
                 className="h-full w-full object-cover"
               />
             </div>
@@ -269,7 +269,7 @@ export default function Page() {
               <Input
                 id="name"
                 name="name"
-                placeholder={String(getVar("contact-section-form-name-placeholder", "Your name"))}
+                placeholder={String(getVar("contact-section-name-placeholder", "Your name"))}
               />
             </div>
             <div className="grid grid-cols-1 gap-2">
@@ -278,7 +278,7 @@ export default function Page() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder={String(getVar("contact-section-form-email-placeholder", "Your email"))}
+                placeholder={String(getVar("contact-section-email-placeholder", "Your email"))}
               />
             </div>
             <div className="grid grid-cols-1 gap-2">
@@ -286,7 +286,7 @@ export default function Page() {
               <Textarea
                 id="message"
                 name="message"
-                placeholder={String(getVar("contact-section-form-message-placeholder", "Your message"))}
+                placeholder={String(getVar("contact-section-message-placeholder", "Your message"))}
                 className="min-h-[140px]"
               />
             </div>
@@ -295,7 +295,7 @@ export default function Page() {
                 type="submit"
                 className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-black/10 transition hover:bg-black/90"
               >
-                {String(getVar("contact-section-form-submit-text", "Send"))}
+                {String(getVar("contact-section-submit-button-text", "Send"))}
               </button>
             </div>
           </form>
