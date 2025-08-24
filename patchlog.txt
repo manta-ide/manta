@@ -1,19 +1,121 @@
-{
-  "portfolio-page-background-color": "#ffffff",
-  "portfolio-page-text-color": "#080808",
-  "portfolio-page-font-family": "Inter, sans-serif",
-  "portfolio-page-section-padding": 23,
-  "header-section-background-color": "#ffffff",
-  "header-section-text-color": "#0a0a0a",
-  "header-section-padding": 12,
-  "header-section-font-size": 20,
-  "header-section-tagline": "Welcome",
-  "projects-section-background-color": "#ffffff",
-  "projects-section-text-color": "#000000",
-  "projects-section-card-shadow": "0px 4px 6px rgba(0, 0, 0, 0.1)",
-  "projects-section-max-projects": 3,
-  "projects-section-card-color": "#ff0000",
-  "contact-section-margin": 10,
-  "contact-section-font-size": 16,
-  "contact-section-form-placeholder-text": "Enter your message"
+import React from 'react';
+import Link from 'next/link';
+import { getVar } from '@/lib/vars';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+
+export default function Page() {
+  return (
+    <main
+      style={{
+        backgroundColor: getVar('portfolio-page-background-color','#ffffff'),
+        color: getVar('portfolio-page-text-color','#080808'),
+        fontFamily: getVar('portfolio-page-font-family','Inter, sans-serif'),
+      }}
+      className="min-h-screen"
+    >
+      {/* Header Section */}
+      <section
+        id="header-section"
+        className="flex items-center justify-between"
+        style={{
+          padding: `${getVar('header-section.padding','12')}px`,
+          backgroundColor: getVar('header-section.background-color','#ffffff'),
+          color: getVar('header-section.text-color','#0a0a0a'),
+        }}
+      >
+        <div className="text-2xl font-bold">
+          {getVar('header-section.tagline','Welcome')}
+        </div>
+        <nav>
+          <ul className="flex space-x-6 text-[var(--header-section-font-size)]">
+            <li><Link href="#projects-section">Projects</Link></li>
+            <li><Link href="#skills-section">Skills</Link></li>
+            <li><Link href="#contact-section">Contact</Link></li>
+          </ul>
+        </nav>
+      </section>
+
+      {/* Projects Section */}
+      <section
+        id="projects-section"
+        className="py-[var(--portfolio-page-section-padding)] px-8"
+        style={{
+          backgroundColor: getVar('projects-section.background-color','#ffffff'),
+          color: getVar('projects-section.text-color','#000000'),
+        }}
+      >
+        <h2 className="text-3xl font-bold mb-6">
+          {getVar('projects-section.section-title','Projects Showcase')}
+        </h2>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: parseInt(getVar('projects-section.max-projects','3')) }).map((_, idx) => (
+            <Card
+              key={idx}
+              className="hover:shadow-lg transition-shadow"
+              style={{
+                backgroundColor: getVar('projects-section.card-color','#e0e0e0'),
+                boxShadow: getVar('projects-section.card-shadow','0px 4px 6px rgba(0,0,0,0.1)'),
+              }}
+            >
+              <CardHeader>
+                <h3 className="text-xl font-semibold">Project {idx + 1}</h3>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700">
+                  Brief description of project {idx + 1}.
+                </p>
+                <div className="mt-4">
+                  <Button variant="link" asChild>
+                    <Link href="#">View Details</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Skills Section */}
+      <section
+        id="skills-section"
+        className="py-[var(--portfolio-page-section-padding)] px-8 bg-gray-50"
+      >
+        <h2 className="text-3xl font-bold mb-6">Skills</h2>
+        <div className="flex flex-wrap gap-3">
+          <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">JavaScript</span>
+          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">React</span>
+          <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">TypeScript</span>
+          <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full">Node.js</span>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section
+        id="contact-section"
+        className="py-[var(--portfolio-page-section-padding)] px-8"
+        style={{ marginTop: `${getVar('contact-section.margin','10')}px` }}
+      >
+        <h2 className="text-3xl font-bold mb-6">Contact Me</h2>
+        <form className="max-w-lg space-y-4">
+          <div>
+            <Label htmlFor="name">Name</Label>
+            <Input id="name" placeholder="Your name" />
+          </div>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" placeholder="you@example.com" />
+          </div>
+          <div>
+            <Label htmlFor="message">Message</Label>
+            <Textarea id="message" placeholder="Your message" rows={5} />
+          </div>
+          <Button type="submit">Send Message</Button>
+        </form>
+      </section>
+    </main>
+  );
 }

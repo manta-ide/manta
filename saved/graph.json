@@ -61,7 +61,38 @@
           "id": "header-section-background-color",
           "title": "Background Color",
           "type": "color",
-          "value": "#00ff00"
+          "value": "#ffffff"
+        },
+        {
+          "id": "header-section-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#0a0a0a"
+        },
+        {
+          "id": "header-section-padding",
+          "title": "Padding",
+          "type": "number",
+          "value": 12,
+          "min": 0,
+          "max": 50,
+          "step": 1
+        },
+        {
+          "id": "header-section-font-size",
+          "title": "Font Size",
+          "type": "number",
+          "value": 20,
+          "min": 12,
+          "max": 36,
+          "step": 1
+        },
+        {
+          "id": "header-section-tagline",
+          "title": "Tagline",
+          "type": "text",
+          "value": "Welcome",
+          "maxLength": 100
         }
       ]
     },
@@ -83,7 +114,7 @@
           "id": "projects-section-text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#d71949"
+          "value": "#000000"
         },
         {
           "id": "projects-section-card-shadow",
