@@ -36,7 +36,7 @@ DATABASE_URL="postgresql://username:password@localhost:5432/mantaeditor"
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET="your-secret-key-here-change-in-production"
-BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_URL="BACKEND_URL"
 
 # Optional: Email configuration for email verification
 # SMTP_HOST="smtp.gmail.com"

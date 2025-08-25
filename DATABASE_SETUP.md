@@ -86,7 +86,7 @@ DATABASE_URL="postgresql://username:password@host:port/database"
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET="your-secret-key-here-change-in-production"
-BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_URL="BACKEND_URL"
 ```
 
 ## Setup Database Tables

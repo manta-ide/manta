@@ -10,7 +10,7 @@ let conversationMessages: Message[] = [];
 export async function createSystemMessage(): Promise<Message> {
   
   // Get file list with lengths from the API response
-  const response = await fetch('http://localhost:3000/api/files?list=true');
+  const response = await fetch('BACKEND_URL/api/files?list=true');
   const data = await response.json();
 
   // Get graph from storage

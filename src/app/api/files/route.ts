@@ -9,7 +9,7 @@ const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), 'proje
 // Blaxel integration utility functions
 async function callBlaxelApi(action: string, additionalData: any = {}) {
   try {
-    const response = await fetch('http://localhost:3000/api/blaxel', {
+    const response = await fetch('BACKEND_URL/api/blaxel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...additionalData }),

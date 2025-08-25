@@ -14,7 +14,7 @@ const MAX_FILE_LINES = 1000;
 // Unified file API functions (handles both Blaxel and local files)
 async function callFilesApi(method: string, path: string, body?: any) {
   try {
-    const url = path ? `http://localhost:3000/api/files?path=${encodeURIComponent(path)}` : 'http://localhost:3000/api/files';
+    const url = path ? `BACKEND_URL/api/files?path=${encodeURIComponent(path)}` : 'BACKEND_URL/api/files';
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -448,7 +448,7 @@ export const codeEditorTools: ToolSet = {
         }
         
         // Call the quick patch API to get the patched content
-        const response = await fetch('http://localhost:3000/api/agents/quick-patch', {
+        const response = await fetch('BACKEND_URL/api/agents/quick-patch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

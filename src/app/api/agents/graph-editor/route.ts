@@ -55,7 +55,7 @@ async function buildParsedMessages(
 }
 
 async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
-  return fetch('http://localhost:3000/api/llm-agent/run', {
+  return fetch('BACKEND_URL/api/llm-agent/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
