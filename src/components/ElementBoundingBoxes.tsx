@@ -56,7 +56,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
   const { selectedNodeId } = useProjectStore();
   const [selectedBox, setSelectedBox] = useState<ElementInfo | null>(null);
   const [allBoxes, setAllBoxes] = useState<Array<ElementInfo & { id: string }>>([]);
-  const [builtStatus, setBuiltStatus] = useState<Record<string, boolean>>({});
+  const [, setBuiltStatus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!isEditMode || !doc || !win) {
@@ -176,7 +176,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
       >
         {/* Global status boxes for unbuilt */}
         {allBoxes.map((box) => {
-          const isUnbuilt = builtStatus[box.id] === false;
+          // const isUnbuilt = builtStatus[box.id] === false;
           if (true) return null;
           const label = 'Unbuilt';
           return (

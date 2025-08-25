@@ -29,9 +29,9 @@ const RequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   // Initialize logging variables
-  let startTime = Date.now();
+  const startTime = Date.now();
   let writeLog: (s: string) => void = (s: string) => console.log(s);
-  let operationName = 'quick-patch';
+  const operationName = 'quick-patch';
   let logStream: any = null;
 
   try {
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     writeLog(`[${operationName}] Processing Gemini response`);
 
     // Extract text from Gemini response
-    let patchedContent = (() => {
+    const patchedContent = (() => {
       try {
         const firstCandidate = Array.isArray(gemini?.candidates) ? gemini.candidates[0] : undefined;
         const parts = firstCandidate?.content?.parts;

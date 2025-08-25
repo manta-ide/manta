@@ -204,7 +204,7 @@ export default function FileEditor() {
           })()}
           path={currentFile}
           theme="vs-dark"
-          beforeMount={(monaco: any) => {
+          beforeMount={() => {
             console.log('🔧 Monaco beforeMount - setting up models');
             console.log('📄 Current file for beforeMount:', currentFile);
           }}

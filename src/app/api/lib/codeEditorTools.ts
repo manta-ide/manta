@@ -1,9 +1,8 @@
 import { ToolSet, tool } from 'ai';
-import { exec } from 'child_process';
 import * as z from 'zod';
-import { writeFileSync, unlinkSync, readFileSync, existsSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
-import { getLastError, clearLastError } from '@/lib/runtimeErrorStore';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+// import { getLastError, clearLastError } from '@/lib/runtimeErrorStore';
 import path from 'node:path';
 
 // Project root for file operations (base-template directory)
@@ -127,7 +126,7 @@ export async function buildProject(filePath?: string) {
   }
 
   // Check getVar calls in the file if provided
-  let getVarErrors: string[] = [];
+  const getVarErrors: string[] = [];
   if (filePath) {
     try {
       const fileContent = readFileSync(filePath, 'utf-8');
@@ -220,26 +219,26 @@ export async function buildProject(filePath?: string) {
 }
 
 
-function getRuntimeError() {
-
-  const err = getLastError();
-  if (!err) {
-    return { success: true };
-  }
-
-  // Immediately clear so the same error isn’t reported twice.
-  clearLastError();
-
-  // Truncate to keep the payload modest
-  const stack = (err.componentStack ?? '').split('\n').slice(0, 6).join('\n');
-
-  return {
-    success: false,
-    message: err.message,
-    componentStack: stack,
-    ts: err.ts,
-  };
-}
+// Unused function - keeping for potential future use
+// function getRuntimeError() {
+//   const err = getLastError();
+//   if (!err) {
+//     return { success: true };
+//   }
+// 
+//   // Immediately clear so the same error isn't reported twice.
+//   clearLastError();
+// 
+//   // Truncate to keep the payload modest
+//   const stack = (err.componentStack ?? '').split('\n').slice(0, 6).join('\n');
+// 
+//   return {
+//     success: false,
+//     message: err.message,
+//     componentStack: stack,
+//     ts: err.ts,
+//   };
+// }
 export const codeEditorTools: ToolSet = {
   readFile: tool({
     description: 'Read a file and return its content. Uses unified API that handles both Blaxel sandbox and local file system.',
@@ -574,7 +573,6 @@ export const codeEditorTools: ToolSet = {
         // Write the patched content using unified API
         const writeResult = await writeFileToUnifiedApi(path, adjusted, true);
         
-        writeFileSync("patchlog.txt", adjusted, 'utf-8'); // Keep patch log locally
         const runtimeError = await buildProject(writeResult.localSuccess ? fullPath : undefined);
         
         const successMessage = writeResult.blaxelSuccess && writeResult.localSuccess ? 
@@ -618,7 +616,7 @@ export const codeEditorTools: ToolSet = {
       explanation: z.string().describe('Short explanation of why you want to delete this file'),
       path: z.string().describe('The file path relative to the project root'),
     }),
-    execute: async ({ path, explanation }) => {
+    execute: async ({ path }) => {
       try {
         // Use unified API to delete file
         const result = await deleteFileFromUnifiedApi(path);

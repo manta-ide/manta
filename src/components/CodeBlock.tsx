@@ -31,7 +31,7 @@ interface CodeBlockProps {
   theme?: 'vs-dark' | 'vs';
 }
 
-function DeleteBlock({ code, filename, isLoading }: { code: string; filename: string; isLoading: boolean }) {
+function DeleteBlock({ filename, isLoading }: { code: string; filename: string; isLoading: boolean }) {
   const displayName = filename.split('/').pop() || filename;
   
   return (
@@ -266,7 +266,7 @@ function PatchBlock({ code, filename, isLoading }: { code: string; filename: str
   );
 }
 
-function ToolStatusBlock({ code, language }: { code: string; language: string }) {
+function ToolStatusBlock({ language }: { code: string; language: string }) {
   const parts = language.split(':');
   const toolName = parts[1] || 'tool';
   const status = parts[2] || 'calling';

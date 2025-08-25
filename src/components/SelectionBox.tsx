@@ -11,7 +11,7 @@ interface SelectionBoxProps {
   sessionId?: string;
 }
 
-export default function SelectionBox({ isEditMode, document: doc, window: win, sessionId }: SelectionBoxProps) {
+export default function SelectionBox({ isEditMode, document: doc, window: win }: SelectionBoxProps) {
   const { selection, setSelection, setSelectedNode } = useProjectStore();
   const overlayRef = useRef<HTMLDivElement>(null);
 

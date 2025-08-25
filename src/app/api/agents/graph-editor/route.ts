@@ -5,7 +5,6 @@ import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
 import { storeGraph } from '@/app/api/lib/graphStorage';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
-import { GraphSchema } from '@/app/api/lib/schemas';
 import { setCurrentGraph, resetPendingChanges } from '@/app/api/lib/graphEditorTools';
 
 // Multi-step agent configuration for graph editing

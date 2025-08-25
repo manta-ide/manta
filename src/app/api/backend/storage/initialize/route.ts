@@ -3,6 +3,7 @@ import { initializeGraphsFromFiles } from '../../../lib/graphStorage';
 
 export async function POST(_request: NextRequest) {
   try {
+    console.log('🔄 Initializing graphs from filesystem...', _request.body);
     // Source of truth is filesystem; load graphs from disk into memory
     await initializeGraphsFromFiles();
     return NextResponse.json({ success: true, message: 'Graphs initialized from filesystem' });

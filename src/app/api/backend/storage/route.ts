@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
             }
           }
         } catch (error) {
-          console.log('ℹ️ No graph found when loading node');
+          console.log('ℹ️ No graph found when loading node (error: ', error, ')');
         }
       }
 
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
             }
           }
         } catch (error) {
-          console.log('ℹ️ No graph found when loading graph');
+          console.log('ℹ️ No graph found when loading graph (error: ', error, ')');
         }
       }
       
@@ -129,7 +129,7 @@ export async function PUT(req: NextRequest) {
           }
         }
       } catch (error) {
-        console.log('ℹ️ No graph found when updating node');
+        console.log('ℹ️ No graph found when updating node (error: ', error, ')');
       }
     }
     if (!graph) {

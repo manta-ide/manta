@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { generateObject, generateText, ToolSet } from 'ai';
+import { generateObject, generateText } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';

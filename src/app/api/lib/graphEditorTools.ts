@@ -310,7 +310,7 @@ export const graphEditorTools = {
   add_node: tool({
     description: 'Add a new node to the graph with specified properties',
     parameters: AddNodeParamsSchema,
-    execute: async ({ parentId, nodeId, title, prompt, properties = [], children = [], built = false}) =>  withGraphLock(async () => {
+    execute: async ({ parentId, nodeId, title, prompt, properties = [], children = []}) =>  withGraphLock(async () => {
       try {
         if (!pendingGraph) await setCurrentGraph();
 

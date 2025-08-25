@@ -44,7 +44,7 @@ async function loadGraphFromBlaxel(): Promise<Graph | null> {
     const graph = JSON.parse(result.content) as Graph;
     console.log(`✅ Loaded graph from Blaxel with ${graph.nodes?.length || 0} nodes`);
     return graph;
-  } catch (error) {
+  } catch {
     console.log('ℹ️ Failed to load graph from Blaxel, falling back to local file system');
     return null;
   }
@@ -223,7 +223,7 @@ export async function loadGraphFromFile(): Promise<Graph | null> {
     currentGraph = graph;
     console.log(`✅ Loaded graph with ${graph.nodes?.length || 0} nodes from local file system`);
     return graph;
-  } catch (error: any) {
+  } catch {
     // Silently return null for any error (including file not found)
     // This is expected behavior when no graph exists
     return null;

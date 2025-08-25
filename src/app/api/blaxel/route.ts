@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       case 'connect':
         console.log(`[${requestId}] Attempting to connect to sandbox: ${finalSandboxName}`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
+          await SandboxInstance.get(finalSandboxName);
           console.log(`[${requestId}] Successfully connected to sandbox`);
           result = { 
             success: true, 
@@ -278,12 +278,13 @@ export async function POST(request: NextRequest) {
           
           const graphDir = 'blaxel/app/_graph';
           const savedDir = join(process.cwd(), 'saved');
-          let savedFiles: string[] = [];
+          const savedFiles: string[] = [];
           
           // Ensure saved directory exists
           try {
             await mkdir(savedDir, { recursive: true });
           } catch (error) {
+            console.log(`[${requestId}] Failed to create saved directory:`, JSON.stringify(error));
             // Directory might already exist, that's fine
           }
           
@@ -355,39 +356,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Helper function to parse ls output
-function parseLsOutput(output: string) {
-  if (!output) {
-    console.log('parseLsOutput: No output to parse');
-    return [];
-  }
-  
-  const lines = output.split('\n').filter(line => line.trim());
-  const files = [];
-  
-  console.log('parseLsOutput: Processing', lines.length, 'lines');
-  
-  for (const line of lines.slice(1)) { // Skip first line (total)
-    const parts = line.split(/\s+/);
-    if (parts.length >= 9) {
-      const permissions = parts[0];
-      const size = parseInt(parts[4]) || 0;
-      const name = parts.slice(8).join(' ');
-      
-      if (name && name !== '.' && name !== '..') {
-        files.push({
-          name,
-          isDirectory: permissions.startsWith('d'),
-          size: permissions.startsWith('d') ? undefined : size,
-        });
-      }
-    }
-  }
-  
-  console.log('parseLsOutput: Parsed', files.length, 'files');
-  return files;
 }
 
 // Mock command output for development

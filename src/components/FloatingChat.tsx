@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Send, Trash2, Move, Minimize2, Maximize2, MessageCircle } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Send, Trash2, Move, Minimize2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -19,7 +19,7 @@ interface Position {
 }
 
 export default function FloatingChat() {
-  const { currentFile, selection, setSelection, setCurrentFile, selectedNodeId, selectedNode, setSelectedNode } = useProjectStore();
+  const { currentFile, selection, selectedNodeId } = useProjectStore();
   const [input, setInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -232,7 +232,7 @@ export default function FloatingChat() {
            zIndex: isDragging ? 9999 : 50
          }}
          onMouseDown={handleMouseDown}
-                   onClick={(e) => {
+                   onClick={() => {
             // Only expand if not dragging and haven't just dragged
             if (!isDragging && !hasDragged) {
               setIsMinimized(false);
@@ -350,7 +350,7 @@ export default function FloatingChat() {
             currentFile={includeFile ? currentFile : null}
             selection={includeSelection ? selection : null}
             selectedNodeId={includeNode ? selectedNodeId : null}
-            selectedNode={includeNode ? selectedNode : null}
+            selectedNode={includeNode ? { title: 'Selected Node' } : null}
             onRemoveFile={() => setIncludeFile(false)}
             onRemoveSelection={() => setIncludeSelection(false)}
             onRemoveNode={() => setIncludeNode(false)}

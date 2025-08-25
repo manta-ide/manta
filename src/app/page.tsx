@@ -21,13 +21,13 @@ export default function Home() {
   
   const [isEditMode, setIsEditMode] = useState(true);
 
-  const { loadProject: loadProjectFromFileSystem, selectedNodeId, selectedNode, setSelectedNode } = useProjectStore();
+  const { loadProject: loadProjectFromFileSystem, selectedNodeId, setSelectedNode } = useProjectStore();
 
   // Load project from filesystem on mount
   useEffect(() => {
     console.log('🚀 Loading project on mount');
     loadProjectFromFileSystem();
-  }, []); // Empty dependency array to run only once on mount
+  }, [loadProjectFromFileSystem]); // Include loadProjectFromFileSystem in dependencies
 
   // Set root node as selected on mount
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function Home() {
   );
 
   // Adjust panel sizes when SelectedNodeSidebar is visible
-  const selectedPanelSize = hasSelected ? 20 : 0;
+  // const selectedPanelSize = hasSelected ? 20 : 0;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-900">

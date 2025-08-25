@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Message, MessageSchema } from '@/app/api/lib/schemas';
+import { MessageSchema } from '@/app/api/lib/schemas';
 import { z } from 'zod';
 import { fetchUnbuiltNodeIdsFromApi, fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { markNodesBuilt, markNodesUnbuilt } from '@/app/api/lib/graphStorage';

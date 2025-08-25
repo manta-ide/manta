@@ -31,7 +31,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     }
 
     try {
-      const { data, error } = await authClient.signUp.email({
+      const { error } = await authClient.signUp.email({
         name,
         email,
         password,

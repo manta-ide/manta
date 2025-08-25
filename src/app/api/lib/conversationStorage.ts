@@ -1,4 +1,4 @@
-import { Message, ParsedMessage } from './schemas';
+import { Message } from './schemas';
 import { getGraphSession } from './graphStorage';
 
 // In-memory storage for conversation

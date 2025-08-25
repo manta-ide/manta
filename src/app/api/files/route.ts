@@ -220,13 +220,13 @@ export async function GET(req: NextRequest) {
             content = await fs.readFile(fullPath, 'utf-8');
             source = 'local';
           } catch (error) {
-            return NextResponse.json({ error: 'File not found' }, { status: 404 });
+            return NextResponse.json({ error: 'File not found (error: ' + error + ')' }, { status: 404 });
           }
         }
         
         return NextResponse.json({ content, source });
       } catch (error) {
-        return NextResponse.json({ error: 'File not found' }, { status: 404 });
+        return NextResponse.json({ error: 'File not found (error: ' + error + ')' }, { status: 404 });
       }
     }
     
@@ -342,6 +342,7 @@ export async function PUT(req: NextRequest) {
         await fs.access(fullPath);
         localExists = true;
       } catch (error) {
+        console.log('File does not exist locally (error: ', error, ')');
         // File doesn't exist locally
       }
       
@@ -398,8 +399,9 @@ export async function DELETE(req: NextRequest) {
       try {
         await fs.unlink(graphFilePath);
         return NextResponse.json({ success: true, message: 'Graph deleted successfully' });
-      } catch (error) {
+      } catch {
         // File might not exist, which is fine
+        console.log('Graph file does not exist');
         return NextResponse.json({ success: true, message: 'Graph deleted successfully' });
       }
     } else {
@@ -420,7 +422,7 @@ export async function DELETE(req: NextRequest) {
       try {
         await fs.access(fullPath);
         localExists = true;
-      } catch (error) {
+      } catch {
         // File doesn't exist locally
       }
       

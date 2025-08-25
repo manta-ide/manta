@@ -35,19 +35,20 @@ class PreviewBoundary extends React.Component<{ children: React.ReactNode, ifram
     }
   }
 
-  class PreviewBoundaryTest extends React.Component<{ children: React.ReactNode }> {
-    state = { crash: false };
-    render() {
-      if (this.state.crash) throw new Error('Boom from render');
-      return (
-          <button onClick={() => {
-            this.setState({ crash: true });
-          }}>
-            TEST ERROR
-          </button>
-      );
-    }
-  }
+  // Unused component - keeping for potential future use
+  // class PreviewBoundaryTest extends React.Component<{ children: React.ReactNode }> {
+  //   state = { crash: false };
+  //   render() {
+  //     if (this.state.crash) throw new Error('Boom from render');
+  //     return (
+  //         <button onClick={() => {
+  //           this.setState({ crash: true });
+  //         }}>
+  //           TEST ERROR
+  //         </button>
+  //     );
+  //   }
+  // }
   
 
 const IFRAME_PATH = '/iframe';
@@ -104,10 +105,11 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── cleanup overlay host on unmount ───────────────────────── */
   useEffect(() => {
     return () => {
-      const host =
-        iframeRef.current
-          ?.contentDocument?.getElementById('selection-overlay-root');
-      host?.remove();
+      const currentIframeRef = iframeRef.current;
+      if (currentIframeRef) {
+        const host = currentIframeRef.contentDocument?.getElementById('selection-overlay-root');
+        host?.remove();
+      }
     };
   }, []);
 

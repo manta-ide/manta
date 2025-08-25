@@ -76,8 +76,6 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNodeId, setSelectedNode]);
 
-	if (!selectedNodeId) return null;
-
 	const handleRebuild = async () => {
 		if (!selectedNodeId) return;
 		try {
@@ -207,40 +205,6 @@ export default function SelectedNodeSidebar() {
 		}
 	};
 
-	const handlePropertyChange = useCallback(async (propertyId: string, value: any) => {
-		// Update local state immediately for responsive UI
-		const newPropertyValues = {
-			...propertyValues,
-			[propertyId]: value
-		};
-		setPropertyValues(newPropertyValues);
-
-		// Log the property change for now (mock functionality)
-		console.log('Property change:', {
-			nodeId: selectedNodeId,
-			propertyId,
-			oldValue: propertyValues[propertyId],
-			newValue: value,
-			allProperties: newPropertyValues
-		});
-
-		// If debouncing is disabled, apply changes immediately
-		if (!DEBOUNCE_PROPERTY_CHANGES) {
-			await applyPropertyChanges(newPropertyValues);
-			return;
-		}
-
-		// Clear any existing timeout
-		if (propertyChangeTimeoutRef.current) {
-			clearTimeout(propertyChangeTimeoutRef.current);
-		}
-
-		// Debounce the file system update
-		propertyChangeTimeoutRef.current = setTimeout(async () => {
-			await applyPropertyChanges(newPropertyValues);
-		}, 300); // 300ms debounce delay
-	}, [propertyValues, selectedNodeId, DEBOUNCE_PROPERTY_CHANGES]);
-
 	// Helper function to apply property changes (mock implementation)
 	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
@@ -326,6 +290,42 @@ export default function SelectedNodeSidebar() {
 			}
 		}
 	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, triggerRefresh]);
+
+	const handlePropertyChange = useCallback(async (propertyId: string, value: any) => {
+		// Update local state immediately for responsive UI
+		const newPropertyValues = {
+			...propertyValues,
+			[propertyId]: value
+		};
+		setPropertyValues(newPropertyValues);
+
+		// Log the property change for now (mock functionality)
+		console.log('Property change:', {
+			nodeId: selectedNodeId,
+			propertyId,
+			oldValue: propertyValues[propertyId],
+			newValue: value,
+			allProperties: newPropertyValues
+		});
+
+		// If debouncing is disabled, apply changes immediately
+		if (!DEBOUNCE_PROPERTY_CHANGES) {
+			await applyPropertyChanges(newPropertyValues);
+			return;
+		}
+
+		// Clear any existing timeout
+		if (propertyChangeTimeoutRef.current) {
+			clearTimeout(propertyChangeTimeoutRef.current);
+		}
+
+		// Debounce the file system update
+		propertyChangeTimeoutRef.current = setTimeout(async () => {
+			await applyPropertyChanges(newPropertyValues);
+		}, 300); // 300ms debounce delay
+	}, [propertyValues, selectedNodeId, DEBOUNCE_PROPERTY_CHANGES, applyPropertyChanges]);
+
+	if (!selectedNodeId) return null;
 
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">

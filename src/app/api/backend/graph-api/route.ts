@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
                    await loadGraphFromFile();
                    graph = getGraphSession();
                  } catch (loadError) {
-                   console.log('ℹ️ No graph file found, skipping SSE update');
+                   console.log('ℹ️ No graph file found, skipping SSE update (loadError: ', loadError, ')');
                    return; // Don't send any data if no graph exists
                  }
                }
@@ -338,7 +338,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    console.log('🗑️ Deleting graph...');
+    console.log('🗑️ Deleting graph...', req.body);
     
     // Import the clearGraphSession function
     const { clearGraphSession } = await import('../../lib/graphStorage');

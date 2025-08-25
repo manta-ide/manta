@@ -14,7 +14,7 @@ interface IframeOverlayProps {
 import { GraphNode } from '@/app/api/lib/schemas';
 import { useProjectStore } from '@/lib/store';
 
-export default function IframeOverlay({ isEditMode, sessionId }: IframeOverlayProps) {
+export default function IframeOverlay({ isEditMode }: IframeOverlayProps) {
   const [document, setDocument] = useState<Document | null>(null);
   const [window, setWindow] = useState<Window | null>(null);
   const [graphNodes, setGraphNodes] = useState<Map<string, GraphNode>>(new Map());

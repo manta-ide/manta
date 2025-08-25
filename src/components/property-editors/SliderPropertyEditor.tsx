@@ -12,7 +12,7 @@ interface SliderPropertyEditorProps {
 
 export default function SliderPropertyEditor({ property, onChange }: SliderPropertyEditorProps) {
   const value = Array.isArray(property.value)
-    ? property.value as number[]
+    ? property.value.map(v => typeof v === 'number' ? v : Number(v) || 50)
     : [typeof property.value === 'number' ? property.value : 50]; // Default to 50 if no valid value
 
   return (

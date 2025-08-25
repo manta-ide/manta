@@ -4,7 +4,7 @@
 import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import { Droplet } from "lucide-react";
 

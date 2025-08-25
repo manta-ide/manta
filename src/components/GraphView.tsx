@@ -18,7 +18,7 @@ import {
 
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
-import { GraphNode, Graph } from '@/app/api/lib/schemas';
+import { GraphNode } from '@/app/api/lib/schemas';
 
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -308,7 +308,7 @@ function GraphView() {
     return () => {
       disconnectFromGraphEvents();
     };
-  }, []); // Empty dependency array to run only once
+  }, [connectToGraphEvents, disconnectFromGraphEvents]); // Include dependencies
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
@@ -387,7 +387,6 @@ function GraphView() {
       // Position children with tighter spacing and better distribution
       let currentX = startX;
       node.children.forEach(child => {
-        const childWidth = nodeWidths.get(child.id) || 1;
         currentX += positionNodes(child.id, currentX, depth + 1) * horizontalSpacing;
       });
       

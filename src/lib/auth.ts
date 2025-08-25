@@ -1,5 +1,4 @@
 import { betterAuth } from "better-auth";
-import postgres from "postgres";
 import { organization, twoFactor } from "better-auth/plugins";
 import { Pool } from "pg";
 

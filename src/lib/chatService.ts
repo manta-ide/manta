@@ -10,9 +10,7 @@ import { useProjectStore } from '@/lib/store';
 import { isValidSelection } from '@/app/api/lib/selectionUtils';
 import { 
   Message, 
-  MessageContext,
-  ChatServiceState,
-  ChatServiceActions
+  MessageContext
 } from '@/app/api/lib/schemas';
 
 /**
@@ -20,7 +18,7 @@ import {
  * Handles message sending and basic state management
  */
 export function useChatService() {
-  const { currentFile, selection, setSelection, loadProject: loadProjectFromFileSystem, triggerRefresh, selectedNodeId, selectedNode } = useProjectStore();
+  const { currentFile, selection, setSelection, selectedNodeId, selectedNode } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -156,7 +154,7 @@ export function useChatService() {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, setSelection, loadProjectFromFileSystem, triggerRefresh, selectedNodeId, selectedNode]);
+  }, [currentFile, selection, selectedNodeId, selectedNode, setSelection]);
 
   const rebuildNode = useCallback(async (nodeId: string, previousPrompt: string, newPrompt: string) => {
     setLoading(true);
@@ -212,7 +210,7 @@ export function useChatService() {
     } finally {
       setLoading(false);
     }
-  }, [loadProjectFromFileSystem, triggerRefresh]);
+  }, []);
 
   const clearMessages = useCallback(async () => {
     try {
