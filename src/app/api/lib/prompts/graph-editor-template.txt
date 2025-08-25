@@ -86,31 +86,49 @@ For each node, generate **CMS-style comprehensive properties** following this sc
 ```
 
 **Property Types:**
-- **color**: Color picker with hex value (e.g., "#3b82f6")
+- **color**: Color picker with hex value (MUST use colors from predefined palette below)
 - **text**: Text input with optional maxLength
 - **number**: Numeric input with optional min/max/step
-- **select**: Dropdown with options array
-- **boolean**: Toggle switch for true/false values
+- **select**: Dropdown with options array (REQUIRED for all size/spacing properties like px, rem, em)
+- **boolean**: Toggle switch for true/false values (use specific states like "is dark", "is highlighted", "is active" - NEVER use generic "show" or "enabled")
 - **checkbox**: Individual checkbox for true/false values
 - **radio**: Radio button group with options array
 - **slider**: Range slider with optional min/max/step
+
+**Size Property Guidelines:**
+- **CRITICAL**: All size properties (padding, margin, width, height, font-size, border-radius, etc.) MUST use **select** type
+- **CRITICAL**: Use predefined size options like: ["0px", "4px", "8px", "12px", "16px", "20px", "24px", "32px", "40px", "48px", "56px", "64px", "80px", "96px", "128px", "160px", "192px", "224px", "256px"]
+- **CRITICAL**: For rem values: ["0rem", "0.25rem", "0.5rem", "0.75rem", "1rem", "1.25rem", "1.5rem", "2rem", "2.5rem", "3rem", "4rem", "5rem", "6rem"]
 
 **Basic Property Categories:**
 - **Styling**: color, background, typography, spacing, borders, shadows
 - **Layout**: dimensions, positioning, display, flexbox/grid properties
 - **Content**: text, images, links, form elements
 - **Interaction**: hover states, focus states, transitions, transforms
-- **Behavior**: disabled states, loading states, form validation
+- **Behavior**: state-based properties (is dark, is highlighted, is active - NEVER generic show/enable)
 
-## Property Types
-- **color**: Color picker with hex value (e.g., "#3b82f6")
-- **text**: Text input with optional maxLength
-- **number**: Numeric input with optional min/max/step
-- **select**: Dropdown with options array
-- **boolean**: Toggle switch for true/false values
-- **checkbox**: Individual checkbox for true/false values
-- **radio**: Radio button group with options array
-- **slider**: Range slider with optional min/max/step
+## Predefined Color Palettes
+**CRITICAL**: All colors used in properties MUST be selected from ONE of these predefined palettes based on the website's theme:
+
+**Dark/Professional Palette:**
+["#0b090a","#161a1d","#660708","#a4161a","#ba181b","#e5383b","#b1a7a6","#d3d3d3","#f5f3f4","#ffffff"]
+
+**Soft Blue/Purple Palette:**
+["#64a6bd","#90a8c3","#ada7c9","#d7b9d5","#f4cae0"]
+
+**Vibrant Orange/Purple Palette:**
+["#ff6d00","#ff7900","#ff8500","#ff9100","#ff9e00","#240046","#3c096c","#5a189a","#7b2cbf","#9d4edd"]
+
+**Minimalist Palette:**
+["#ffffff","#363636","#000000"]
+
+**Warm Earth Tones Palette:**
+["#463f3a","#8a817c","#bcb8b1","#f4f3ee","#e0afa0"]
+
+**Color Selection Rules:**
+- Choose ONE palette that fits the website's overall theme and stick to it
+- Use colors consistently across all components
+- Ensure good contrast ratios for accessibility
 
 ## Built Status Management
 When using `edit_node`, set `built: false` when:
@@ -127,10 +145,9 @@ When using `edit_node`, set `built: false` when:
 ```
 
 
-For placeholder images, use this as src: 
-https://placehold.co/512x400/orange/black?text=Hello+World&font=roboto
-
-All properties can be changed, make sure colors and texts align with the page, available fonts are 
+For placeholder images, use this as src:
+https://placehold.co/512x400/white/black?text=Hello+World&font=roboto
+URL params can be changed, make sure colors and texts align with the page, available fonts are
 Lato
 Lora
 Montserrat
@@ -144,12 +161,28 @@ Raleway
 Roboto
 Source Sans Pro
 
+## Variable Structure Guidelines
+**CRITICAL**: Avoid stacked/complex variables. All variables must be human-readable and simple:
+
+❌ **AVOID** these patterns:
+- Arrays of objects: `[{"text":"5+ years experience"},{"text":"Full-stack TypeScript"}]`
+- Complex nested structures: `[{"degree":"B.S. Computer Science","school":"State University","period":"2015–2019"}]`
+
+✅ **USE** these patterns:
+- Simple arrays: `["5+ years experience", "Full-stack TypeScript", "Cloud-native & CI/CD"]`
+- Individual properties: Separate fields like "degree", "school", "period", "details"
+- Human-readable text: All content should be easily understood by humans
+
 ## Guidelines
 - Build simplified hierarchy: `page → section → component`
 - Include all child element properties in parent nodes with simple property names
 - Use semantic, descriptive titles for nodes
 - Use simple node IDs like "header", "main-content", "footer"
 - Use simple property IDs like "background-color", "text-color", "padding"
+- **CRITICAL**: All size properties (px, rem, em) MUST use **select** type with predefined options
+- **CRITICAL**: All colors MUST be selected from ONE predefined palette only
+- **CRITICAL**: Avoid stacked/complex variables - keep all variables human-readable and simple
+- **CRITICAL**: Boolean properties should use specific states (is dark, is highlighted) - NEVER generic show/enable
 - Limit total nodes to approximately {{MAX_NODES}}
 - This is a **Next.js** project using **TypeScript** and **Tailwind CSS**
 - **CRITICAL**: Complete the entire structure in one operation - do not ask for continuation
@@ -162,13 +195,21 @@ Source Sans Pro
 3. **CRITICAL**: Complete the entire structure in one operation - do not stop at sections
 4. Create nodes in hierarchy order (parents before children)
 5. Include all child element properties in parent nodes with simple property names
-6. Execute all operations using appropriate tools
-7. Set `built: false` when modifying prompts or properties structure
-8. **DO NOT** ask for next steps or wait for user input - complete everything
+6. **CRITICAL**: Use select type for ALL size properties with predefined px/rem options
+7. **CRITICAL**: Choose ONE color palette and use only those colors consistently
+8. **CRITICAL**: Ensure all variables are human-readable (no stacked arrays/objects)
+9. **CRITICAL**: Use specific boolean states (is dark, is highlighted) - avoid generic show/enable
+10. Execute all operations using appropriate tools
+11. Set `built: false` when modifying prompts or properties structure
+12. **DO NOT** ask for next steps or wait for user input - complete everything
 
 **IMPORTANT**: When creating a page, you must build the simplified hierarchy including:
 - Page → Sections
 - Use simple property names (e.g., text, placeholder, background-color, text-color)
+- **CRITICAL**: Use select type for ALL size properties (padding, margin, font-size, etc.) with predefined options
+- **CRITICAL**: Select colors ONLY from ONE predefined palette
+- **CRITICAL**: Keep all variables human-readable (avoid stacked arrays/objects)
+- **CRITICAL**: Use specific boolean states (is dark, is highlighted) instead of generic show/enable
 
 **DO NOT CREATE** separate element nodes - include all properties in parent component/section nodes.
 

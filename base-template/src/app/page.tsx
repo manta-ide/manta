@@ -1,355 +1,349 @@
+import React from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { getVar } from "@/lib/vars";
 
 export default function Page() {
-  const rootStyle = {
+  const cssVars = {
+    "--background-color": getVar("background-color", "#0b090a"),
+    "--text-color": getVar("text-color", "#f5f3f4"),
+    "--accent-color": getVar("accent-color", "#e5383b"),
+    "--muted-color": getVar("muted-color", "#b1a7a6"),
+    "--border-color": getVar("border-color", "#161a1d"),
     "--font-family": getVar("font-family", "Poppins"),
-    "--primary-color": getVar("primary-color", "#06b6d4"),
-    "--secondary-color": getVar("secondary-color", "#a78bfa"),
-    "--accent-color": getVar("accent-color", "#f59e0b"),
-    "--background-color": getVar("background-color", "#0b1022"),
-    "--text-color": getVar("text-color", "#e5e7eb"),
-    "--container-max-width": `${getVar("container-max-width", 1200)}px`,
-    "--page-padding-x": `${getVar("page-padding-x", 24)}px`,
-    "--section-spacing": `${getVar("section-spacing", 96)}px`,
-    "--background-gradient-enabled": getVar("background-gradient-enabled", true) ? "1" : "0",
-    "--background-gradient-from": getVar("background-gradient-from", "#0b1022"),
-    "--background-gradient-to": getVar("background-gradient-to", "#111827"),
-    "--background-gradient-angle": `${getVar("background-gradient-angle", 45)}deg`,
+    "--base-font-size": getVar("base-font-size", "1rem"),
+    "--max-content-width": getVar("max-content-width", "256px"),
+    "--section-padding-y": getVar("section-padding-y", "48px"),
+    "--section-padding-x": getVar("section-padding-x", "24px"),
+    "--border-radius-global": getVar("border-radius-global", "12px"),
   } as React.CSSProperties;
 
-  const navLinks = (getVar("nav-links", "Product,Pricing,Docs,Blog,Changelog") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
-  const trustLogos = (getVar("trust-logos", "/vercel.svg,/next.svg,/globe.svg") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+  const navLinks = getVar("nav-links", "Home, Projects, About, Contact")
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
 
-  const features = [
+  const social = [
+    { name: "GitHub", url: getVar("social-github", "#") },
+    { name: "LinkedIn", url: getVar("social-linkedin", "#") },
+    { name: "Twitter", url: getVar("social-twitter", "#") },
+  ];
+
+  const projects = [
     {
-      icon: getVar("card-1-icon", "/globe.svg"),
-      title: getVar("card-1-title", "Graph-based editor"),
-      desc: getVar("card-1-desc", "Compose systems visually with a fast, snap-to-grid graph and powerful node tooling."),
-      href: getVar("card-1-link-href", "/product/graph-editor"),
-      linkText: getVar("card-1-link-text", "Explore graphs →"),
+      title: getVar("project-1-title", "Realtime Dashboard"),
+      description: getVar(
+        "project-1-description",
+        "Operational analytics dashboard with live data and custom charts."
+      ),
+      image: getVar(
+        "project-1-image",
+        "https://placehold.co/512x400/white/black?text=Realtime+Dashboard&font=Poppins"
+      ),
+      tech: getVar("project-1-tech", "Next.js, TypeScript, WebSocket, Tailwind"),
+      github: getVar("project-1-github", "#"),
+      live: getVar("project-1-live", "#"),
     },
     {
-      icon: getVar("card-2-icon", "/globe.svg"),
-      title: getVar("card-2-title", "Integrated AI chat"),
-      desc: getVar("card-2-desc", "Ask for refactors, generate nodes, or document flows—right inside the canvas."),
-      href: getVar("card-2-link-href", "/product/ai-chat"),
-      linkText: getVar("card-2-link-text", "Chat with Manta →"),
+      title: getVar("project-2-title", "API Platform"),
+      description: getVar(
+        "project-2-description",
+        "Scalable REST and GraphQL APIs with robust observability."
+      ),
+      image: getVar(
+        "project-2-image",
+        "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins"
+      ),
+      tech: getVar("project-2-tech", "Node.js, TypeScript, PostgreSQL, Docker, AWS"),
+      github: getVar("project-2-github", "#"),
+      live: getVar("project-2-live", "#"),
     },
     {
-      icon: getVar("card-3-icon", "/globe.svg"),
-      title: getVar("card-3-title", "Figma-level precision"),
-      desc: getVar("card-3-desc", "Pixel-perfect controls, constraints, and versioned design tokens for production."),
-      href: getVar("card-3-link-href", "/product/editor"),
-      linkText: getVar("card-3-link-text", "See the editor →"),
+      title: getVar("project-3-title", "Design System"),
+      description: getVar(
+        "project-3-description",
+        "Reusable UI kit and tokens built with Radix and Tailwind."
+      ),
+      image: getVar(
+        "project-3-image",
+        "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins"
+      ),
+      tech: getVar("project-3-tech", "React, TypeScript, Radix UI, Tailwind"),
+      github: getVar("project-3-github", "#"),
+      live: getVar("project-3-live", "#"),
     },
   ];
 
-  const showcaseTabs = [
-    getVar("tab-1-label", "Graph"),
-    getVar("tab-2-label", "Chat"),
-    getVar("tab-3-label", "Code"),
-  ];
+  const skills = getVar(
+    "skills-list",
+    "TypeScript, React, Next.js, Node.js, PostgreSQL, AWS, Docker, CI/CD, Testing, Design Systems"
+  )
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
 
-  // normalize values to avoid TS literal comparison issues
-  const heroAlignment = String(getVar("hero-alignment", "center"));
-  const navbarTransparency = Number(getVar("navbar-transparency", 70)) || 70;
+  const tags = getVar(
+    "tags",
+    "Next.js, TypeScript, Node.js, React, Tailwind, AWS, Docker, PostgreSQL"
+  )
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
 
   return (
     <main
-      id="landing-page"
-      style={rootStyle}
-      className={`min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/30 selection:text-white`}>
-
-      {/* subtle animated gradient */}
-      {getVar("background-gradient-enabled", true) ? (
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div
-            className="absolute inset-0 blur-3xl opacity-30"
-            style={{
-              backgroundImage: `linear-gradient(var(--background-gradient-angle), var(--background-gradient-from), var(--background-gradient-to))`,
-              transform: "rotate(0.01deg)",
-            }}
-          />
-        </div>
-      ) : null}
-
-      {/* Header / Navbar */}
+      id="portfolio-page"
+      style={cssVars}
+      className={
+        "min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/30 selection:text-white" 
+      }
+    >
+      {/* Header / Navigation */}
       <header
-        id="hero-nav"
-        className="sticky top-0 z-40 backdrop-blur-md"
-        style={{ backgroundColor: `rgba(6,9,20,${navbarTransparency / 100})`, height: `${getVar("navbar-height", 64)}px` }}>
-        <div className="mx-auto flex h-full w-full max-w-[var(--container-max-width)] items-center justify-between px-[var(--page-padding-x)]">
+        id="header"
+        className={
+          "w-full top-0 z-30 backdrop-blur-sm/10" +
+          " bg-[color:var(--background-color)]/60 border-b border-[var(--border-color)]"
+        }
+        style={{ padding: `${getVar("header-padding-y", "16px")} ${getVar("header-padding-x", "24px")}` }}
+      >
+        <nav className="mx-auto flex max-w-[var(--max-content-width)] items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <img src={getVar("logo-src", "/globe.svg")} alt={getVar("brand-name", "Manta")} className="h-8 w-8" />
-            <span className="font-medium tracking-tight" style={{ fontFamily: `var(--font-family)` }}>{getVar("brand-name", "Manta")}</span>
+            <div className="flex flex-col leading-tight">
+              <span style={{ fontSize: getVar("brand-font-size", "1.5rem"), fontWeight: 700 }}>
+                {getVar("brand-name", "Alex Johnson")}
+              </span>
+              <small className="text-[var(--muted-color)]">{getVar("brand-subtitle", "Software Engineer")}</small>
+            </div>
           </div>
 
-          <nav className="hidden items-center gap-6 md:flex">
-            {navLinks.map((label: string) => (
-              <Link key={label} href={`#${label.toLowerCase()}`} className="text-sm text-[var(--text-color)]/80 hover:text-white">
+          <div className="hidden md:flex items-center gap-[var(--link-gap,16px)]">
+            {navLinks.map((label) => (
+              <Link
+                key={label}
+                href={`#${label.toLowerCase()}`}
+                className={
+                  `text-sm text-[var(--text-color)] hover:text-[var(--accent-color)] transition ${
+                    getVar("hover-underline", true) ? "hover:underline" : ""
+                  }`
+                }
+              >
                 {label}
               </Link>
             ))}
-          </nav>
 
-          <div className="hidden items-center gap-[var(--cta-gap)] md:flex">
-            <Link href={getVar("cta-secondary-link", "/demo")} className={`rounded-md px-3 py-2 text-sm ring-1 ring-white/8 text-[var(--text-color)]/90 hover:bg-white/4`}>{getVar("cta-secondary-text", "Live demo")}</Link>
-            <Link href={getVar("cta-primary-link", "/signup")} className={`rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-black`}>{getVar("cta-primary-text", "Start building")}</Link>
+            <Link
+              href={getVar("resume-link-url", "/resume.pdf")}
+              className={
+                `ml-4 inline-flex items-center px-3 py-1 text-sm font-medium bg-[var(--background-color)] border border-[var(--border-color)] text-[var(--text-color)] rounded-[var(--resume-border-radius,12px)] hover:bg-[var(--accent-color)] hover:text-white transition`
+              }
+            >
+              {getVar("resume-link-text", "Download Resume")}
+            </Link>
           </div>
 
-          {/* mobile menu placeholder */}
-          <div className="md:hidden" aria-hidden>
-            <button className="rounded-md bg-white/3 p-2" />
+          <div className="md:hidden">
+            <Link href="#" className="text-sm text-[var(--muted-color)]">
+              Menu
+            </Link>
           </div>
-        </div>
+        </nav>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero */}
       <section
         id="hero"
-        className="relative px-[var(--page-padding-x)]"
-        style={{ paddingTop: `${getVar("hero-padding-y", 80)}px`, paddingBottom: `${getVar("hero-padding-y", 80)}px` }}>
-        <div className="mx-auto flex w-full max-w-[var(--container-max-width)] flex-col items-center gap-8 md:flex-row md:items-start">
-          <div className={`w-full md:w-1/2 ${heroAlignment === "left" ? "md:items-start" : heroAlignment === "right" ? "md:items-end" : "md:items-center"}`}>
-            {getVar("show-announcement-badge", true) ? (
-              <Link href={getVar("badge-link", "/beta")} className="mb-4 inline-flex items-center rounded-full bg-white/6 px-3 py-1 text-sm text-[var(--accent-color)]">
-                {getVar("badge-text", "New: Private beta open")}
-              </Link>
-            ) : null}
-
-            <h1 className="text-center text-4xl font-extrabold leading-tight tracking-tight text-white md:text-left md:text-5xl" style={{ fontFamily: `var(--font-family)` }}>{getVar("headline", "Design, code, and orchestrate with Manta")}</h1>
-
-            <p className="mt-4 max-w-2xl text-center text-lg text-[var(--text-color)]/80 md:text-left">
-              {getVar("subheadline", "A graphical IDE that fuses a graph-based editor, AI chat, and Figma-level controls—so teams ship complex systems faster.")}
+        className="relative flex w-full items-center"
+        style={{ padding: `${getVar("hero-padding-y", "80px")} var(--section-padding-x)` }}
+      >
+        <div className="mx-auto w-full max-w-[var(--max-content-width)] grid gap-[var(--hero-gap,24px)] md:grid-cols-2 items-center">
+          <div>
+            <h1
+              className="font-extrabold leading-tight"
+              style={{ fontSize: getVar("headline-size", "3rem") }}
+            >
+              <span className={getVar("is-highlighted", true) ? "bg-gradient-to-r from-[var(--accent-color)] to-rose-500 bg-clip-text text-transparent" : ""}>
+                {getVar("headline", "Building reliable, delightful software.")}
+              </span>
+            </h1>
+            <p className="mt-4 max-w-xl text-[var(--muted-color)]" style={{ fontSize: getVar("subheadline-size", "1.25rem") }}>
+              {getVar(
+                "subheadline",
+                "Full-stack engineer specializing in TypeScript, Next.js, and cloud-native systems."
+              )}
             </p>
 
-            <div className="mt-6 flex flex-col items-center gap-3 md:flex-row md:items-center">
-              <Link href={getVar("cta-primary-link", "/signup")} className="inline-flex items-center justify-center rounded-lg bg-[var(--primary-color)] px-5 py-3 text-sm font-semibold text-black shadow-md md:mr-3">{getVar("cta-primary-text", "Start building")}</Link>
-              <Link href={getVar("cta-secondary-link", "/demo")} className="inline-flex items-center justify-center rounded-lg border border-white/6 px-4 py-3 text-sm text-[var(--text-color)]/90">{getVar("cta-secondary-text", "Live demo")}</Link>
-            </div>
+            <div className="mt-6 flex flex-wrap items-center gap-[var(--cta-gap,16px)]">
+              <Link href={getVar("primary-cta-href", "#projects")}> 
+                <Button variant="default">{getVar("primary-cta-text", "View Projects")}</Button>
+              </Link>
+              <Link href={getVar("secondary-cta-href", "#contact")}>
+                <Button variant="ghost">{getVar("secondary-cta-text", "Get in Touch")}</Button>
+              </Link>
 
-            {getVar("show-trust-logos", true) ? (
-              <div className="mt-8 flex items-center gap-6 opacity-80">
-                {trustLogos.map((src: string, i: number) => (
-                  <img key={i} src={src} alt={`partner-${i}`} className="h-6 w-auto grayscale opacity-80" />
+              <div className="ml-4 flex items-center gap-3">
+                {social.map((s) => (
+                  <a key={s.name} href={s.url} className="text-[var(--muted-color)] text-sm">
+                    {s.name}
+                  </a>
                 ))}
               </div>
-            ) : null}
+            </div>
           </div>
 
-          <div className="order-first w-full md:order-last md:w-1/2">
-            <div className="mx-auto w-full max-w-[700px] rounded-2xl bg-gradient-to-br from-white/3 to-black/5 p-3 shadow-xl md:p-6" role="img" aria-label={getVar("hero-image-alt", "Screenshot of Manta’s graph-based editor") }>
-              <img src={getVar("hero-image-src", "https://placehold.co/1024x640/orange/black?text=Manta+Graph+Editor&font=roboto")} alt={getVar("hero-image-alt", "Screenshot of Manta’s graph-based editor")} className="w-full rounded-xl" />
+          <div className="flex justify-center md:justify-end">
+            <div
+              className="overflow-hidden"
+              style={{ borderRadius: getVar("image-radius", "16px") }}
+            >
+              <img
+                src={getVar("profile-image-src", "https://placehold.co/512x400/white/black?text=Alex+Johnson&font=Poppins")}
+                alt={getVar("brand-name", "Alex Johnson")}
+                className="w-[320px] h-auto object-cover"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
+      {/* Projects Section */}
       <section
-        id="features"
-        className="px-[var(--page-padding-x)]"
-        style={{
-          paddingTop: `${getVar("section-padding-y", 72)}px`,
-          paddingBottom: `${getVar("section-padding-y", 72)}px`,
-          // injected vars
-          ["--card-corner-radius"]: `${getVar("card-corner-radius", 16)}px`,
-          ["--card-border-rgba"]: `rgba(255,255,255,${(Number(getVar("card-border-opacity", 24)) || 24) / 100})`,
-          ["--grid-gap"]: `${getVar("grid-gap", 20)}px`,
-          ["--use-card-gradients"]: getVar("use-card-gradients", true) ? "1" : "0",
-          ["--card-gradient-angle"]: `${getVar("card-gradient-angle", 45)}deg`,
-          ["--card-1-gradient-from"]: getVar("card-1-gradient-from", "#06b6d4"),
-          ["--card-1-gradient-to"]: getVar("card-1-gradient-to", "#3b82f6"),
-          ["--card-2-gradient-from"]: getVar("card-2-gradient-from", "#fa8cf5"),
-          ["--card-2-gradient-to"]: getVar("card-2-gradient-to", "#8b5cf6"),
-          ["--card-3-gradient-from"]: getVar("card-3-gradient-from", "#10b981"),
-          ["--card-3-gradient-to"]: getVar("card-3-gradient-to", "#06b6d4"),
-          ["--card-text-color"]: getVar("card-text-color", "#f8f3f3"),
-          ["--link-color"]: getVar("link-color", "#ffffff"),
-          ["--link-hover-color"]: getVar("link-hover-color", "#f59e0b"),
-          ["--card-1-icon-tint"]: getVar("card-1-icon-tint", "#ffffff"),
-          ["--card-2-icon-tint"]: getVar("card-2-icon-tint", "#ffffff"),
-          ["--card-3-icon-tint"]: getVar("card-3-icon-tint", "#ffffff"),
-          ["--card-hover-elevation"]: getVar("card-hover-elevation", "lg"),
-        } as React.CSSProperties}
+        id="projects-section"
+        className="w-full"
+        style={{ padding: `${getVar("section-padding-y", "48px")} var(--section-padding-x)` }}
       >
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium uppercase text-[var(--secondary-color)]">{getVar("section-eyebrow", "Why Manta")}</p>
-            <h2 className="mt-3 text-3xl font-semibold text-white">{getVar("section-heading", "One canvas. Three superpowers.")}</h2>
-            <p className="mt-4 text-base text-[var(--text-color)]/80">{getVar("section-kicker", "Everything you need to design, orchestrate, and ship complex systems—without leaving the canvas.")}</p>
+        <div className="mx-auto max-w-[var(--max-content-width)]">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold">{getVar("section-title", "Featured Projects")}</h2>
+            <p className="text-sm text-[var(--muted-color)]">{getVar("section-subtitle", "A selection of work spanning web apps, APIs, and infrastructure.")}</p>
           </div>
 
-          <div className={`mt-10 grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-3`}> 
-            {features.map((f, idx) => {
-              const i = idx + 1;
-              const gradientBg = `linear-gradient(var(--card-gradient-angle), var(--card-${i}-gradient-from), var(--card-${i}-gradient-to))`;
-              const useGrad = getVar("use-card-gradients", true);
-              const hoverElevation = String(getVar("card-hover-elevation", "lg"));
-              const hoverClass = hoverElevation === "sm" ? "hover:shadow-md" : hoverElevation === "md" ? "hover:shadow-lg" : "hover:shadow-2xl";
+          <div className="mb-6 flex items-center gap-3">
+            <input
+              aria-label="Search projects"
+              placeholder={getVar("search-placeholder", "Search projects...")}
+              className="flex-1 bg-transparent border border-[var(--border-color)] rounded-[var(--input-radius,12px)] px-3 py-2 text-sm text-[var(--text-color)] placeholder:text-[var(--muted-color)]"
+            />
+            <div className="hidden md:flex flex-wrap gap-2">
+              {tags.map((t) => (
+                <Badge key={t} variant="outline">{t}</Badge>
+              ))}
+            </div>
+          </div>
 
-              return (
-                <article
-                  key={idx}
-                  className={`group rounded-[var(--card-corner-radius)] border p-6 transition-transform duration-300 ${hoverClass} hover:-translate-y-1`} 
-                  style={{
-                    borderColor: "var(--card-border-rgba)",
-                    background: useGrad ? gradientBg : "rgba(255,255,255,0.02)",
-                    color: "var(--card-text-color)",
-                    borderRadius: "var(--card-corner-radius)",
-                  } as React.CSSProperties}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`flex h-10 w-10 items-center justify-center flex-none rounded-md`} style={{ background: `linear-gradient(135deg, var(--card-${i}-gradient-from), var(--card-${i}-gradient-to))` }}>
-                      <img src={f.icon} alt="" className="h-6 w-6" style={{ filter: "brightness(0) invert(1)", opacity: 0.95 }} />
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold" style={{ color: "var(--card-text-color)" }}>{f.title}</h3>
-                      <p className="mt-2 text-sm" style={{ color: "var(--card-text-color)" }}>{f.desc}</p>
-                      <Link href={f.href} className="mt-4 inline-block text-sm font-medium transition-colors" style={{ color: "var(--link-color)" }}>
-                        <span className="hover:text-[var(--link-hover-color)]">{f.linkText}</span>
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+          <div className="grid gap-[var(--grid-gap,24px)] sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((p) => (
+              <article
+                key={p.title}
+                className="bg-[rgba(255,255,255,0.02)] border border-[var(--border-color)] p-[var(--card-padding,16px)] rounded-[var(--card-radius,16px)]"
+              >
+                <div className="overflow-hidden rounded-[var(--image-radius,12px)]">
+                  <img src={p.image} alt={p.title} className="w-full h-40 object-cover" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">{p.title}</h3>
+                <p className="mt-2 text-sm text-[var(--muted-color)]">{p.description}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {p.tech.split(",").map((t: string) => (
+                    <span key={t} className="text-xs text-[var(--muted-color)] bg-[rgba(255,255,255,0.02)] px-2 py-1 rounded">{t.trim()}</span>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <a href={p.github} className="text-sm text-[var(--muted-color)]">Code</a>
+                  <a href={p.live} className="text-sm text-[var(--accent-color)]">Live</a>
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Editor Showcase */}
-      <section id="editor-showcase" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 84)}px`, paddingBottom: `${getVar("section-padding-y", 84)}px` }}>
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="mx-auto max-w-3xl text-center">
-            <h3 className="text-lg font-medium text-[var(--secondary-color)]">{getVar("showcase-heading", "Meet the canvas")}</h3>
-            <p className="mt-3 text-2xl font-semibold text-white">{getVar("showcase-desc", "A unified workspace where diagrams, code, and conversations stay in sync.")}</p>
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <Link href={getVar("action-1-href", "/video")} className="text-sm font-medium text-[var(--primary-color)]">{getVar("action-1-text", "Watch video")}</Link>
-              <Link href={getVar("action-2-href", "/docs")} className="text-sm font-medium text-[var(--text-color)]/90">{getVar("action-2-text", "View docs")}</Link>
-            </div>
-          </div>
+      {/* About Section */}
+      <section
+        id="about-section"
+        className="w-full"
+        style={{ padding: `${getVar("section-padding-y", "48px")} var(--section-padding-x)` }}
+      >
+        <div className="mx-auto max-w-[var(--max-content-width)] grid gap-[var(--section-gap,24px)] md:grid-cols-3 items-start">
+          <div className="md:col-span-2">
+            <h2 className="text-2xl font-semibold">{getVar("about-title", "About Me")}</h2>
+            <p className="mt-2 text-sm text-[var(--muted-color)]">{getVar("about-subtitle", "Engineer focused on quality, delivery, and impact.")}</p>
+            <p className="mt-4 text-base leading-relaxed">{getVar("bio-text", "I craft maintainable systems and delightful experiences. I enjoy shipping fast while keeping quality high through tests, automation, and clean design.")}</p>
 
-          <div className="mt-8 flex justify-center">
-            <div className="w-full max-w-[1100px] rounded-[var(--frame-corner-radius)] border bg-[var(--background-color)] p-4" style={{ borderColor: `rgba(255,255,255,${(Number(getVar("frame-border-opacity", 14)) || 14) / 100})` }}>
-              <div className="flex items-center gap-4 border-b border-white/6 pb-3">
-                {showcaseTabs.map((t, i) => (
-                  <div key={i} className={`rounded-md px-3 py-1 text-sm ${i === 0 ? "bg-white/6 text-white" : "text-[var(--text-color)]/70"}`}>{t}</div>
+            <div className="mt-6 grid grid-cols-2 gap-[var(--facts-grid-gap,16px)]">
+              <div className="py-3 px-4 bg-[rgba(255,255,255,0.02)] rounded-[var(--border-radius-global)]">
+                <div className="text-sm text-[var(--muted-color)]">Experience</div>
+                <div className="mt-1 font-semibold">{getVar("years-experience", "5+ years experience")}</div>
+              </div>
+              <div className="py-3 px-4 bg-[rgba(255,255,255,0.02)] rounded-[var(--border-radius-global)]">
+                <div className="text-sm text-[var(--muted-color)]">Location</div>
+                <div className="mt-1 font-semibold">{getVar("location-text", "Based in San Francisco, CA")}</div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <h3 className="text-sm font-medium">Skills</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {skills.map((s) => (
+                  <Badge key={s}>{s}</Badge>
                 ))}
               </div>
+            </div>
 
-              <div className="mt-4 relative overflow-hidden rounded-md bg-gradient-to-b from-white/2 to-black/5">
-                {getVar("overlay-grid", true) ? (
-                  <svg className="absolute inset-0 h-full w-full opacity-10" viewBox="0 0 800 450" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                    <defs>
-                      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.12" />
-                      </pattern>
-                    </defs>
-                    <rect width="100%" height="100%" fill="url(#grid)" fillOpacity="0.06" />
-                  </svg>
-                ) : null}
-
-                <img src={getVar("canvas-image-src", "https://placehold.co/1280x720/111827/e5e7eb?text=Manta+Canvas&font=roboto")} alt={getVar("canvas-image-alt", "Manta editor canvas with nodes and connections")} className="relative w-full rounded-md" />
-
-                {/* subtle node-link hints */}
-                <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-30" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                  <g stroke={getVar("primary-color", "#06b6d4")} strokeWidth="2" strokeOpacity="0.08" fill="none">
-                    <path d="M120 480 C 220 420, 320 300, 420 260" />
-                    <circle cx="120" cy="480" r="6" fill={getVar("accent-color", "#f59e0b")} />
-                    <circle cx="420" cy="260" r="5" fill={getVar("secondary-color", "#a78bfa")} />
-                  </g>
-                </svg>
-              </div>
+            <div className="mt-6">
+              <Link href={getVar("resume-url", "/resume.pdf")} className="text-sm text-[var(--accent-color)]">
+                Download full resume
+              </Link>
             </div>
           </div>
+
+          <aside className="hidden md:flex md:flex-col items-center">
+            <div style={{ borderRadius: getVar("avatar-radius", "16px"), overflow: "hidden" }}>
+              <img src={getVar("avatar-src", "https://placehold.co/512x400/white/black?text=Alex&font=Poppins")} alt="avatar" className="w-48 h-48 object-cover" />
+            </div>
+          </aside>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer id="footer" className="px-[var(--page-padding-x)]" style={{ paddingTop: `${getVar("section-padding-y", 64)}px`, paddingBottom: `${getVar("section-padding-y", 64)}px` }}>
-        <div className="mx-auto w-full max-w-[var(--container-max-width)]">
-          <div className="flex flex-col gap-8 md:flex-row md:justify-between">
-            <div className="max-w-sm">
+      {/* Contact & Footer */}
+      <section
+        id="contact-footer"
+        className="w-full"
+        style={{ padding: `${getVar("footer-padding-y", "24px")} var(--section-padding-x)` }}
+      >
+        <div className="mx-auto max-w-[var(--max-content-width)]">
+          <div className="bg-[rgba(255,255,255,0.02)] border border-[var(--border-color)] rounded-[var(--border-radius-global)] p-6">
+            <h2 className="text-xl font-semibold">{getVar("contact-title", "Get in Touch")}</h2>
+            <p className="text-sm text-[var(--muted-color)]">{getVar("contact-subtitle", "Have a project in mind or just want to say hello?")}</p>
+
+            <form method="post" action="/api" className="mt-4 grid gap-[var(--form-gap,16px)]">
+              <div className="grid md:grid-cols-2 gap-3">
+                <input name="name" placeholder="Name" className="w-full px-3 py-2 rounded-[var(--input-radius,12px)] bg-transparent border border-[var(--border-color)] text-[var(--text-color)]" />
+                <input name="email" placeholder="Email" className="w-full px-3 py-2 rounded-[var(--input-radius,12px)] bg-transparent border border-[var(--border-color)] text-[var(--text-color)]" />
+              </div>
+              <textarea name="message" placeholder="Message" rows={4} className="w-full px-3 py-2 rounded-[var(--input-radius,12px)] bg-transparent border border-[var(--border-color)] text-[var(--text-color)]" />
+
               <div className="flex items-center gap-3">
-                <img src={getVar("logo-src", "/globe.svg")} alt={getVar("brand-name", "Manta")} className="h-8 w-8" />
-                <div>
-                  <div className="font-medium text-white">{getVar("brand-name", "Manta")}</div>
-                  <div className="text-sm text-[var(--text-color)]/80">{getVar("brand-tagline", "Design, code, and orchestrate on one canvas.")}</div>
-                </div>
+                <Button type="submit" style={{ borderRadius: getVar("button-radius", "12px") }} className={getVar("is-accent-submit", true) ? "bg-[var(--accent-color)] text-white" : ""}>
+                  Send Message
+                </Button>
+
+                <div className="text-sm text-[var(--muted-color)]">Or email <a href={`mailto:${getVar("contact-email", "hello@example.com")}`} className="text-[var(--accent-color)]">{getVar("contact-email", "hello@example.com")}</a></div>
               </div>
-
-              {getVar("newsletter-enabled", true) ? (
-                <form action="#" method="POST" className="mt-6 flex w-full max-w-md flex-col gap-3">
-                  <label htmlFor="email" className="sr-only">{getVar("newsletter-heading", "Get product updates")}</label>
-                  <input id="email" name="email" type="email" placeholder={getVar("newsletter-placeholder", "you@company.com")} required className="rounded-md bg-white/3 px-3 py-2 text-[var(--text-color)] placeholder:text-[var(--text-color)]/50" />
-                  <div className="flex gap-2">
-                    <button type="submit" className="rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-black">{getVar("newsletter-button-text", "Subscribe")}</button>
-                    <div className="text-sm text-[var(--text-color)]/70">{getVar("copyright", "© 2025 Manta Labs, Inc.")}</div>
-                  </div>
-                </form>
-              ) : null}
-            </div>
-
-            <div className="grid grid-cols-2 gap-[var(--column-gap)] md:grid-cols-4">
-              {/** Utility to parse columns from properties **/}
-              <nav aria-label="footer-product">
-                <h4 className="mb-3 text-sm font-semibold text-white">Product</h4>
-                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
-                  {(getVar("product-links", "") || "").split(",").map((l: string, i: number) => {
-                    const [label, href] = l.split(":");
-                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
-                  })}
-                </ul>
-              </nav>
-
-              <nav aria-label="footer-company">
-                <h4 className="mb-3 text-sm font-semibold text-white">Company</h4>
-                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
-                  {(getVar("company-links", "") || "").split(",").map((l: string, i: number) => {
-                    const [label, href] = l.split(":");
-                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
-                  })}
-                </ul>
-              </nav>
-
-              <nav aria-label="footer-resources">
-                <h4 className="mb-3 text-sm font-semibold text-white">Resources</h4>
-                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
-                  {(getVar("resources-links", "") || "").split(",").map((l: string, i: number) => {
-                    const [label, href] = l.split(":");
-                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
-                  })}
-                </ul>
-              </nav>
-
-              <nav aria-label="footer-legal">
-                <h4 className="mb-3 text-sm font-semibold text-white">Legal</h4>
-                <ul className="flex flex-col gap-2 text-sm text-[var(--text-color)]/80">
-                  {(getVar("legal-links", "") || "").split(",").map((l: string, i: number) => {
-                    const [label, href] = l.split(":");
-                    return label ? (<li key={i}><Link href={href ? href.trim() : "#"} className="hover:underline">{label.trim()}</Link></li>) : null;
-                  })}
-                </ul>
-              </nav>
-            </div>
+            </form>
           </div>
 
-          <div className={`mt-6 border-t pt-6 text-sm text-[var(--text-color)]/70 ${getVar("show-top-border", true) ? "border-white/10" : "border-transparent"}`}>
-            <div className="flex items-center justify-between">
-              <div>{getVar("copyright", "© 2025 Manta Labs, Inc.")}</div>
-              <div className="flex items-center gap-4">
-                {(getVar("social-links", "") || "").split(",").map((s: string, i: number) => {
-                  const [label, url] = s.split(":");
-                  return label ? (<Link key={i} href={url ? url.trim() : "#"} className="text-[var(--text-color)]/80 hover:text-white">{label}</Link>) : null;
-                })}
-              </div>
+          <footer className="mt-6 flex items-center justify-between text-sm text-[var(--muted-color)]">
+            <div>{getVar("footer-text", "© 2025 Alex Johnson. All rights reserved.")}</div>
+            <div className="flex items-center gap-3">
+              <a href={getVar("contact-linkedin", "#")} className="underline">LinkedIn</a>
+              <a href={getVar("contact-twitter", "#")} className="underline">Twitter</a>
             </div>
-          </div>
+          </footer>
         </div>
-      </footer>
+      </section>
     </main>
   );
 }
