@@ -1,15 +1,10 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
-import fs from 'fs/promises';
-import path from 'path';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
 // Single graph storage (in-memory cache)
 let currentGraph: Graph | null = null;
-
-// Define the project root directory
-const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), 'base-template');
 
 // Blaxel integration utility functions
 async function callBlaxelApi(action: string, additionalData: any = {}) {
@@ -44,7 +39,7 @@ async function loadGraphFromBlaxel(): Promise<Graph | null> {
     const graph = JSON.parse(result.content) as Graph;
     console.log(`✅ Loaded graph from Blaxel with ${graph.nodes?.length || 0} nodes`);
     return graph;
-  } catch {
+  } catch (error) {
     console.log('ℹ️ Failed to load graph from Blaxel, falling back to local file system');
     return null;
   }
@@ -137,36 +132,12 @@ export async function storeGraph(graph: Graph): Promise<void> {
   // Store in memory
   currentGraph = merged;
 
-  // Try to save to Blaxel first
+  // Save to Blaxel only
   try {
     await saveGraphToBlaxel(merged);
   } catch (error) {
-    console.warn('Failed to save to Blaxel, continuing with local save:', error);
-  }
-
-  // Ensure .graph directory exists
-  const graphDir = path.join(PROJECT_ROOT, '.graph');
-  try {
-    await fs.mkdir(graphDir, { recursive: true });
-  } catch (error) {
-    console.error('Error creating .graph directory:', error);
-  }
-
-  // Save graph to local file
-  try {
-    const graphFilePath = path.join(graphDir, 'graph.json');
-    await fs.writeFile(graphFilePath, JSON.stringify(merged, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error saving graph to local file:', error);
-  }
-
-  // Generate and save vars.json locally
-  try {
-    const vars = extractVariablesFromGraph(merged);
-    const varsFilePath = path.join(graphDir, 'vars.json');
-    await fs.writeFile(varsFilePath, JSON.stringify(vars, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error saving vars.json to local file:', error);
+    console.error('Failed to save to Blaxel:', error);
+    throw error;
   }
 }
 
@@ -201,29 +172,20 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
 }
 
 /**
- * Load graph from file and store in memory
- * First tries to load from Blaxel sandbox, then falls back to local file system
+ * Load graph from Blaxel sandbox and store in memory
  */
 export async function loadGraphFromFile(): Promise<Graph | null> {
   try {
-    // First try to load from Blaxel sandbox
+    // Load from Blaxel sandbox only
     const blaxelGraph = await loadGraphFromBlaxel();
     if (blaxelGraph) {
       currentGraph = blaxelGraph;
       return blaxelGraph;
     }
     
-    // Fall back to local file system
-    const graphFilePath = path.join(PROJECT_ROOT, '.graph', 'graph.json');
-    
-    const content = await fs.readFile(graphFilePath, 'utf-8');
-    const graph = JSON.parse(content) as Graph;
-    
-    // Store in memory
-    currentGraph = graph;
-    console.log(`✅ Loaded graph with ${graph.nodes?.length || 0} nodes from local file system`);
-    return graph;
-  } catch {
+    // No graph found
+    return null;
+  } catch (error: any) {
     // Silently return null for any error (including file not found)
     // This is expected behavior when no graph exists
     return null;
@@ -231,23 +193,11 @@ export async function loadGraphFromFile(): Promise<Graph | null> {
 }
 
 /**
- * Clear the current graph and delete file
+ * Clear the current graph from memory
  */
 export async function clearGraphSession(): Promise<void> {
-  // Remove from memory
+  // Remove from memory only
   currentGraph = null;
-  
-  // Delete files directly
-  try {
-    const graphDir = path.join(PROJECT_ROOT, '.graph');
-    const graphFilePath = path.join(graphDir, 'graph.json');
-    const varsFilePath = path.join(graphDir, 'vars.json');
-    
-    await fs.unlink(graphFilePath).catch(() => {}); // Ignore if file doesn't exist
-    await fs.unlink(varsFilePath).catch(() => {}); // Ignore if file doesn't exist
-  } catch (error) {
-    console.error('Error deleting graph files:', error);
-  }
 }
 
 /**
@@ -291,18 +241,12 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
   };
   currentGraph = updated;
   
-  // Try to save to Blaxel first
+  // Save to Blaxel only
   try {
     await saveGraphToBlaxel(updated);
   } catch (error) {
-    console.warn('Failed to save built flags to Blaxel:', error);
-  }
-  
-  try {
-    const graphFilePath = path.join(PROJECT_ROOT, '.graph', 'graph.json');
-    await fs.writeFile(graphFilePath, JSON.stringify(updated, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error persisting built flags to local file:', error);
+    console.error('Failed to save built flags to Blaxel:', error);
+    throw error;
   }
 }
 
@@ -318,18 +262,12 @@ export async function markNodesUnbuilt(nodeIds: string[]): Promise<void> {
   };
   currentGraph = updated;
   
-  // Try to save to Blaxel first
+  // Save to Blaxel only
   try {
     await saveGraphToBlaxel(updated);
   } catch (error) {
-    console.warn('Failed to save unbuilt flags to Blaxel:', error);
-  }
-  
-  try {
-    const graphFilePath = path.join(PROJECT_ROOT, '.graph', 'graph.json');
-    await fs.writeFile(graphFilePath, JSON.stringify(updated, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error persisting unbuilt flags to local file:', error);
+    console.error('Failed to save unbuilt flags to Blaxel:', error);
+    throw error;
   }
 }
 
