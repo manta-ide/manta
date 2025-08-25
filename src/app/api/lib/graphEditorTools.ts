@@ -34,7 +34,7 @@ async function withGraphLock<T>(fn: () => Promise<T>): Promise<T> {
 
 async function fetchGraphFromAPI(): Promise<Graph | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'BACKEND_URL';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${process.env.BACKEND_URL}`;
     const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -63,7 +63,7 @@ async function fetchGraphFromAPI(): Promise<Graph | null> {
 
 async function saveGraphThroughAPI(graph: Graph): Promise<boolean> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'BACKEND_URL';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${process.env.BACKEND_URL}`;
     const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
