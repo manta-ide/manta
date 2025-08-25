@@ -6,6 +6,59 @@ import { Graph } from '../lib/graphStorage';
 // Define the project root directory
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), 'project');
 
+// Blaxel integration utility functions
+async function callBlaxelApi(action: string, additionalData: any = {}) {
+  try {
+    const response = await fetch('http://localhost:3000/api/blaxel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...additionalData }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Blaxel API failed: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Blaxel API call failed:', error);
+    throw error;
+  }
+}
+
+async function readFileFromBlaxel(filePath: string): Promise<string | null> {
+  try {
+    const result = await callBlaxelApi('readFile', { path: filePath });
+    if (result.success) {
+      return result.content;
+    }
+    return null;
+  } catch (error) {
+    console.log(`Failed to read file from Blaxel: ${filePath}`, error);
+    return null;
+  }
+}
+
+async function writeFileToBlaxel(filePath: string, content: string): Promise<boolean> {
+  try {
+    const result = await callBlaxelApi('writeFile', { path: filePath, content });
+    return result.success;
+  } catch (error) {
+    console.log(`Failed to write file to Blaxel: ${filePath}`, error);
+    return false;
+  }
+}
+
+async function deleteFileFromBlaxel(filePath: string): Promise<boolean> {
+  try {
+    const result = await callBlaxelApi('deleteFile', { path: filePath });
+    return result.success;
+  } catch (error) {
+    console.log(`Failed to delete file from Blaxel: ${filePath}`, error);
+    return false;
+  }
+}
+
 // Define excluded directories and files
 const EXCLUDED_DIRS = new Set([
   'node_modules',
@@ -151,11 +204,27 @@ export async function GET(req: NextRequest) {
     // Ensure project directory exists
     await fs.mkdir(PROJECT_ROOT, { recursive: true });
     if (filePath) {
-      // Return specific file content
-      const fullPath = path.join(PROJECT_ROOT, filePath);
+      // Return specific file content - try Blaxel first, then local
       try {
-        const content = await fs.readFile(fullPath, 'utf-8');
-        return NextResponse.json({ content });
+        let content: string | null = null;
+        let source = 'unknown';
+        
+        // First try to read from Blaxel sandbox
+        content = await readFileFromBlaxel(filePath);
+        if (content !== null) {
+          source = 'Blaxel';
+        } else {
+          // Fall back to local file system
+          const fullPath = path.join(PROJECT_ROOT, filePath);
+          try {
+            content = await fs.readFile(fullPath, 'utf-8');
+            source = 'local';
+          } catch (error) {
+            return NextResponse.json({ error: 'File not found' }, { status: 404 });
+          }
+        }
+        
+        return NextResponse.json({ content, source });
       } catch (error) {
         return NextResponse.json({ error: 'File not found' }, { status: 404 });
       }
@@ -199,16 +268,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'filePath and content are required' }, { status: 400 });
     }
     
-    const fullPath = path.join(PROJECT_ROOT, filePath);
-    const dirPath = path.dirname(fullPath);
+    let blaxelSuccess = false;
+    let localSuccess = false;
     
-    // Ensure directory exists
-    await fs.mkdir(dirPath, { recursive: true });
+    // Try to write to Blaxel first
+    try {
+      blaxelSuccess = await writeFileToBlaxel(filePath, content);
+    } catch (error) {
+      console.warn('Failed to create file in Blaxel:', error);
+    }
     
-    // Write file
-    await fs.writeFile(fullPath, content, 'utf-8');
+    // Write to local file system
+    try {
+      const fullPath = path.join(PROJECT_ROOT, filePath);
+      const dirPath = path.dirname(fullPath);
+      
+      // Ensure directory exists
+      await fs.mkdir(dirPath, { recursive: true });
+      
+      // Write file
+      await fs.writeFile(fullPath, content, 'utf-8');
+      localSuccess = true;
+    } catch (error) {
+      console.warn('Failed to create file locally:', error);
+    }
     
-    return NextResponse.json({ success: true, message: 'File created successfully' });
+    if (!blaxelSuccess && !localSuccess) {
+      return NextResponse.json({ error: 'Failed to create file in both Blaxel and local file system' }, { status: 500 });
+    }
+    
+    const successMessage = blaxelSuccess && localSuccess ? 
+      'File created in both Blaxel and local' :
+      blaxelSuccess ? 'File created in Blaxel' :
+      'File created locally';
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: successMessage,
+      blaxelSuccess,
+      localSuccess
+    });
   } catch (error) {
     console.error('Error in POST /api/files:', error);
     return NextResponse.json({ error: 'Failed to create file' }, { status: 500 });
@@ -232,12 +331,56 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: 'filePath and content are required' }, { status: 400 });
       }
       
-      const fullPath = path.join(PROJECT_ROOT, filePath);
-      console.log('fullPath', fullPath);
-      // Write file
-      await fs.writeFile(fullPath, content, 'utf-8');
+      let blaxelSuccess = false;
+      let localSuccess = false;
       
-      return NextResponse.json({ success: true, message: 'File updated successfully' });
+      // Check if file exists (either in Blaxel or locally)
+      const blaxelContent = await readFileFromBlaxel(filePath);
+      const fullPath = path.join(PROJECT_ROOT, filePath);
+      let localExists = false;
+      try {
+        await fs.access(fullPath);
+        localExists = true;
+      } catch (error) {
+        // File doesn't exist locally
+      }
+      
+      if (!blaxelContent && !localExists) {
+        return NextResponse.json({ error: 'File does not exist in Blaxel or local file system' }, { status: 404 });
+      }
+      
+      // Try to update in Blaxel
+      if (blaxelContent !== null) {
+        try {
+          blaxelSuccess = await writeFileToBlaxel(filePath, content);
+        } catch (error) {
+          console.warn('Failed to update file in Blaxel:', error);
+        }
+      }
+      
+      // Update local file system
+      if (localExists) {
+        try {
+          console.log('fullPath', fullPath);
+          await fs.writeFile(fullPath, content, 'utf-8');
+          localSuccess = true;
+        } catch (error) {
+          console.warn('Failed to update file locally:', error);
+        }
+      }
+      
+      const successMessage = blaxelSuccess && localSuccess ? 
+        'File updated in both Blaxel and local' :
+        blaxelSuccess ? 'File updated in Blaxel' :
+        localSuccess ? 'File updated locally' :
+        'Failed to update file in both systems';
+      
+      return NextResponse.json({ 
+        success: blaxelSuccess || localSuccess, 
+        message: successMessage,
+        blaxelSuccess,
+        localSuccess
+      });
     }
   } catch (error) {
     console.error('Error in PUT /api/files:', error);
@@ -267,12 +410,55 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: 'filePath is required' }, { status: 400 });
       }
       
+      let blaxelSuccess = false;
+      let localSuccess = false;
+      
+      // Check if file exists in either location
+      const blaxelContent = await readFileFromBlaxel(filePath);
       const fullPath = path.join(PROJECT_ROOT, filePath);
+      let localExists = false;
+      try {
+        await fs.access(fullPath);
+        localExists = true;
+      } catch (error) {
+        // File doesn't exist locally
+      }
       
-      // Delete file
-      await fs.unlink(fullPath);
+      if (!blaxelContent && !localExists) {
+        return NextResponse.json({ error: 'File does not exist in Blaxel or local file system' }, { status: 404 });
+      }
       
-      return NextResponse.json({ success: true, message: 'File deleted successfully' });
+      // Try to delete from Blaxel
+      if (blaxelContent !== null) {
+        try {
+          blaxelSuccess = await deleteFileFromBlaxel(filePath);
+        } catch (error) {
+          console.warn('Failed to delete file from Blaxel:', error);
+        }
+      }
+      
+      // Delete from local file system
+      if (localExists) {
+        try {
+          await fs.unlink(fullPath);
+          localSuccess = true;
+        } catch (error) {
+          console.warn('Failed to delete file locally:', error);
+        }
+      }
+      
+      const successMessage = blaxelSuccess && localSuccess ? 
+        'File deleted from both Blaxel and local' :
+        blaxelSuccess ? 'File deleted from Blaxel' :
+        localSuccess ? 'File deleted locally' :
+        'Failed to delete file from both systems';
+      
+      return NextResponse.json({ 
+        success: blaxelSuccess || localSuccess, 
+        message: successMessage,
+        blaxelSuccess,
+        localSuccess
+      });
     }
   } catch (error) {
     console.error('Error in DELETE /api/files:', error);

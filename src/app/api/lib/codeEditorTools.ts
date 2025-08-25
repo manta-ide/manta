@@ -12,6 +12,70 @@ const PROJECT_ROOT = join(process.cwd(), 'base-template');
 // Maximum file size to read (in lines) to prevent memory issues
 const MAX_FILE_LINES = 1000;
 
+// Unified file API functions (handles both Blaxel and local files)
+async function callFilesApi(method: string, path: string, body?: any) {
+  try {
+    const url = path ? `http://localhost:3000/api/files?path=${encodeURIComponent(path)}` : 'http://localhost:3000/api/files';
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Files API failed: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Files API call failed:', error);
+    throw error;
+  }
+}
+
+async function readFileFromUnifiedApi(filePath: string): Promise<{ content: string; source: string } | null> {
+  try {
+    const result = await callFilesApi('GET', filePath);
+    if (result.content !== undefined) {
+      return { content: result.content, source: result.source || 'unknown' };
+    }
+    return null;
+  } catch (error) {
+    console.log(`Failed to read file from unified API: ${filePath}`, error);
+    return null;
+  }
+}
+
+async function writeFileToUnifiedApi(filePath: string, content: string, isUpdate: boolean = false): Promise<{ success: boolean; blaxelSuccess?: boolean; localSuccess?: boolean }> {
+  try {
+    const method = isUpdate ? 'PUT' : 'POST';
+    const body = isUpdate ? { filePath, content } : { filePath, content };
+    const result = await callFilesApi(method, '', body);
+    return {
+      success: result.success,
+      blaxelSuccess: result.blaxelSuccess,
+      localSuccess: result.localSuccess
+    };
+  } catch (error) {
+    console.log(`Failed to write file to unified API: ${filePath}`, error);
+    return { success: false };
+  }
+}
+
+async function deleteFileFromUnifiedApi(filePath: string): Promise<{ success: boolean; blaxelSuccess?: boolean; localSuccess?: boolean }> {
+  try {
+    const result = await callFilesApi('DELETE', '', { filePath });
+    return {
+      success: result.success,
+      blaxelSuccess: result.blaxelSuccess,
+      localSuccess: result.localSuccess
+    };
+  } catch (error) {
+    console.log(`Failed to delete file from unified API: ${filePath}`, error);
+    return { success: false };
+  }
+}
+
 async function findTsConfig(start: string): Promise<string | null> {
   const { promises: fs } = await import("node:fs");
   let dir = path.resolve(start);
@@ -33,29 +97,30 @@ async function findTsConfig(start: string): Promise<string | null> {
 
 export async function buildProject(filePath?: string) {
   const { exec } = await import("child_process");
-
-  // Convert relative filePath to absolute path using PROJECT_ROOT
-  let absoluteFilePath: string | undefined;
-  if (filePath) {
-    absoluteFilePath = join(PROJECT_ROOT, filePath);
-  }
-
   const run = (cmd: string) =>
     new Promise<{ ok: boolean; out: string }>((res) =>
       exec(
         cmd,
-        { cwd: PROJECT_ROOT, maxBuffer: 1024 * 1024 },
+        { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
         (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
       ),
     );
 
-  // Load existing variables from vars.json
+  // Load existing variables from vars.json using unified API
   let existingVars: Record<string, any> = {};
   try {
-    const varsPath = join(PROJECT_ROOT, '.graph', 'vars.json');
-    if (existsSync(varsPath)) {
-      const varsContent = readFileSync(varsPath, 'utf-8');
-      existingVars = JSON.parse(varsContent);
+    const varsResult = await readFileFromUnifiedApi('blaxel/app/_graph/vars.json');
+    if (varsResult) {
+      existingVars = JSON.parse(varsResult.content);
+      console.log(`Loaded vars.json from ${varsResult.source}`);
+    } else {
+      // Fall back to local vars.json if Blaxel version doesn't exist
+      const varsPath = join(PROJECT_ROOT, '.graph', 'vars.json');
+      if (existsSync(varsPath)) {
+        const varsContent = readFileSync(varsPath, 'utf-8');
+        existingVars = JSON.parse(varsContent);
+        console.log('Loaded vars.json from local fallback');
+      }
     }
   } catch (error) {
     console.warn('Failed to load vars.json:', error);
@@ -63,9 +128,9 @@ export async function buildProject(filePath?: string) {
 
   // Check getVar calls in the file if provided
   let getVarErrors: string[] = [];
-  if (absoluteFilePath) {
+  if (filePath) {
     try {
-      const fileContent = readFileSync(absoluteFilePath, 'utf-8');
+      const fileContent = readFileSync(filePath, 'utf-8');
       // More robust regex to capture getVar calls with different quote types and multiline
       const getVarRegex = /getVar\s*\(\s*['"`]([^'"`]+)['"`]/g;
       let match;
@@ -79,13 +144,15 @@ export async function buildProject(filePath?: string) {
           getVarErrors.push(`getVar("${varName}") references undefined variable`);
         }
       }
+      console.log("usedVars", Array.from(usedVars));
+      console.log("existingVars keys", Object.keys(existingVars));
     } catch (error) {
       console.warn('Failed to check getVar calls:', error);
     }
   }
 
   // If no file path provided, do full build
-  if (!absoluteFilePath) {
+  if (!filePath) {
     const { ok, out } = await run('npx tsc --noEmit --pretty false');
     
     if (ok && getVarErrors.length === 0) return { success: true };
@@ -103,9 +170,9 @@ export async function buildProject(filePath?: string) {
     return { success: false, errorLines: allErrors };
   }
 
-  const ext = (absoluteFilePath.split(".").pop() || "").toLowerCase();
+  const ext = (filePath.split(".").pop() || "").toLowerCase();
   if (!["ts", "tsx"].includes(ext)) {
-    return getVarErrors.length > 0
+    return getVarErrors.length > 0 
       ? { success: false, errorLines: getVarErrors }
       : { success: true };
   }
@@ -117,17 +184,17 @@ export async function buildProject(filePath?: string) {
       jsx: "react-jsx",
       esModuleInterop: true,
       module: "ESNext",
-    })}' ${absoluteFilePath}`;
+    })}' ${filePath}`;
   let { ok, out } = await run(tsNodeCmd);
   if (ok && getVarErrors.length === 0) return { success: true };
 
   /* ─── 2 ▪ project-aware tsc (resolves @/ aliases) ─── */
-  const tsConfig = await findTsConfig(path.dirname(absoluteFilePath));
+  const tsConfig = await findTsConfig(path.dirname(filePath));
   const tscCmd = tsConfig
     ? // respect baseUrl / paths / strictness the project already defines
       `npx tsc --noEmit --pretty false -p ${tsConfig}`
     : // fall back to the relaxed per-file compile we used before
-      `npx tsc --noEmit --pretty false --jsx react-jsx --esModuleInterop --skipLibCheck ${absoluteFilePath}`;
+      `npx tsc --noEmit --pretty false --jsx react-jsx --esModuleInterop --skipLibCheck ${filePath}`;
 
   ({ ok, out } = await run(tscCmd));
   if (ok && getVarErrors.length === 0) return { success: true };
@@ -175,84 +242,51 @@ function getRuntimeError() {
 }
 export const codeEditorTools: ToolSet = {
   readFile: tool({
-    description: 'Read a file and return its content. Can read entire file or specific line ranges. Returns error if file not found or too long.',
+    description: 'Read a file and return its content. Uses unified API that handles both Blaxel sandbox and local file system.',
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to read this file'), */
       path: z.string().describe('The file path relative to the project root'),
-      offset: z.number().optional().describe('Line number to start reading from (1-indexed, optional)'),
-      limit: z.number().optional().describe('Number of lines to read (optional, if not provided reads from offset to end)'),
     }),
-    execute: async ({ path, offset, limit }) => {
+    execute: async ({ path }) => {
       try {
-        const fullPath = join(PROJECT_ROOT, path);
-
-        if (!existsSync(fullPath)) {
-          return {
-            success: false,
+        // Use unified API to read file
+        const result = await readFileFromUnifiedApi(path);
+        
+        if (!result) {
+          return { 
+            success: false, 
             message: `File not found: ${path}`,
             error: 'FILE_NOT_FOUND'
           };
         }
-
-        // Read file content
-        const content = readFileSync(fullPath, 'utf-8');
-        const allLines = content.split('\n');
-
-        if (allLines.length > MAX_FILE_LINES) {
-          return {
-            success: false,
-            message: `File too long: ${path} has ${allLines.length} lines (max: ${MAX_FILE_LINES})`,
+        
+        const { content, source } = result;
+        const lines = content.split('\n');
+        
+        if (lines.length > MAX_FILE_LINES) {
+          return { 
+            success: false, 
+            message: `File too long: ${path} has ${lines.length} lines (max: ${MAX_FILE_LINES})`,
             error: 'FILE_TOO_LONG',
-            lines: allLines.length,
+            lines: lines.length,
             maxLines: MAX_FILE_LINES
           };
         }
-
-        // Handle partial reading if offset is specified
-        let contentToUse = content;
-        let linesToUse = allLines;
-        let startLine = 1;
-        let endLine = allLines.length;
-
-        if (offset !== undefined) {
-          if (offset < 1 || offset > allLines.length) {
-            return {
-              success: false,
-              message: `Invalid offset: ${offset}. File has ${allLines.length} lines.`,
-              error: 'INVALID_OFFSET'
+        
+        const runtimeError = await buildProject(source === 'local' ? join(PROJECT_ROOT, path) : undefined);
+          if(runtimeError.success === true) {
+            return { 
+              success: true, 
+              message: `Successfully read file from ${source}: ${path}`,
+              content: content,
+              lines: lines.length,
+              path: path,
+              source: source
             };
           }
-
-          startLine = offset;
-          if (limit !== undefined) {
-            if (limit < 1) {
-              return {
-                success: false,
-                message: `Invalid limit: ${limit}. Must be positive.`,
-                error: 'INVALID_LIMIT'
-              };
-            }
-            endLine = Math.min(startLine + limit - 1, allLines.length);
-          } else {
-            endLine = allLines.length;
+          else {
+            return {success: true, message: "Error in file " + JSON.stringify(runtimeError) + "\n" + content, lines: lines.length, path: path, source: source};
           }
-
-          // Extract the specific lines
-          linesToUse = allLines.slice(startLine - 1, endLine);
-          contentToUse = linesToUse.join('\n');
-        }
-
-        return {
-          success: true,
-          message: offset !== undefined
-            ? `Successfully read file: ${path} (lines ${startLine}-${endLine})`
-            : `Successfully read file: ${path}`,
-          content: contentToUse,
-          lines: linesToUse.length,
-          path: path,
-          totalLines: allLines.length,
-          ...(offset !== undefined && { startLine, endLine })
-        };
       } catch (error) {
         return { 
           success: false, 
@@ -264,7 +298,7 @@ export const codeEditorTools: ToolSet = {
   }),
 
   createFile: tool({
-    description: 'Create a new file with the given content',
+    description: 'Create a new file with the given content. Uses unified API that handles both Blaxel sandbox and local file system.',
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to create this file'), */
       path: z.string().describe('The file path relative to the project root'),
@@ -272,20 +306,37 @@ export const codeEditorTools: ToolSet = {
     }),
     execute: async ({ path, content }) => {
       try {
-        const fullPath = join(PROJECT_ROOT, path);
-        const dir = dirname(fullPath);
+        // Use unified API to create file
+        const result = await writeFileToUnifiedApi(path, content, false);
         
-        // Create directory if it doesn't exist
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
+        if (!result.success) {
+          return { 
+            success: false, 
+            message: `Failed to create file: ${path}`,
+            operation: { type: 'create', path, content }
+          };
         }
         
-        writeFileSync(fullPath, content, 'utf-8');
-        return {
-          success: true,
-          message: `Created file: ${path}`,
-          operation: { type: 'create', path, content }
-        };
+        const runtimeError = await buildProject(result.localSuccess ? join(PROJECT_ROOT, path) : undefined);
+        console.log(">>>>>>>>>>createFile buildProject", runtimeError);
+        
+        const successMessage = result.blaxelSuccess && result.localSuccess ? 
+          `Created file in both Blaxel and local: ${path}` :
+          result.blaxelSuccess ? `Created file in Blaxel: ${path}` :
+          `Created file locally: ${path}`;
+          
+          if(runtimeError.success === true) {
+            return { 
+              success: true, 
+              message: successMessage,
+              operation: { type: 'create', path, content },
+              blaxelSuccess: result.blaxelSuccess,
+              localSuccess: result.localSuccess
+            };
+          }
+          else {
+            return {success: false, message: "Error in create" + JSON.stringify(runtimeError), operation: { type: 'create', path, content }, blaxelSuccess: result.blaxelSuccess, localSuccess: result.localSuccess};
+          }
       } catch (error) {
         return { 
           success: false, 
@@ -297,7 +348,7 @@ export const codeEditorTools: ToolSet = {
   }),
 
   updateFile: tool({
-    description: 'Update an existing file with new content',
+    description: 'Update an existing file with new content. Uses unified API that handles both Blaxel sandbox and local file system.',
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to update this file'), */
       path: z.string().describe('The file path relative to the project root'),
@@ -305,22 +356,37 @@ export const codeEditorTools: ToolSet = {
     }),
     execute: async ({ path, content }) => {
       try {
-        const fullPath = join(PROJECT_ROOT, path);
+        // Use unified API to update file
+        const result = await writeFileToUnifiedApi(path, content, true);
         
-        if (!existsSync(fullPath)) {
+        if (!result.success) {
           return { 
             success: false, 
-            message: `File does not exist: ${path}`,
+            message: `Failed to update file: ${path}`,
             operation: { type: 'update', path, content }
           };
         }
         
-        writeFileSync(fullPath, content, 'utf-8');
-        return {
-          success: true,
-          message: `Updated file: ${path}`,
-          operation: { type: 'update', path, content }
-        };
+        const runtimeError = await buildProject(result.localSuccess ? join(PROJECT_ROOT, path) : undefined);
+        
+        const successMessage = result.blaxelSuccess && result.localSuccess ? 
+          `Updated file in both Blaxel and local: ${path}` :
+          result.blaxelSuccess ? `Updated file in Blaxel: ${path}` :
+          result.localSuccess ? `Updated file locally: ${path}` :
+          `Failed to update file in both systems: ${path}`;
+          
+          if(runtimeError.success === true) {
+            return { 
+              success: result.success, 
+              message: successMessage,
+              operation: { type: 'update', path, content },
+              blaxelSuccess: result.blaxelSuccess,
+              localSuccess: result.localSuccess
+            };
+          }
+          else {
+            return {success: false, message: "Error in update" + JSON.stringify(runtimeError), operation: { type: 'update', path, content }, blaxelSuccess: result.blaxelSuccess, localSuccess: result.localSuccess};
+          }
       } catch (error) {
         return { 
           success: false, 
@@ -336,9 +402,9 @@ export const codeEditorTools: ToolSet = {
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to patch this file'), */
       path: z.string().describe('The file path relative to the project root'),
-      content: z.string().describe('EXACT code replacement format: "// Original code:\n[exact lines from file]\n\n// Updated code:\n[new lines with changes]" - Must include verbatim context from the target file'),
+      patchDescription: z.string().describe('EXACT code replacement format: "// Original code:\n[exact lines from file]\n\n// Updated code:\n[new lines with changes]" - Must include verbatim context from the target file'),
     }),
-    execute: async ({ path, content }) => {
+    execute: async ({ path, patchDescription }) => {
       try {
         const fullPath = join(PROJECT_ROOT, path);
         
@@ -346,15 +412,25 @@ export const codeEditorTools: ToolSet = {
           return { 
             success: false, 
             message: `File does not exist: ${path}`,
-            operation: { type: 'patch', path, content }
+            operation: { type: 'patch', path, patchDescription }
           };
         }
         
-        // Read current content
-        const currentContent = readFileSync(fullPath, 'utf-8');
+        // Read current content using unified API
+        const fileResult = await readFileFromUnifiedApi(path);
+        if (!fileResult) {
+          return { 
+            success: false, 
+            message: `File does not exist: ${path}`,
+            operation: { type: 'patch', path, patchDescription }
+          };
+        }
+        
+        const currentContent = fileResult.content;
+        const contentSource = fileResult.source;
 
         // Validate patchDescription is edit_file-style with contextual code (be permissive but guard against pure instructions)
-        const description = content || '';
+        const description = patchDescription || '';
         const hasEditMarker = description.includes('// ... existing code ...');
         const lines = description.split('\n');
         const normalizedCandidates = lines
@@ -368,21 +444,17 @@ export const codeEditorTools: ToolSet = {
             success: false,
             message:
               'PATCH_DESCRIPTION_INVALID: You must provide EXACT code in this format:\n\n// Original code:\n[copy exact lines from the file here]\n\n// Updated code:\n[your modified version here]\n\nExample:\n// Original code:\n<section id="projects-section" className="relative">\n\n// Updated code:\n<section id="projects-section" className="relative m-4">\n\nDO NOT use natural language descriptions. Copy actual code from the file.',
-            operation: { type: 'patch', path, content },
+            operation: { type: 'patch', path, patchDescription },
           };
         }
         
-        // Always send the FULL file content to the patch API to avoid truncation/splitting issues
-        const payloadContent = currentContent;
-        const payloadPatch = content;
-
-        // Call the quick patch API with only the focused block
+        // Call the quick patch API to get the patched content
         const response = await fetch('http://localhost:3000/api/agents/quick-patch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fileContent: payloadContent,
-            patchDescription: payloadPatch,
+            fileContent: currentContent,
+            patchDescription: patchDescription,
             filePath: path, // hints model about file context if useful
           }),
         });
@@ -391,20 +463,20 @@ export const codeEditorTools: ToolSet = {
           return { 
             success: false, 
             message: `Patch API failed: ${response.statusText}`,
-            operation: { type: 'patch', path, content }
+            operation: { type: 'patch', path, patchDescription }
           };
         }
 
-        const result = await response.json();
+        const patchResult = await response.json();
         
-        if (!result.success) {
+        if (!patchResult.success) {
           return { 
             success: false, 
-            message: `Patch failed: ${result.error}`,
-            operation: { type: 'patch', path, content }
+            message: `Patch failed: ${patchResult.error}`,
+            operation: { type: 'patch', path, patchDescription }
           };
         }
-        console.log(">>>>>>>>>>patchFile result", result);
+        console.log(">>>>>>>>>>patchFile patchResult", patchResult);
 
         // Helper: strip surrounding markdown code fences if present
         const stripFences = (s: string): string => {
@@ -484,7 +556,7 @@ export const codeEditorTools: ToolSet = {
         };
 
         // Prepare final content with safety adjustments
-        const rawPatched = String(result.patchedContent ?? '');
+        const rawPatched = String(patchResult.patchedContent ?? '');
         const noFences = stripFences(rawPatched);
 
         // Full-file replacement: preserve/normalize top-of-file directives
@@ -495,51 +567,82 @@ export const codeEditorTools: ToolSet = {
           return {
             success: false,
             message: 'PATCH_NOOP: No changes were applied to the file. Ensure your patch uses verbatim context from the target file and touches the intended code.',
-            operation: { type: 'patch', path, content }
+            operation: { type: 'patch', path, patchDescription }
           };
         }
 
-        // Write the patched content
-        writeFileSync(fullPath, adjusted, 'utf-8');
-        writeFileSync("patchlog.txt", adjusted, 'utf-8');
-        return {
-          success: true,
-          message: `Patch applied successfully to: ${path}`,
-          operation: { type: 'patch', path, content }
-        };
+        // Write the patched content using unified API
+        const writeResult = await writeFileToUnifiedApi(path, adjusted, true);
+        
+        writeFileSync("patchlog.txt", adjusted, 'utf-8'); // Keep patch log locally
+        const runtimeError = await buildProject(writeResult.localSuccess ? fullPath : undefined);
+        
+        const successMessage = writeResult.blaxelSuccess && writeResult.localSuccess ? 
+          `Patch applied successfully to both Blaxel and local: ${path}` :
+          writeResult.blaxelSuccess ? `Patch applied successfully to Blaxel: ${path}` :
+          writeResult.localSuccess ? `Patch applied successfully locally: ${path}` :
+          `Failed to apply patch to both systems: ${path}`;
+        
+        if(runtimeError.success === true) {
+          return { 
+            success: writeResult.success, 
+            message: successMessage,
+            operation: { type: 'patch', path, patchDescription },
+            blaxelSuccess: writeResult.blaxelSuccess,
+            localSuccess: writeResult.localSuccess,
+            contentSource
+          };
+        } else {
+          return {
+            success: false, 
+            message: "Error in patch: " + JSON.stringify(runtimeError), 
+            operation: { type: 'patch', path, patchDescription },
+            blaxelSuccess: writeResult.blaxelSuccess,
+            localSuccess: writeResult.localSuccess,
+            contentSource
+          };
+        }
       } catch (error) {
         return { 
           success: false, 
           message: `Failed to patch file: ${error}`,
-          operation: { type: 'patch', path, content }
+          operation: { type: 'patch', path, patchDescription }
         };
       }
     },
   }),
 
   deleteFile: tool({
-    description: 'Delete an existing file',
+    description: 'Delete an existing file using unified API that handles both Blaxel sandbox and local file system',
     parameters: z.object({
       explanation: z.string().describe('Short explanation of why you want to delete this file'),
       path: z.string().describe('The file path relative to the project root'),
     }),
     execute: async ({ path, explanation }) => {
       try {
-        const fullPath = join(PROJECT_ROOT, path);
+        // Use unified API to delete file
+        const result = await deleteFileFromUnifiedApi(path);
         
-        if (!existsSync(fullPath)) {
+        if (!result.success) {
           return { 
             success: false, 
-            message: `File does not exist: ${path}`,
+            message: `Failed to delete file: ${path}`,
             operation: { type: 'delete', path }
           };
         }
         
-        unlinkSync(fullPath);
+        const successMessage = result.blaxelSuccess && result.localSuccess ? 
+          `Deleted file from both Blaxel and local: ${path}` :
+          result.blaxelSuccess ? `Deleted file from Blaxel: ${path}` :
+          result.localSuccess ? `Deleted file locally: ${path}` :
+          `Failed to delete file from both systems: ${path}`;
+        
         return { 
-          success: true, 
-          message: `Deleted file: ${path}`,
-          operation: { type: 'delete', path }
+          success: result.success, 
+          message: successMessage,
+          operation: { type: 'delete', path },
+          blaxelSuccess: result.blaxelSuccess,
+          localSuccess: result.localSuccess
         };
       } catch (error) {
         return { 
@@ -551,19 +654,38 @@ export const codeEditorTools: ToolSet = {
     },
   }),
 
-  buildProject: tool({
+  /* buildProject: tool({
     description:
-      'Builds and validates the entire project to check for TypeScript errors, syntax issues, and undefined getVar references. ' +
-      'Call this AFTER making all your changes to ensure the project compiles correctly. ' +
-      'If errors are found, inspect errorLines and fix the issues before proceeding.',
-    parameters: z.object({
-      filePath: z.string().optional().describe('Optional specific file path to build (if not provided, builds entire project)')
-    }),
-    execute: async ({ filePath }) => {
-      const result = await buildProject(filePath);
-      return result;
+      'ALWAYS call this first when the user says “fix”, “debug” or similar but has not ' +
+      'pasted an error.  Runs `tsc --noEmit --pretty false` to surface syntax & type ' +
+      'errors (those are what show up in the red overlay). If it returns success:false, ' +
+      'inspect `errorLines`, patch the offending file, and call again until success:true.',
+    parameters: z.object({}), // no arguments
+    execute: async () => {
+      const { exec } = await import('child_process');
+      const run = (cmd: string) =>
+        new Promise<{ ok: boolean; out: string }>((res) =>
+          exec(
+            cmd,
+            { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
+            (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
+          ),
+        );
+
+      const { ok, out } = await run('npx tsc --noEmit --pretty false');
+
+      if (ok) return { success: true };
+
+      // strip ANSI colour codes
+      const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
+      const lines = plain.split('\n').filter((l) => l.trim());
+      const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
+      const errorLines =
+        (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
+
+      return { success: false, errorLines };
     },
-  }),
+  }), */
  
   /* getRuntimeError: tool({
     description:
