@@ -33,7 +33,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   
   // Determine styling based on node state (built/unbuilt/building)
   const getNodeStyles = () => {
-    const borderWidth = isZoomedOut ? '8px' : '2px';
+    const borderWidth = isZoomedOut ? '3px' : '0px';
     
     switch (node.state) {
       case 'built':
