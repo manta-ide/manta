@@ -50,6 +50,7 @@ Once the design foundation is set, integrate the dynamic content system precisel
 6.  **Implementation Speed:** Work quickly and efficiently. Do not read layout files, config files, or any files related to the variables system (like vars.json, lib/vars, etc.). Focus only on generating the page content using the provided graph data and property system.
 7.  **CSS Variables:** Use only `var()` without any calculations. Do not use `calc(var())` or any complex CSS expressions. Simple `var(--property-name)` calls only.
 8.  **Project Validation:** After making all your changes, ALWAYS call the `buildProject` tool to validate the project. This will check for TypeScript errors, syntax issues, and undefined getVar references. Fix any errors it reports before considering the task complete.
+9.  **Summary:** After completing all changes and validation, provide a one-sentence short summary of what you accomplished.
 
 ---
 
