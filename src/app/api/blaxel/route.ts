@@ -4,7 +4,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
 interface BlaxelRequest {
-  action: 'connect' | 'execute' | 'readFile' | 'writeFile' | 'deleteFile' | 'listFiles' | 'downloadGraph' | 'saveGraph';
+  action: 'connect' | 'execute' | 'readFile' | 'writeFile' | 'deleteFile' | 'listFiles' | 'downloadGraph' | 'saveGraph' | 'exportProject';
   sandboxName?: string;
   command?: string;
   path?: string;
@@ -333,6 +333,60 @@ export async function POST(request: NextRequest) {
         }
         break;
 
+      case 'exportProject':
+        console.log(`[${requestId}] Exporting project files from sandbox`);
+        try {
+          const sandbox = await SandboxInstance.get(finalSandboxName);
+          console.log(`[${requestId}] Sandbox retrieved, collecting all files...`);
+          
+          // First verify that we can access the sandbox filesystem
+          const appDir = '/blaxel/app';
+          try {
+            const appLs = await sandbox.fs.ls(appDir);
+            console.log(`[${requestId}] App directory listing:`, appLs);
+            
+            if (!appLs || !appLs.files || !appLs.subdirectories) {
+              throw new Error('Invalid response from sandbox filesystem');
+            }
+          } catch (fsError) {
+            console.error(`[${requestId}] Failed to access app directory:`, fsError);
+            result = {
+              success: false,
+              error: 'Failed to access app directory',
+              details: fsError instanceof Error ? fsError.message : 'Unknown error'
+            };
+            break;
+          }
+          
+          // Get all files recursively from the app directory
+          const allFiles = await getAllFilesRecursive(sandbox, appDir);
+          const fileCount = Object.keys(allFiles).length;
+          
+          if (fileCount === 0) {
+            console.log(`[${requestId}] No files found in sandbox`);
+            result = {
+              success: false,
+              error: 'No files found in sandbox',
+              details: 'The recursive file search returned no files'
+            };
+          } else {
+            console.log(`[${requestId}] Found ${fileCount} files to export`);
+            result = {
+              success: true,
+              files: allFiles,
+              message: `Exported ${fileCount} files from sandbox`
+            };
+          }
+        } catch (error) {
+          console.error(`[${requestId}] Project export failed:`, error);
+          result = {
+            success: false,
+            error: 'Failed to export project from sandbox',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
+        break;
+
       default:
         console.log(`[${requestId}] ERROR: Invalid action: ${action}`);
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -356,6 +410,164 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to recursively get all files from sandbox
+async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Record<string, string>> {
+  const files: Record<string, string> = {};
+  
+  // Define excluded directories and files
+  const EXCLUDED_DIRS = new Set([
+    'node_modules',
+    '.git',
+    '.next',
+    'dist',
+    'build',
+    'coverage',
+    '.vscode',
+    '.idea',
+    'logs',
+    'tmp',
+    'temp',
+    '.blaxel',
+    '.cache',
+    '.config',
+    '.npm',
+    'bin',
+    'dev',
+    'etc',
+    'home',
+    'lib',
+    'media',
+    'mnt',
+    'opt',
+    'proc',
+    'root',
+    'run',
+    'sbin',
+    'srv',
+    'sys',
+    'uk',
+    'usr',
+    'var'
+  ]);
+
+  const EXCLUDED_FILES = new Set([
+    '.env',
+    '.env.local',
+    '.env.development.local',
+    '.env.test.local',
+    '.env.production.local',
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    '.DS_Store',
+    'Thumbs.db'
+  ]);
+
+  try {
+    // Make sure directory is a string
+    const dirStr = String(directory);
+    console.log(`Listing directory: ${dirStr}`);
+    
+    // Use the SDK properly according to documentation
+    const lsResult = await sandbox.fs.ls(dirStr);
+    
+    if (!lsResult || typeof lsResult !== 'object') {
+      console.log(`Invalid response from ls for ${dirStr}:`, lsResult);
+      return files;
+    }
+    
+    // Ensure we have arrays
+    const subdirectories = Array.isArray(lsResult.subdirectories) ? lsResult.subdirectories : [];
+    const fileList = Array.isArray(lsResult.files) ? lsResult.files : [];
+    
+    console.log(`Found ${fileList.length} files and ${subdirectories.length} subdirectories in ${dirStr}`);
+    
+    // Process files in current directory
+    for (let i = 0; i < fileList.length; i++) {
+      const fileItem = fileList[i];
+      // Check if fileItem is an object with path and name properties
+      const fileName = typeof fileItem === 'object' && fileItem !== null 
+        ? fileItem.name 
+        : typeof fileItem === 'string' 
+          ? fileItem 
+          : null;
+      
+      if (!fileName) {
+        console.log(`Skipping file with invalid name at index ${i}:`, fileItem);
+        continue;
+      }
+      
+      if (EXCLUDED_FILES.has(fileName)) {
+        console.log(`Skipping excluded file: ${fileName}`);
+        continue;
+      }
+      
+      // Get file path - either from the object or construct it
+      const filePath = typeof fileItem === 'object' && fileItem !== null && fileItem.path
+        ? fileItem.path
+        : dirStr === '/' ? `/${fileName}` : `${dirStr}/${fileName}`;
+      
+      try {
+        console.log(`Reading file: ${filePath}`);
+        const content = await sandbox.fs.read(filePath);
+        
+        // Remove leading slash for consistency in the output
+        let normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+        
+        // Keep the full path including blaxel/app prefix for proper file organization
+        files[normalizedPath] = content;
+        console.log(`Successfully read file: ${normalizedPath}`);
+      } catch (error) {
+        console.log(`Failed to read file ${filePath}:`, error);
+        // Continue with other files
+      }
+    }
+    
+    // Process subdirectories recursively
+    for (let i = 0; i < subdirectories.length; i++) {
+      const dirItem = subdirectories[i];
+      // Check if dirItem is an object with path and name properties
+      const dirName = typeof dirItem === 'object' && dirItem !== null 
+        ? dirItem.name 
+        : typeof dirItem === 'string' 
+          ? dirItem 
+          : null;
+      
+      if (!dirName) {
+        console.log(`Skipping directory with invalid name at index ${i}:`, dirItem);
+        continue;
+      }
+      
+      if (EXCLUDED_DIRS.has(dirName)) {
+        console.log(`Skipping excluded directory: ${dirName}`);
+        continue;
+      }
+      
+      // Get directory path - either from the object or construct it
+      const dirPath = typeof dirItem === 'object' && dirItem !== null && dirItem.path
+        ? dirItem.path
+        : dirStr === '/' ? `/${dirName}` : `${dirStr}/${dirName}`;
+      
+      console.log(`Recursively processing directory: ${dirPath}`);
+      
+      try {
+        const subFiles = await getAllFilesRecursive(sandbox, dirPath);
+        
+        // Merge subdirectory files
+        Object.assign(files, subFiles);
+        console.log(`Merged ${Object.keys(subFiles).length} files from ${dirPath}`);
+      } catch (error) {
+        console.log(`Failed to process subdirectory ${dirPath}:`, error);
+        // Continue with other directories
+      }
+    }
+  } catch (error) {
+    console.log(`Failed to list directory ${directory}:`, error);
+  }
+  
+  return files;
 }
 
 // Mock command output for development

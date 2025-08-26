@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network } from 'lucide-react';
+import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,9 +27,40 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const switchId = useId();
   const { user, signOut, loading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleExportProject = async () => {
+    if (isExporting) return; // Prevent multiple clicks
+    
+    try {
+      setIsExporting(true);
+      const response = await fetch('/api/export');
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'project-export.zip';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to export project:', errorData.error);
+        alert(`Export failed: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error exporting project:', error);
+      alert('Export failed. Check console for details.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -116,6 +147,22 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               <Network className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Export Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportProject}
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            title="Export project as ZIP"
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+          </Button>
 
           {/* Authentication Section */}
           <div className="flex items-center gap-2">
