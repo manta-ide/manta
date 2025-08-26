@@ -23,7 +23,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: Au
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Welcome to Manta Editor</DialogTitle>
+          <DialogTitle className="text-center">Welcome to Manta</DialogTitle>
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}>

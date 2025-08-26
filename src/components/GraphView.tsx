@@ -45,7 +45,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       };
     } else {
       return {
-        background: selected ? '#fefaf8' : '#fef3c7',
+        background: '#fef3c7', // Keep yellow background even when selected
         border: selected ? `${borderWidth} solid #ea580c` : '1px solid #fbbf24',
         boxShadow: selected 
           ? '0 0 0 4px #ea580c' 
