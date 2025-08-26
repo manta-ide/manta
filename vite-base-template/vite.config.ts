@@ -12,12 +12,15 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3001,
+    host: true,
+    allowedHosts: true,
+    port: 5173,
     fs: { 
       allow: ["..", ".graph", "/absolute/path/to/config"] 
     }
   },
   preview: {
-    port: 3001,
+    host: true,
+    port: 5173,
   },
 })

@@ -1,7 +1,7 @@
 // next.config.ts
 import type { NextConfig } from 'next';
 
-const REMOTE_ORIGIN = 'https://6c9d4529ee4fe798ad651c4bc1266eec.preview.bl.run';
+const REMOTE_ORIGIN = 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run';
 
 const nextConfig: NextConfig = {
 
@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
 async rewrites() {
   return [
     // HTML & API under /iframe/…
-    { source: '/iframe', destination: 'https://6c9d4529ee4fe798ad651c4bc1266eec.preview.bl.run/iframe' },
-    { source: '/iframe/:path*', destination: 'https://6c9d4529ee4fe798ad651c4bc1266eec.preview.bl.run/iframe/:path*' },
+    { source: '/iframe', destination: 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run' },
+    { source: '/iframe/:path*', destination: 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run/:path*' },
   ];
 }
 

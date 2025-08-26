@@ -68,7 +68,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadProject: async () => {
     try {
       console.log('📂 Loading project from filesystem...');
-      const response = await fetch(`${process.env.BACKEND_URL}/api/files?graphs=true`);
+      const response = await fetch('/api/files?graphs=true');
       const data = await response.json();
       
       if (response.ok) {
@@ -77,13 +77,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         console.log('📁 File tree structure:', data.fileTree);
         
         // Initialize in-memory graph storage from filesystem as source of truth
-        await fetch(`${process.env.BACKEND_URL}/api/backend/storage/initialize`, {
+        await fetch('/api/backend/storage/initialize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
         
         // Also trigger graph API refresh to ensure it has the latest data
-        await fetch(`${process.env.BACKEND_URL}/api/backend/graph-api`, {
+        await fetch('/api/backend/graph-api', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'refresh' })
@@ -104,7 +104,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setFileContent: async (filePath, content) => {
     try {
       console.log(`📝 Updating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch(`${process.env.BACKEND_URL}/api/files`, {
+      const response = await fetch('/api/files', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content })
@@ -130,7 +130,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   deleteFile: async (filePath) => {
     try {
       console.log(`🗑️ Deleting file: ${filePath}`);
-      const response = await fetch(`${process.env.BACKEND_URL}/api/files`, {
+      const response = await fetch('/api/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath })
@@ -164,7 +164,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   createFile: async (filePath, content) => {
     try {
       console.log(`➕ Creating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch(`${process.env.BACKEND_URL}/api/files`, {
+      const response = await fetch('/api/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content })
@@ -214,7 +214,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
-      const response = await fetch(`${process.env.BACKEND_URL}/api/backend/graph-api`, {
+      const response = await fetch('/api/backend/graph-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'refresh' })

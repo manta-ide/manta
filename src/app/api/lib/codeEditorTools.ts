@@ -5,8 +5,6 @@ import { join } from 'path';
 // import { getLastError, clearLastError } from '@/lib/runtimeErrorStore';
 import path from 'node:path';
 
-// Project root for file operations (base-template directory)
-const PROJECT_ROOT = join(process.cwd(), 'base-template');
 
 // Maximum file size to read (in lines) to prevent memory issues
 const MAX_FILE_LINES = 1000;
@@ -14,7 +12,7 @@ const MAX_FILE_LINES = 1000;
 // Unified file API functions (handles both Blaxel and local files)
 async function callFilesApi(method: string, path: string, body?: any) {
   try {
-    const url = path ? `${process.env.BACKEND_URL}/api/files?path=${encodeURIComponent(path)}` : `${process.env.BACKEND_URL}/api/files`;
+    const url = path ? `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(path)}` : `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/files`;
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -112,15 +110,7 @@ export async function buildProject(filePath?: string) {
     if (varsResult) {
       existingVars = JSON.parse(varsResult.content);
       console.log(`Loaded vars.json from ${varsResult.source}`);
-    } else {
-      // Fall back to local vars.json if Blaxel version doesn't exist
-      const varsPath = join(PROJECT_ROOT, '.graph', 'vars.json');
-      if (existsSync(varsPath)) {
-        const varsContent = readFileSync(varsPath, 'utf-8');
-        existingVars = JSON.parse(varsContent);
-        console.log('Loaded vars.json from local fallback');
-      }
-    }
+    } 
   } catch (error) {
     console.warn('Failed to load vars.json:', error);
   }
@@ -272,7 +262,7 @@ export const codeEditorTools: ToolSet = {
           };
         }
         
-        const runtimeError = await buildProject(source === 'local' ? join(PROJECT_ROOT, path) : undefined);
+        const runtimeError = await buildProject(source === 'local' ? path : undefined);
           if(runtimeError.success === true) {
             return { 
               success: true, 
@@ -316,7 +306,7 @@ export const codeEditorTools: ToolSet = {
           };
         }
         
-        const runtimeError = await buildProject(result.localSuccess ? join(PROJECT_ROOT, path) : undefined);
+        const runtimeError = await buildProject(result.localSuccess ? path : undefined);
         console.log(">>>>>>>>>>createFile buildProject", runtimeError);
         
         const successMessage = result.blaxelSuccess && result.localSuccess ? 
@@ -366,7 +356,7 @@ export const codeEditorTools: ToolSet = {
           };
         }
         
-        const runtimeError = await buildProject(result.localSuccess ? join(PROJECT_ROOT, path) : undefined);
+        const runtimeError = await buildProject(result.localSuccess ? path : undefined);
         
         const successMessage = result.blaxelSuccess && result.localSuccess ? 
           `Updated file in both Blaxel and local: ${path}` :
@@ -405,9 +395,9 @@ export const codeEditorTools: ToolSet = {
     }),
     execute: async ({ path, patchDescription }) => {
       try {
-        const fullPath = join(PROJECT_ROOT, path);
-        
-        if (!existsSync(fullPath)) {
+        // Check if file exists using unified API instead of local filesystem
+        const fileCheck = await readFileFromUnifiedApi(path);
+        if (!fileCheck) {
           return { 
             success: false, 
             message: `File does not exist: ${path}`,
@@ -448,7 +438,7 @@ export const codeEditorTools: ToolSet = {
         }
         
         // Call the quick patch API to get the patched content
-        const response = await fetch(`${process.env.BACKEND_URL}/api/agents/quick-patch`, {
+        const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3000'}/api/agents/quick-patch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -573,7 +563,7 @@ export const codeEditorTools: ToolSet = {
         // Write the patched content using unified API
         const writeResult = await writeFileToUnifiedApi(path, adjusted, true);
         
-        const runtimeError = await buildProject(writeResult.localSuccess ? fullPath : undefined);
+        const runtimeError = await buildProject(writeResult.localSuccess ? path : undefined);
         
         const successMessage = writeResult.blaxelSuccess && writeResult.localSuccess ? 
           `Patch applied successfully to both Blaxel and local: ${path}` :

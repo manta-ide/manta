@@ -96,8 +96,8 @@ export default function FileTree() {
         <div className="mb-3">
           <FileTreeNode 
             node={{ 
-              name: 'manta-base-template', 
-              path: 'manta-base-template', 
+              name: 'project', 
+              path: '', 
               type: 'directory', 
               children: fileTree 
             }} 

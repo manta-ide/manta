@@ -162,7 +162,7 @@ export default function SelectedNodeSidebar() {
 					graph: graph,
 					nodeId: selectedNodeId,
 					generatedCode,
-					filePath: 'base-template/src/app/page.tsx'
+					filePath: 'src/app/page.tsx'
 				}),
 			});
 			
