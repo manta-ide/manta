@@ -4,6 +4,7 @@ import React, { useId } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Property } from '@/app/api/lib/schemas';
+import BasePropertyEditor from './BasePropertyEditor';
 
 interface CheckboxPropertyEditorProps {
   property: Property & { type: 'checkbox' };
@@ -15,23 +16,18 @@ export default function CheckboxPropertyEditor({ property, onChange }: CheckboxP
   const value = Boolean(property.value) || false;
 
   return (
-    <div className="flex flex-col gap-2 py-2">
-      <Label
-        htmlFor={id}
-        className="text-sm font-bold text-white"
-      >
-        {property.title}
-      </Label>
+    <BasePropertyEditor title={property.title}>
       <div className="flex items-center gap-2">
         <Checkbox
           id={id}
           checked={value}
           onCheckedChange={onChange}
+          className="scale-75"
         />
-        <Label htmlFor={id} className="text-sm font-bold text-white">
+        <Label htmlFor={id} className="text-xs text-zinc-300">
           {property.title}
         </Label>
       </div>
-    </div>
+    </BasePropertyEditor>
   );
 }

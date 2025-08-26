@@ -4,6 +4,7 @@ import React, { useId } from 'react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Property } from '@/app/api/lib/schemas';
+import BasePropertyEditor from './BasePropertyEditor';
 
 interface RadioPropertyEditorProps {
   property: Property & { type: 'radio'; options: string[] };
@@ -15,27 +16,25 @@ export default function RadioPropertyEditor({ property, onChange }: RadioPropert
   const value = property.value as string || '';
 
   return (
-    <div className="flex flex-col gap-2 py-2">
-      <Label className="text-sm font-bold text-white">
-        {property.title}
-      </Label>
+    <BasePropertyEditor title={property.title}>
       <RadioGroup
         value={value}
         onValueChange={onChange}
-        className="w-full"
+        className="w-full space-y-1"
       >
         {property.options.map((option, index) => (
           <div key={option} className="flex items-center gap-2">
             <RadioGroupItem
               value={option}
               id={`${id}-${index}`}
+              className="scale-75"
             />
-            <Label htmlFor={`${id}-${index}`} className="text-sm font-bold text-white">
+            <Label htmlFor={`${id}-${index}`} className="text-xs text-zinc-300">
               {option}
             </Label>
           </div>
         ))}
       </RadioGroup>
-    </div>
+    </BasePropertyEditor>
   );
 }

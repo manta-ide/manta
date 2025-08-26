@@ -10,7 +10,7 @@ import { setCurrentGraph, resetPendingChanges } from '@/app/api/lib/graphEditorT
 
 // Multi-step agent configuration for graph editing
 const GRAPH_EDITOR_CONFIG = {
-  model: 'gpt-5',
+  model: 'gpt-4o',
   maxSteps: 20,
   streaming: false,
   temperature: 1,

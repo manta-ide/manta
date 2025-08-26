@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Property } from '@/app/api/lib/schemas';
+import BasePropertyEditor from './BasePropertyEditor';
 
 interface SliderPropertyEditorProps {
   property: Property & { type: 'slider' };
@@ -16,11 +16,8 @@ export default function SliderPropertyEditor({ property, onChange }: SliderPrope
     : [typeof property.value === 'number' ? property.value : 50]; // Default to 50 if no valid value
 
   return (
-    <div className="flex flex-col gap-2 py-2">
-      <Label className="text-sm font-bold text-white">
-        {property.title}
-      </Label>
-      <div className="w-full">
+    <BasePropertyEditor title={property.title}>
+      <div className="w-full px-1">
         <Slider
           value={value}
           onValueChange={onChange}
@@ -28,8 +25,9 @@ export default function SliderPropertyEditor({ property, onChange }: SliderPrope
           max={property.max || 100}
           step={property.step || 1}
           aria-label={property.title}
+          className="[&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
         />
       </div>
-    </div>
+    </BasePropertyEditor>
   );
 }

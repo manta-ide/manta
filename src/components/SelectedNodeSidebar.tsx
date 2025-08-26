@@ -5,12 +5,8 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
@@ -329,18 +325,55 @@ export default function SelectedNodeSidebar() {
 
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
-			<div className="p-3 border-b border-zinc-700">
-				<span className="font-bold text-sm truncate max-w-[280px] leading-tight" title={selectedNode?.title || selectedNodeId}>
+			<div className="px-3 py-2 border-b border-zinc-700">
+				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={selectedNode?.title || selectedNodeId}>
 					{selectedNode?.title || selectedNodeId}
 				</span>
 			</div>
-			<div className="overflow-y-auto max-h-[calc(100vh-7rem)] p-3 space-y-4">
+			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
+				<div className="space-y-3 pr-2">
 				{selectedNode && (
 					<>
+						{/* Prompt Section */}
+						<div>
+							<div className="flex items-center justify-between mb-3">
+								<div className="text-xs font-medium text-zinc-300">
+									Prompt
+								</div>
+								<button
+									className={`px-2 py-1 rounded text-xs font-medium ${
+										selectedNode?.built 
+											? 'bg-blue-600 hover:bg-blue-700' 
+											: 'bg-orange-600 hover:bg-orange-700'
+									} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200`}
+									disabled={isRebuilding}
+									onClick={handleRebuild}
+								>{isRebuilding ? (selectedNode?.built ? 'Rebuilding…' : 'Building…') : (selectedNode?.built ? 'Rebuild' : 'Build')}</button>
+							</div>
+							<div className="space-y-1.5">
+								<Textarea
+									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
+									value={promptDraft}
+									onChange={(e) => setPromptDraft(e.target.value)}
+									placeholder="Enter prompt..."
+								/>
+								{rebuildError && (
+									<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
+										{rebuildError}
+									</div>
+								)}
+								{rebuildSuccess && (
+									<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-1.5">
+										Node rebuilt successfully!
+									</div>
+								)}
+							</div>
+						</div>
+
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
-							<div className="space-y-2">
+							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
 								{selectedNode.properties?.map((property: Property, index: number) => (
-									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-2 mb-2" : ""}>
+									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
 										<PropertyEditor
 											property={{
 												...property,
@@ -354,62 +387,21 @@ export default function SelectedNodeSidebar() {
 						)}
 
 						{selectedNode.children?.length > 0 && (
-							<div>
-								<div className="text-sm font-semibold text-zinc-200 border-b border-zinc-700/30 pb-1 mb-2">Children ({selectedNode.children.length})</div>
-								<ul className="space-y-1">
+							<div className="border-t border-zinc-700/30 pt-3">
+								<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({selectedNode.children.length})</div>
+								<ul className="space-y-0.5">
 									{selectedNode.children.map((child: any) => (
-										<li key={child.id} className="text-xs font-medium text-zinc-300 bg-zinc-800/30 rounded p-1.5 border border-zinc-700/20">
+										<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
 											{child.title}
 										</li>
 									))}
 								</ul>
 							</div>
 						)}
-
-						{/* Prompt Section - Collapsible */}
-						<div className="border-t border-zinc-700/30 pt-3">
-							<Accordion type="single" collapsible className="w-full">
-								<AccordionItem value="prompt" className="border-none">
-									<AccordionTrigger className="py-1 text-sm font-semibold text-zinc-200 hover:text-zinc-100 hover:no-underline">
-										Prompt
-									</AccordionTrigger>
-									<AccordionContent className="pt-2 pb-0">
-										<div className="space-y-2">
-											<textarea
-												className="w-full h-32 text-sm bg-zinc-800 border border-zinc-700 rounded-md p-2 text-white font-medium leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-												value={promptDraft}
-												onChange={(e) => setPromptDraft(e.target.value)}
-											/>
-											{rebuildError && (
-												<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-2 font-medium">
-													{rebuildError}
-												</div>
-											)}
-											{rebuildSuccess && (
-												<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-2 font-medium">
-													Node rebuilt successfully!
-												</div>
-											)}
-											<div className="flex gap-2 pt-2">
-												<button
-													className={`px-3 py-1.5 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
-													disabled={isRebuilding}
-													onClick={handleRebuild}
-												>{isRebuilding ? 'Rebuilding…' : 'Rebuild'}</button>
-												<button
-													className={`px-3 py-1.5 rounded text-xs font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
-													disabled={isGeneratingProperties}
-													onClick={handleGenerateProperties}
-												>{isGeneratingProperties ? 'Generating…' : 'Generate Props'}</button>
-											</div>
-										</div>
-									</AccordionContent>
-								</AccordionItem>
-							</Accordion>
-						</div>
 					</>
 				)}
-			</div>
+				</div>
+			</ScrollArea>
 		</div>
 	);
 }

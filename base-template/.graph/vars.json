@@ -87,5 +87,21 @@
   "input-radius": "12px",
   "button-radius": "12px",
   "footer-padding-y": "24px",
-  "is-accent-submit": true
+  "is-accent-submit": true,
+  "reviews-title": "Testimonials",
+  "reviews-subtitle": "What clients and colleagues say about our work.",
+  "review-1-client": "John Doe",
+  "review-1-text": "Working with Alex was a pleasure. Their expertise and dedication to quality truly transformed our project.",
+  "review-1-rating": "5",
+  "review-1-avatar": "https://placehold.co/128x128",
+  "review-2-client": "Jane Smith",
+  "review-2-text": "Alex's innovative solutions and swift troubleshooting were instrumental in our success.",
+  "review-2-rating": "5",
+  "review-2-avatar": "https://placehold.co/128x128",
+  "reviews-grid-gap": "24px",
+  "reviews-card-radius": "16px",
+  "reviews-card-padding": "16px",
+  "reviews-background-color": "#64a6bd",
+  "reviews-text-color": "#240046",
+  "reviews-border-color": "#bcb8b1"
 }

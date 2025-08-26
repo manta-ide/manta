@@ -134,7 +134,7 @@
     @apply bg-background text-foreground;
     background: var(--background);
     color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: Inter, sans-serif;
   }
 }
 
@@ -205,3 +205,5 @@
 .custom-scrollbar::-webkit-scrollbar-button {
   display: none;
 }
+
+
