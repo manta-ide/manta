@@ -31,27 +31,40 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
   
-  // Determine styling based on built status
+  // Determine styling based on node state (built/unbuilt/building)
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '8px' : '2px';
-    if (node.built) {
-      return {
-        background: selected ? '#f8fafc' : '#ffffff',
-        border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
-        boxShadow: selected 
-          ? '0 0 0 4px #2563eb' 
-          : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        borderRadius: '8px',
-      };
-    } else {
-      return {
-        background: '#fef3c7', // Keep yellow background even when selected
-        border: selected ? `${borderWidth} solid #ea580c` : '1px solid #fbbf24',
-        boxShadow: selected 
-          ? '0 0 0 4px #ea580c' 
-          : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        borderRadius: '8px',
-      };
+    
+    switch (node.state) {
+      case 'built':
+        return {
+          background: selected ? '#f8fafc' : '#ffffff',
+          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+          boxShadow: selected 
+            ? '0 0 0 4px #2563eb' 
+            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          borderRadius: '8px',
+        };
+      
+      case 'building':
+        return {
+          background: '#fef3c7', // Yellow background like unbuilt
+          border: selected ? `${borderWidth} solid #ea580c` : '1px dashed #ea580c', // Dashed border to indicate processing
+          boxShadow: selected 
+            ? '0 0 0 4px #ea580c' 
+            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          borderRadius: '8px',
+        };
+      
+      default: // 'unbuilt' or any other state
+        return {
+          background: '#fef3c7', // Keep yellow background even when selected
+          border: selected ? `${borderWidth} solid #ea580c` : '1px solid #fbbf24',
+          boxShadow: selected 
+            ? '0 0 0 4px #ea580c' 
+            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          borderRadius: '8px',
+        };
     }
   };
   
@@ -76,12 +89,34 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           transform: selected ? 'scale(1.02)' : 'scale(1)',
         }}
       >
+        {/* Building state indicator */}
+        {node.state === 'building' && (
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            border: '2px solid #ea580c',
+            borderTopColor: 'transparent',
+            animation: 'spin 1s linear infinite',
+          }} />
+        )}
+        <style jsx>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        
         {/* Large title text */}
         <div
           style={{
             fontSize: '24px',
             fontWeight: '700',
-            color: selected ? (node.built ? '#2563eb' : '#ea580c') : '#1f2937',
+            color: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#1f2937',
             textAlign: 'center',
             lineHeight: '1.2',
             overflow: 'hidden',
@@ -123,7 +158,9 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           type="target"
           position={Position.Top}
           style={{
-            background: selected ? (node.built ? '#2563eb' : '#ea580c') : '#6b7280',
+            background: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#6b7280',
             width: selected ? '10px' : '8px',
             height: selected ? '10px' : '8px',
             border: selected ? '1px solid #ffffff' : 'none',
@@ -134,7 +171,9 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           type="source"
           position={Position.Bottom}
           style={{
-            background: selected ? (node.built ? '#2563eb' : '#ea580c') : '#6b7280',
+            background: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#6b7280',
             width: selected ? '10px' : '8px',
             height: selected ? '10px' : '8px',
             border: selected ? '1px solid #ffffff' : 'none',
@@ -165,6 +204,21 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         transform: selected ? 'scale(1.05)' : 'scale(1)',
       }}
     >
+      {/* Building state indicator */}
+      {node.state === 'building' && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          border: '2px solid #ea580c',
+          borderTopColor: 'transparent',
+          animation: 'spin 1s linear infinite',
+        }} />
+      )}
+      
       {/* Main content area */}
       <div style={{ flex: 1 }}>
         {/* Title */}
@@ -172,7 +226,9 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           style={{
             fontSize: '16px',
             fontWeight: '600',
-            color: selected ? (node.built ? '#2563eb' : '#ea580c') : '#1f2937',
+            color: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#1f2937',
             marginBottom: '12px',
             lineHeight: '1.4',
           }}
@@ -473,7 +529,7 @@ function GraphView() {
         data: { 
           label: node.title,
           node: node,
-          built: node.built || false,
+          state: node.state || "unbuilt",
           properties: node.properties || []
         },
         type: 'custom',
@@ -596,8 +652,11 @@ function GraphView() {
         colorMode="dark"
       >
         <MiniMap 
-          nodeColor={(node) => {
-            return node.data?.built ? '#9ca3af' : '#fbbf24';
+          nodeColor={(node: any) => {
+            const nodeState = node.data?.node?.state;
+            if (nodeState === 'built') return '#9ca3af';
+            if (nodeState === 'building') return '#ea580c';
+            return '#fbbf24'; // unbuilt
           }}
         />
         <Controls />

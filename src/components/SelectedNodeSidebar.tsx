@@ -15,7 +15,7 @@ export default function SelectedNodeSidebar() {
 	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh, refreshGraph } = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
-	const [isRebuilding, setIsRebuilding] = useState(false);
+	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
@@ -77,9 +77,28 @@ export default function SelectedNodeSidebar() {
 	const handleRebuild = async () => {
 		if (!selectedNodeId) return;
 		try {
-			setIsRebuilding(true);
 			setRebuildError(null); // Clear previous errors
 			setRebuildSuccess(false); // Clear previous success
+			
+			// First update the node state to "building"
+			const updateStateRes = await fetch('/api/backend/graph-api', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ 
+					nodeId: selectedNodeId, 
+					state: 'building' 
+				})
+			});
+			
+			if (!updateStateRes.ok) {
+				console.error('Failed to update node state to building');
+				throw new Error('Failed to update node state to building');
+			}
+			
+			const updatedNode = await updateStateRes.json();
+			if (updatedNode?.success && updatedNode?.updatedNode) {
+				setSelectedNode(selectedNodeId, updatedNode.updatedNode);
+			}
 			
 			// 1) Save latest prompt before rebuild via new backend storage API
 			const previousPrompt = selectedNode?.prompt ?? '';
@@ -125,15 +144,51 @@ export default function SelectedNodeSidebar() {
 			triggerRefresh();
 			await reloadSelectedNodeFromBackend();
 			
-			// 5) Show success message
-			setRebuildSuccess(true);
-			// Clear success message after 3 seconds
-			setTimeout(() => setRebuildSuccess(false), 3000);
+			// 5) Update the node state to "built" upon success
+			const finalUpdateRes = await fetch('/api/backend/graph-api', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ 
+					nodeId: selectedNodeId, 
+					state: 'built' 
+				})
+			});
+			
+			if (finalUpdateRes.ok) {
+				const finalNode = await finalUpdateRes.json();
+				if (finalNode?.success && finalNode?.updatedNode) {
+					setSelectedNode(selectedNodeId, finalNode.updatedNode);
+				}
+				
+				// Show success message
+				setRebuildSuccess(true);
+				// Clear success message after 3 seconds
+				setTimeout(() => setRebuildSuccess(false), 3000);
+			}
 		} catch (error) {
 			console.error('Rebuild failed:', error);
 			setRebuildError('Failed to rebuild node. Please try again.');
-		} finally {
-			setIsRebuilding(false);
+			
+			// Update the node state back to its previous state (likely "unbuilt")
+			try {
+				const revertStateRes = await fetch('/api/backend/graph-api', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ 
+						nodeId: selectedNodeId, 
+						state: selectedNode?.state === 'built' ? 'built' : 'unbuilt' 
+					})
+				});
+				
+				if (revertStateRes.ok) {
+					const revertedNode = await revertStateRes.json();
+					if (revertedNode?.success && revertedNode?.updatedNode) {
+						setSelectedNode(selectedNodeId, revertedNode.updatedNode);
+					}
+				}
+			} catch (e) {
+				console.error('Failed to revert node state after error:', e);
+			}
 		}
 	};
 
@@ -342,13 +397,19 @@ export default function SelectedNodeSidebar() {
 								</div>
 								<button
 									className={`px-2 py-1 rounded text-xs font-medium ${
-										selectedNode?.built 
+										selectedNode?.state === 'built'
 											? 'bg-blue-600 hover:bg-blue-700' 
-											: 'bg-orange-600 hover:bg-orange-700'
+											: selectedNode?.state === 'building'
+											  ? 'bg-yellow-600 hover:bg-yellow-700'
+											  : 'bg-orange-600 hover:bg-orange-700'
 									} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200`}
-									disabled={isRebuilding}
+									disabled={selectedNode?.state === 'building'}
 									onClick={handleRebuild}
-								>{isRebuilding ? (selectedNode?.built ? 'Rebuilding…' : 'Building…') : (selectedNode?.built ? 'Rebuild' : 'Build')}</button>
+								>{selectedNode?.state === 'building' 
+									? 'Building…' 
+									: selectedNode?.state === 'built' 
+									  ? 'Rebuild' 
+									  : 'Build'}</button>
 							</div>
 							<div className="space-y-1.5">
 								<Textarea

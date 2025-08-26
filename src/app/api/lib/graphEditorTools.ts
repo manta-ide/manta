@@ -112,7 +112,7 @@ function normalizeNode(raw: unknown): GraphNode {
     prompt: typeof r?.prompt === 'string' ? r.prompt : '',
     children: ensureChildrenArray(r),
     parentId: typeof r?.parentId === 'string' ? r.parentId : undefined,
-    built: typeof r?.built === 'boolean' ? r.built : undefined,
+    state: r?.state || "unbuilt",
     properties: Array.isArray(r?.properties) ? (r.properties as GraphNode['properties']) : undefined,
   };
 }
@@ -278,7 +278,7 @@ const AddNodeParamsSchema = z.object({
   prompt: z.string().describe('Description/prompt for the new node'),
   properties: z.array(PropertySchema).optional().describe('Array of property objects'),
   children: z.array(ChildLinkSchema).optional().describe('Array of child node references'),
-  built: z.boolean().optional().describe('Whether the node has been built'),
+  state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
 
 const DeleteNodeParamsSchema = z.object({
@@ -292,7 +292,7 @@ const EditNodeParamsSchema = z.object({
   prompt: z.string().optional().describe('New prompt/description for the node'),
   properties: z.array(PropertySchema).describe('Array of property objects (required to set/delete properties)'),
   children: z.array(ChildLinkSchema).optional(),
-  built: z.boolean().optional().describe('Whether the node has been built'),
+  state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
 
 const UpdatePropertiesParamsSchema = z.object({
@@ -318,7 +318,7 @@ export const graphEditorTools = {
   add_node: tool({
     description: 'Add a new node to the graph with specified properties',
     parameters: AddNodeParamsSchema,
-    execute: async ({ parentId, nodeId, title, prompt, properties = [], children = [], built = false}) =>  withGraphLock(async () => {
+    execute: async ({ parentId, nodeId, title, prompt, properties = [], children = []}) =>  withGraphLock(async () => {
       try {
         if (!pendingGraph) await setCurrentGraph();
 
@@ -384,7 +384,7 @@ export const graphEditorTools = {
           prompt,
           children: children ?? [],
           parentId: parentId || undefined,
-          built: false,
+          state: "unbuilt",
           properties,
         };
         modifiedGraph.nodes.push(newNode);
@@ -586,7 +586,7 @@ export const graphEditorTools = {
         })();
 
         if (didPromptChange || didPropertyStructureChange) {
-          nodeToEdit.built = false;
+          nodeToEdit.state = "unbuilt";
         }
 
         const saveSuccess = await saveGraphThroughAPI(modifiedGraph);
@@ -653,7 +653,7 @@ export const graphEditorTools = {
           });
         }
         if (prompt !== undefined) nodeToEdit.prompt = prompt;
-        if (built !== undefined) nodeToEdit.built = built;
+        if (built !== undefined) nodeToEdit.state = built ? "built" : "unbuilt";
 
         ensureGraphConsistency(modifiedGraph);
 
@@ -690,7 +690,7 @@ export const graphEditorTools = {
         })();
 
         if (didPromptChange || didPropertyStructureChange) {
-          nodeToEdit.built = false;
+          nodeToEdit.state = "unbuilt";
         }
 
         const saveSuccess = await saveGraphThroughAPI(modifiedGraph);
@@ -739,7 +739,7 @@ export const graphEditorTools = {
             id: node.id,
             title: node.title,
             prompt: node.prompt,
-            built: node.built,
+            state: node.state,
           };
           if (includeProperties) out.properties = node.properties;
           if (includeChildren) out.children = node.children;

@@ -24,10 +24,18 @@
         {
           "id": "contact-footer",
           "title": "Contact & Footer"
+        },
+        {
+          "id": "reviews-section",
+          "title": "Reviews Section"
+        },
+        {
+          "id": "searchbar-section",
+          "title": "Searchbar Section"
         }
       ],
       "parentId": "root",
-      "built": true,
+      "state": "built",
       "properties": [
         {
           "id": "background-color",
@@ -39,13 +47,13 @@
           "id": "text-color",
           "title": "Text Color",
           "type": "color",
-          "value": "#dd4290"
+          "value": "#e3e5e3"
         },
         {
           "id": "accent-color",
           "title": "Accent Color",
           "type": "color",
-          "value": "#7c34cd"
+          "value": "#33ccc8"
         },
         {
           "id": "muted-color",
@@ -215,7 +223,8 @@
           "type": "boolean",
           "value": true
         }
-      ]
+      ],
+      "built": false
     },
     {
       "id": "header",
@@ -223,7 +232,7 @@
       "prompt": "Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic <header> and <nav>, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean. No separate element nodes — all configurable via properties.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "state": "built",
       "properties": [
         {
           "id": "brand-name",
@@ -371,7 +380,8 @@
           "type": "boolean",
           "value": true
         }
-      ]
+      ],
+      "built": false
     },
     {
       "id": "hero",
@@ -379,7 +389,7 @@
       "prompt": "Hero section introducing the SWE with headline, subheadline, CTAs, and optional profile image. Uses accessible, keyboard navigable elements. Includes social links. All sizes use select with predefined options. Colors strictly from Dark/Professional palette.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "state": "built",
       "properties": [
         {
           "id": "headline",
@@ -570,7 +580,8 @@
           "type": "boolean",
           "value": true
         }
-      ]
+      ],
+      "built": false
     },
     {
       "id": "projects-section",
@@ -578,7 +589,7 @@
       "prompt": "Showcase featured projects in a responsive grid with filters and tags. Includes a search input, tag badges, and project cards with image, title, description, tech stack, and links (GitHub, Live). All child element properties are flattened here.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "state": "built",
       "properties": [
         {
           "id": "section-title",
@@ -800,7 +811,8 @@
             "24px"
           ]
         }
-      ]
+      ],
+      "built": false
     },
     {
       "id": "about-section",
@@ -808,7 +820,7 @@
       "prompt": "About the engineer with concise bio, experience highlights, and skills list. Includes optional avatar, downloadable resume, and a simple facts grid. Accessible headings and lists. Flatten all properties here.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "state": "built",
       "properties": [
         {
           "id": "about-title",
@@ -915,7 +927,8 @@
             "32px"
           ]
         }
-      ]
+      ],
+      "built": false
     },
     {
       "id": "contact-footer",
@@ -923,7 +936,7 @@
       "prompt": "Contact section with simple form (name, email, message) posting to /api and alternate contact links, followed by a concise footer with copyright and social links. Accessibility and keyboard navigation friendly. Flatten all child properties here.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": true,
+      "state": "built",
       "properties": [
         {
           "id": "contact-title",
@@ -1036,7 +1049,197 @@
           "type": "boolean",
           "value": true
         }
-      ]
+      ],
+      "built": false
+    },
+    {
+      "id": "reviews-section",
+      "title": "Reviews Section",
+      "prompt": "Customer testimonials or peer endorsements showcasing the professional qualities and work delivered by the SWE. Includes review cards with name, avatar, role, and short testimonial text. Responsive grid layout. Flatten all child element properties into section-level structure.",
+      "children": [],
+      "parentId": "portfolio-page",
+      "state": "unbuilt",
+      "properties": [
+        {
+          "id": "section-title",
+          "title": "Section Title",
+          "type": "text",
+          "value": "What People Say",
+          "maxLength": 80
+        },
+        {
+          "id": "section-subtitle",
+          "title": "Section Subtitle",
+          "type": "text",
+          "value": "Testimonials from colleagues and clients.",
+          "maxLength": 140
+        },
+        {
+          "id": "review-1-name",
+          "title": "Review 1 Name",
+          "type": "text",
+          "value": "John Doe",
+          "maxLength": 80
+        },
+        {
+          "id": "review-1-role",
+          "title": "Review 1 Role",
+          "type": "text",
+          "value": "CTO at TechCorp",
+          "maxLength": 80
+        },
+        {
+          "id": "review-1-avatar-src",
+          "title": "Review 1 Avatar Src",
+          "type": "text",
+          "value": "https://placehold.co/128x128/white/black?text=JD&font=Poppins",
+          "maxLength": 240
+        },
+        {
+          "id": "review-1-testimonial",
+          "title": "Review 1 Testimonial",
+          "type": "text",
+          "value": "Alex's work on our Next.js web platform was incredible. Reliable, timely, and innovative.",
+          "maxLength": 400
+        },
+        {
+          "id": "review-2-name",
+          "title": "Review 2 Name",
+          "type": "text",
+          "value": "Jane Smith",
+          "maxLength": 80
+        },
+        {
+          "id": "review-2-role",
+          "title": "Review 2 Role",
+          "type": "text",
+          "value": "Lead Developer at BuildStudio",
+          "maxLength": 80
+        },
+        {
+          "id": "review-2-avatar-src",
+          "title": "Review 2 Avatar Src",
+          "type": "text",
+          "value": "https://placehold.co/128x128/white/black?text=JS&font=Poppins",
+          "maxLength": 240
+        },
+        {
+          "id": "review-2-testimonial",
+          "title": "Review 2 Testimonial",
+          "type": "text",
+          "value": "The design system Alex developed boosted our team's productivity and code quality.",
+          "maxLength": 400
+        },
+        {
+          "id": "review-3-name",
+          "title": "Review 3 Name",
+          "type": "text",
+          "value": "Michael Brown",
+          "maxLength": 80
+        },
+        {
+          "id": "review-3-role",
+          "title": "Review 3 Role",
+          "type": "text",
+          "value": "Product Manager at InnovateFlow",
+          "maxLength": 80
+        },
+        {
+          "id": "review-3-avatar-src",
+          "title": "Review 3 Avatar Src",
+          "type": "text",
+          "value": "https://placehold.co/128x128/white/black?text=MB&font=Poppins",
+          "maxLength": 240
+        },
+        {
+          "id": "review-3-testimonial",
+          "title": "Review 3 Testimonial",
+          "type": "text",
+          "value": "I've worked with Alex on multiple projects; his technical flow and leadership are exceptional.",
+          "maxLength": 400
+        },
+        {
+          "id": "grid-gap",
+          "title": "Grid Gap",
+          "type": "select",
+          "value": "24px",
+          "options": [
+            "0px",
+            "4px",
+            "8px",
+            "12px",
+            "16px",
+            "20px",
+            "24px",
+            "32px",
+            "40px",
+            "48px"
+          ]
+        },
+        {
+          "id": "card-radius",
+          "title": "Card Border Radius",
+          "type": "select",
+          "value": "12px",
+          "options": [
+            "0px",
+            "4px",
+            "8px",
+            "12px",
+            "16px",
+            "20px",
+            "24px",
+            "32px"
+          ]
+        },
+        {
+          "id": "card-padding",
+          "title": "Card Padding",
+          "type": "select",
+          "value": "16px",
+          "options": [
+            "0px",
+            "4px",
+            "8px",
+            "12px",
+            "16px",
+            "20px",
+            "24px",
+            "32px",
+            "40px"
+          ]
+        }
+      ],
+      "built": false
+    },
+    {
+      "id": "searchbar-section",
+      "title": "Searchbar Section",
+      "prompt": "A standalone searchbar component for quickly finding content across the portfolio site. The searchbar includes a text input and a magnifying glass icon button for submission. It supports dynamic placeholder text, size customization, and accessibility properties.",
+      "children": [],
+      "parentId": "portfolio-page",
+      "state": "unbuilt",
+      "properties": [
+        {
+          "id": "searchbar-background-color",
+          "title": "Background Color",
+          "type": "color",
+          "value": "#f4cae0"
+        },
+        {
+          "id": "searchbar-text-color",
+          "title": "Text Color",
+          "type": "color",
+          "value": "#90a8c3"
+        },
+        {
+          "id": "searchbar-border-color",
+          "title": "Border Color",
+          "type": "color",
+          "value": "#ada7c9"
+        }
+      ],
+      "built": false
     }
   ]
 }
