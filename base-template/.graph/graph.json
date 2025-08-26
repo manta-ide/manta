@@ -31,7 +31,7 @@
         }
       ],
       "parentId": "root",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "background-color",
@@ -227,7 +227,7 @@
       "prompt": "Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic <header> and <nav>, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean. No separate element nodes — all configurable via properties.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "brand-name",
@@ -383,7 +383,7 @@
       "prompt": "Hero section introducing the SWE with headline, subheadline, CTAs, and optional profile image. Uses accessible, keyboard navigable elements. Includes social links. All sizes use select with predefined options. Colors strictly from Dark/Professional palette.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "headline",
@@ -582,7 +582,7 @@
       "prompt": "Showcase featured projects in a responsive grid with filters and tags. Includes a search input, tag badges, and project cards with image, title, description, tech stack, and links (GitHub, Live). All child element properties are flattened here.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "section-title",
@@ -812,7 +812,7 @@
       "prompt": "About the engineer with concise bio, experience highlights, and skills list. Includes optional avatar, downloadable resume, and a simple facts grid. Accessible headings and lists. Flatten all properties here.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "about-title",
@@ -927,7 +927,7 @@
       "prompt": "Contact section with simple form (name, email, message) posting to /api and alternate contact links, followed by a concise footer with copyright and social links. Accessibility and keyboard navigation friendly. Flatten all child properties here.",
       "children": [],
       "parentId": "portfolio-page",
-      "built": false,
+      "built": true,
       "properties": [
         {
           "id": "contact-title",
