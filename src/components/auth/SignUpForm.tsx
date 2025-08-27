@@ -42,7 +42,31 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       } else {
         // Refresh the session in context after successful sign up
         await refreshSession();
-        toast.success('Account created successfully!');
+        
+        // Create sandbox for new user
+        try {
+          const sandboxResponse = await fetch('/api/sandbox/init', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (sandboxResponse.ok) {
+            const sandboxData = await sandboxResponse.json();
+            toast.success('Account created and development environment ready!');
+            console.log('Sandbox created for new user:', sandboxData.sandbox);
+          } else {
+            // Don't fail the signup if sandbox creation fails
+            console.warn('Sandbox creation failed, but user was created successfully');
+            toast.success('Account created successfully! (Development environment will be set up shortly)');
+          }
+        } catch (sandboxError) {
+          console.warn('Sandbox creation error:', sandboxError);
+          toast.success('Account created successfully! (Development environment will be set up shortly)');
+        }
+        
         onSuccess?.();
       }
     } catch (err) {

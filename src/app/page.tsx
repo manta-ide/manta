@@ -8,6 +8,8 @@ import AppViewer from "@/components/AppViewer";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
+import SandboxStatus from "@/components/sandbox/SandboxStatus";
+import SandboxCreationNotification from "@/components/sandbox/SandboxCreationNotification";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
@@ -17,6 +19,7 @@ export default function Home() {
     editor: false,
     viewer: true,
     graph: true,
+    sandbox: false,
   });
   
   const [isEditMode, setIsEditMode] = useState(true);
@@ -92,6 +95,7 @@ export default function Home() {
           hasSelected,
           panels.viewer,
           panels.graph,
+          panels.sandbox,
         ].join('|')}
       >
         {panels.files && (
@@ -155,11 +159,25 @@ export default function Home() {
           </ResizablePanelGroup>
         </ResizablePanel>
 
+        {/* Sandbox Panel */}
+        {panels.sandbox && (
+          <>
+            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
+            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+              <div className="h-full border-l border-zinc-700 bg-zinc-900 p-4">
+                <SandboxStatus />
+              </div>
+            </ResizablePanel>
+          </>
+        )}
         
       </ResizablePanelGroup>
       
       {/* Floating Chat */}
       <FloatingChat />
+      
+      {/* Sandbox Creation Notifications */}
+      <SandboxCreationNotification />
     </div>
   );
 }

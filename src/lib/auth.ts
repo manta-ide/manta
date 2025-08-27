@@ -41,6 +41,7 @@ export const auth = betterAuth({
     additionalFields: {
       name: { type: "string" },
       avatar: { type: "string", required: false },
+      sandboxId: { type: "string", required: false },
     },
   },
 });

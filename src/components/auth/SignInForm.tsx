@@ -34,7 +34,31 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
       } else {
         // Refresh the session in context after successful sign in
         await refreshSession();
-        toast.success('Signed in successfully!');
+        
+        // Load/create sandbox for signed in user
+        try {
+          const sandboxResponse = await fetch('/api/sandbox/init', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (sandboxResponse.ok) {
+            const sandboxData = await sandboxResponse.json();
+            toast.success('Signed in successfully! Development environment ready.');
+            console.log('Sandbox loaded/created for user:', sandboxData.sandbox);
+          } else {
+            // Don't fail the signin if sandbox loading fails
+            console.warn('Sandbox loading failed, but user signed in successfully');
+            toast.success('Signed in successfully! (Development environment will be set up shortly)');
+          }
+        } catch (sandboxError) {
+          console.warn('Sandbox loading error:', sandboxError);
+          toast.success('Signed in successfully! (Development environment will be set up shortly)');
+        }
+        
         onSuccess?.();
       }
     } catch (err) {

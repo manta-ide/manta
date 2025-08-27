@@ -34,6 +34,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data?.session && data?.user) {
         setUser(data.user as User);
         setSession(data as Session);
+        
+        // Initialize sandbox for the user if they don't have one
+        try {
+          const checkResponse = await fetch('/api/sandbox/init', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          const checkData = await checkResponse.json();
+          
+          // If user doesn't have a sandbox, create one automatically
+          if (!checkData.sandbox) {
+            console.log('No sandbox found for user, creating one...');
+            const createResponse = await fetch('/api/sandbox/init', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (createResponse.ok) {
+              const createData = await createResponse.json();
+              console.log('Sandbox created automatically:', createData.sandbox);
+            }
+          }
+        } catch (error) {
+          console.log('Sandbox initialization check failed:', error);
+          // Don't block auth flow if sandbox init fails
+        }
       } else {
         // If no session, clear any stale state
         setUser(null);
@@ -56,6 +86,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data?.session && data?.user) {
         setUser(data.user as User);
         setSession(data as Session);
+        
+        // Check sandbox status after session refresh
+        try {
+          await fetch('/api/sandbox/init', {
+            method: 'GET',
+            credentials: 'include'
+          });
+        } catch (error) {
+          console.log('Sandbox status check failed:', error);
+        }
       } else {
         setUser(null);
         setSession(null);
