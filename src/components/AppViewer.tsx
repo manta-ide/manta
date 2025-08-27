@@ -6,6 +6,18 @@ import { createPortal } from 'react-dom';
 import IframeOverlay from './IframeOverlay';
 import { LoaderFive } from '@/components/ui/loader';
 import { setLastError } from '@/lib/runtimeErrorStore';
+import { create } from 'zustand';
+
+// Store for iframe reload functionality
+interface IframeReloadStore {
+  reloadCount: number;
+  triggerReload: () => void;
+}
+
+export const useIframeReloadStore = create<IframeReloadStore>((set) => ({
+  reloadCount: 0,
+  triggerReload: () => set((state) => ({ reloadCount: state.reloadCount + 1 })),
+}));
 
 interface AppViewerProps {
   isEditMode: boolean;
@@ -56,6 +68,7 @@ const IFRAME_PATH = '/iframe';
 export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
   const [isAppRunning, setIsAppRunning] = useState(false);
+  const { reloadCount } = useIframeReloadStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -134,6 +147,19 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     const id = setInterval(probe, 3_000);
     return () => clearInterval(id);
   }, []);
+
+  /* ── reload iframe when reloadCount changes ───────────────────── */
+  useEffect(() => {
+    if (reloadCount > 0 && iframeRef.current) {
+      const currentSrc = iframeRef.current.src;
+      iframeRef.current.src = '';
+      setTimeout(() => {
+        if (iframeRef.current) {
+          iframeRef.current.src = currentSrc;
+        }
+      }, 50);
+    }
+  }, [reloadCount]);
 
   /* ── early fallback while the child isn’t running ───────────── */
   if (!isAppRunning) {

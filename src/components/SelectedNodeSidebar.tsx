@@ -5,6 +5,7 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
+import { useIframeReloadStore } from './AppViewer';
 import {
   Accordion,
   AccordionContent,
@@ -18,6 +19,7 @@ export default function SelectedNodeSidebar() {
 	
 	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh, refreshGraph } = useProjectStore();
 	const { actions } = useChatService();
+	const { triggerReload } = useIframeReloadStore();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [isRebuilding, setIsRebuilding] = useState(false);
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
@@ -127,7 +129,10 @@ export default function SelectedNodeSidebar() {
 			triggerRefresh();
 			await reloadSelectedNodeFromBackend();
 			
-			// 5) Show success message
+			// 5) Reload iframe to reflect changes
+			triggerReload();
+			
+			// 6) Show success message
 			setRebuildSuccess(true);
 			// Clear success message after 3 seconds
 			setTimeout(() => setRebuildSuccess(false), 3000);
@@ -188,6 +193,9 @@ export default function SelectedNodeSidebar() {
 						triggerRefresh();
 						// Reload node from backend to reflect built=false after structure change
 						await reloadSelectedNodeFromBackend();
+						
+						// Reload iframe to reflect property changes
+						triggerReload();
 					} else {
 						console.error('Updated node not found in response');
 					}
@@ -275,6 +283,10 @@ export default function SelectedNodeSidebar() {
 					if (hasCodeAffectingChanges) {
 						console.log('🔄 Properties affect code generation, triggering refresh...');
 						triggerRefresh();
+						
+						// Reload the iframe to reflect property changes
+						console.log('🔄 Reloading iframe to reflect property changes');
+						triggerReload();
 					} else {
 						console.log('ℹ️ Properties updated without affecting code generation');
 					}
