@@ -142,15 +142,10 @@ export async function storeGraph(graph: Graph): Promise<void> {
 }
 
 function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boolean {
-  // Compare core fields; ignore built flag
+  // Compare core fields; ignore built flag and children array changes
   if (a.title !== b.title) return false;
   if (a.prompt !== b.prompt) return false;
-  if (a.children.length !== b.children.length) return false;
-  for (let i = 0; i < a.children.length; i++) {
-    const ca = a.children[i];
-    const cb = b.children[i];
-    if (ca.id !== cb.id || ca.title !== cb.title) return false;
-  }
+  // Don't compare children arrays - changes to children shouldn't mark parent as unbuilt
   // Compare properties structure (ignore values). If structure differs, treat as changed
   const normalizeProps = (props?: any[]) => {
     if (!Array.isArray(props)) return [] as any[];

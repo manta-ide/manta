@@ -137,8 +137,8 @@ export const GraphNodeSchema = z.object({
   })),
   // Parent ID for bidirectional relationship tracking
   parentId: z.string().optional(),
-  // Tracks whether code for this node has been generated
-  built: z.boolean().optional(),
+  // Tracks the build state of this node
+  state: z.enum(["built", "unbuilt", "building"]).default("unbuilt").optional(),
   // Properties for the node
   properties: z.array(PropertySchema).optional(),
 });

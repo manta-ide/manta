@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { Property } from '@/app/api/lib/schemas';
+import BasePropertyEditor from './BasePropertyEditor';
 
 interface ColorPropertyEditorProps {
   property: Property & { type: 'color' };
@@ -16,15 +16,12 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
   const displayValue = value.replace('#', '').toUpperCase();
 
   return (
-    <div className="flex flex-col gap-2 py-2">
-      <Label className="text-sm font-bold text-white">
-        {property.title}
-      </Label>
-      <div className="flex items-center border border-zinc-700 rounded-md bg-zinc-800">
+    <BasePropertyEditor title={property.title}>
+      <div className="flex items-center border border-zinc-700 rounded bg-zinc-800">
         <Popover>
           <PopoverTrigger asChild>
             <button
-              className="h-9 w-9 rounded-l-md border-r border-zinc-700 flex-shrink-0"
+              className="h-7 w-7 rounded-l border-r border-zinc-700 flex-shrink-0"
               style={{ backgroundColor: value }}
               aria-label={`Choose color ${value}`}
             />
@@ -50,10 +47,10 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
             }
           }}
           placeholder="000000"
-          className="flex-1 bg-zinc-800 text-white px-3 py-2 text-sm rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 bg-zinc-800 text-white px-2 py-1 text-xs rounded-r focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent [&::placeholder]:text-xs"
           maxLength={6}
         />
       </div>
-    </div>
+    </BasePropertyEditor>
   );
 }

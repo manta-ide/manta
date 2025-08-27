@@ -97,8 +97,8 @@ export function useChatService() {
       
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Make request to agent-request API
-      const response = await fetch('/api/backend/agent-request', {
+      // Make request to edit-graph API for general chat messages
+      const response = await fetch('/api/backend/agent-request/edit-graph', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userMessage }),
@@ -172,20 +172,13 @@ export function useChatService() {
         }
       };
 
-      // Make request to agent-request API with specific node rebuild parameters
-      const response = await fetch('/api/backend/agent-request', {
+      // Make request to build-nodes API for node rebuild requests
+      const response = await fetch('/api/backend/agent-request/build-nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userMessage,
-          nodeIds: [nodeId],
-          includeDescendants: true,
-          editHints: {
-            [nodeId]: {
-              previousPrompt,
-              newPrompt,
-            }
-          },
+          nodeId: nodeId
         })
       });
       

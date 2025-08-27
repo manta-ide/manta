@@ -58,6 +58,10 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
   const [allBoxes, setAllBoxes] = useState<Array<ElementInfo & { id: string }>>([]);
   const [, setBuiltStatus] = useState<Record<string, boolean>>({});
 
+  // Get graph data and check if the selected node is the root node
+  const { graph } = useProjectStore();
+  const isRootNodeSelected = selectedNodeId && graph?.nodes && graph.nodes.length > 0 && selectedNodeId === graph.nodes[0].id;
+
   useEffect(() => {
     if (!isEditMode || !doc || !win) {
       setSelectedBox(null);
@@ -146,9 +150,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
     };
   }, [isEditMode, doc, win, selectedNodeId]);
 
-  // Get built status from store
-  const { graph } = useProjectStore();
-  
+  // Get built status from store  
   useEffect(() => {
     if (graph) {
       const map: Record<string, boolean> = {};
@@ -219,8 +221,8 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
           );
         })}
 
-        {/* Selected box overlay */}
-        {selectedBox && (
+        {/* Selected box overlay - don't show for root node */}
+        {selectedBox && !isRootNodeSelected && (
           <>
             <div
               style={{
@@ -243,8 +245,8 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
               title={`Element: ${selectedBox.id}`}
             />
             
-            {/* Edge indicators for when selected box extends beyond viewport */}
-            {selectedBox.x < 0 && (
+            {/* Edge indicators for when selected box extends beyond viewport - don't show for root node */}
+            {!isRootNodeSelected && selectedBox.x < 0 && (
               <div
                 style={{
                   position: 'fixed',
@@ -260,7 +262,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
               />
             )}
             
-            {selectedBox.y < 0 && (
+            {!isRootNodeSelected && selectedBox.y < 0 && (
               <div
                 style={{
                   position: 'fixed',
@@ -276,7 +278,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
               />
             )}
             
-            {selectedBox.x + selectedBox.width > (win?.innerWidth || 0) && (
+            {!isRootNodeSelected && selectedBox.x + selectedBox.width > (win?.innerWidth || 0) && (
               <div
                 style={{
                   position: 'fixed',
@@ -292,7 +294,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
               />
             )}
             
-            {selectedBox.y + selectedBox.height > (win?.innerHeight || 0) && (
+            {!isRootNodeSelected && selectedBox.y + selectedBox.height > (win?.innerHeight || 0) && (
               <div
                 style={{
                   position: 'fixed',

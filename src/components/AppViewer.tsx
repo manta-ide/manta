@@ -110,6 +110,69 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
         });
         appRoot.appendChild(host);
 
+        // Inject scrollbar styles into iframe document to match the main app
+        const styleId = 'iframe-scrollbar-styles';
+        if (!doc.getElementById(styleId)) {
+          const style = doc.createElement('style');
+          style.id = styleId;
+          style.textContent = `
+            /* Custom scrollbar styles for iframe content */
+            html, body {
+              scrollbar-width: thin;
+              scrollbar-color: rgb(113 113 122) transparent;
+            }
+            
+            html::-webkit-scrollbar,
+            body::-webkit-scrollbar {
+              width: 8px;
+              height: 8px;
+            }
+            
+            html::-webkit-scrollbar-track,
+            body::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            
+            html::-webkit-scrollbar-thumb,
+            body::-webkit-scrollbar-thumb {
+              background-color: rgba(113, 113, 122, 0.4);
+              border-radius: 4px;
+              transition: background-color 0.2s;
+            }
+            
+            html::-webkit-scrollbar-thumb:hover,
+            body::-webkit-scrollbar-thumb:hover {
+              background-color: rgba(113, 113, 122, 0.6);
+            }
+            
+            /* Apply to all scrollable elements */
+            * {
+              scrollbar-width: thin;
+              scrollbar-color: rgb(113 113 122) transparent;
+            }
+            
+            *::-webkit-scrollbar {
+              width: 6px;
+              height: 6px;
+            }
+            
+            *::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            
+            *::-webkit-scrollbar-thumb {
+              background-color: rgba(113, 113, 122, 0.4);
+              border-radius: 3px;
+              transition: background-color 0.2s;
+            }
+            
+            *::-webkit-scrollbar-thumb:hover {
+              background-color: rgba(113, 113, 122, 0.6);
+            }
+          `;
+          doc.head.appendChild(style);
+        }
+
         setOverlayHost(host);
       }, 100); // Additional delay for iframe hydration
     }, 0);

@@ -255,7 +255,7 @@ export default function FloatingChat() {
 
      return (
      <div
-       className="fixed w-80 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl"
+       className="fixed w-72 bg-zinc-900 border border-zinc-600 rounded-md shadow-2xl"
        style={{ 
          left: position.x, 
          top: position.y,
@@ -264,34 +264,34 @@ export default function FloatingChat() {
      >
        {/* Header */}
        <div 
-         className={`flex items-center justify-between p-3 border-b border-zinc-700 bg-zinc-800 rounded-t-lg ${isDragging ? 'cursor-grabbing' : 'cursor-move'}`}
+         className={`flex items-center justify-between px-2.5 py-2 border-b border-zinc-700 bg-zinc-800 rounded-t-md ${isDragging ? 'cursor-grabbing' : 'cursor-move'}`}
          onMouseDown={handleMouseDown}
        >
-        <div className="flex items-center gap-2">
-          <Move className="h-4 w-4 text-zinc-400" />
-          <span className="text-sm font-medium text-white">AI Chat</span>
+        <div className="flex items-center gap-1.5">
+          <Move className="h-3.5 w-3.5 text-zinc-400" />
+          <span className="text-xs font-medium text-white">AI Chat</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {messages.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleClear}
               disabled={clearing}
-              className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 h-6 w-6 p-0"
+              className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 h-5 w-5 p-0"
               title="Clear conversation"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-2.5 w-2.5" />
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsMinimized(true)}
-            className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 h-6 w-6 p-0"
+            className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 h-5 w-5 p-0"
             title="Minimize"
           >
-            <Minimize2 className="h-3 w-3" />
+            <Minimize2 className="h-2.5 w-2.5" />
           </Button>
         </div>
       </div>

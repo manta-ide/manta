@@ -112,7 +112,7 @@ function normalizeNode(raw: unknown): GraphNode {
     prompt: typeof r?.prompt === 'string' ? r.prompt : '',
     children: ensureChildrenArray(r),
     parentId: typeof r?.parentId === 'string' ? r.parentId : undefined,
-    built: typeof r?.built === 'boolean' ? r.built : undefined,
+    state: r?.state || "unbuilt",
     properties: Array.isArray(r?.properties) ? (r.properties as GraphNode['properties']) : undefined,
   };
 }
@@ -278,7 +278,7 @@ const AddNodeParamsSchema = z.object({
   prompt: z.string().describe('Description/prompt for the new node'),
   properties: z.array(PropertySchema).optional().describe('Array of property objects'),
   children: z.array(ChildLinkSchema).optional().describe('Array of child node references'),
-  built: z.boolean().optional().describe('Whether the node has been built'),
+  state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
 
 const DeleteNodeParamsSchema = z.object({
@@ -290,9 +290,17 @@ const EditNodeParamsSchema = z.object({
   nodeId: z.string().describe('ID of the node to edit'),
   title: z.string().optional().describe('New title for the node'),
   prompt: z.string().optional().describe('New prompt/description for the node'),
-  properties: z.array(PropertySchema).optional().describe('Array of property objects'),
+  properties: z.array(PropertySchema).describe('Array of property objects (required to set/delete properties)'),
   children: z.array(ChildLinkSchema).optional(),
-  built: z.boolean().optional().describe('Whether the node has been built'),
+  state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
+}).strict();
+
+const UpdatePropertiesParamsSchema = z.object({
+  nodeId: z.string().describe('ID of the node to update properties for'),
+  properties: z.array(PropertySchema).describe('Array of property objects to update/add (merges with existing properties)'),
+  title: z.string().optional().describe('New title for the node (optional)'),
+  prompt: z.string().optional().describe('New prompt/description for the node (optional)'),
+  built: z.boolean().optional().describe('Whether the node has been built (optional)'),
 }).strict();
 
 const ReadGraphParamsSchema = z.object({
@@ -376,7 +384,7 @@ export const graphEditorTools = {
           prompt,
           children: children ?? [],
           parentId: parentId || undefined,
-          built: false,
+          state: "unbuilt",
           properties,
         };
         modifiedGraph.nodes.push(newNode);
@@ -578,7 +586,7 @@ export const graphEditorTools = {
         })();
 
         if (didPromptChange || didPropertyStructureChange) {
-          nodeToEdit.built = false;
+          nodeToEdit.state = "unbuilt";
         }
 
         const saveSuccess = await saveGraphThroughAPI(modifiedGraph);
@@ -592,6 +600,110 @@ export const graphEditorTools = {
         return { success: true, message: `Successfully edited node "${nodeToEdit.title}" (${nodeId})`, operation: { type: 'edit_node', nodeId, title: nodeToEdit.title } };
       } catch (error: any) {
         return { success: false, message: error.message, operation: { type: 'edit_node', nodeId } };
+      }
+    }),
+  }),
+
+  update_properties: tool({
+    description: 'Update/add properties of an existing node (merges with existing properties, other fields optional)',
+    parameters: UpdatePropertiesParamsSchema,
+    execute: async ({ nodeId, properties, title, prompt, built }) => withGraphLock(async () => {
+      try {
+        if (!pendingGraph) await setCurrentGraph();
+
+        const modifiedGraph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
+
+        const nodeToEdit = modifiedGraph.nodes.find((n) => n.id === nodeId);
+        if (!nodeToEdit) {
+          return { success: false, message: `Node with ID ${nodeId} not found`, operation: { type: 'update_properties', nodeId } };
+        }
+
+        // Keep originals for change detection
+        const originalPrompt = nodeToEdit.prompt;
+        const originalProperties = Array.isArray(nodeToEdit.properties) ? [...nodeToEdit.properties] : undefined;
+
+        // Merge properties (update existing ones, add new ones, preserve others)
+        const existingProperties = Array.isArray(nodeToEdit.properties) ? nodeToEdit.properties : [];
+        const updatedProperties = [...existingProperties];
+        
+        // Create a map of existing properties by ID for quick lookup
+        const existingPropsMap = new Map(existingProperties.map(p => [p.id, p]));
+        
+        // Update/add properties from the provided array
+        properties.forEach(newProp => {
+          const existingIndex = updatedProperties.findIndex(p => p.id === newProp.id);
+          if (existingIndex >= 0) {
+            // Update existing property
+            updatedProperties[existingIndex] = { ...updatedProperties[existingIndex], ...newProp };
+          } else {
+            // Add new property
+            updatedProperties.push(newProp);
+          }
+        });
+        
+        nodeToEdit.properties = updatedProperties;
+
+        // Update optional fields
+        if (title !== undefined) {
+          nodeToEdit.title = title;
+          modifiedGraph.nodes.forEach((n) => {
+            n.children.forEach((c) => {
+              if (c.id === nodeId) c.title = title;
+            });
+          });
+        }
+        if (prompt !== undefined) nodeToEdit.prompt = prompt;
+        if (built !== undefined) nodeToEdit.state = built ? "built" : "unbuilt";
+
+        ensureGraphConsistency(modifiedGraph);
+
+        const validationResult = GraphSchema.safeParse(modifiedGraph);
+        if (!validationResult.success) {
+          return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'update_properties', nodeId } };
+        }
+
+        // Auto mark node as unbuilt if prompt or properties structure changed
+        const didPromptChange = typeof prompt === 'string' && prompt !== originalPrompt;
+        const didPropertyStructureChange = (() => {
+          const before = originalProperties || [];
+          const after = Array.isArray(properties) ? properties : [];
+          if (before.length !== after.length) return true;
+          // Compare structural fields only (id, title, type, options, constraints), ignore value changes
+          const normalize = (p: any) => ({
+            id: p?.id ?? '',
+            title: p?.title ?? '',
+            type: p?.type ?? '',
+            maxLength: p?.maxLength ?? undefined,
+            min: p?.min ?? undefined,
+            max: p?.max ?? undefined,
+            step: p?.step ?? undefined,
+            options: Array.isArray(p?.options) ? [...p.options] : undefined,
+          });
+          for (let i = 0; i < before.length; i++) {
+            const a = normalize(before[i]);
+            const b = normalize(after[i]);
+            const aKey = JSON.stringify(a);
+            const bKey = JSON.stringify(b);
+            if (aKey !== bKey) return true;
+          }
+          return false;
+        })();
+
+        if (didPromptChange || didPropertyStructureChange) {
+          nodeToEdit.state = "unbuilt";
+        }
+
+        const saveSuccess = await saveGraphThroughAPI(modifiedGraph);
+        if (!saveSuccess) {
+          return { success: false, message: 'Failed to save graph through API', operation: { type: 'update_properties', nodeId } };
+        }
+
+        pendingGraph = null;
+        originalGraph = null;
+
+        return { success: true, message: `Successfully updated properties for node "${nodeToEdit.title}" (${nodeId})`, operation: { type: 'update_properties', nodeId, title: nodeToEdit.title } };
+      } catch (error: any) {
+        return { success: false, message: error.message, operation: { type: 'update_properties', nodeId } };
       }
     }),
   }),
@@ -627,7 +739,7 @@ export const graphEditorTools = {
             id: node.id,
             title: node.title,
             prompt: node.prompt,
-            built: node.built,
+            state: node.state,
           };
           if (includeProperties) out.properties = node.properties;
           if (includeChildren) out.children = node.children;

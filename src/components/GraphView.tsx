@@ -14,11 +14,14 @@ import {
   Handle,
   Position,
   useViewport,
+  ColorMode,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
-import { GraphNode } from '@/app/api/lib/schemas';
+import { GraphNode, Graph } from '@/app/api/lib/schemas';
+import { Button } from '@/components/ui/button';
+import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
 
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -28,28 +31,57 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
   
-  // Determine background color based on built status
-  const getBackgroundColor = () => {
-    return node.built ? '#EEF3FB' : '#FFF7BD'; // Light green for built, light yellow for unbuilt
+  // Determine styling based on node state (built/unbuilt/building)
+  const getNodeStyles = () => {
+    const borderWidth = isZoomedOut ? '3px' : '0px';
+    
+    switch (node.state) {
+      case 'built':
+        return {
+          background: selected ? '#f8fafc' : '#ffffff',
+          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+          boxShadow: selected 
+            ? '0 0 0 4px #2563eb' 
+            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          borderRadius: '8px',
+        };
+      
+      case 'building':
+        return {
+          background: '#fef3c7', // Yellow background like unbuilt
+          border: selected ? `${borderWidth} solid #ea580c` : '1px dashed #ea580c', // Dashed border to indicate processing
+          boxShadow: selected 
+            ? '0 0 0 4px #ea580c' 
+            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          borderRadius: '8px',
+        };
+      
+      default: // 'unbuilt' or any other state
+        return {
+          background: '#fef3c7', // Keep yellow background even when selected
+          border: selected ? `${borderWidth} solid #ea580c` : '1px solid #fbbf24',
+          boxShadow: selected 
+            ? '0 0 0 4px #ea580c' 
+            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          borderRadius: '8px',
+        };
+    }
   };
   
   if (isZoomedOut) {
+    const nodeStyles = getNodeStyles();
     return (
       <div
         className={`custom-node-simple ${selected ? 'selected' : ''}`}
         style={{
-          background: getBackgroundColor(),
-          border: selected ? '10px solid #2563eb' : '2px solid #e5e7eb',
-          borderRadius: '12px',
+          ...nodeStyles,
+          borderRadius: '8px',
           padding: '20px',
           width: '260px',
           minHeight: '160px',
-          boxShadow: selected 
-            ? '0 0 0 4px rgba(37, 99, 235, 0.2), 0 20px 40px rgba(37, 99, 235, 0.3)' 
-            : '0 4px 6px rgba(0, 0, 0, 0.1)',
-          transition: 'all 0.3s ease',
+          transition: 'all 0.2s ease',
           position: 'relative',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontFamily: 'Inter, sans-serif',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -57,12 +89,34 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           transform: selected ? 'scale(1.02)' : 'scale(1)',
         }}
       >
+        {/* Building state indicator */}
+        {node.state === 'building' && (
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            border: '2px solid #ea580c',
+            borderTopColor: 'transparent',
+            animation: 'spin 1s linear infinite',
+          }} />
+        )}
+        <style jsx>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        
         {/* Large title text */}
         <div
           style={{
             fontSize: '24px',
             fontWeight: '700',
-            color: '#1f2937',
+            color: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#1f2937',
             textAlign: 'center',
             lineHeight: '1.2',
             overflow: 'hidden',
@@ -82,13 +136,20 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           gap: '16px', 
           fontSize: '14px',
           color: '#6b7280',
-          fontWeight: '500'
+          fontWeight: '500',
+          alignItems: 'center'
         }}>
           {node.children && node.children.length > 0 && (
-            <span>📁 {node.children.length}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Folder size={14} />
+              <span>{node.children.length}</span>
+            </div>
           )}
           {node.properties && node.properties.length > 0 && (
-            <span>⚙️ {node.properties.length}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Settings size={14} />
+              <span>{node.properties.length}</span>
+            </div>
           )}
         </div>
         
@@ -97,18 +158,26 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           type="target"
           position={Position.Top}
           style={{
-            background: '#3b82f6',
-            width: '8px',
-            height: '8px',
+            background: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#6b7280',
+            width: selected ? '10px' : '8px',
+            height: selected ? '10px' : '8px',
+            border: selected ? '1px solid #ffffff' : 'none',
+            boxShadow: selected ? '0 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
           }}
         />
         <Handle
           type="source"
           position={Position.Bottom}
           style={{
-            background: '#3b82f6',
-            width: '8px',
-            height: '8px',
+            background: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#6b7280',
+            width: selected ? '10px' : '8px',
+            height: selected ? '10px' : '8px',
+            border: selected ? '1px solid #ffffff' : 'none',
+            boxShadow: selected ? '0 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
           }}
         />
       </div>
@@ -116,28 +185,40 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   }
   
   // Full detailed view when zoomed in
+  const nodeStyles = getNodeStyles();
   return (
     <div
       className={`custom-node ${selected ? 'selected' : ''}`}
       style={{
-        background: getBackgroundColor(),
-        border: selected ? '4px solid #2563eb' : '2px solid #e5e7eb',
-        borderRadius: '12px',
+        ...nodeStyles,
+        borderRadius: '8px',
         padding: '20px',
         width: '260px',
         minHeight: '160px',
-        boxShadow: selected 
-          ? '0 0 0 4px rgba(37, 99, 235, 0.2), 0 20px 40px rgba(37, 99, 235, 0.3)' 
-          : '0 4px 6px rgba(0, 0, 0, 0.1)',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.2s ease',
         position: 'relative',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'Inter, sans-serif',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transform: selected ? 'scale(1.02)' : 'scale(1)',
+        transform: selected ? 'scale(1.05)' : 'scale(1)',
       }}
     >
+      {/* Building state indicator */}
+      {node.state === 'building' && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          border: '2px solid #ea580c',
+          borderTopColor: 'transparent',
+          animation: 'spin 1s linear infinite',
+        }} />
+      )}
+      
       {/* Main content area */}
       <div style={{ flex: 1 }}>
         {/* Title */}
@@ -145,7 +226,9 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           style={{
             fontSize: '16px',
             fontWeight: '600',
-            color: '#1f2937',
+            color: selected ? 
+              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              '#1f2937',
             marginBottom: '12px',
             lineHeight: '1.4',
           }}
@@ -191,7 +274,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
               marginBottom: '6px',
             }}
           >
-            <span>📁</span>
+            <Folder size={12} />
             {node.children.length} child{node.children.length !== 1 ? 'ren' : ''}
           </div>
         )}
@@ -207,7 +290,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
               gap: '6px',
             }}
           >
-            <span>⚙️</span>
+            <Settings size={12} />
             {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
           </div>
         )}
@@ -240,7 +323,8 @@ function GraphView() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isRebuilding, setIsRebuilding] = useState(false);
-  const { setSelectedNode, selectedNodeId } = useProjectStore();
+  const [isBuildingSelected, setIsBuildingSelected] = useState(false);
+  const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
   
   // Use the store for graph data
   const { graph, graphLoading: loading, graphError: error, refreshGraph, connectToGraphEvents, disconnectFromGraphEvents } = useProjectStore();
@@ -276,7 +360,7 @@ function GraphView() {
 
     setIsRebuilding(true);
     try {
-      const response = await fetch('/api/backend/agent-request', {
+      const response = await fetch('/api/backend/agent-request/build-nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -302,13 +386,48 @@ function GraphView() {
     }
   }, []);
 
+  // Function to build the selected node
+  const buildSelectedNode = useCallback(async () => {
+    if (!selectedNode) {
+      console.error('❌ No node selected');
+      return;
+    }
+
+    setIsBuildingSelected(true);
+    try {
+      const response = await fetch('/api/backend/agent-request/build-nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: {
+            role: 'user',
+            content: `Build and generate code for the node: ${selectedNode.title}`,
+            variables: {}
+          },
+          nodeId: selectedNode.id
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Selected node build started successfully');
+        // The graph will be automatically updated via SSE
+      } else {
+        console.error('❌ Failed to build selected node');
+      }
+    } catch (error) {
+      console.error('❌ Error building selected node:', error);
+    } finally {
+      setIsBuildingSelected(false);
+    }
+  }, [selectedNode]);
+
   // Connect to graph events on mount
   useEffect(() => {
     connectToGraphEvents();
     return () => {
       disconnectFromGraphEvents();
     };
-  }, [connectToGraphEvents, disconnectFromGraphEvents]); // Include dependencies
+  }, []); // Empty dependency array to run only once
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
@@ -387,6 +506,7 @@ function GraphView() {
       // Position children with tighter spacing and better distribution
       let currentX = startX;
       node.children.forEach(child => {
+        const childWidth = nodeWidths.get(child.id) || 1;
         currentX += positionNodes(child.id, currentX, depth + 1) * horizontalSpacing;
       });
       
@@ -409,7 +529,7 @@ function GraphView() {
         data: { 
           label: node.title,
           node: node,
-          built: node.built || false,
+          state: node.state || "unbuilt",
           properties: node.properties || []
         },
         type: 'custom',
@@ -428,9 +548,8 @@ function GraphView() {
             target: child.id,
             type: 'smoothstep',
             style: { 
-              stroke: '#3b82f6', 
-              strokeWidth: 3,
-              strokeDasharray: '5,5',
+              stroke: '#9ca3af', 
+              strokeWidth: 2,
             },
             animated: false,
           });
@@ -530,15 +649,18 @@ function GraphView() {
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}
+        colorMode="dark"
       >
         <MiniMap 
-          style={{ background: '#f8f9fa' }}
-          nodeColor={(node) => {
-            return node.data?.built ? '#10b981' : '#6b7280';
+          nodeColor={(node: any) => {
+            const nodeState = node.data?.node?.state;
+            if (nodeState === 'built') return '#9ca3af';
+            if (nodeState === 'building') return '#ea580c';
+            return '#fbbf24'; // unbuilt
           }}
         />
         <Controls />
-        <Background color="#f8f9fa" gap={20} />
+        <Background color="#374151" gap={20} />
       </ReactFlow>
       
       {/* Action Buttons */}
@@ -550,73 +672,45 @@ function GraphView() {
         gap: '8px',
         zIndex: 1000,
       }}>
+        {/* Build Selected Node Button - only show when a node is selected */}
+        {selectedNode && (
+          <Button
+            onClick={buildSelectedNode}
+            disabled={isBuildingSelected}
+            variant="outline"
+            size="sm"
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            title={isBuildingSelected ? "Building selected node..." : `Build node: ${selectedNode.title}`}
+          >
+            <Play className="w-4 h-4" />
+            {isBuildingSelected ? 'Building...' : 'Build Selected'}
+          </Button>
+        )}
+        
         {/* Rebuild Full Graph Button */}
-        <button
+        <Button
           onClick={rebuildFullGraph}
           disabled={isRebuilding}
-          style={{
-            background: 'rgba(255, 255, 255, 0.9)',
-            border: '1px solid #3b82f6',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            color: isRebuilding ? '#9ca3af' : '#3b82f6',
-            fontWeight: '500',
-            cursor: isRebuilding ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.2s ease',
-            opacity: isRebuilding ? 0.6 : 1
-          }}
-          onMouseEnter={(e) => {
-            if (!isRebuilding) {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
-              e.currentTarget.style.color = '#2563eb';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isRebuilding) {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-              e.currentTarget.style.color = '#3b82f6';
-            }
-          }}
+          variant="outline"
+          size="sm"
+          className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
           title={isRebuilding ? "Rebuilding graph..." : "Rebuild entire graph and generate code for all nodes"}
         >
-          {isRebuilding ? '⏳' : '🔄'} {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
-        </button>
+          <RotateCcw className={`w-4 h-4 ${isRebuilding ? 'animate-spin' : ''}`} />
+          {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
+        </Button>
         
         {/* Delete Graph Button */}
-        <button
+        <Button
           onClick={deleteGraph}
-          style={{
-            background: 'rgba(255, 255, 255, 0.9)',
-            border: '1px solid #ef4444',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            color: '#ef4444',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-            e.currentTarget.style.color = '#dc2626';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-            e.currentTarget.style.color = '#ef4444';
-          }}
+          variant="outline"
+          size="sm"
+          className="bg-zinc-800 text-red-400 border-0 hover:bg-red-900/20 hover:text-red-300"
           title="Delete graph"
         >
-          🗑️ Delete Graph
-        </button>
+          <Trash2 className="w-4 h-4" />
+          Delete Graph
+        </Button>
       </div>
     </div>
   );

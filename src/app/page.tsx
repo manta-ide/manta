@@ -101,7 +101,7 @@ export default function Home() {
                 <FileTree />
               </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
           </>
         )}
 
@@ -112,18 +112,18 @@ export default function Home() {
                 <FileEditor />
               </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
           </>
         )}
 
         {hasSelected && (
           <>
-            <ResizablePanel defaultSize={10} minSize={10}>
+            <ResizablePanel defaultSize={10} minSize={15.5}>
               <div className="h-full border-r border-zinc-700">
                 <SelectedNodeSidebar />
               </div>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
           </>
         )}
 
@@ -134,21 +134,21 @@ export default function Home() {
             direction="horizontal"
             key={`inner-${panels.viewer}-${panels.graph}`}
           >
-            {panels.viewer && (
+            {panels.graph && (
               <>
-                <ResizablePanel defaultSize={panels.graph ? 60 : 100} minSize={30}>
+                <ResizablePanel defaultSize={panels.viewer ? 40 : 100} minSize={30}>
                   <div className="h-full bg-zinc-900">
-                    <AppViewer isEditMode={isEditMode} />
+                    <GraphView />
                   </div>
                 </ResizablePanel>
-                {panels.graph && <ResizableHandle />}
+                {panels.viewer && <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />}
               </>
             )}
 
-            {panels.graph && (
-              <ResizablePanel defaultSize={panels.viewer ? 40 : 100} minSize={30}>
+            {panels.viewer && (
+              <ResizablePanel defaultSize={panels.graph ? 60 : 100} minSize={30}>
                 <div className="h-full bg-zinc-900">
-                  <GraphView />
+                  <AppViewer isEditMode={isEditMode} />
                 </div>
               </ResizablePanel>
             )}
