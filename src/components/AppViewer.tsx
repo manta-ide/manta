@@ -6,18 +6,7 @@ import { createPortal } from 'react-dom';
 import IframeOverlay from './IframeOverlay';
 import { LoaderFive } from '@/components/ui/loader';
 import { setLastError } from '@/lib/runtimeErrorStore';
-import { create } from 'zustand';
-
-// Store for iframe reload functionality
-interface IframeReloadStore {
-  reloadCount: number;
-  triggerReload: () => void;
-}
-
-export const useIframeReloadStore = create<IframeReloadStore>((set) => ({
-  reloadCount: 0,
-  triggerReload: () => set((state) => ({ reloadCount: state.reloadCount + 1 })),
-}));
+import { useProjectStore } from '@/lib/store';
 
 interface AppViewerProps {
   isEditMode: boolean;
@@ -68,8 +57,9 @@ const IFRAME_PATH = '/iframe';
 export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
   const [isAppRunning, setIsAppRunning] = useState(false);
-  const { reloadCount } = useIframeReloadStore();
-
+  const [iframeKey, setIframeKey] = useState(0);
+  const { refreshTrigger } = useProjectStore();
+  
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   /* host element (inside iframe) that will receive the portal */
@@ -110,69 +100,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
         });
         appRoot.appendChild(host);
 
-        // Inject scrollbar styles into iframe document to match the main app
-        const styleId = 'iframe-scrollbar-styles';
-        if (!doc.getElementById(styleId)) {
-          const style = doc.createElement('style');
-          style.id = styleId;
-          style.textContent = `
-            /* Custom scrollbar styles for iframe content */
-            html, body {
-              scrollbar-width: thin;
-              scrollbar-color: rgb(113 113 122) transparent;
-            }
-            
-            html::-webkit-scrollbar,
-            body::-webkit-scrollbar {
-              width: 8px;
-              height: 8px;
-            }
-            
-            html::-webkit-scrollbar-track,
-            body::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            
-            html::-webkit-scrollbar-thumb,
-            body::-webkit-scrollbar-thumb {
-              background-color: rgba(113, 113, 122, 0.4);
-              border-radius: 4px;
-              transition: background-color 0.2s;
-            }
-            
-            html::-webkit-scrollbar-thumb:hover,
-            body::-webkit-scrollbar-thumb:hover {
-              background-color: rgba(113, 113, 122, 0.6);
-            }
-            
-            /* Apply to all scrollable elements */
-            * {
-              scrollbar-width: thin;
-              scrollbar-color: rgb(113 113 122) transparent;
-            }
-            
-            *::-webkit-scrollbar {
-              width: 6px;
-              height: 6px;
-            }
-            
-            *::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            
-            *::-webkit-scrollbar-thumb {
-              background-color: rgba(113, 113, 122, 0.4);
-              border-radius: 3px;
-              transition: background-color 0.2s;
-            }
-            
-            *::-webkit-scrollbar-thumb:hover {
-              background-color: rgba(113, 113, 122, 0.6);
-            }
-          `;
-          doc.head.appendChild(style);
-        }
-
         setOverlayHost(host);
       }, 100); // Additional delay for iframe hydration
     }, 0);
@@ -197,6 +124,13 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   }, [overlayHost, isEditMode]);
 
   /* ── liveness probe for the child app ───────────────────────── */
+  // Reload iframe when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      setIframeKey(prevKey => prevKey + 1);
+    }
+  }, [refreshTrigger]);
+
   useEffect(() => {
     const probe = async () => {
       try {
@@ -210,19 +144,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     const id = setInterval(probe, 3_000);
     return () => clearInterval(id);
   }, []);
-
-  /* ── reload iframe when reloadCount changes ───────────────────── */
-  useEffect(() => {
-    if (reloadCount > 0 && iframeRef.current) {
-      const currentSrc = iframeRef.current.src;
-      iframeRef.current.src = '';
-      setTimeout(() => {
-        if (iframeRef.current) {
-          iframeRef.current.src = currentSrc;
-        }
-      }, 50);
-    }
-  }, [reloadCount]);
 
   /* ── early fallback while the child isn’t running ───────────── */
   if (!isAppRunning) {
@@ -242,6 +163,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
       <div className="flex flex-col h-full bg-background border-l">
         <div className="flex-1 relative min-h-0">
           <iframe
+            key={iframeKey}
             ref={iframeRef}
             src={IFRAME_PATH}
             className="w-full h-full border-0"
