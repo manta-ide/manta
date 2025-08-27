@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
 async rewrites() {
   return [
     // HTML & API under /iframe/…
-    { source: '/iframe', destination: 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run' },
-    { source: '/iframe/:path*', destination: 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run/:path*' },
+    { source: '/iframe', destination: 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run/iframe/' },
+    { source: '/iframe/:path*', destination: 'https://47923c7edf3e283d8808caed161fc8aa.preview.bl.run/iframe/:path*' },
   ];
 }
 

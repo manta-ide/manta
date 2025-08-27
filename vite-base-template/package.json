@@ -42,6 +42,7 @@
     "react-resizable-panels": "^3.0.4",
     "recharts": "^2.15.4",
     "tailwind-merge": "^3.3.1",
+    "ts-node": "^10.9.2",
     "zod": "^4.0.14"
   },
   "devDependencies": {
