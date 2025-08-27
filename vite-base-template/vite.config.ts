@@ -1,32 +1,17 @@
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import fs from 'fs';
-import path from 'path';
 import { resolve } from 'path';
 
 // --- Compile-time injection like webpack.DefinePlugin(__GRAPH_VARS__) ---
 function loadGraphVars(): Record<string, string | number | boolean> {
   try {
-    const fp = path.resolve('.graph/vars.json');
-    return JSON.parse(fs.readFileSync(fp, 'utf8'));
+    // Use native Vite JSON import for dev-time freshness without manual watcher
+    // Note: this path is relative to project root at build time
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('./_graph/vars.json');
   } catch {
     return {};
   }
-}
-
-/** Dev-only: when .graph/vars.json changes, trigger a full reload */
-function graphVarsHmr(): Plugin {
-  return {
-    name: 'graph-vars-hmr',
-    configureServer(server) {
-      const fp = path.resolve('.graph/vars.json');
-      try {
-        fs.watchFile(fp, { interval: 400 }, () => {
-          server.ws.send({ type: 'full-reload' });
-        });
-      } catch {}
-    },
-  };
 }
 
 /** Dev+Preview: set frame-ancestors so you can embed in the parent iframe */
@@ -54,7 +39,7 @@ function frameHeaders(): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), graphVarsHmr(), frameHeaders()],
+  plugins: [react(), frameHeaders()],
   
   resolve: {
     alias: {
@@ -75,6 +60,9 @@ export default defineConfig(({ mode }) => ({
 
   // Serve on the same port your parent rewrites to
   server: {
+    watch: {
+      usePolling: true,
+    },
     host: true,
     port: 5173,
     cors: true,

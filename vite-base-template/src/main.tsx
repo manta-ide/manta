@@ -1,18 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import varsJson from "../_graph/vars.json";
+import { getInitialVars, subscribeVars } from "./lib/varsHmr.ts";
 
 function AppWrapper() {
-  const [vars, setVars] = useState(varsJson);
+  const [vars, setVars] = useState(getInitialVars());
 
-  // Keep state in sync with file edits (optional — Vite already re-renders imports)
-  if (import.meta.hot) {
-    import.meta.hot.accept("../.graph/vars.json", (mod) =>
-      setVars(mod!.default)
-    );
-  }
+  useEffect(() => {
+    subscribeVars((next) => setVars(next));
+  }, []);
 
   return <App vars={vars} />;
 }
