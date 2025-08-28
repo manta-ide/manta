@@ -7,13 +7,27 @@ import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from '@/lib/auth-context';
+import { supabaseRealtimeService } from '@/lib/supabase-realtime';
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
 	const DEBOUNCE_PROPERTY_CHANGES = true;
 	
-	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh, refreshGraph } = useProjectStore();
+	const { 
+		selectedNodeId, 
+		selectedNode, 
+		setSelectedNode, 
+		loadProject: loadProjectFromFileSystem, 
+		triggerRefresh, 
+		refreshGraph,
+		updateNodeInSupabase,
+		updatePropertyInSupabase,
+		supabaseConnected,
+		connectToGraphEvents
+	} = useProjectStore();
 	const { actions } = useChatService();
+	const { user } = useAuth();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
@@ -21,6 +35,23 @@ export default function SelectedNodeSidebar() {
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
 	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Just monitor connection status - let AuthProvider handle the actual connection
+	useEffect(() => {
+		console.log('👤 SelectedNodeSidebar: Connection status check:', {
+			user: user ? { id: user.id, email: user.email } : null,
+			supabaseConnected,
+			hasUserId: !!user?.id
+		});
+		
+		if (!user?.id) {
+			console.log('⚠️ SelectedNodeSidebar: No user ID available');
+		} else if (supabaseConnected) {
+			console.log('✅ SelectedNodeSidebar: Supabase connected');
+		} else {
+			console.log('🔄 SelectedNodeSidebar: Waiting for Supabase connection (handled by AuthProvider)');
+		}
+	}, [user?.id, supabaseConnected]);
 
 	useEffect(() => {
 		setPromptDraft(selectedNode?.prompt ?? '');
@@ -80,24 +111,36 @@ export default function SelectedNodeSidebar() {
 			setRebuildError(null); // Clear previous errors
 			setRebuildSuccess(false); // Clear previous success
 			
-			// First update the node state to "building"
-			const updateStateRes = await fetch('/api/backend/graph-api', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ 
-					nodeId: selectedNodeId, 
-					state: 'building' 
-				})
-			});
-			
-			if (!updateStateRes.ok) {
-				console.error('Failed to update node state to building');
-				throw new Error('Failed to update node state to building');
-			}
-			
-			const updatedNode = await updateStateRes.json();
-			if (updatedNode?.success && updatedNode?.updatedNode) {
-				setSelectedNode(selectedNodeId, updatedNode.updatedNode);
+			// First update the node state to "building" - try Supabase first
+			try {
+				if (supabaseConnected) {
+					await updateNodeInSupabase(selectedNodeId, { state: 'building' });
+					console.log('✅ Node state updated to building via Supabase');
+				} else {
+					throw new Error('Supabase not connected');
+				}
+			} catch (supabaseError) {
+				console.warn('⚠️ Supabase update failed, using backend API:', supabaseError);
+				
+				// Fallback to backend API
+				const updateStateRes = await fetch('/api/backend/graph-api', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ 
+						nodeId: selectedNodeId, 
+						state: 'building' 
+					})
+				});
+				
+				if (!updateStateRes.ok) {
+					console.error('Failed to update node state to building');
+					throw new Error('Failed to update node state to building');
+				}
+				
+				const updatedNode = await updateStateRes.json();
+				if (updatedNode?.success && updatedNode?.updatedNode) {
+					setSelectedNode(selectedNodeId, updatedNode.updatedNode);
+				}
 			}
 			
 			// 1) Save latest prompt before rebuild via new backend storage API
@@ -145,26 +188,37 @@ export default function SelectedNodeSidebar() {
 			await reloadSelectedNodeFromBackend();
 			
 			// 5) Update the node state to "built" upon success
-			const finalUpdateRes = await fetch('/api/backend/graph-api', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ 
-					nodeId: selectedNodeId, 
-					state: 'built' 
-				})
-			});
-			
-			if (finalUpdateRes.ok) {
-				const finalNode = await finalUpdateRes.json();
-				if (finalNode?.success && finalNode?.updatedNode) {
-					setSelectedNode(selectedNodeId, finalNode.updatedNode);
+			try {
+				if (supabaseConnected) {
+					await updateNodeInSupabase(selectedNodeId, { state: 'built' });
+					console.log('✅ Node state updated to built via Supabase');
+				} else {
+					throw new Error('Supabase not connected');
 				}
+			} catch (supabaseError) {
+				console.warn('⚠️ Supabase final update failed, using backend API:', supabaseError);
 				
-				// Show success message
-				setRebuildSuccess(true);
-				// Clear success message after 3 seconds
-				setTimeout(() => setRebuildSuccess(false), 3000);
+				const finalUpdateRes = await fetch('/api/backend/graph-api', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ 
+						nodeId: selectedNodeId, 
+						state: 'built' 
+					})
+				});
+				
+				if (finalUpdateRes.ok) {
+					const finalNode = await finalUpdateRes.json();
+					if (finalNode?.success && finalNode?.updatedNode) {
+						setSelectedNode(selectedNodeId, finalNode.updatedNode);
+					}
+				}
 			}
+			
+			// Show success message
+			setRebuildSuccess(true);
+			// Clear success message after 3 seconds
+			setTimeout(() => setRebuildSuccess(false), 3000);
 		} catch (error) {
 			console.error('Rebuild failed:', error);
 			setRebuildError('Failed to rebuild node. Please try again.');
@@ -321,27 +375,71 @@ export default function SelectedNodeSidebar() {
 				
 				console.log('🔄 Updating properties:', changedProperties);
 				
-				// Update each changed property through the graph API
+				// Update each changed property - try Supabase first, then fallback to backend API
 				const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
-					const response = await fetch('/api/backend/graph-api', {
-						method: 'PATCH',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
-							nodeId: selectedNodeId,
-							propertyId: propertyId,
-							value: newValue
-						})
-					});
+					let updateSuccess = false;
 					
-					if (!response.ok) {
-						const errorData = await response.json().catch(() => ({}));
-						throw new Error(`Failed to update property ${propertyId}: ${errorData.error || response.statusText}`);
+					// Check real-time connection status instead of relying on store state
+					const store = useProjectStore.getState();
+					const isSupabaseActuallyConnected = store.supabaseConnected || (supabaseRealtimeService as any)?.connected;
+					
+					// Try Supabase first if connected
+					if (isSupabaseActuallyConnected) {
+						try {
+							await updatePropertyInSupabase(selectedNodeId, propertyId, newValue);
+							console.log(`✅ Property ${propertyId} updated via Supabase`);
+							updateSuccess = true;
+							// Keep Blaxel/backend in sync so preview and other windows update
+							try {
+								const response = await fetch('/api/backend/graph-api', {
+									method: 'PATCH',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({
+										nodeId: selectedNodeId,
+										propertyId: propertyId,
+										value: newValue
+									})
+								});
+								if (response.ok) {
+									const result = await response.json();
+									if (result.success && result.updatedNode) {
+										setSelectedNode(selectedNodeId, result.updatedNode);
+									}
+								}
+							} catch (syncErr) {
+								console.warn('⚠️ Backend sync after Supabase update failed (non-fatal):', syncErr);
+							}
+						} catch (supabaseError) {
+							console.warn(`⚠️ Supabase property update failed for ${propertyId}, trying backend API:`, supabaseError);
+						}
+					} else {
+						console.log(`⚠️ Supabase not connected (state: ${isSupabaseActuallyConnected}), using backend API for ${propertyId}`);
 					}
 					
-					const result = await response.json();
-					if (result.success && result.updatedNode) {
-						// Update the local node state with the updated node
-						setSelectedNode(selectedNodeId, result.updatedNode);
+					// Fallback to backend API if Supabase failed or not connected
+					if (!updateSuccess) {
+						console.log(`🔄 Using backend API for property ${propertyId}`);
+						
+						const response = await fetch('/api/backend/graph-api', {
+							method: 'PATCH',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								nodeId: selectedNodeId,
+								propertyId: propertyId,
+								value: newValue
+							})
+						});
+						
+						if (!response.ok) {
+							const errorData = await response.json().catch(() => ({}));
+							throw new Error(`Failed to update property ${propertyId}: ${errorData.error || response.statusText}`);
+						}
+						
+						const result = await response.json();
+						if (result.success && result.updatedNode) {
+							// Update the local node state with the updated node
+							setSelectedNode(selectedNodeId, result.updatedNode);
+						}
 					}
 					
 					return {
@@ -433,7 +531,7 @@ export default function SelectedNodeSidebar() {
 
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
 							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
-								{selectedNode.properties?.map((property: Property, index: number) => (
+								{[...selectedNode.properties].sort((a, b) => a.id.localeCompare(b.id)).map((property: Property, index: number) => (
 									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
 										<PropertyEditor
 											property={{

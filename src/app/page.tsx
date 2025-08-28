@@ -10,6 +10,7 @@ import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
 import SandboxStatus from "@/components/sandbox/SandboxStatus";
 import SandboxCreationNotification from "@/components/sandbox/SandboxCreationNotification";
+import SupabaseStatus from "@/components/SupabaseStatus";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
@@ -178,6 +179,9 @@ export default function Home() {
       
       {/* Sandbox Creation Notifications */}
       <SandboxCreationNotification />
+      
+      {/* Supabase Connection Status */}
+      <SupabaseStatus />
     </div>
   );
 }

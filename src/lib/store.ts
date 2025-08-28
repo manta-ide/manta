@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
+import { Selection, FileNode } from '@/app/api/lib/schemas';
+import supabaseRealtimeService, { GraphChangeEvent, Graph, GraphNode } from './supabase-realtime';
 
 interface ProjectStore {
   // File system state
@@ -17,6 +18,7 @@ interface ProjectStore {
   graphLoading: boolean;
   graphError: string | null;
   graphConnected: boolean;
+  supabaseConnected: boolean;
   
   // File operations
   loadProject: () => Promise<void>;
@@ -39,14 +41,24 @@ interface ProjectStore {
   setGraphLoading: (loading: boolean) => void;
   setGraphError: (error: string | null) => void;
   
+  // Supabase graph operations (priority)
+  saveNodeToSupabase: (node: GraphNode) => Promise<void>;
+  updateNodeInSupabase: (nodeId: string, updates: Partial<GraphNode>) => Promise<void>;
+  updatePropertyInSupabase: (nodeId: string, propertyId: string, value: any) => Promise<void>;
+  deleteNodeFromSupabase: (nodeId: string) => Promise<void>;
+  syncGraphToSupabase: (graph: Graph) => Promise<void>;
+  
   // Graph event handling
-  connectToGraphEvents: () => void;
+  connectToGraphEvents: (userId?: string) => Promise<void>;
   disconnectFromGraphEvents: () => void;
 }
 
 // Private variable to track the EventSource connection
 let graphEventSource: EventSource | null = null;
 let reconnectTimeout: NodeJS.Timeout | null = null;
+
+// Private variable to track Supabase subscription
+let supabaseUnsubscribe: (() => void) | null = null;
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   // File system state
@@ -64,6 +76,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   graphLoading: true,
   graphError: null,
   graphConnected: false,
+  supabaseConnected: false,
 
   loadProject: async () => {
     try {
@@ -214,6 +227,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
+      
+      // Try Supabase first if connected
+      if (supabaseRealtimeService.connected) {
+        try {
+          console.log('📊 Loading graph from Supabase...');
+          const graph = await supabaseRealtimeService.loadGraph();
+          if (graph && graph.nodes && graph.nodes.length > 0) {
+            set({ graph, graphLoading: false });
+            console.log(`✅ Loaded graph from Supabase with ${graph.nodes.length} nodes`);
+            return;
+          } else {
+            console.log('📊 Supabase has no nodes, falling back to backend API...');
+          }
+        } catch (supabaseError) {
+          console.warn('⚠️ Supabase graph load failed, falling back to backend API:', supabaseError);
+        }
+      }
+      
+      // Fallback to backend API
+      console.log('📊 Loading graph from backend API...');
       const response = await fetch('/api/backend/graph-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -224,7 +257,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         const data = await response.json();
         if (data.success && data.graph) {
           set({ graph: data.graph, graphLoading: false });
-          console.log(`✅ Loaded graph with ${data.graph.nodes?.length || 0} nodes`);
+          console.log(`✅ Loaded graph from backend with ${data.graph.nodes?.length || 0} nodes`);
+          
+          // Sync to Supabase if connected and graph has nodes
+          if (supabaseRealtimeService.connected && data.graph.nodes && data.graph.nodes.length > 0) {
+            try {
+              console.log('🔄 Syncing backend graph to Supabase...');
+              await get().syncGraphToSupabase(data.graph);
+              console.log('✅ Graph synced to Supabase successfully');
+            } catch (syncError) {
+              console.warn('⚠️ Failed to sync graph to Supabase:', syncError);
+            }
+          }
         } else {
           set({ graph: null, graphLoading: false });
           console.log('ℹ️ No graph found');
@@ -248,76 +292,247 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await get().loadGraph();
   },
   
-  updateGraph: (graph) => set({ graph }),
+  updateGraph: (graph) => {
+    set({ graph });
+    
+    // Sync to Supabase if connected and graph has nodes (async, don't block UI)
+    if (supabaseRealtimeService.connected && graph?.nodes && graph.nodes.length > 0) {
+      get().syncGraphToSupabase(graph).catch(error => {
+        console.warn('⚠️ Background sync to Supabase failed:', error);
+      });
+    }
+  },
   
   setGraphLoading: (loading) => set({ graphLoading: loading }),
   
   setGraphError: (error) => set({ graphError: error }),
   
-  // Graph event handling
-  connectToGraphEvents: () => {
-    // Prevent multiple connections
-    if (graphEventSource && graphEventSource.readyState !== EventSource.CLOSED) {
-      console.log('🔗 Graph events already connected, skipping...');
-      return;
+  // Supabase graph operations (priority)
+  saveNodeToSupabase: async (node: GraphNode) => {
+    try {
+      if (!supabaseRealtimeService.connected) {
+        throw new Error('Supabase not connected');
+      }
+      await supabaseRealtimeService.saveNode(node);
+      console.log(`✅ Node saved to Supabase: ${node.id}`);
+    } catch (error) {
+      console.error('❌ Failed to save node to Supabase:', error);
+      throw error;
     }
-    
-    // Also check the connection state
-    const state = get();
-    if (state.graphConnected) {
-      console.log('🔗 Graph events already connected (state check), skipping...');
-      return;
-    }
-    
-    // Clear any existing reconnection timeout
-    if (reconnectTimeout) {
-      clearTimeout(reconnectTimeout);
-      reconnectTimeout = null;
-    }
-    
-    // Close existing connection if it exists
-    if (graphEventSource) {
-      graphEventSource.close();
-    }
-    
-    console.log('🔗 Connecting to graph events...');
-    graphEventSource = new EventSource('/api/backend/graph-api?sse=true');
-    
-    graphEventSource.onopen = () => {
-      console.log('🔗 Connected to graph events');
-      set({ graphError: null, graphConnected: true });
-    };
+  },
 
-    graphEventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'graph-update') {
-          set({ graph: data.graph, graphLoading: false });
+  updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
+    try {
+      if (!supabaseRealtimeService.connected) {
+        throw new Error('Supabase not connected');
+      }
+      await supabaseRealtimeService.updateNode(nodeId, updates);
+      console.log(`✅ Node updated in Supabase: ${nodeId}`);
+    } catch (error) {
+      console.error('❌ Failed to update node in Supabase:', error);
+      throw error;
+    }
+  },
+
+  updatePropertyInSupabase: async (nodeId: string, propertyId: string, value: any) => {
+    try {
+      if (!supabaseRealtimeService.connected) {
+        throw new Error('Supabase not connected');
+      }
+      await supabaseRealtimeService.updateProperty(nodeId, propertyId, value);
+      console.log(`✅ Property updated in Supabase: ${propertyId}`);
+    } catch (error) {
+      console.error('❌ Failed to update property in Supabase:', error);
+      throw error;
+    }
+  },
+
+  deleteNodeFromSupabase: async (nodeId: string) => {
+    try {
+      if (!supabaseRealtimeService.connected) {
+        throw new Error('Supabase not connected');
+      }
+      await supabaseRealtimeService.deleteNode(nodeId);
+      console.log(`✅ Node deleted from Supabase: ${nodeId}`);
+    } catch (error) {
+      console.error('❌ Failed to delete node from Supabase:', error);
+      throw error;
+    }
+  },
+
+  syncGraphToSupabase: async (graph: Graph) => {
+    try {
+      if (!supabaseRealtimeService.connected) {
+        throw new Error('Supabase not connected');
+      }
+      
+      // Save all nodes and edges to Supabase
+      for (const node of graph.nodes) {
+        await supabaseRealtimeService.saveNode(node);
+      }
+      // Ensure edges without parents are also persisted (in case children array misses some)
+      if ((graph as any).edges && Array.isArray((graph as any).edges)) {
+        // Upsert edges directly
+        const client: any = (supabaseRealtimeService as any).serviceRoleClient || (supabaseRealtimeService as any).supabase;
+        if (client) {
+          await client
+            .from('graph_edges')
+            .upsert(
+              (graph as any).edges.map((e: any) => ({
+                id: e.id,
+                source_id: e.source || e.source_id,
+                target_id: e.target || e.target_id,
+                user_id: (supabaseRealtimeService as any).currentUserId
+              }))
+            );
         }
-      } catch (err) {
-        console.error('Error parsing graph event:', err);
-      }
-    };
-
-    graphEventSource.onerror = (error) => {
-      console.error('❌ Graph event source error:', error);
-      set({ graphError: 'Connection lost. Reconnecting...', graphConnected: false });
-      
-      // Close the current connection
-      if (graphEventSource) {
-        graphEventSource.close();
-        graphEventSource = null;
       }
       
-      // Attempt to reconnect after 3 seconds
-      reconnectTimeout = setTimeout(() => {
-        console.log('🔄 Attempting to reconnect to graph events...');
-        get().connectToGraphEvents();
-      }, 3000);
-    };
+      console.log(`✅ Synced ${graph.nodes.length} nodes to Supabase`);
+    } catch (error) {
+      console.error('❌ Failed to sync graph to Supabase:', error);
+      throw error;
+    }
+  },
+  
+  // Graph event handling
+  connectToGraphEvents: async (userId?: string) => {
+    try {
+      console.log('🔗 Store: connectToGraphEvents called with userId:', userId);
+      
+      // Try to connect to Supabase first
+      if (userId) {
+        console.log('🔗 Store: Attempting Supabase connection...');
+        try {
+          await supabaseRealtimeService.connect(userId);
+          
+          // Set up Supabase event handler
+          if (supabaseUnsubscribe) {
+            supabaseUnsubscribe();
+          }
+          
+          supabaseUnsubscribe = supabaseRealtimeService.onGraphChange((event: GraphChangeEvent) => {
+            const state = get();
+            
+            switch (event.type) {
+              case 'node_created':
+                // Add new node to graph
+                if (state.graph) {
+                  const updatedGraph = {
+                    ...state.graph,
+                    nodes: [...state.graph.nodes, event.node]
+                  };
+                  set({ graph: updatedGraph });
+                }
+                break;
+                
+              case 'node_updated':
+                // Update existing node
+                if (state.graph) {
+                  const updatedGraph = {
+                    ...state.graph,
+                    nodes: state.graph.nodes.map(n => n.id === event.node.id ? event.node : n)
+                  };
+                  set({ graph: updatedGraph });
+                  
+                  // Update selected node if it's the one being updated
+                  if (state.selectedNodeId === event.node.id) {
+                    set({ selectedNode: event.node });
+                  }
+                }
+                break;
+                
+              case 'node_deleted':
+                // Remove node from graph
+                if (state.graph) {
+                  const updatedGraph = {
+                    ...state.graph,
+                    nodes: state.graph.nodes.filter(n => n.id !== event.nodeId)
+                  };
+                  set({ graph: updatedGraph });
+                  
+                  // Clear selection if deleted node was selected
+                  if (state.selectedNodeId === event.nodeId) {
+                    set({ selectedNodeId: null, selectedNode: null });
+                  }
+                }
+                break;
+                
+              case 'property_updated': {
+                // Always update graph copy for consistency across tabs
+                if (state.graph) {
+                  const targetNode = state.graph.nodes.find(n => n.id === event.nodeId);
+                  if (targetNode) {
+                    const updatedProps = (targetNode.properties || [])
+                      .map(p => p.id === event.property.id ? { ...p, ...event.property } : p)
+                      // Keep a stable order by id to avoid UI reordering on updates
+                      .sort((a, b) => a.id.localeCompare(b.id));
+                    const updatedNode = { ...targetNode, properties: updatedProps };
+                    const updatedGraph = {
+                      ...state.graph,
+                      nodes: state.graph.nodes.map(n => n.id === event.nodeId ? updatedNode : n)
+                    };
+                    set({ graph: updatedGraph });
+                    if (state.selectedNodeId === event.nodeId) {
+                      set({ selectedNode: updatedNode });
+                    }
+                  }
+                }
+                break;
+              }
+                
+              case 'graph_loaded':
+                set({ graph: event.graph, graphLoading: false });
+                break;
+            }
+          });
+          
+          // Don't mark connected until channel reports SUBSCRIBED
+          set({ graphError: null });
+          
+          // Frequently check connection status for immediate updates
+          const connectionCheck = setInterval(() => {
+            const isActuallyConnected = supabaseRealtimeService.connected;
+            const currentState = get().supabaseConnected;
+            
+            if (currentState !== isActuallyConnected) {
+              console.log(`🔄 Store: Connection state sync - was ${currentState}, now ${isActuallyConnected}`);
+              set({ supabaseConnected: isActuallyConnected });
+              
+              // If disconnected, clear the interval but DON'T auto-reconnect
+              // Let the Supabase service handle its own reconnection logic
+              if (!isActuallyConnected) {
+                clearInterval(connectionCheck);
+                console.log('🔄 Store: Supabase disconnected, service will handle reconnection');
+              }
+            }
+          }, 1000); // Check every 1 second for immediate updates (less frequent)
+          // Return early - we're using only Supabase for realtime now
+          return;
+          
+        } catch (supabaseError) {
+          console.warn('⚠️ Supabase connection failed, falling back to EventSource:', supabaseError);
+          set({ supabaseConnected: false });
+        }
+      }
+      
+      // No backend fallback - using only Supabase
+      console.log('ℹ️ No user ID provided, skipping graph events connection');
+    } catch (error) {
+      console.error('❌ Error connecting to graph events:', error);
+      set({ graphError: 'Failed to connect to graph events' });
+    }
   },
   
   disconnectFromGraphEvents: () => {
+    // Disconnect Supabase
+    if (supabaseUnsubscribe) {
+      supabaseUnsubscribe();
+      supabaseUnsubscribe = null;
+    }
+    
+    supabaseRealtimeService.disconnect();
+    
     // Clear any pending reconnection timeout
     if (reconnectTimeout) {
       clearTimeout(reconnectTimeout);
@@ -328,9 +543,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (graphEventSource) {
       graphEventSource.close();
       graphEventSource = null;
-      console.log('🔌 Disconnected from graph events');
+      console.log('🔌 Disconnected from backend graph events');
     }
     
-    set({ graphConnected: false });
+    set({ graphConnected: false, supabaseConnected: false });
   },
 })); 

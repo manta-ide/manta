@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from './auth';
 import { authClient } from './auth-client';
+import { useProjectStore } from './store';
 
 interface AuthContextType {
   user: User | null;
@@ -19,12 +20,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  
+  // Get store functions
+  const connectToGraphEvents = useProjectStore(state => state.connectToGraphEvents);
+  const disconnectFromGraphEvents = useProjectStore(state => state.disconnectFromGraphEvents);
 
   useEffect(() => {
     // Mark as client-side and initialize auth
     setIsClient(true);
     initializeAuth();
   }, []);
+
+  // Connect to Supabase when user becomes available
+  useEffect(() => {
+    console.log('🔍 AuthProvider: Effect triggered', {
+      userId: user?.id,
+      isClient,
+      hasUser: !!user,
+      userObject: user ? { id: user.id, email: user.email } : null
+    });
+    
+    if (user?.id && isClient) {
+      console.log('🔗 AuthProvider: User authenticated, connecting to Supabase:', user.id);
+      connectToGraphEvents(user.id);
+    } else if (!user?.id && isClient) {
+      console.log('🔌 AuthProvider: User logged out, disconnecting from Supabase');
+      disconnectFromGraphEvents();
+    } else {
+      console.log('⏳ AuthProvider: Waiting for user authentication or client initialization');
+    }
+    
+    return () => {
+      // Cleanup on unmount
+      if (user?.id) {
+        disconnectFromGraphEvents();
+      }
+    };
+  }, [user?.id, isClient, connectToGraphEvents, disconnectFromGraphEvents]);
 
   const initializeAuth = async () => {
     try {

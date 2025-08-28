@@ -155,7 +155,7 @@ export default function ElementBoundingBoxes({ isEditMode, document: doc, window
     if (graph) {
       const map: Record<string, boolean> = {};
       for (const n of graph.nodes || []) {
-        map[n.id] = !!n.built;
+        map[n.id] = n.state === 'built';
       }
       setBuiltStatus(map);
     }

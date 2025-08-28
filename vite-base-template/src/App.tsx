@@ -16,7 +16,7 @@ export default function App({ vars }: AppProps) {
     "--font-family": vars["font-family"] || "Poppins",
     "--base-font-size": vars["base-font-size"] || "1rem",
     "--max-content-width": vars["max-content-width"] || "256px",
-    "--section-padding-y": vars["section-padding-y"] || "48px",
+    "--section-padding-y": vars["section-padding-y"] || "48px", 
     "--section-padding-x": vars["section-padding-x"] || "24px",
     "--border-radius-global": vars["border-radius-global"] || "12px",
   } as React.CSSProperties;

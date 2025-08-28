@@ -421,13 +421,7 @@ function GraphView() {
     }
   }, [selectedNode]);
 
-  // Connect to graph events on mount
-  useEffect(() => {
-    connectToGraphEvents();
-    return () => {
-      disconnectFromGraphEvents();
-    };
-  }, []); // Empty dependency array to run only once
+  // Connection is managed centrally by AuthProvider; avoid duplicate connections here
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
@@ -559,6 +553,12 @@ function GraphView() {
 
     setNodes(reactFlowNodes);
     setEdges(reactFlowEdges);
+
+    // Select root node by default if nothing is selected
+    if (!selectedNodeId && reactFlowNodes.length > 0) {
+      const root = reactFlowNodes[0];
+      setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
+    }
   }, [graph, selectedNodeId, setNodes, setEdges]);
 
   // Update node selection without re-rendering the whole graph

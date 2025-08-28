@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { SandboxInstance } from "@blaxel/core";
 
-const sandbox = await SandboxInstance.get("vite-test1");
+const sandbox = await SandboxInstance.get("user-xpytmrv4xvuqrdjopns4map8byrjkmco");
 
 function collect(dir: string, base = dir) {
   const out: { path: string; content: string }[] = [];

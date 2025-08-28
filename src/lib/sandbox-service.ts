@@ -20,6 +20,10 @@ export class SandboxService {
     connectionString: process.env.DATABASE_URL,
   });
 
+  // Cache for sandbox info to avoid frequent API calls
+  private static sandboxInfoCache = new Map<string, { data: UserSandboxInfo | null; timestamp: number }>();
+  private static CACHE_DURATION = 30000; // 30 seconds
+
   /**
    * Initialize sandbox for a user (called on first login or signup)
    */
@@ -67,6 +71,12 @@ export class SandboxService {
    * Get sandbox information for a user
    */
   static async getUserSandboxInfo(userId: string): Promise<UserSandboxInfo | null> {
+    // Check cache first
+    const cached = this.sandboxInfoCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data;
+    }
+
     try {
       const client = await this.pool.connect();
       try {
@@ -76,6 +86,8 @@ export class SandboxService {
         );
 
         if (result.rows.length === 0 || !result.rows[0].sandbox_id) {
+          // Cache null result
+          this.sandboxInfoCache.set(userId, { data: null, timestamp: Date.now() });
           return null;
         }
 
@@ -84,19 +96,26 @@ export class SandboxService {
         // Get preview URL for existing sandbox
         const previewUrl = await BlaxelService.getUserPreviewUrl(userId);
         
-        return {
+        const sandboxInfo = {
           sandboxId: row.sandbox_id,
           sandboxUrl: BlaxelService.getSandboxUrl(userId),
           previewUrl,
           mcpServerUrl: BlaxelService.getMCPServerUrl(userId),
           createdAt: new Date(), // Use current time since we don't store creation time
-          status: 'standby' // Default status, could be enhanced to check actual status
+          status: 'standby' as const // Default status, could be enhanced to check actual status
         };
+
+        // Cache the result
+        this.sandboxInfoCache.set(userId, { data: sandboxInfo, timestamp: Date.now() });
+        
+        return sandboxInfo;
       } finally {
         client.release();
       }
     } catch (error) {
       console.error(`Failed to get sandbox info for user ${userId}:`, error);
+      // Cache null result even on error to avoid repeated failures
+      this.sandboxInfoCache.set(userId, { data: null, timestamp: Date.now() });
       return null;
     }
   }
