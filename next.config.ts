@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       // Redirect iframe requests to our dynamic proxy API
-      { source: '/iframe', destination: '/api/iframe' },
+      { source: '/iframe', destination: '/api/iframe/' },
       { source: '/iframe/:path*', destination: '/api/iframe/:path*' },
     ];
   }

@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SandboxInstance } from '@blaxel/core';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { auth } from '@/lib/auth';
+import { SandboxService } from '@/lib/sandbox-service';
+import { BlaxelService } from '@/lib/blaxel';
 
 interface BlaxelRequest {
   action: 'connect' | 'execute' | 'readFile' | 'writeFile' | 'deleteFile' | 'listFiles' | 'downloadGraph' | 'saveGraph' | 'exportProject';
-  sandboxName?: string;
   command?: string;
   path?: string;
   content?: string;
   directory?: string;
   filename?: string;
+  userId?: string; // For server-to-server calls
 }
 
 // Simple route to interact with Blaxel sandbox
@@ -20,52 +23,79 @@ export async function POST(request: NextRequest) {
   
   try {
     const body: BlaxelRequest = await request.json();
-    const { action, sandboxName, command, path, content, directory } = body;
+    const { action, command, path, content, directory, userId } = body;
+
+    let user: { id: string; email?: string };
+    
+    // Handle server-to-server calls with userId parameter
+    if (userId) {
+      console.log(`[${requestId}] Server-to-server call with userId: ${userId}`);
+      user = { id: userId };
+    } else {
+      // Handle regular user session authentication
+      const session = await auth.api.getSession({ headers: request.headers });
+      
+      if (!session || !session.user) {
+        console.log(`[${requestId}] ERROR: Unauthorized - no user session`);
+        return NextResponse.json(
+          { error: 'Unauthorized - Please sign in to access your sandbox' },
+          { status: 401 }
+        );
+      }
+
+      user = session.user;
+      console.log(`[${requestId}] User authenticated via session: ${user.id}`);
+    }
+
+    // Get user's sandbox info
+    const sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);
+    
+    if (!sandboxInfo) {
+      console.log(`[${requestId}] ERROR: No sandbox found for user ${user.id}`);
+      return NextResponse.json(
+        { error: 'No sandbox found. Please initialize your sandbox first.' },
+        { status: 404 }
+      );
+    }
+
+    // Get the actual sandbox name from BlaxelService
+    const finalSandboxName = BlaxelService.generateSandboxName(user.id);
     
     console.log(`[${requestId}] Action: ${action}`, {
-      sandboxName: sandboxName || 'from_env',
+      userId: user.id,
+      sandboxName: finalSandboxName,
       command: command ? command.substring(0, 100) + (command.length > 100 ? '...' : '') : undefined,
       path,
       contentLength: content ? content.length : undefined,
       directory
     });
 
-    // Get sandbox name from BL_SANDBOX_URL or use provided name
-    const blSandboxUrl = process.env.BL_SANDBOX_URL;
-    const finalSandboxName = sandboxName || (blSandboxUrl ? blSandboxUrl.split('/').pop() : null);
-    
-    console.log(`[${requestId}] Environment config:`, {
-      BL_SANDBOX_URL: blSandboxUrl ? `${blSandboxUrl.substring(0, 50)}...` : 'not_set',
-      finalSandboxName,
-      hasBlaxelToken: !!process.env.BLAXEL_TOKEN
-    });
-
-    if (!finalSandboxName) {
-      console.log(`[${requestId}] ERROR: No sandbox name available`);
-      return NextResponse.json(
-        { error: 'No sandbox name provided and BL_SANDBOX_URL not set' },
-        { status: 400 }
-      );
-    }
-
     let result: any;
 
     switch (action) {
       case 'connect':
-        console.log(`[${requestId}] Attempting to connect to sandbox: ${finalSandboxName}`);
+        console.log(`[${requestId}] Attempting to connect to user's sandbox: ${finalSandboxName}`);
         try {
-          await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Successfully connected to sandbox`);
+          // Try to get the user's sandbox using BlaxelService
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            // If sandbox doesn't exist, try to create it
+            console.log(`[${requestId}] Sandbox not found, attempting to create for user ${user.id}`);
+            await BlaxelService.getOrCreateUserSandbox(user.id, user.email || '');
+          }
+          console.log(`[${requestId}] Successfully connected to user's sandbox`);
           result = { 
             success: true, 
             sandboxName: finalSandboxName,
-            message: 'Connected to sandbox successfully' 
+            userId: user.id,
+            previewUrl: sandboxInfo.previewUrl,
+            message: 'Connected to user sandbox successfully' 
           };
         } catch (error) {
-          console.log(`[${requestId}] Failed to connect to sandbox:`, JSON.stringify(error));
+          console.log(`[${requestId}] Failed to connect to user's sandbox:`, JSON.stringify(error));
           result = { 
             success: false, 
-            error: 'Failed to connect to sandbox',
+            error: 'Failed to connect to user sandbox',
             fallback: true,
             message: 'Using mock mode for development'
           };
@@ -80,8 +110,11 @@ export async function POST(request: NextRequest) {
         
         console.log(`[${requestId}] Executing command: ${command}`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, executing command...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, executing command...`);
           
           // Use the process execution API - try different method names
           const executeResult = await (sandbox.process as any).processExecute ? 
@@ -115,8 +148,11 @@ export async function POST(request: NextRequest) {
         
         console.log(`[${requestId}] Reading file: ${path}`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, reading file...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, reading file...`);
           const content = await sandbox.fs.read(path);
           console.log(`[${requestId}] File read successfully`, {
             contentLength: content.length
@@ -143,8 +179,11 @@ export async function POST(request: NextRequest) {
         
         console.log(`[${requestId}] Writing file: ${path}`, { contentLength: content.length });
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, writing file...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, writing file...`);
           
           // Create directory if needed
           const dir = path.substring(0, path.lastIndexOf('/'));
@@ -177,8 +216,11 @@ export async function POST(request: NextRequest) {
         
         console.log(`[${requestId}] Deleting file/directory: ${path}`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, deleting file...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, deleting file...`);
           await sandbox.fs.rm(path);
           console.log(`[${requestId}] File deleted successfully`);
           result = { success: true, message: 'File deleted successfully' };
@@ -197,8 +239,11 @@ export async function POST(request: NextRequest) {
         console.log(`[${requestId}] Listing files in directory: ${targetDir}`);
         
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, listing files...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, listing files...`);
           const { subdirectories, files } = await sandbox.fs.ls(targetDir);
           
           // Convert Blaxel format to our expected format
@@ -222,8 +267,11 @@ export async function POST(request: NextRequest) {
       case 'downloadGraph':
         console.log(`[${requestId}] Downloading graph from blaxel/app/_graph`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, reading graph files...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, reading graph files...`);
           
           const graphDir = 'blaxel/app/_graph';
           let graphJson = null;
@@ -273,8 +321,11 @@ export async function POST(request: NextRequest) {
       case 'saveGraph':
         console.log(`[${requestId}] Saving graph from blaxel/app/_graph to server`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, reading and saving graph files...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, reading and saving graph files...`);
           
           const graphDir = 'blaxel/app/_graph';
           const savedDir = join(process.cwd(), 'saved');
@@ -336,8 +387,11 @@ export async function POST(request: NextRequest) {
       case 'exportProject':
         console.log(`[${requestId}] Exporting project files from sandbox`);
         try {
-          const sandbox = await SandboxInstance.get(finalSandboxName);
-          console.log(`[${requestId}] Sandbox retrieved, collecting all files...`);
+          const sandbox = await BlaxelService.getUserSandbox(user.id);
+          if (!sandbox) {
+            throw new Error('User sandbox not found');
+          }
+          console.log(`[${requestId}] User sandbox retrieved, collecting all files...`);
           
           // First verify that we can access the sandbox filesystem
           const appDir = '/blaxel/app';

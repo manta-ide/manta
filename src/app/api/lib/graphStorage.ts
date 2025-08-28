@@ -7,12 +7,12 @@ export type Graph = z.infer<typeof GraphSchema>;
 let currentGraph: Graph | null = null;
 
 // Blaxel integration utility functions
-async function callBlaxelApi(action: string, additionalData: any = {}) {
+async function callBlaxelApi(action: string, userId: string, additionalData: any = {}) {
   try {
     const response = await fetch(`${process.env.BACKEND_URL}/api/blaxel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...additionalData }),
+      body: JSON.stringify({ action, userId, ...additionalData }),
     });
     
     if (!response.ok) {
@@ -26,10 +26,10 @@ async function callBlaxelApi(action: string, additionalData: any = {}) {
   }
 }
 
-async function loadGraphFromBlaxel(): Promise<Graph | null> {
+async function loadGraphFromBlaxel(userId: string): Promise<Graph | null> {
   try {
     console.log('🔄 Loading graph from Blaxel sandbox...');
-    const result = await callBlaxelApi('readFile', { path: 'blaxel/app/_graph/graph.json' });
+    const result = await callBlaxelApi('readFile', userId, { path: 'blaxel/app/_graph/graph.json' });
     
     if (!result.success) {
       console.log('ℹ️ No graph found in Blaxel sandbox');
@@ -45,13 +45,13 @@ async function loadGraphFromBlaxel(): Promise<Graph | null> {
   }
 }
 
-async function saveGraphToBlaxel(graph: Graph): Promise<void> {
+async function saveGraphToBlaxel(graph: Graph, userId: string): Promise<void> {
   try {
     console.log('💾 Saving graph to Blaxel sandbox...');
     
     // Save graph.json to Blaxel
     const graphContent = JSON.stringify(graph, null, 2);
-    await callBlaxelApi('writeFile', { 
+    await callBlaxelApi('writeFile', userId, { 
       path: 'blaxel/app/_graph/graph.json', 
       content: graphContent 
     });
@@ -59,7 +59,7 @@ async function saveGraphToBlaxel(graph: Graph): Promise<void> {
     // Generate and save vars.json to Blaxel
     const vars = extractVariablesFromGraph(graph);
     const varsContent = JSON.stringify(vars, null, 2);
-    await callBlaxelApi('writeFile', { 
+    await callBlaxelApi('writeFile', userId, { 
       path: 'blaxel/app/_graph/vars.json', 
       content: varsContent 
     });
@@ -109,7 +109,7 @@ function extractVariablesFromGraph(graph: Graph): Record<string, any> {
  * Store a graph and save to file
  * Saves to both Blaxel sandbox and local file system
  */
-export async function storeGraph(graph: Graph): Promise<void> {
+export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   // Merge with existing graph to preserve built flags when nodes are unchanged
   let merged: Graph = graph;
 
@@ -134,7 +134,7 @@ export async function storeGraph(graph: Graph): Promise<void> {
 
   // Save to Blaxel only
   try {
-    await saveGraphToBlaxel(merged);
+    await saveGraphToBlaxel(merged, userId);
   } catch (error) {
     console.error('Failed to save to Blaxel:', error);
     throw error;
@@ -169,10 +169,10 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
 /**
  * Load graph from Blaxel sandbox and store in memory
  */
-export async function loadGraphFromFile(): Promise<Graph | null> {
+export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
   try {
     // Load from Blaxel sandbox only
-    const blaxelGraph = await loadGraphFromBlaxel();
+    const blaxelGraph = await loadGraphFromBlaxel(userId);
     if (blaxelGraph) {
       currentGraph = blaxelGraph;
       return blaxelGraph;
@@ -227,7 +227,7 @@ export function getUnbuiltNodeIds(): string[] {
 /**
  * Mark nodes as built and persist to file
  */
-export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
+export async function markNodesBuilt(nodeIds: string[], userId: string): Promise<void> {
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   const updated: Graph = {
@@ -238,7 +238,7 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
   
   // Save to Blaxel only
   try {
-    await saveGraphToBlaxel(updated);
+    await saveGraphToBlaxel(updated, userId);
   } catch (error) {
     console.error('Failed to save built flags to Blaxel:', error);
     throw error;
@@ -248,7 +248,7 @@ export async function markNodesBuilt(nodeIds: string[]): Promise<void> {
 /**
  * Mark nodes as unbuilt and persist to file
  */
-export async function markNodesUnbuilt(nodeIds: string[]): Promise<void> {
+export async function markNodesUnbuilt(nodeIds: string[], userId: string): Promise<void> {
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   const updated: Graph = {
@@ -259,7 +259,7 @@ export async function markNodesUnbuilt(nodeIds: string[]): Promise<void> {
   
   // Save to Blaxel only
   try {
-    await saveGraphToBlaxel(updated);
+    await saveGraphToBlaxel(updated, userId);
   } catch (error) {
     console.error('Failed to save unbuilt flags to Blaxel:', error);
     throw error;
@@ -268,16 +268,12 @@ export async function markNodesUnbuilt(nodeIds: string[]): Promise<void> {
 
 /**
  * Initialize graph from files on startup
+ * Note: This function is now deprecated as it requires a userId parameter
  */
 export async function initializeGraphsFromFiles(): Promise<void> {
   try {
     console.log('🔄 Initializing graphs from files...');
-    const graph = await loadGraphFromFile();
-    if (graph) {
-      console.log('✅ Loaded default graph from files');
-    } else {
-      console.log('ℹ️ No graph file found, will be created when first graph is generated');
-    }
+    console.log('ℹ️ Graph initialization now requires user context - skipping global initialization');
   } catch (error) {
     console.error('Error initializing graph from files:', error);
   }

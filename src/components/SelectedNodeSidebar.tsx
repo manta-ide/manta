@@ -5,12 +5,8 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
@@ -19,7 +15,7 @@ export default function SelectedNodeSidebar() {
 	const { selectedNodeId, selectedNode, setSelectedNode, loadProject: loadProjectFromFileSystem, triggerRefresh, refreshGraph } = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
-	const [isRebuilding, setIsRebuilding] = useState(false);
+	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
@@ -76,12 +72,33 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNodeId, setSelectedNode]);
 
+	if (!selectedNodeId) return null;
+
 	const handleRebuild = async () => {
 		if (!selectedNodeId) return;
 		try {
-			setIsRebuilding(true);
 			setRebuildError(null); // Clear previous errors
 			setRebuildSuccess(false); // Clear previous success
+			
+			// First update the node state to "building"
+			const updateStateRes = await fetch('/api/backend/graph-api', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ 
+					nodeId: selectedNodeId, 
+					state: 'building' 
+				})
+			});
+			
+			if (!updateStateRes.ok) {
+				console.error('Failed to update node state to building');
+				throw new Error('Failed to update node state to building');
+			}
+			
+			const updatedNode = await updateStateRes.json();
+			if (updatedNode?.success && updatedNode?.updatedNode) {
+				setSelectedNode(selectedNodeId, updatedNode.updatedNode);
+			}
 			
 			// 1) Save latest prompt before rebuild via new backend storage API
 			const previousPrompt = selectedNode?.prompt ?? '';
@@ -127,15 +144,51 @@ export default function SelectedNodeSidebar() {
 			triggerRefresh();
 			await reloadSelectedNodeFromBackend();
 			
-			// 5) Show success message
-			setRebuildSuccess(true);
-			// Clear success message after 3 seconds
-			setTimeout(() => setRebuildSuccess(false), 3000);
+			// 5) Update the node state to "built" upon success
+			const finalUpdateRes = await fetch('/api/backend/graph-api', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ 
+					nodeId: selectedNodeId, 
+					state: 'built' 
+				})
+			});
+			
+			if (finalUpdateRes.ok) {
+				const finalNode = await finalUpdateRes.json();
+				if (finalNode?.success && finalNode?.updatedNode) {
+					setSelectedNode(selectedNodeId, finalNode.updatedNode);
+				}
+				
+				// Show success message
+				setRebuildSuccess(true);
+				// Clear success message after 3 seconds
+				setTimeout(() => setRebuildSuccess(false), 3000);
+			}
 		} catch (error) {
 			console.error('Rebuild failed:', error);
 			setRebuildError('Failed to rebuild node. Please try again.');
-		} finally {
-			setIsRebuilding(false);
+			
+			// Update the node state back to its previous state (likely "unbuilt")
+			try {
+				const revertStateRes = await fetch('/api/backend/graph-api', {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ 
+						nodeId: selectedNodeId, 
+						state: selectedNode?.state === 'built' ? 'built' : 'unbuilt' 
+					})
+				});
+				
+				if (revertStateRes.ok) {
+					const revertedNode = await revertStateRes.json();
+					if (revertedNode?.success && revertedNode?.updatedNode) {
+						setSelectedNode(selectedNodeId, revertedNode.updatedNode);
+					}
+				}
+			} catch (e) {
+				console.error('Failed to revert node state after error:', e);
+			}
 		}
 	};
 
@@ -162,7 +215,7 @@ export default function SelectedNodeSidebar() {
 					graph: graph,
 					nodeId: selectedNodeId,
 					generatedCode,
-					filePath: 'src/app/page.tsx'
+					filePath: 'base-template/src/app/page.tsx'
 				}),
 			});
 			
@@ -204,6 +257,40 @@ export default function SelectedNodeSidebar() {
 			setIsGeneratingProperties(false);
 		}
 	};
+
+	const handlePropertyChange = useCallback(async (propertyId: string, value: any) => {
+		// Update local state immediately for responsive UI
+		const newPropertyValues = {
+			...propertyValues,
+			[propertyId]: value
+		};
+		setPropertyValues(newPropertyValues);
+
+		// Log the property change for now (mock functionality)
+		console.log('Property change:', {
+			nodeId: selectedNodeId,
+			propertyId,
+			oldValue: propertyValues[propertyId],
+			newValue: value,
+			allProperties: newPropertyValues
+		});
+
+		// If debouncing is disabled, apply changes immediately
+		if (!DEBOUNCE_PROPERTY_CHANGES) {
+			await applyPropertyChanges(newPropertyValues);
+			return;
+		}
+
+		// Clear any existing timeout
+		if (propertyChangeTimeoutRef.current) {
+			clearTimeout(propertyChangeTimeoutRef.current);
+		}
+
+		// Debounce the file system update
+		propertyChangeTimeoutRef.current = setTimeout(async () => {
+			await applyPropertyChanges(newPropertyValues);
+		}, 300); // 300ms debounce delay
+	}, [propertyValues, selectedNodeId, DEBOUNCE_PROPERTY_CHANGES]);
 
 	// Helper function to apply property changes (mock implementation)
 	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
@@ -271,9 +358,13 @@ export default function SelectedNodeSidebar() {
 				if (successfulUpdates.length > 0) {
 					console.log('✅ Successfully updated properties:', successfulUpdates);
 					
-					// Always trigger refresh when properties change to reload the iframe
-					console.log('🔄 Property changes detected, triggering refresh...');
-					triggerRefresh();
+					// Only trigger refresh if properties affect code generation
+					if (hasCodeAffectingChanges) {
+						console.log('🔄 Properties affect code generation, triggering refresh...');
+						triggerRefresh();
+					} else {
+						console.log('ℹ️ Properties updated without affecting code generation');
+					}
 				}
 			} catch (error) {
 				console.error('Failed to apply property changes:', error);
@@ -287,56 +378,63 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, triggerRefresh]);
 
-	const handlePropertyChange = useCallback(async (propertyId: string, value: any) => {
-		// Update local state immediately for responsive UI
-		const newPropertyValues = {
-			...propertyValues,
-			[propertyId]: value
-		};
-		setPropertyValues(newPropertyValues);
-
-		// Log the property change for now (mock functionality)
-		console.log('Property change:', {
-			nodeId: selectedNodeId,
-			propertyId,
-			oldValue: propertyValues[propertyId],
-			newValue: value,
-			allProperties: newPropertyValues
-		});
-
-		// If debouncing is disabled, apply changes immediately
-		if (!DEBOUNCE_PROPERTY_CHANGES) {
-			await applyPropertyChanges(newPropertyValues);
-			return;
-		}
-
-		// Clear any existing timeout
-		if (propertyChangeTimeoutRef.current) {
-			clearTimeout(propertyChangeTimeoutRef.current);
-		}
-
-		// Debounce the file system update
-		propertyChangeTimeoutRef.current = setTimeout(async () => {
-			await applyPropertyChanges(newPropertyValues);
-		}, 300); // 300ms debounce delay
-	}, [propertyValues, selectedNodeId, DEBOUNCE_PROPERTY_CHANGES, applyPropertyChanges]);
-
-	if (!selectedNodeId) return null;
-
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
-			<div className="p-3 border-b border-zinc-700">
-				<span className="font-bold text-sm truncate max-w-[280px] leading-tight" title={selectedNode?.title || selectedNodeId}>
+			<div className="px-3 py-2 border-b border-zinc-700">
+				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={selectedNode?.title || selectedNodeId}>
 					{selectedNode?.title || selectedNodeId}
 				</span>
 			</div>
-			<div className="overflow-y-auto max-h-[calc(100vh-7rem)] p-3 space-y-4">
+			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
+				<div className="space-y-3 pr-2">
 				{selectedNode && (
 					<>
+						{/* Prompt Section */}
+						<div>
+							<div className="flex items-center justify-between mb-3">
+								<div className="text-xs font-medium text-zinc-300">
+									Prompt
+								</div>
+								<button
+									className={`px-2 py-1 rounded text-xs font-medium ${
+										selectedNode?.state === 'built'
+											? 'bg-blue-600 hover:bg-blue-700' 
+											: selectedNode?.state === 'building'
+											  ? 'bg-yellow-600 hover:bg-yellow-700'
+											  : 'bg-orange-600 hover:bg-orange-700'
+									} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200`}
+									disabled={selectedNode?.state === 'building'}
+									onClick={handleRebuild}
+								>{selectedNode?.state === 'building' 
+									? 'Building…' 
+									: selectedNode?.state === 'built' 
+									  ? 'Rebuild' 
+									  : 'Build'}</button>
+							</div>
+							<div className="space-y-1.5">
+								<Textarea
+									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
+									value={promptDraft}
+									onChange={(e) => setPromptDraft(e.target.value)}
+									placeholder="Enter prompt..."
+								/>
+								{rebuildError && (
+									<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
+										{rebuildError}
+									</div>
+								)}
+								{rebuildSuccess && (
+									<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-1.5">
+										Node rebuilt successfully!
+									</div>
+								)}
+							</div>
+						</div>
+
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
-							<div className="space-y-2">
+							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
 								{selectedNode.properties?.map((property: Property, index: number) => (
-									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-2 mb-2" : ""}>
+									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
 										<PropertyEditor
 											property={{
 												...property,
@@ -350,62 +448,21 @@ export default function SelectedNodeSidebar() {
 						)}
 
 						{selectedNode.children?.length > 0 && (
-							<div>
-								<div className="text-sm font-semibold text-zinc-200 border-b border-zinc-700/30 pb-1 mb-2">Children ({selectedNode.children.length})</div>
-								<ul className="space-y-1">
+							<div className="border-t border-zinc-700/30 pt-3">
+								<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({selectedNode.children.length})</div>
+								<ul className="space-y-0.5">
 									{selectedNode.children.map((child: any) => (
-										<li key={child.id} className="text-xs font-medium text-zinc-300 bg-zinc-800/30 rounded p-1.5 border border-zinc-700/20">
+										<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
 											{child.title}
 										</li>
 									))}
 								</ul>
 							</div>
 						)}
-
-						{/* Prompt Section - Collapsible */}
-						<div className="border-t border-zinc-700/30 pt-3">
-							<Accordion type="single" collapsible className="w-full">
-								<AccordionItem value="prompt" className="border-none">
-									<AccordionTrigger className="py-1 text-sm font-semibold text-zinc-200 hover:text-zinc-100 hover:no-underline">
-										Prompt
-									</AccordionTrigger>
-									<AccordionContent className="pt-2 pb-0">
-										<div className="space-y-2">
-											<textarea
-												className="w-full h-32 text-sm bg-zinc-800 border border-zinc-700 rounded-md p-2 text-white font-medium leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-												value={promptDraft}
-												onChange={(e) => setPromptDraft(e.target.value)}
-											/>
-											{rebuildError && (
-												<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-2 font-medium">
-													{rebuildError}
-												</div>
-											)}
-											{rebuildSuccess && (
-												<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-2 font-medium">
-													Node rebuilt successfully!
-												</div>
-											)}
-											<div className="flex gap-2 pt-2">
-												<button
-													className={`px-3 py-1.5 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
-													disabled={isRebuilding}
-													onClick={handleRebuild}
-												>{isRebuilding ? 'Rebuilding…' : 'Rebuild'}</button>
-												<button
-													className={`px-3 py-1.5 rounded text-xs font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg`}
-													disabled={isGeneratingProperties}
-													onClick={handleGenerateProperties}
-												>{isGeneratingProperties ? 'Generating…' : 'Generate Props'}</button>
-											</div>
-										</div>
-									</AccordionContent>
-								</AccordionItem>
-							</Accordion>
-						</div>
 					</>
 				)}
-			</div>
+				</div>
+			</ScrollArea>
 		</div>
 	);
 }

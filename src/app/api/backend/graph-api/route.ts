@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGraphSession, loadGraphFromFile, storeGraph } from '../../lib/graphStorage';
+import { auth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    // Get current user session for all GET requests
+    const session = await auth.api.getSession({ headers: req.headers });
+    
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in to access your sandbox' },
+        { status: 401 }
+      );
+    }
+
+    const { user } = session;
+    
     // Check if this is an SSE request
     const url = new URL(req.url);
     const isSSE = url.searchParams.get('sse') === 'true';
@@ -26,7 +39,7 @@ export async function GET(req: NextRequest) {
                let graph = getGraphSession();
                if (!graph) {
                  try {
-                   await loadGraphFromFile();
+                   await loadGraphFromFile(user.id);
                    graph = getGraphSession();
                  } catch (loadError) {
                    console.log('ℹ️ No graph file found, skipping SSE update (loadError: ', loadError, ')');
@@ -78,7 +91,7 @@ export async function GET(req: NextRequest) {
       // Always try to load from file first to ensure we have the latest data
       let graph = getGraphSession();
       if (!graph) {
-        await loadGraphFromFile();
+        await loadGraphFromFile(user.id);
         graph = getGraphSession();
       }
       
@@ -108,7 +121,7 @@ export async function GET(req: NextRequest) {
     // Always try to load from file first to ensure we have the latest data
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile();
+      await loadGraphFromFile(user.id);
       graph = getGraphSession();
     }
     
@@ -146,6 +159,18 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get current user session
+    const session = await auth.api.getSession({ headers: req.headers });
+    
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in to access your sandbox' },
+        { status: 401 }
+      );
+    }
+
+    const { user } = session;
+    
     const body = await req.json();
     const { nodeId, action } = body;
     
@@ -153,7 +178,7 @@ export async function POST(req: NextRequest) {
     if (action === 'refresh') {
       console.log('🔄 Refreshing graph from file...');
       // Force refresh the graph data from file
-      await loadGraphFromFile();
+      await loadGraphFromFile(user.id);
       const graph = getGraphSession();
       
       if (!graph) {
@@ -191,7 +216,7 @@ export async function POST(req: NextRequest) {
     // Get graph data - always load from file first
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile();
+      await loadGraphFromFile(user.id);
       graph = getGraphSession();
     }
     
@@ -229,6 +254,18 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    // Get current user session
+    const session = await auth.api.getSession({ headers: req.headers });
+    
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in to access your sandbox' },
+        { status: 401 }
+      );
+    }
+
+    const { user } = session;
+    
     const body = await req.json();
     const { graph } = body;
     
@@ -239,10 +276,10 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    console.log('💾 Saving graph...');
+    console.log(`💾 Saving graph for user ${user.id}...`);
     
     // Store the graph using the storage function
-    await storeGraph(graph);
+    await storeGraph(graph, user.id);
     
     console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes`);
     
@@ -262,6 +299,18 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    // Get current user session
+    const session = await auth.api.getSession({ headers: req.headers });
+    
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please sign in to access your sandbox' },
+        { status: 401 }
+      );
+    }
+
+    const { user } = session;
+    
     const body = await req.json();
     const { nodeId, propertyId, value } = body;
     
@@ -277,7 +326,7 @@ export async function PATCH(req: NextRequest) {
     // Get current graph
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile();
+      await loadGraphFromFile(user.id);
       graph = getGraphSession();
     }
     
@@ -318,7 +367,7 @@ export async function PATCH(req: NextRequest) {
     };
 
     // Store the updated graph (this will also regenerate vars.json)
-    await storeGraph(graph);
+    await storeGraph(graph, user.id);
     
     console.log(`✅ Property updated successfully`);
     

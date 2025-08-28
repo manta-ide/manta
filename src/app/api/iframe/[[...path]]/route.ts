@@ -27,8 +27,9 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
     }
 
     // Construct the target URL
-    const pathSegments = params.path || [];
-    const targetPath = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '';
+    const pathSegments = (await params).path || [];
+    // Always include /iframe/ in the path since we're proxying iframe requests
+    const targetPath = `/iframe${pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/'}`;
     const searchParams = request.nextUrl.searchParams.toString();
     const queryString = searchParams ? `?${searchParams}` : '';
     
@@ -47,7 +48,6 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
         ...(request.headers.get('authorization') && { 'Authorization': request.headers.get('authorization')! }),
       }
     });
-
     if (!response.ok) {
       console.error(`[IframeProxy] Failed to fetch from sandbox: ${response.status} ${response.statusText}`);
       return NextResponse.json(
@@ -117,7 +117,8 @@ export async function POST(request: NextRequest, { params }: { params: { path?: 
 
     // Construct the target URL
     const pathSegments = params.path || [];
-    const targetPath = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '';
+    // Always include /iframe/ in the path since we're proxying iframe requests
+    const targetPath = `/iframe${pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/'}`;
     const searchParams = request.nextUrl.searchParams.toString();
     const queryString = searchParams ? `?${searchParams}` : '';
     
