@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { setGraphEditorAuthHeaders, setGraphEditorBaseUrl } from '../../lib/graphEditorTools';
 import { z } from 'zod';
 import { generateObject, generateText } from 'ai';
 import { azure } from '@ai-sdk/azure';
@@ -132,6 +133,12 @@ async function callGoogleGeminiStructured(
 
 export async function POST(req: NextRequest) {
   try {
+    // ensure internal fetches include auth and absolute base url
+    setGraphEditorAuthHeaders({
+      ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+      ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+    });
+    setGraphEditorBaseUrl(req.nextUrl.origin);
     // Start timing
     const startTime = Date.now();
 

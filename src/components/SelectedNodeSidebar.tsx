@@ -8,7 +8,7 @@ import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/lib/auth-context';
-import { supabaseRealtimeService } from '@/lib/supabase-realtime';
+import supabaseRealtimeService from '@/lib/supabase-realtime';
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
@@ -32,9 +32,12 @@ export default function SelectedNodeSidebar() {
 	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
+	const stagedPropertyValuesRef = useRef<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
 	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const lastPropertyUpdate = useRef<{ [propertyId: string]: number }>({});
+	const PROPERTY_UPDATE_THROTTLE = 60; // Update every 60ms for smoother live updates
 
 	// Just monitor connection status - let AuthProvider handle the actual connection
 	useEffect(() => {
@@ -71,6 +74,7 @@ export default function SelectedNodeSidebar() {
 				initialValues[prop.id] = prop.value;
 			}
 			setPropertyValues(initialValues);
+			stagedPropertyValuesRef.current = initialValues;
 		}
 	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
 
@@ -312,26 +316,45 @@ export default function SelectedNodeSidebar() {
 		}
 	};
 
-	const handlePropertyChange = useCallback(async (propertyId: string, value: any) => {
+	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
-		const newPropertyValues = {
-			...propertyValues,
-			[propertyId]: value
-		};
-		setPropertyValues(newPropertyValues);
+		const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
+		const isHighFrequency = propMeta?.type === 'color';
 
-		// Log the property change for now (mock functionality)
-		console.log('Property change:', {
-			nodeId: selectedNodeId,
-			propertyId,
-			oldValue: propertyValues[propertyId],
-			newValue: value,
-			allProperties: newPropertyValues
-		});
+		// For high-frequency properties, avoid re-rendering the sidebar on every tick
+		if (isHighFrequency) {
+			stagedPropertyValuesRef.current = {
+				...stagedPropertyValuesRef.current,
+				[propertyId]: value
+			};
+		} else {
+			const newPropertyValues = {
+				...propertyValues,
+				[propertyId]: value
+			};
+			setPropertyValues(newPropertyValues);
+		}
 
-		// If debouncing is disabled, apply changes immediately
+		// Skip heavy tracking to avoid lag
+
+		// Use broadcast for immediate real-time property updates (non-blocking, synchronous)
+		if (supabaseConnected && selectedNodeId) {
+			const now = Date.now();
+			const lastUpdate = lastPropertyUpdate.current[propertyId] || 0;
+			
+			if (now - lastUpdate >= PROPERTY_UPDATE_THROTTLE) {
+				lastPropertyUpdate.current[propertyId] = now;
+				
+				// Use broadcast for real-time updates (synchronous, non-blocking)
+				supabaseRealtimeService.broadcastProperty(selectedNodeId, propertyId, value);
+				console.debug(`📡 Property ${propertyId} broadcasted for real-time sync`);
+			}
+		}
+
+		// Handle file system updates (debounced for performance)
 		if (!DEBOUNCE_PROPERTY_CHANGES) {
-			await applyPropertyChanges(newPropertyValues);
+			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
+			applyPropertyChangesToFiles(payloadValues).catch(() => {});
 			return;
 		}
 
@@ -340,14 +363,15 @@ export default function SelectedNodeSidebar() {
 			clearTimeout(propertyChangeTimeoutRef.current);
 		}
 
-		// Debounce the file system update
+		// Debounce the file system update only
 		propertyChangeTimeoutRef.current = setTimeout(async () => {
-			await applyPropertyChanges(newPropertyValues);
-		}, 300); // 300ms debounce delay
-	}, [propertyValues, selectedNodeId, DEBOUNCE_PROPERTY_CHANGES]);
+			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
+			await applyPropertyChangesToFiles(payloadValues);
+		}, 250); // slightly faster debounce for smoother UX
+	}, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, supabaseConnected, updatePropertyInSupabase]);
 
-	// Helper function to apply property changes (mock implementation)
-	const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
+	// Helper function to apply property changes to files only (Blaxel/backend)
+	const applyPropertyChangesToFiles = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
 				// Track which properties actually changed and if any affect code generation
@@ -375,71 +399,38 @@ export default function SelectedNodeSidebar() {
 				
 				console.log('🔄 Updating properties:', changedProperties);
 				
-				// Update each changed property - try Supabase first, then fallback to backend API
+				// Save properties to both Supabase database and files (final persistence)
 				const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
-					let updateSuccess = false;
+					console.log(`🔄 Saving property ${propertyId} to Supabase database and files`);
 					
-					// Check real-time connection status instead of relying on store state
-					const store = useProjectStore.getState();
-					const isSupabaseActuallyConnected = store.supabaseConnected || (supabaseRealtimeService as any)?.connected;
-					
-					// Try Supabase first if connected
-					if (isSupabaseActuallyConnected) {
-						try {
-							await updatePropertyInSupabase(selectedNodeId, propertyId, newValue);
-							console.log(`✅ Property ${propertyId} updated via Supabase`);
-							updateSuccess = true;
-							// Keep Blaxel/backend in sync so preview and other windows update
-							try {
-								const response = await fetch('/api/backend/graph-api', {
-									method: 'PATCH',
-									headers: { 'Content-Type': 'application/json' },
-									body: JSON.stringify({
-										nodeId: selectedNodeId,
-										propertyId: propertyId,
-										value: newValue
-									})
-								});
-								if (response.ok) {
-									const result = await response.json();
-									if (result.success && result.updatedNode) {
-										setSelectedNode(selectedNodeId, result.updatedNode);
-									}
-								}
-							} catch (syncErr) {
-								console.warn('⚠️ Backend sync after Supabase update failed (non-fatal):', syncErr);
-							}
-						} catch (supabaseError) {
-							console.warn(`⚠️ Supabase property update failed for ${propertyId}, trying backend API:`, supabaseError);
-						}
-					} else {
-						console.log(`⚠️ Supabase not connected (state: ${isSupabaseActuallyConnected}), using backend API for ${propertyId}`);
+					// Save to Supabase database for persistence
+					try {
+						await updatePropertyInSupabase(selectedNodeId, propertyId, newValue);
+						console.log(`✅ Property ${propertyId} persisted to Supabase database`);
+					} catch (supabaseError) {
+						console.warn(`⚠️ Failed to persist property ${propertyId} to Supabase:`, supabaseError);
 					}
 					
-					// Fallback to backend API if Supabase failed or not connected
-					if (!updateSuccess) {
-						console.log(`🔄 Using backend API for property ${propertyId}`);
-						
-						const response = await fetch('/api/backend/graph-api', {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								nodeId: selectedNodeId,
-								propertyId: propertyId,
-								value: newValue
-							})
-						});
-						
-						if (!response.ok) {
-							const errorData = await response.json().catch(() => ({}));
-							throw new Error(`Failed to update property ${propertyId}: ${errorData.error || response.statusText}`);
-						}
-						
-						const result = await response.json();
-						if (result.success && result.updatedNode) {
-							// Update the local node state with the updated node
-							setSelectedNode(selectedNodeId, result.updatedNode);
-						}
+					// Save to files via backend API
+					const response = await fetch('/api/backend/graph-api', {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							nodeId: selectedNodeId,
+							propertyId: propertyId,
+							value: newValue
+						})
+					});
+					
+					if (!response.ok) {
+						const errorData = await response.json().catch(() => ({}));
+						throw new Error(`Failed to save property ${propertyId} to files: ${errorData.error || response.statusText}`);
+					}
+					
+					const result = await response.json();
+					if (result.success && result.updatedNode) {
+						// Update the local node state with the updated node
+						setSelectedNode(selectedNodeId, result.updatedNode);
 					}
 					
 					return {
@@ -454,15 +445,20 @@ export default function SelectedNodeSidebar() {
 				const successfulUpdates = results.filter(r => r.success);
 				
 				if (successfulUpdates.length > 0) {
-					console.log('✅ Successfully updated properties:', successfulUpdates);
+					console.log('✅ Successfully saved properties to files:', successfulUpdates);
 					
 					// Only trigger refresh if properties affect code generation
 					if (hasCodeAffectingChanges) {
 						console.log('🔄 Properties affect code generation, triggering refresh...');
 						triggerRefresh();
 					} else {
-						console.log('ℹ️ Properties updated without affecting code generation');
+						console.log('ℹ️ Properties saved to files without affecting code generation');
 					}
+					
+					// Ensure the store graph reflects latest property values when re-selecting nodes
+					try {
+						await refreshGraph();
+					} catch {}
 				}
 			} catch (error) {
 				console.error('Failed to apply property changes:', error);
@@ -536,7 +532,7 @@ export default function SelectedNodeSidebar() {
 										<PropertyEditor
 											property={{
 												...property,
-												value: propertyValues[property.id] || property.value
+												value: (propertyValues[property.id] ?? property.value)
 											}}
 											onChange={handlePropertyChange}
 										/>

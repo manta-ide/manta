@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, Play } from 'lucide-react';
+import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -146,21 +146,6 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
                <Network className="w-3.5 h-3.5" />
             </Button>
             
-            {/* Only show sandbox panel toggle if user is authenticated */}
-            {user && (
-              <Button
-                variant={panels.sandbox ? "default" : "outline"}
-                size="sm"
-                onClick={() => onTogglePanel('sandbox')}
-                className={panels.sandbox
-                  ? "bg-zinc-700 text-white border-0 h-6 w-6 p-0 rounded-sm"
-                  : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
-                }
-                title="Toggle Sandbox Panel"
-              >
-                <Play className="w-3.5 h-3.5" />
-              </Button>
-            )}
           </div>
 
           {/* Export Button */}

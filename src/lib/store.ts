@@ -19,6 +19,8 @@ interface ProjectStore {
   graphError: string | null;
   graphConnected: boolean;
   supabaseConnected: boolean;
+  iframeReady: boolean;
+  resetStore: () => void;
   
   // File operations
   loadProject: () => Promise<void>;
@@ -32,6 +34,7 @@ interface ProjectStore {
   getAllFiles: () => Map<string, string>;
   buildFileTree: () => void;
   triggerRefresh: () => void;
+  setIframeReady: (ready: boolean) => void;
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
@@ -77,6 +80,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   graphError: null,
   graphConnected: false,
   supabaseConnected: false,
+  iframeReady: false,
+  resetStore: () => set({
+    files: new Map(),
+    currentFile: null,
+    selectedFile: null,
+    fileTree: [],
+    selection: null,
+    refreshTrigger: 0,
+    selectedNodeId: null,
+    selectedNode: null,
+    graph: null,
+    graphLoading: true,
+    graphError: null,
+    graphConnected: false,
+    supabaseConnected: false,
+    iframeReady: false,
+  }),
 
   loadProject: async () => {
     try {
@@ -222,6 +242,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   triggerRefresh: () => set(state => ({ refreshTrigger: state.refreshTrigger + 1 })),
+  setIframeReady: (ready) => set({ iframeReady: ready }),
   
   // Graph operations
   loadGraph: async () => {
@@ -235,7 +256,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           const graph = await supabaseRealtimeService.loadGraph();
           if (graph && graph.nodes && graph.nodes.length > 0) {
             set({ graph, graphLoading: false });
-            console.log(`✅ Loaded graph from Supabase with ${graph.nodes.length} nodes`);
+            console.log(`✅ Loaded graph from Supabase with ${graph.nodes.length} nodes and ${graph.edges?.length || 0} edges`);
+            if (graph.edges && graph.edges.length > 0) {
+              console.log('📊 Store: Edge details:', graph.edges);
+            }
             return;
           } else {
             console.log('📊 Supabase has no nodes, falling back to backend API...');
@@ -459,30 +483,56 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 break;
                 
               case 'property_updated': {
-                // Always update graph copy for consistency across tabs
-                if (state.graph) {
-                  const targetNode = state.graph.nodes.find(n => n.id === event.nodeId);
-                  if (targetNode) {
-                    const updatedProps = (targetNode.properties || [])
-                      .map(p => p.id === event.property.id ? { ...p, ...event.property } : p)
-                      // Keep a stable order by id to avoid UI reordering on updates
-                      .sort((a, b) => a.id.localeCompare(b.id));
-                    const updatedNode = { ...targetNode, properties: updatedProps };
-                    const updatedGraph = {
-                      ...state.graph,
-                      nodes: state.graph.nodes.map(n => n.id === event.nodeId ? updatedNode : n)
-                    };
-                    set({ graph: updatedGraph });
-                    if (state.selectedNodeId === event.nodeId) {
-                      set({ selectedNode: updatedNode });
-                    }
-                  }
+                // Optimize: avoid full graph updates to prevent GraphView re-renders
+                if (state.selectedNodeId === event.nodeId && state.selectedNode) {
+                  const updatedProps = (state.selectedNode.properties || [])
+                    .map(p => p.id === event.property.id ? { ...p, ...event.property } : p)
+                    .sort((a, b) => a.id.localeCompare(b.id));
+                  set({ selectedNode: { ...state.selectedNode, properties: updatedProps } as any });
                 }
                 break;
               }
                 
               case 'graph_loaded':
                 set({ graph: event.graph, graphLoading: false });
+                break;
+                
+              case 'node_position_updated':
+                // Update node position from broadcast (real-time collaborative editing)
+                if (state.graph && event.fromBroadcast) {
+                  const existingNode = state.graph.nodes.find(n => n.id === event.nodeId);
+                  const same = existingNode && existingNode.position && existingNode.position.x === event.position.x && existingNode.position.y === event.position.y;
+                  if (!existingNode || same) break;
+                  const updatedGraph = {
+                    ...state.graph,
+                    nodes: state.graph.nodes.map(n => 
+                      n.id === event.nodeId 
+                        ? { ...n, position: event.position }
+                        : n
+                    )
+                  };
+                  set({ graph: updatedGraph });
+                  
+                  // Update selected node if it's the one being updated
+                  if (state.selectedNodeId === event.nodeId) {
+                    const updatedNode = updatedGraph.nodes.find(n => n.id === event.nodeId);
+                    if (updatedNode) {
+                      set({ selectedNode: updatedNode });
+                    }
+                  }
+                }
+                break;
+                
+              case 'property_updated_broadcast':
+                // Optimize: only update selected node locally to avoid GraphView churn
+                if (event.fromBroadcast && state.selectedNodeId === event.nodeId && state.selectedNode) {
+                  const existingVal = state.selectedNode.properties?.find(p => p.id === event.propertyId)?.value;
+                  if (existingVal === event.value) break;
+                  const updatedProps = (state.selectedNode.properties || []).map(p =>
+                    p.id === event.propertyId ? { ...p, value: event.value } : p
+                  ).sort((a, b) => a.id.localeCompare(b.id));
+                  set({ selectedNode: { ...state.selectedNode, properties: updatedProps } as any });
+                }
                 break;
             }
           });

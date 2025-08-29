@@ -8,13 +8,14 @@ import AppViewer from "@/components/AppViewer";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
-import SandboxStatus from "@/components/sandbox/SandboxStatus";
-import SandboxCreationNotification from "@/components/sandbox/SandboxCreationNotification";
-import SupabaseStatus from "@/components/SupabaseStatus";
+// Removed sandbox/supabase UI widgets
+import GlobalLoaderOverlay from "@/components/GlobalLoaderOverlay";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
+  const { user, loading } = useAuth();
   const [panels, setPanels] = useState({
     files: false,
     editor: false,
@@ -27,11 +28,13 @@ export default function Home() {
 
   const { loadProject: loadProjectFromFileSystem, selectedNodeId, setSelectedNode } = useProjectStore();
 
-  // Load project from filesystem on mount
+  // Load project only when authenticated
   useEffect(() => {
-    console.log('🚀 Loading project on mount');
-    loadProjectFromFileSystem();
-  }, [loadProjectFromFileSystem]); // Include loadProjectFromFileSystem in dependencies
+    if (user && !loading) {
+      console.log('🚀 Loading project on auth ready');
+      loadProjectFromFileSystem();
+    }
+  }, [user, loading, loadProjectFromFileSystem]);
 
   // Set root node as selected on mount
   useEffect(() => {
@@ -82,6 +85,15 @@ export default function Home() {
   // Adjust panel sizes when SelectedNodeSidebar is visible
   // const selectedPanelSize = hasSelected ? 20 : 0;
 
+  if (!user || loading) {
+    return (
+      <div className="flex flex-col h-screen bg-zinc-900">
+        <TopBar panels={panels} onTogglePanel={togglePanel} isEditMode={isEditMode} setIsEditMode={setIsEditMode} />
+        <GlobalLoaderOverlay />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-zinc-900">
       <TopBar panels={panels} onTogglePanel={togglePanel} isEditMode={isEditMode} setIsEditMode={setIsEditMode} />
@@ -96,7 +108,7 @@ export default function Home() {
           hasSelected,
           panels.viewer,
           panels.graph,
-          panels.sandbox,
+          false,
         ].join('|')}
       >
         {panels.files && (
@@ -160,28 +172,15 @@ export default function Home() {
           </ResizablePanelGroup>
         </ResizablePanel>
 
-        {/* Sandbox Panel */}
-        {panels.sandbox && (
-          <>
-            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
-            <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-              <div className="h-full border-l border-zinc-700 bg-zinc-900 p-4">
-                <SandboxStatus />
-              </div>
-            </ResizablePanel>
-          </>
-        )}
+        {/* Sandbox Panel removed */}
         
       </ResizablePanelGroup>
       
       {/* Floating Chat */}
       <FloatingChat />
       
-      {/* Sandbox Creation Notifications */}
-      <SandboxCreationNotification />
-      
-      {/* Supabase Connection Status */}
-      <SupabaseStatus />
+      {/* Global loader overlay */}
+      <GlobalLoaderOverlay />
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
 import { storeGraph } from '@/app/api/lib/graphStorage';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
-import { setCurrentGraph, resetPendingChanges } from '@/app/api/lib/graphEditorTools';
+import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 
 // Multi-step agent configuration for graph editing
 const GRAPH_EDITOR_CONFIG = {
@@ -55,9 +56,15 @@ async function buildParsedMessages(
 }
 
 async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
-  return fetch(`${process.env.BACKEND_URL}/api/llm-agent/run`, {
+  const origin = request.nextUrl.origin;
+  const url = process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/llm-agent/run` : `${origin}/api/llm-agent/run`;
+  return fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(request.headers.get('cookie') ? { cookie: request.headers.get('cookie') as string } : {}),
+      ...(request.headers.get('authorization') ? { authorization: request.headers.get('authorization') as string } : {}),
+    },
     body: JSON.stringify(body),
     signal: request.signal,
   });
@@ -65,6 +72,13 @@ async function callAgent(request: NextRequest, body: unknown): Promise<Response>
 
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate request to associate graph with user
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session || !session.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+    const userId = session.user.id;
+
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
       console.log('Graph editor request schema error:', parsed.error.flatten());
@@ -75,6 +89,28 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage, selectedNodeId, selectedNodeTitle, selectedNodePrompt } = parsed.data;
+    // forward auth headers for downstream API calls
+    setGraphEditorAuthHeaders({
+      ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+      ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+    });
+    // ensure absolute base url is used
+    setGraphEditorBaseUrl(req.nextUrl.origin);
+    // As a fallback for environments where headers may be dropped, use a direct save function
+    setGraphEditorSaveFn(async (graph) => {
+      const res = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+          ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+        },
+        body: JSON.stringify({ graph })
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      return !!data.success;
+    });
     let graph = await fetchGraphFromApi(req);
     
     // If no graph exists, create a completely empty one
@@ -83,7 +119,7 @@ export async function POST(req: NextRequest) {
         nodes: []
       };
       
-      await storeGraph(emptyGraph);
+      await storeGraph(emptyGraph, userId);
       
       graph = emptyGraph;
     }

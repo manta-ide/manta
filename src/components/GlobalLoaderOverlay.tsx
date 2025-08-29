@@ -1,0 +1,50 @@
+'use client';
+
+import { useEffect, useMemo } from 'react';
+import { useProjectStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth-context';
+
+export default function GlobalLoaderOverlay() {
+  const { graphLoading, supabaseConnected, iframeReady } = useProjectStore();
+  const { user } = useAuth();
+
+  const show = useMemo(() => {
+    // Show while graph is loading
+    if (graphLoading) return true;
+    // If user is authenticated, require Supabase and iframe
+    if (user) {
+      return !supabaseConnected || !iframeReady;
+    }
+    // If not authenticated, only wait for iframe (editor preview)
+    return !iframeReady;
+  }, [graphLoading, supabaseConnected, iframeReady, user]);
+
+  // Prevent body scroll when overlay visible
+  useEffect(() => {
+    if (show) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
+    }
+  }, [show]);
+
+  if (!show) return null;
+
+  const message = user
+    ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')
+    : 'Starting preview…';
+
+  return (
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-zinc-900/90 backdrop-blur-sm"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex flex-col items-center gap-4 text-zinc-200">
+        <div className="w-10 h-10 rounded-full border-2 border-zinc-600 border-t-white animate-spin" />
+        <div className="text-sm font-medium">{message}</div>
+      </div>
+    </div>
+  );
+}
+
+

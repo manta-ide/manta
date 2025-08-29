@@ -58,7 +58,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
   const [isAppRunning, setIsAppRunning] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
-  const { refreshTrigger } = useProjectStore();
+  const { refreshTrigger, setIframeReady } = useProjectStore();
   
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -67,6 +67,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
 
   /* ── create / reuse host <div> inside the iframe once it loads ── */
   const handleIframeLoad = useCallback(() => {
+    setIframeReady(true);
     // Give iframe time to fully hydrate before manipulating DOM
     setTimeout(() => {
       const doc =
@@ -104,6 +105,11 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
       }, 100); // Additional delay for iframe hydration
     }, 0);
   }, [isEditMode]);
+  useEffect(() => {
+    // mark not ready until probe or load fires
+    setIframeReady(false);
+  }, [setIframeReady]);
+
 
   /* ── cleanup overlay host on unmount ───────────────────────── */
   useEffect(() => {
@@ -127,34 +133,41 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   // Reload iframe when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger > 0) {
+      setIframeReady(false);
       setIframeKey(prevKey => prevKey + 1);
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, setIframeReady]);
 
   useEffect(() => {
+    let cancelled = false;
+    let delayMs = 5000; // start at 5s
+    const maxDelayMs = 30000; // cap at 30s
+
     const probe = async () => {
       try {
-        await fetch(IFRAME_PATH, { method: 'HEAD' });
-        setIsAppRunning(true);
+        const res = await fetch(IFRAME_PATH, { method: 'GET', headers: { 'Accept': 'text/html' } });
+        if (!cancelled && res.ok) {
+          setIsAppRunning(true);
+          setIframeReady(true);
+          return; // stop probing once ready
+        }
       } catch {
+        // ignore
+      }
+      if (!cancelled) {
         setIsAppRunning(false);
+        setIframeReady(false);
+        setTimeout(probe, delayMs);
+        delayMs = Math.min(maxDelayMs, Math.floor(delayMs * 1.7));
       }
     };
-    probe();
-    const id = setInterval(probe, 3_000);
-    return () => clearInterval(id);
-  }, []);
 
-  /* ── early fallback while the child isn’t running ───────────── */
-  if (!isAppRunning) {
-    return (
-      <div className="flex flex-col h-full bg-background border-l">
-        <div className="flex-1 flex items-center justify-center">
-          <LoaderFive text="Waiting for app on :3001…" />
-        </div>
-      </div>
-    );
-  }
+    // kick off probing
+    probe();
+    return () => { cancelled = true; };
+  }, [setIframeReady]);
+
+  /* No local fallback UI; a global overlay handles loading */
 
   /* ── render ─────────────────────────────────────────────────── */
   return (
@@ -162,15 +175,17 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     
       <div className="flex flex-col h-full bg-background border-l">
         <div className="flex-1 relative min-h-0">
-          <iframe
-            key={iframeKey}
-            ref={iframeRef}
-            src={IFRAME_PATH}
-            className="w-full h-full border-0"
-            title="Demo App"
-            onLoad={handleIframeLoad}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          />
+          {isAppRunning && (
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              src={IFRAME_PATH}
+              className="w-full h-full border-0"
+              title="Demo App"
+              onLoad={handleIframeLoad}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
+          )}
 
           {/* All overlay UI is portalled INTO the iframe’s document */}
           {overlayHost &&

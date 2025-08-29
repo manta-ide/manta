@@ -96,7 +96,9 @@ export type GraphChangeEvent =
   | { type: 'node_updated'; node: GraphNode }
   | { type: 'node_deleted'; nodeId: string }
   | { type: 'property_updated'; nodeId: string; property: Property }
-  | { type: 'graph_loaded'; graph: Graph };
+  | { type: 'graph_loaded'; graph: Graph }
+  | { type: 'node_position_updated'; nodeId: string; position: { x: number; y: number }; fromBroadcast?: boolean }
+  | { type: 'property_updated_broadcast'; nodeId: string; propertyId: string; value: any; fromBroadcast?: boolean };
 
 export type GraphChangeHandler = (event: GraphChangeEvent) => void;
 
@@ -104,8 +106,10 @@ class SupabaseRealtimeService {
   private supabase: SupabaseClient<any> | null = null; // For realtime subscriptions
   private serviceRoleClient: SupabaseClient<any> | null = null; // For database operations
   private channel: RealtimeChannel | null = null;
-  private broadcastChannel: RealtimeChannel | null = null; // optional broadcast for low-latency fanout
+  private broadcastChannel: RealtimeChannel | null = null; // primary broadcast channel
+  private broadcastSandboxChannel: RealtimeChannel | null = null; // secondary (sandbox) broadcast channel
   private userId: string | null = null;
+  private clientId: string = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
   private changeHandlers: Set<GraphChangeHandler> = new Set();
   private isConnected = false;
   private isConnecting = false;
@@ -167,6 +171,24 @@ class SupabaseRealtimeService {
         }
       }, 500);
     }
+  }
+
+  // Determine a shared broadcast room so multiple sessions/users see each other's changes.
+  // Prefer sandboxId when available; fall back to userId.
+  private async getBroadcastRoomId(userId: string): Promise<string> {
+    try {
+      const res = await fetch('/api/sandbox/init', { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json();
+        const sandboxId = data?.sandbox?.sandboxId;
+        if (sandboxId && typeof sandboxId === 'string') {
+          return sandboxId;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to resolve sandboxId for broadcast; using userId instead');
+    }
+    return userId;
   }
 
   async connect(userId: string) {
@@ -261,25 +283,59 @@ class SupabaseRealtimeService {
           this.isConnected = true;
           this.isConnecting = false;
           console.log('✅ Connected to Supabase Realtime');
-          // Optional broadcast room for additional fanout (self=false to avoid echoes)
+          // Subscribe to two broadcast rooms for robust fanout: userId and sandboxId
           try {
-            this.broadcastChannel = this.supabase!.channel(`graph-broadcast-${userId}`, {
-              config: { broadcast: { self: true, ack: true } }
+            const userRoom = `graph-broadcast-${userId}`;
+            this.broadcastChannel = this.supabase!.channel(userRoom, {
+              config: { broadcast: { self: false, ack: false } }
+            })
+            .on('broadcast', { event: 'position_update' }, (payload) => {
+              console.log('📡 Received position broadcast (user):', payload);
+              this.handlePositionBroadcast(payload);
+            })
+            .on('broadcast', { event: 'property_update' }, (payload) => {
+              console.log('📡 Received property broadcast (user):', payload);
+              this.handlePropertyBroadcast(payload);
             })
             .on('broadcast', { event: 'property' }, (payload) => {
               const { nodeId: bNodeId, property } = payload?.payload || {};
               if (!bNodeId || !property) return;
-              // Re-emit via our handler pipeline for consistency
               this.notifyHandlers({ type: 'property_updated', nodeId: bNodeId, property });
             })
             .on('broadcast', { event: 'graph_reload' }, async () => {
-              try {
-                await this.loadGraph();
-              } catch (e) {
-                console.warn('⚠️ Failed to reload graph on broadcast:', e);
-              }
+              try { await this.loadGraph(); } catch (e) { console.warn('⚠️ reload failed (user):', e); }
             })
             .subscribe();
+
+            // Resolve sandbox room and subscribe if different
+            (async () => {
+              try {
+                const resolved = await this.getBroadcastRoomId(userId);
+                if (resolved && resolved !== userId) {
+                  const sandboxRoom = `graph-broadcast-${resolved}`;
+                  this.broadcastSandboxChannel = this.supabase!.channel(sandboxRoom, {
+                    config: { broadcast: { self: false, ack: false } }
+                  })
+                  .on('broadcast', { event: 'position_update' }, (payload) => {
+                    console.log('📡 Received position broadcast (sandbox):', payload);
+                    this.handlePositionBroadcast(payload);
+                  })
+                  .on('broadcast', { event: 'property_update' }, (payload) => {
+                    console.log('📡 Received property broadcast (sandbox):', payload);
+                    this.handlePropertyBroadcast(payload);
+                  })
+                  .on('broadcast', { event: 'property' }, (payload) => {
+                    const { nodeId: bNodeId, property } = payload?.payload || {};
+                    if (!bNodeId || !property) return;
+                    this.notifyHandlers({ type: 'property_updated', nodeId: bNodeId, property });
+                  })
+                  .on('broadcast', { event: 'graph_reload' }, async () => {
+                    try { await this.loadGraph(); } catch (e) { console.warn('⚠️ reload failed (sandbox):', e); }
+                  })
+                  .subscribe();
+                }
+              } catch {}
+            })();
           } catch {}
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Failed to connect to Supabase Realtime - Channel Error');
@@ -444,14 +500,41 @@ class SupabaseRealtimeService {
         (nodes || []).map(node => this.convertDatabaseNodeToGraphNode(node, properties))
       );
 
+      // Build children arrays from edges
+      const nodeMap = new Map(graphNodes.map(node => [node.id, node]));
+      const edgeArray = (edges || []).map(edge => ({
+        id: edge.id,
+        source: edge.source_id,
+        target: edge.target_id
+      }));
+
+      // Populate children arrays from edges
+      for (const edge of edgeArray) {
+        const parentNode = nodeMap.get(edge.source);
+        const childNode = nodeMap.get(edge.target);
+        if (parentNode && childNode) {
+          if (!parentNode.children) {
+            parentNode.children = [];
+          }
+          // Avoid duplicates
+          if (!parentNode.children.find(child => child.id === childNode.id)) {
+            parentNode.children.push({
+              id: childNode.id,
+              title: childNode.title
+            });
+          }
+        }
+      }
+
       const graph: Graph = {
         nodes: graphNodes,
-        edges: (edges || []).map(edge => ({
-          id: edge.id,
-          source: edge.source_id,
-          target: edge.target_id
-        }))
+        edges: edgeArray
       };
+
+      console.log(`📊 Loaded graph: ${graphNodes.length} nodes, ${edgeArray.length} edges`);
+      if (edgeArray.length > 0) {
+        console.log('📊 Edge details:', edgeArray);
+      }
 
       // Notify handlers
       this.notifyHandlers({ type: 'graph_loaded', graph });
@@ -498,23 +581,8 @@ class SupabaseRealtimeService {
       await this.saveNodeProperties(node.id, node.properties);
     }
 
-    // Save edges for this node if present in Graph type
-    if ((node as any).children && Array.isArray((node as any).children)) {
-      const client = this.serviceRoleClient || this.supabase!;
-      // Remove existing edges from or to this node for current user
-      await client.from('graph_edges').delete().or(`source_id.eq.${node.id},target_id.eq.${node.id}`).eq('user_id', this.userId);
-      // Insert edges based on children array (parent -> child)
-      const edges = (node as any).children.map((c: any) => ({
-        id: `${node.id}__${c.id}`,
-        source_id: node.id,
-        target_id: c.id,
-        user_id: this.userId!
-      }));
-      if (edges.length > 0) {
-        const { error: edgeErr } = await client.from('graph_edges').upsert(edges);
-        if (edgeErr) throw edgeErr;
-      }
-    }
+    // Do not touch edges here to avoid accidental deletions on startup.
+    // Edges are managed via dedicated syncs or explicit edge operations.
 
     // Broadcast property-less node change to trigger peers to reload nodes/edges
     try {
@@ -728,6 +796,112 @@ class SupabaseRealtimeService {
       value: dbProperty.value,
       options: dbProperty.options
     };
+  }
+
+  // Broadcast position updates for real-time collaboration (non-blocking)
+  broadcastPosition(nodeId: string, position: { x: number; y: number }): void {
+    if (!this.broadcastChannel || !this.isConnected) {
+      return;
+    }
+
+    try {
+      this.broadcastChannel.send({
+        type: 'broadcast',
+        event: 'position_update',
+        payload: {
+          nodeId,
+          position,
+          userId: this.userId,
+          clientId: this.clientId,
+          timestamp: Date.now()
+        }
+      });
+    } catch (error) {
+      console.debug('Failed to broadcast position:', error);
+    }
+  }
+
+  // Broadcast property updates for real-time collaboration (non-blocking)
+  broadcastProperty(nodeId: string, propertyId: string, value: any): void {
+    if (!this.broadcastChannel || !this.isConnected) {
+      return;
+    }
+
+    try {
+      this.broadcastChannel.send({
+        type: 'broadcast',
+        event: 'property_update',
+        payload: {
+          nodeId,
+          propertyId,
+          value,
+          userId: this.userId,
+          clientId: this.clientId,
+          timestamp: Date.now()
+        }
+      });
+    } catch (error) {
+      console.debug('Failed to broadcast property:', error);
+    }
+  }
+
+  // Handle received position broadcasts
+  private handlePositionBroadcast(payload: any): void {
+    try {
+      const { nodeId, position, userId, clientId, timestamp } = payload.payload || {};
+      
+      // Ignore our own broadcasts (same browser tab)
+      if (clientId === this.clientId) {
+        return;
+      }
+
+      if (!nodeId || !position) {
+        console.debug('Invalid position broadcast payload:', payload);
+        return;
+      }
+
+      console.log(`📡 Applying position update from user ${userId}:`, { nodeId, position });
+      
+      // Update the node position in our local graph state
+      this.notifyHandlers({
+        type: 'node_position_updated',
+        nodeId,
+        position,
+        fromBroadcast: true
+      });
+    } catch (error) {
+      console.debug('Error handling position broadcast:', error);
+    }
+  }
+
+  // Handle received property broadcasts
+  private handlePropertyBroadcast(payload: any): void {
+    try {
+      const { nodeId, propertyId, value, userId, clientId, timestamp } = payload.payload || {};
+      
+      // Ignore our own broadcasts (same browser tab)
+      if (clientId === this.clientId) {
+        return;
+      }
+
+      if (!nodeId || !propertyId) {
+        console.debug('Invalid property broadcast payload:', payload);
+        return;
+      }
+
+      console.log(`📡 Applying property update from user ${userId}:`, { nodeId, propertyId, value });
+      
+      // Update the property in our local graph state
+      this.notifyHandlers({
+        type: 'property_updated_broadcast',
+        nodeId,
+        propertyId,
+        value,
+        fromBroadcast: true
+      });
+    } catch (error) {
+      console.debug('Error handling property broadcast:', error);
+    }
   }
 
   // Getters

@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
     // Call the graph editor agent
     const graphEditorResponse = await fetch(`${req.nextUrl.origin}/api/agents/graph-editor`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // forward cookies/auth so the inner route can read the session
+        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+      },
       body: JSON.stringify({ 
         userMessage,
         selectedNodeId,

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from './auth';
 import { authClient } from './auth-client';
 import { useProjectStore } from './store';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +25,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Get store functions
   const connectToGraphEvents = useProjectStore(state => state.connectToGraphEvents);
   const disconnectFromGraphEvents = useProjectStore(state => state.disconnectFromGraphEvents);
+  const resetStore = useProjectStore(state => state.resetStore);
+  const setGraphLoading = useProjectStore(state => state.setGraphLoading);
+  const router = useRouter();
 
   useEffect(() => {
     // Mark as client-side and initialize auth
@@ -43,9 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user?.id && isClient) {
       console.log('🔗 AuthProvider: User authenticated, connecting to Supabase:', user.id);
       connectToGraphEvents(user.id);
+      // Ensure loader shows until graph loads
+      setGraphLoading(true);
+      router.replace('/');
     } else if (!user?.id && isClient) {
       console.log('🔌 AuthProvider: User logged out, disconnecting from Supabase');
       disconnectFromGraphEvents();
+      resetStore();
+      router.replace('/signin');
     } else {
       console.log('⏳ AuthProvider: Waiting for user authentication or client initialization');
     }
@@ -66,36 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data?.session && data?.user) {
         setUser(data.user as User);
         setSession(data as Session);
-        
-        // Initialize sandbox for the user if they don't have one
-        try {
-          const checkResponse = await fetch('/api/sandbox/init', {
-            method: 'GET',
-            credentials: 'include'
-          });
-          
-          const checkData = await checkResponse.json();
-          
-          // If user doesn't have a sandbox, create one automatically
-          if (!checkData.sandbox) {
-            console.log('No sandbox found for user, creating one...');
-            const createResponse = await fetch('/api/sandbox/init', {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            if (createResponse.ok) {
-              const createData = await createResponse.json();
-              console.log('Sandbox created automatically:', createData.sandbox);
-            }
-          }
-        } catch (error) {
-          console.log('Sandbox initialization check failed:', error);
-          // Don't block auth flow if sandbox init fails
-        }
+        // Sandbox UI and notifications removed; backend init can be triggered elsewhere as needed
       } else {
         // If no session, clear any stale state
         setUser(null);
@@ -118,16 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data?.session && data?.user) {
         setUser(data.user as User);
         setSession(data as Session);
-        
-        // Check sandbox status after session refresh
-        try {
-          await fetch('/api/sandbox/init', {
-            method: 'GET',
-            credentials: 'include'
-          });
-        } catch (error) {
-          console.log('Sandbox status check failed:', error);
-        }
       } else {
         setUser(null);
         setSession(null);
@@ -144,11 +114,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authClient.signOut();
       setUser(null);
       setSession(null);
+      resetStore();
+      router.replace('/signin');
     } catch (error) {
       console.error('Error signing out:', error);
       // Clear state even if signout fails
       setUser(null);
       setSession(null);
+      resetStore();
+      router.replace('/signin');
     }
   };
 

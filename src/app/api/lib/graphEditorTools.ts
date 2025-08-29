@@ -31,13 +31,35 @@ async function withGraphLock<T>(fn: () => Promise<T>): Promise<T> {
 /* =========================
    API Fetch/Save (typed)
    ========================= */
+let defaultAuthHeaders: Record<string, string> | undefined;
+let overrideBaseUrl: string | undefined;
+let overrideSaveGraphFn: ((graph: Graph) => Promise<boolean>) | undefined;
+
+export function setGraphEditorAuthHeaders(headers?: Record<string, string>) {
+  defaultAuthHeaders = headers;
+}
+
+function getBaseUrl(): string {
+  const envUrl = overrideBaseUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (envUrl && /^https?:\/\//i.test(envUrl)) return envUrl;
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
+  return envUrl || vercelUrl || 'http://localhost:3000';
+}
+
+export function setGraphEditorBaseUrl(url?: string) {
+  overrideBaseUrl = url;
+}
+
+export function setGraphEditorSaveFn(fn?: (graph: Graph) => Promise<boolean>) {
+  overrideSaveGraphFn = fn;
+}
 
 async function fetchGraphFromAPI(): Promise<Graph | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${process.env.BACKEND_URL}`;
+    const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(defaultAuthHeaders || {}) },
     });
 
     if (!response.ok) {
@@ -63,10 +85,13 @@ async function fetchGraphFromAPI(): Promise<Graph | null> {
 
 async function saveGraphThroughAPI(graph: Graph): Promise<boolean> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${process.env.BACKEND_URL}`;
+    if (overrideSaveGraphFn) {
+      return await overrideSaveGraphFn(graph);
+    }
+    const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(defaultAuthHeaders || {}) },
       body: JSON.stringify({ graph }),
     });
 

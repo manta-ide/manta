@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -22,6 +22,8 @@ import { useProjectStore } from '@/lib/store';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { supabaseRealtimeService } from '@/lib/supabase-realtime';
 
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -322,12 +324,48 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
 function GraphView() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
+  const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
   const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
+  const { user } = useAuth();
   
-  // Use the store for graph data
-  const { graph, graphLoading: loading, graphError: error, refreshGraph, connectToGraphEvents, disconnectFromGraphEvents } = useProjectStore();
+  // Use the store for graph data with Supabase integration
+  const { 
+    graph, 
+    graphLoading: loading, 
+    graphError: error, 
+    refreshGraph, 
+    connectToGraphEvents, 
+    disconnectFromGraphEvents,
+    supabaseConnected,
+    updateNodeInSupabase,
+    deleteNodeFromSupabase
+  } = useProjectStore();
+
+  // Monitor Supabase connection status
+  useEffect(() => {
+    console.log('📊 GraphView: Connection status check:', {
+      user: user ? { id: user.id, email: user.email } : null,
+      supabaseConnected,
+      hasUserId: !!user?.id
+    });
+    
+    if (!user?.id) {
+      console.log('⚠️ GraphView: No user ID available');
+    } else if (supabaseConnected) {
+      console.log('✅ GraphView: Supabase connected');
+    } else {
+      console.log('🔄 GraphView: Waiting for Supabase connection (handled by AuthProvider)');
+    }
+  }, [user?.id, supabaseConnected]);
+
+  // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
+  const latestNodesRef = useRef<Node[]>([]);
+  useEffect(() => {
+    latestNodesRef.current = nodes;
+  }, [nodes]);
 
   // Function to delete the graph
   const deleteGraph = useCallback(async () => {
@@ -336,21 +374,44 @@ function GraphView() {
     }
 
     try {
-      const response = await fetch('/api/backend/graph-api', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.ok) {
-        console.log('✅ Graph deleted successfully');
-        // The graph will be automatically updated via SSE
+      // Try Supabase first if connected
+      if (supabaseConnected && graph?.nodes) {
+        console.log('🗑️ Deleting graph via Supabase...');
+        
+        // Delete all nodes (this will cascade delete properties and edges)
+        for (const node of graph.nodes) {
+          try {
+            await deleteNodeFromSupabase(node.id);
+            console.log(`✅ Node ${node.id} deleted from Supabase`);
+          } catch (nodeError) {
+            console.warn(`⚠️ Failed to delete node ${node.id} from Supabase:`, nodeError);
+          }
+        }
+        
+        console.log('✅ Graph deleted successfully via Supabase');
       } else {
-        console.error('❌ Failed to delete graph');
+        throw new Error('Supabase not connected, using backend API');
       }
-    } catch (error) {
-      console.error('❌ Error deleting graph:', error);
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase delete failed, using backend API:', supabaseError);
+      
+      // Fallback to backend API
+      try {
+        const response = await fetch('/api/backend/graph-api', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (response.ok) {
+          console.log('✅ Graph deleted successfully via backend API');
+        } else {
+          console.error('❌ Failed to delete graph via backend API');
+        }
+      } catch (backendError) {
+        console.error('❌ Error deleting graph via backend API:', backendError);
+      }
     }
-  }, []);
+  }, [supabaseConnected, graph, deleteNodeFromSupabase]);
 
   // Function to rebuild the full graph
   const rebuildFullGraph = useCallback(async () => {
@@ -395,6 +456,32 @@ function GraphView() {
 
     setIsBuildingSelected(true);
     try {
+      // Update node state to "building" - try Supabase first
+      try {
+        if (supabaseConnected) {
+          await updateNodeInSupabase(selectedNode.id, { state: 'building' });
+          console.log('✅ Node state updated to building via Supabase');
+        } else {
+          throw new Error('Supabase not connected');
+        }
+      } catch (supabaseError) {
+        console.warn('⚠️ Supabase update failed, using backend API:', supabaseError);
+        
+        // Fallback to backend API for state update
+        const updateStateRes = await fetch('/api/backend/graph-api', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            nodeId: selectedNode.id, 
+            state: 'building' 
+          })
+        });
+        
+        if (!updateStateRes.ok) {
+          console.error('Failed to update node state to building');
+        }
+      }
+
       const response = await fetch('/api/backend/agent-request/build-nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -410,16 +497,58 @@ function GraphView() {
 
       if (response.ok) {
         console.log('✅ Selected node build started successfully');
-        // The graph will be automatically updated via SSE
+        
+        // Update node state to "built" on success - try Supabase first
+        try {
+          if (supabaseConnected) {
+            await updateNodeInSupabase(selectedNode.id, { state: 'built' });
+            console.log('✅ Node state updated to built via Supabase');
+          } else {
+            throw new Error('Supabase not connected');
+          }
+        } catch (supabaseError) {
+          console.warn('⚠️ Supabase final update failed, using backend API:', supabaseError);
+          
+          const finalUpdateRes = await fetch('/api/backend/graph-api', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              nodeId: selectedNode.id, 
+              state: 'built' 
+            })
+          });
+          
+          if (!finalUpdateRes.ok) {
+            console.error('Failed to update node state to built');
+          }
+        }
       } else {
         console.error('❌ Failed to build selected node');
+        
+        // Revert node state on failure
+        try {
+          if (supabaseConnected) {
+            await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' });
+          }
+        } catch (revertError) {
+          console.warn('Failed to revert node state:', revertError);
+        }
       }
     } catch (error) {
       console.error('❌ Error building selected node:', error);
+      
+      // Revert node state on error
+      try {
+        if (supabaseConnected) {
+          await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' });
+        }
+      } catch (revertError) {
+        console.warn('Failed to revert node state:', revertError);
+      }
     } finally {
       setIsBuildingSelected(false);
     }
-  }, [selectedNode]);
+  }, [selectedNode, supabaseConnected, updateNodeInSupabase]);
 
   // Connection is managed centrally by AuthProvider; avoid duplicate connections here
 
@@ -440,83 +569,30 @@ function GraphView() {
       return;
     }
 
-    // Create a tree layout for the nodes
-    const nodePositions = new Map<string, { x: number; y: number }>();
-    const nodeDepths = new Map<string, number>();
-    const nodeWidths = new Map<string, number>();
+    // Always use positions from database (position_x, position_y from Supabase)
+    console.log('📊 GraphView: Using stored positions from database');
+    let nodePositions = new Map<string, { x: number; y: number }>();
     
-    // Calculate depths and widths for each node
-    const calculateNodeLayout = (nodeId: string, depth: number = 0): number => {
-      if (nodeDepths.has(nodeId)) {
-        return nodeWidths.get(nodeId) || 0;
+    graph.nodes.forEach(node => {
+      if (node.position) {
+        nodePositions.set(node.id, { x: node.position.x, y: node.position.y });
+      } else {
+        // Fallback to default position if no position stored
+        console.warn(`⚠️ Node ${node.id} has no stored position, using default`);
+        nodePositions.set(node.id, { x: 100, y: 100 });
       }
-      
-      const node = graph.nodes.find(n => n.id === nodeId);
-      if (!node) return 0;
-      
-      nodeDepths.set(nodeId, depth);
-      
-      if (!node.children || node.children.length === 0) {
-        nodeWidths.set(nodeId, 1);
-        return 1;
-      }
-      
-      let totalWidth = 0;
-      node.children.forEach(child => {
-        totalWidth += calculateNodeLayout(child.id, depth + 1);
-      });
-      
-      nodeWidths.set(nodeId, totalWidth);
-      return totalWidth;
-    };
+    });
     
-    // Calculate layout starting from root (first node)
-    const rootId = graph.nodes.length > 0 ? graph.nodes[0].id : null;
-    if (!rootId) return;
-    
-    const totalTreeWidth = calculateNodeLayout(rootId);
-    
-    // Position nodes based on the calculated layout with better tree structure
-    const positionNodes = (nodeId: string, startX: number, depth: number): number => {
-      const node = graph.nodes.find(n => n.id === nodeId);
-      if (!node) return 0;
-      
-      const width = nodeWidths.get(nodeId) || 1;
-      
-      // For better tree structure, use tighter spacing for children
-      const horizontalSpacing = 320; // Increased for more vertical layout
-      const verticalSpacing = 420; // Reduced for tighter vertical spacing
-      
-      // Calculate x position to center the node over its children
-      const x = startX + (width - 1) * horizontalSpacing / 2;
-      const y = depth * verticalSpacing + 60;
-      
-      nodePositions.set(nodeId, { x, y });
-      
-      if (!node.children || node.children.length === 0) {
-        return 1;
-      }
-      
-      // Position children with tighter spacing and better distribution
-      let currentX = startX;
-      node.children.forEach(child => {
-        const childWidth = nodeWidths.get(child.id) || 1;
-        currentX += positionNodes(child.id, currentX, depth + 1) * horizontalSpacing;
-      });
-      
-      return width;
-    };
-    
-    // Center the tree by calculating the starting position
-    const treeWidth = totalTreeWidth * 320; // Use the same spacing as in positioning
-    const startX = (1200 - treeWidth) / 2; // Use a fixed width instead of window.innerWidth
-    
-    // Start positioning from root (first node)
-    positionNodes(rootId, startX, 0);
-    
-    // Convert graph nodes to ReactFlow nodes
+    // Current positions map from latest nodes to preserve positions without re-triggering this effect
+    const currentPositions = new Map<string, { x: number; y: number }>();
+    for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
+
+    // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
     const reactFlowNodes: Node[] = graph.nodes.map((node) => {
-      const position = nodePositions.get(node.id) || { x: 0, y: 0 };
+      const isDragging = draggingNodeIdsRef.current.has(node.id);
+      const position = isDragging
+        ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
+        : (nodePositions.get(node.id) || { x: 0, y: 0 });
       return {
         id: node.id,
         position,
@@ -531,15 +607,19 @@ function GraphView() {
       };
     });
 
-    // Create edges based on children relationships
+    // Create edges from both the edges array and children relationships
     const reactFlowEdges: Edge[] = [];
-    graph.nodes.forEach(node => {
-      if (node.children && node.children.length > 0) {
-        node.children.forEach(child => {
+    const addedEdges = new Set<string>();
+
+    // First, add edges from the graph.edges array (from Supabase)
+    if (graph.edges && graph.edges.length > 0) {
+      graph.edges.forEach(edge => {
+        const edgeId = `${edge.source}-${edge.target}`;
+        if (!addedEdges.has(edgeId)) {
           reactFlowEdges.push({
-            id: `${node.id}-${child.id}`,
-            source: node.id,
-            target: child.id,
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
             type: 'smoothstep',
             style: { 
               stroke: '#9ca3af', 
@@ -547,9 +627,38 @@ function GraphView() {
             },
             animated: false,
           });
+          addedEdges.add(edgeId);
+        }
+      });
+    }
+
+    // Then, add edges from children relationships (fallback or additional)
+    graph.nodes.forEach(node => {
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          const edgeId = `${node.id}-${child.id}`;
+          if (!addedEdges.has(edgeId)) {
+            reactFlowEdges.push({
+              id: `${node.id}-${child.id}`,
+              source: node.id,
+              target: child.id,
+              type: 'smoothstep',
+              style: { 
+                stroke: '#9ca3af', 
+                strokeWidth: 2,
+              },
+              animated: false,
+            });
+            addedEdges.add(edgeId);
+          }
         });
       }
     });
+
+    console.log(`📊 GraphView: Created ${reactFlowEdges.length} visual edges from graph data`);
+    if (graph.edges) {
+      console.log(`📊 GraphView: Graph has ${graph.edges.length} edges in data`);
+    }
 
     setNodes(reactFlowNodes);
     setEdges(reactFlowEdges);
@@ -559,7 +668,7 @@ function GraphView() {
       const root = reactFlowNodes[0];
       setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
     }
-  }, [graph, selectedNodeId, setNodes, setEdges]);
+  }, [graph, setNodes, setEdges]);
 
   // Update node selection without re-rendering the whole graph
   useEffect(() => {
@@ -571,7 +680,80 @@ function GraphView() {
     );
   }, [selectedNodeId, setNodes]);
 
+  // Apply incoming broadcasted position updates directly to ReactFlow nodes
+  useEffect(() => {
+    const unsubscribe = supabaseRealtimeService.onGraphChange((event) => {
+      if (event.type === 'node_position_updated' && event.fromBroadcast && event.position) {
+        setNodes((existing) => existing.map((n) => (
+          n.id === event.nodeId ? { ...n, position: event.position } : n
+        )));
+      }
+    });
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, [setNodes]);
+
   const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+
+  // Throttle position broadcasts to prevent spam
+  const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
+  const POSITION_BROADCAST_THROTTLE = 50; // Broadcast every 50ms max for smooth real-time
+
+  // Handle continuous node position changes during drag
+  const onNodeDragStart = useCallback((event: any, node: Node) => {
+    const graphNode = node.data?.node as GraphNode;
+    if (!graphNode) return;
+    draggingNodeIdsRef.current.add(graphNode.id);
+  }, []);
+
+  const onNodeDrag = useCallback((event: any, node: Node) => {
+    try {
+      const graphNode = node.data?.node as GraphNode;
+      if (!graphNode) return;
+
+      // Throttle broadcasts to prevent spam but keep UI smooth
+      const now = Date.now();
+      const lastBroadcast = lastPositionBroadcast.current[graphNode.id] || 0;
+      
+      if (now - lastBroadcast >= POSITION_BROADCAST_THROTTLE && supabaseConnected) {
+        lastPositionBroadcast.current[graphNode.id] = now;
+        
+        // Use broadcast for real-time position updates (non-blocking)
+        supabaseRealtimeService.broadcastPosition(graphNode.id, {
+          x: node.position.x,
+          y: node.position.y
+        });
+      }
+    } catch (error) {
+      console.debug('Error during position broadcast:', error);
+    }
+  }, [supabaseConnected]);
+
+  // Handle final node position changes (drag stop) - ensure final Supabase update
+  const onNodeDragStop = useCallback(async (event: any, node: Node) => {
+    try {
+      const graphNode = node.data?.node as GraphNode;
+      if (!graphNode) return;
+
+      console.log(`📍 Node ${graphNode.id} final position:`, node.position);
+
+      // Ensure final position is saved to Supabase (bypass throttle)
+      if (supabaseConnected) {
+        try {
+          await updateNodeInSupabase(graphNode.id, { 
+            position: { x: node.position.x, y: node.position.y }
+          });
+          console.log(`✅ Node ${graphNode.id} final position updated in Supabase`);
+        } catch (supabaseError) {
+          console.warn(`⚠️ Final Supabase position update failed for ${graphNode.id}:`, supabaseError);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving final node position:', error);
+    }
+    // Release drag lock after persistence
+    const graphNode = node.data?.node as GraphNode;
+    if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
+  }, [supabaseConnected, updateNodeInSupabase]);
 
   // Node types for ReactFlow
   const nodeTypes = {
@@ -644,12 +826,18 @@ function GraphView() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDrag={onNodeDrag}
+        onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}
         colorMode="dark"
+        nodesDraggable={true}
+        nodesConnectable={false}
+        elementsSelectable={true}
       >
         <MiniMap 
           nodeColor={(node: any) => {

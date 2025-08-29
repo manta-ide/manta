@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { Property } from '@/app/api/lib/schemas';
@@ -12,8 +12,17 @@ interface ColorPropertyEditorProps {
 }
 
 export default function ColorPropertyEditor({ property, onChange }: ColorPropertyEditorProps) {
-  const value = property.value as string || '#000000';
-  const displayValue = value.replace('#', '').toUpperCase();
+  const value = (property.value as string) || '#000000';
+  const [localValue, setLocalValue] = useState<string>(value);
+  
+  // Keep local value in sync when external value changes (e.g., other client broadcast)
+  useEffect(() => {
+    if (value !== localValue) {
+      setLocalValue(value);
+    }
+  }, [value]);
+  
+  const displayValue = localValue.replace('#', '').toUpperCase();
 
   return (
     <BasePropertyEditor title={property.title}>
@@ -22,15 +31,24 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
           <PopoverTrigger asChild>
             <button
               className="h-7 w-7 rounded-l border-r border-zinc-700 flex-shrink-0"
-              style={{ backgroundColor: value }}
+              style={{ backgroundColor: localValue }}
               aria-label={`Choose color ${value}`}
             />
           </PopoverTrigger>
           <PopoverContent className="w-64 space-y-3 bg-zinc-800 border-zinc-700">
-            <HexColorPicker color={value} onChange={onChange} />
+            <HexColorPicker 
+              color={localValue}
+              onChange={(next) => {
+                setLocalValue(next);
+                onChange(next);
+              }} 
+            />
             <HexColorInput
-              color={value}
-              onChange={onChange}
+              color={localValue}
+              onChange={(next) => {
+                setLocalValue(next);
+                onChange(next);
+              }}
               prefixed
               className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-white"
             />
@@ -43,6 +61,7 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
             const inputValue = e.target.value.toUpperCase().replace(/[^A-F0-9]/g, '');
             if (inputValue.length <= 6) {
               const newValue = inputValue.length === 0 ? '#000000' : `#${inputValue.padEnd(6, '0')}`;
+              setLocalValue(newValue);
               onChange(newValue);
             }
           }}

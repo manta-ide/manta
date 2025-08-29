@@ -117,7 +117,7 @@ export const PropertySchema = z.object({
   title: z.string().describe('Human-readable title/name for the property'),
   type: PropertyTypeEnum.describe('The type of property (color, text, number, or select)'),
   value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional().describe('The current/default value for the property'),
-  options: z.array(z.string()).optional().describe('Array of available options (required for select type)'),
+  options: z.array(z.string()).nullable().optional().describe('Array of available options (required for select type)'),
   maxLength: z.number().optional().describe('Maximum length constraint for text properties'),
   min: z.number().optional().describe('Minimum value constraint for number properties'),
   max: z.number().optional().describe('Maximum value constraint for number properties'),
@@ -141,10 +141,22 @@ export const GraphNodeSchema = z.object({
   state: z.enum(["built", "unbuilt", "building"]).default("unbuilt").optional(),
   // Properties for the node
   properties: z.array(PropertySchema).optional(),
+  // Optional layout and build flags used by runtime
+  position: z.object({ x: z.number(), y: z.number() }).optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  built: z.boolean().optional(),
+});
+
+export const GraphEdgeSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  target: z.string(),
 });
 
 export const GraphSchema = z.object({
   nodes: z.array(GraphNodeSchema),
+  edges: z.array(GraphEdgeSchema).optional(),
 });
 
 export type Graph = z.infer<typeof GraphSchema>;

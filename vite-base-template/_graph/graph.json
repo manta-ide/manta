@@ -33,7 +33,7 @@
             "id": "background-color",
             "title": "Background Color",
             "type": "color",
-            "value": "#0b090a"
+            "value": "#000000"
           },
           {
             "id": "text-color",

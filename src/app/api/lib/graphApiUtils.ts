@@ -2,7 +2,13 @@ import { NextRequest } from 'next/server';
 
 export async function fetchGraphFromApi(req: NextRequest): Promise<any> {
   try {
-    const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+    const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+      },
+    });
     if (graphRes.ok) {
       const graphData = await graphRes.json();
       if (graphData.success && graphData.graph) {
@@ -20,7 +26,13 @@ export async function fetchGraphFromApi(req: NextRequest): Promise<any> {
 
 export async function fetchUnbuiltNodeIdsFromApi(req: NextRequest): Promise<string[]> {
   try {
-    const unbuiltRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api?unbuilt=true`);
+    const unbuiltRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api?unbuilt=true`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+      },
+    });
     if (unbuiltRes.ok) {
       const unbuiltData = await unbuiltRes.json();
       if (unbuiltData.success && unbuiltData.unbuiltNodeIds) {

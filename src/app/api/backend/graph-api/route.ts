@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph } from '../../lib/graphStorage';
+import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../../lib/graphStorage';
 import { auth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -356,25 +356,15 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Update the property value; changing values does not affect built status
-    graph.nodes[nodeIndex] = {
-      ...node,
-      properties: [
-        ...node.properties.slice(0, propertyIndex),
-        { ...node.properties[propertyIndex], value },
-        ...node.properties.slice(propertyIndex + 1)
-      ]
-    };
-
-    // Store the updated graph (this will also regenerate vars.json)
-    await storeGraph(graph, user.id);
+    // Update DB and only write vars.json to Blaxel (no full app reload)
+    await updatePropertyAndWriteVars(nodeId, propertyId, value, user.id);
     
     console.log(`✅ Property updated successfully`);
     
     return NextResponse.json({ 
       success: true,
       message: 'Property updated successfully',
-      updatedNode: graph.nodes[nodeIndex]
+      updatedNode: getGraphSession()?.nodes.find(n => n.id === nodeId) || null
     });
   } catch (error) {
     console.error('❌ Graph API PATCH error:', error);
