@@ -107,7 +107,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
                 : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
               }
             >
-                             <Folder className="w-3.5 h-3.5" />
+                            <Folder className="w-3.5 h-3.5" />
             </Button>
 
             <Button
@@ -119,7 +119,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
                 : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
               }
             >
-                             <Code className="w-3.5 h-3.5" />
+                            <Code className="w-3.5 h-3.5" />
              </Button>
 
              <Button

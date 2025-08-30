@@ -15,6 +15,8 @@ import {
   Position,
   useViewport,
   ColorMode,
+  useReactFlow,
+  ReactFlowProvider,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
@@ -321,14 +323,14 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   );
 }
 
-function GraphView() {
+function GraphCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
-  const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
+  const { setSelectedNode, setHoveredNode, selectedNodeId, selectedNode } = useProjectStore();
   const { user } = useAuth();
   
   // Use the store for graph data with Supabase integration
@@ -343,6 +345,9 @@ function GraphView() {
     updateNodeInSupabase,
     deleteNodeFromSupabase
   } = useProjectStore();
+
+  // Access React Flow instance for programmatic viewport control
+  const reactFlow = useReactFlow();
 
   // Monitor Supabase connection status
   useEffect(() => {
@@ -366,6 +371,23 @@ function GraphView() {
   useEffect(() => {
     latestNodesRef.current = nodes;
   }, [nodes]);
+
+  // Fit view to center the graph when nodes first load
+  const hasFittedRef = useRef(false);
+  useEffect(() => {
+    if (nodes.length > 0 && !hasFittedRef.current) {
+      // Defer to next tick to ensure layout/DOM size is ready
+      setTimeout(() => {
+        try {
+          reactFlow.fitView({ padding: 0.2, duration: 500, includeHiddenNodes: true });
+        } catch {}
+      }, 0);
+      hasFittedRef.current = true;
+    }
+    if (nodes.length === 0) {
+      hasFittedRef.current = false;
+    }
+  }, [nodes, reactFlow]);
 
   // Function to delete the graph
   const deleteGraph = useCallback(async () => {
@@ -560,6 +582,16 @@ function GraphView() {
       setSelectedNode(node.id, graphNode);
     }
   }, [setSelectedNode]);
+
+  // Hover handlers to drive property editors preview
+  const onNodeMouseEnter: NodeMouseHandler = useCallback((event, node) => {
+    const graphNode = node.data?.node as GraphNode;
+    if (graphNode) setHoveredNode(node.id, graphNode);
+  }, [setHoveredNode]);
+
+  const onNodeMouseLeave: NodeMouseHandler = useCallback((event, node) => {
+    setHoveredNode(null, null);
+  }, [setHoveredNode]);
 
   // Process graph data and create ReactFlow nodes/edges
   useEffect(() => {
@@ -826,6 +858,8 @@ function GraphView() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeMouseEnter={onNodeMouseEnter}
+        onNodeMouseLeave={onNodeMouseLeave}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
@@ -901,6 +935,14 @@ function GraphView() {
         </Button>
       </div>
     </div>
+  );
+}
+
+function GraphView() {
+  return (
+    <ReactFlowProvider>
+      <GraphCanvas />
+    </ReactFlowProvider>
   );
 }
 

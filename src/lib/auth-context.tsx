@@ -46,9 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (user?.id && isClient) {
       console.log('🔗 AuthProvider: User authenticated, connecting to Supabase:', user.id);
-      connectToGraphEvents(user.id);
-      // Ensure loader shows until graph loads
+      // Set loading first, then connect
       setGraphLoading(true);
+      connectToGraphEvents(user.id);
       router.replace('/');
     } else if (!user?.id && isClient) {
       console.log('🔌 AuthProvider: User logged out, disconnecting from Supabase');

@@ -545,12 +545,18 @@ export class SandboxService {
         console.warn(`[SandboxService] ⚠️ Failed to write .env for Vite app:`, e);
       }
 
-      // Install dependencies
+      // Install dependencies (idempotent: skip if already running)
       console.log(`[SandboxService] Installing dependencies...`);
-      await sandbox.process.exec({
-        name: "install",
-        command: "cd /blaxel/app && npm i"
-      });
+      try {
+        await sandbox.process.exec({
+          name: "install",
+          command: "cd /blaxel/app && npm i"
+        });
+      } catch (e: any) {
+        const msg = (e && e.message) || '';
+        if (!msg.includes("already exists and is running")) throw e;
+        console.log(`[SandboxService] install already running; proceeding to wait`);
+      }
       await sandbox.process.wait("install", {
         maxWait: 300000, // 5 minutes
         interval: 5000
@@ -573,13 +579,19 @@ export class SandboxService {
         console.warn(`[SandboxService] Build failed, but continuing with dev server:`, error);
       }
 
-      // Start dev server
+      // Start dev server (idempotent: ignore if already running)
       console.log(`[SandboxService] Starting dev server...`);
-      await sandbox.process.exec({
-        name: "dev-server",
-        command: "cd /blaxel/app && npm run dev",
-        waitForPorts: [5173] // Vite default port (will be proxied through preview URL on port 3000)
-      });
+      try {
+        await sandbox.process.exec({
+          name: "dev-server",
+          command: "cd /blaxel/app && npm run dev",
+          waitForPorts: [5173]
+        });
+      } catch (e: any) {
+        const msg = (e && e.message) || '';
+        if (!msg.includes("already exists and is running")) throw e;
+        console.log(`[SandboxService] dev-server already running; continuing`);
+      }
 
       console.log(`[SandboxService] ✅ Base template setup completed for user ${userId}`);
 

@@ -14,6 +14,8 @@ interface ProjectStore {
   // Graph state
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
+  hoveredNodeId: string | null;
+  hoveredNode: GraphNode | null;
   graph: Graph | null;
   graphLoading: boolean;
   graphError: string | null;
@@ -38,6 +40,7 @@ interface ProjectStore {
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
+  setHoveredNode: (id: string | null, node?: GraphNode | null) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
   updateGraph: (graph: Graph) => void;
@@ -75,6 +78,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph state
   selectedNodeId: null,
   selectedNode: null,
+  hoveredNodeId: null,
+  hoveredNode: null,
   graph: null,
   graphLoading: true,
   graphError: null,
@@ -90,6 +95,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     refreshTrigger: 0,
     selectedNodeId: null,
     selectedNode: null,
+    hoveredNodeId: null,
+    hoveredNode: null,
     graph: null,
     graphLoading: true,
     graphError: null,
@@ -130,6 +137,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setSelectedFile: (path) => set({ selectedFile: path }),
   setSelection: (selection) => set({ selection }),
   setSelectedNode: (id, node = null) => set({ selectedNodeId: id, selectedNode: node ?? null }),
+  setHoveredNode: (id, node = null) => set({ hoveredNodeId: id, hoveredNode: node ?? null }),
   
   getFileContent: (path) => {
     return get().files.get(path) || '';
@@ -151,10 +159,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       set({ graphLoading: true, graphError: null });
       
-      // Load graph from Supabase only
+      // Load graph from Supabase only; if not connected yet, wait for subscribe loader
       if (!supabaseRealtimeService.connected) {
-        console.warn('⚠️ Supabase not connected, cannot load graph');
-        set({ graphLoading: false, graphError: 'Supabase connection required to load graph' });
+        console.log('⏳ Supabase not connected yet; waiting for initial subscribe to load graph');
         return;
       }
 
@@ -408,24 +415,43 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           
           // Don't mark connected until channel reports SUBSCRIBED
           set({ graphError: null });
-          
-          // Frequently check connection status for immediate updates
-          const connectionCheck = setInterval(() => {
-            const isActuallyConnected = supabaseRealtimeService.connected;
-            const currentState = get().supabaseConnected;
-            
-            if (currentState !== isActuallyConnected) {
-              console.log(`🔄 Store: Connection state sync - was ${currentState}, now ${isActuallyConnected}`);
-              set({ supabaseConnected: isActuallyConnected });
-              
-              // If disconnected, clear the interval but DON'T auto-reconnect
-              // Let the Supabase service handle its own reconnection logic
-              if (!isActuallyConnected) {
-                clearInterval(connectionCheck);
-                console.log('🔄 Store: Supabase disconnected, service will handle reconnection');
-              }
+
+          // Poll connection; if disconnected for >10s, attempt reconnect
+          let disconnectedSince: number | null = null;
+          let attempts = 0;
+          const connectionCheck = setInterval(async () => {
+            const isConnected = supabaseRealtimeService.connected;
+            const prev = get().supabaseConnected;
+            if (prev !== isConnected) {
+              set({ supabaseConnected: isConnected });
             }
-          }, 1000); // Check every 1 second for immediate updates (less frequent)
+            if (!isConnected) {
+              if (disconnectedSince === null) disconnectedSince = Date.now();
+              const elapsed = Date.now() - disconnectedSince;
+              // Also treat a missing graph as a trigger to retry
+              const graphMissing = !get().graph || (get().graph?.nodes?.length || 0) === 0;
+              if ((elapsed > 3000 || graphMissing) && userId) {
+                try {
+                  console.log('🔄 Store: Reconnecting to Supabase after prolonged disconnect...');
+                  await supabaseRealtimeService.connect(userId);
+                  disconnectedSince = null;
+                  // Reload graph after reconnect
+                  set({ graphLoading: true });
+                  await get().loadGraph();
+                  attempts = 0;
+                } catch {}
+              }
+              // Backoff: if repeatedly failing, also try a fresh loadGraph with service client
+              attempts += 1;
+              if (attempts % 3 === 0) {
+                try { await get().loadGraph(); } catch {}
+              }
+            } else {
+              disconnectedSince = null;
+              attempts = 0;
+            }
+          }, 1500);
+
           // Return early - we're using only Supabase for realtime now
           return;
           

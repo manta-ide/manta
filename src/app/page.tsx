@@ -98,22 +98,13 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-zinc-900">
       <TopBar panels={panels} onTogglePanel={togglePanel} isEditMode={isEditMode} setIsEditMode={setIsEditMode} />
       
-      {/* Re-key when the visible layout changes */}
       <ResizablePanelGroup
         direction="horizontal"
         className="flex-1"
-        key={[
-          panels.files,
-          panels.editor,
-          hasSelected,
-          panels.viewer,
-          panels.graph,
-          false,
-        ].join('|')}
       >
         {panels.files && (
           <>
-            <ResizablePanel defaultSize={15} minSize={8.7} /* consider removing maxSize or raising it */>
+            <ResizablePanel defaultSize={15} minSize={8.7}>
               <div className="h-full border-r border-zinc-700">
                 <FileTree />
               </div>
@@ -146,11 +137,7 @@ export default function Home() {
 
         {/* Main Content Area - outer main uses computed min/default */}
         <ResizablePanel minSize={mainMin} defaultSize={mainDefault}>
-          {/* Re-key inner group when viewer/graph visibility changes */}
-          <ResizablePanelGroup
-            direction="horizontal"
-            key={`inner-${panels.viewer}-${panels.graph}`}
-          >
+          <ResizablePanelGroup direction="horizontal">
             {panels.graph && (
               <>
                 <ResizablePanel defaultSize={panels.viewer ? 40 : 100} minSize={30}>

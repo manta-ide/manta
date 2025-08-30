@@ -149,7 +149,11 @@ class SupabaseRealtimeService {
   private async initializeServiceRoleClient(supabaseUrl: string) {
     // Retry once during connect if initial attempt fails (e.g., before routes are ready)
     const tryFetch = async () => {
-      const response = await fetch('/api/supabase/service-key', {
+      const origin = typeof window !== 'undefined'
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_APP_URL || '');
+      const endpoint = `${origin}/api/supabase/service-key`;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -283,6 +287,11 @@ class SupabaseRealtimeService {
           this.isConnected = true;
           this.isConnecting = false;
           console.log('✅ Connected to Supabase Realtime');
+          // Immediately load the current graph snapshot on first subscribe
+          // Kick off initial graph load; don't block the subscribe callback
+          (async () => {
+            try { await this.loadGraph(); } catch (e) { console.warn('⚠️ Initial graph load after subscribe failed:', e); }
+          })();
           // Subscribe to two broadcast rooms for robust fanout: userId and sandboxId
           try {
             const userRoom = `graph-broadcast-${userId}`;
@@ -364,17 +373,11 @@ class SupabaseRealtimeService {
   }
 
   private scheduleReconnect() {
+    // Disable internal reconnect; the store will poll and re-connect explicitly
     if (this.reconnectTimeout) {
-      return; // Already scheduled
-    }
-    
-    this.reconnectTimeout = setTimeout(() => {
-      console.log('🔄 Attempting scheduled reconnection...');
-      if (this.userId) {
-        this.connect(this.userId);
-      }
+      clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
-    }, 5000); // Wait 5 seconds before reconnecting
+    }
   }
 
   async disconnect() {
