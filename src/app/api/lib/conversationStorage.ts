@@ -7,11 +7,12 @@ let conversationMessages: Message[] = [];
 /**
  * Create a system message with project context
  */
-export async function createSystemMessage(): Promise<Message> {
+export async function createSystemMessage(options?: { files?: string[] }): Promise<Message> {
   
-  // Get file list with lengths from the API response
-  const response = await fetch(`${process.env.BACKEND_URL}/api/files?list=true`);
-  const data = await response.json();
+  // Accept pre-resolved files to avoid extra fetch/auth hops
+  const files = Array.isArray(options?.files)
+    ? options!.files
+    : [];
 
   // Get graph from storage
   let graphContext = '';
@@ -27,7 +28,7 @@ export async function createSystemMessage(): Promise<Message> {
   return {
     role: 'system',
     variables: {
-      PROJECT_FILES: data.files || [],
+      PROJECT_FILES: files,
       GRAPH_CONTEXT: graphContext,
       MAX_NODES: "5"
     },

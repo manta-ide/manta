@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 import { setGraphEditorAuthHeaders, setGraphEditorBaseUrl } from '../../lib/graphEditorTools';
 import { z } from 'zod';
 import { generateObject, generateText } from 'ai';
@@ -6,7 +7,7 @@ import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
 import { addMessageToSession } from '@/app/api/lib/conversationStorage';
 import { graphEditorTools } from '../../lib/graphEditorTools';
-import { codeEditorTools } from '../../lib/codeEditorTools';
+import { codeEditorTools, setCodeEditorAuthHeaders } from '../../lib/codeEditorTools';
 import { 
   GraphSchema, 
   PropertyGenerationSchema, 
@@ -139,6 +140,18 @@ export async function POST(req: NextRequest) {
       ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
     });
     setGraphEditorBaseUrl(req.nextUrl.origin);
+    // forward headers for code editor tools as well (include x-user-id)
+    let userIdHeader: Record<string, string> = {};
+    try {
+      const session = await auth.api.getSession({ headers: req.headers });
+      const uid = session?.user?.id as string | undefined;
+      if (uid) userIdHeader = { 'x-user-id': uid };
+    } catch {}
+    setCodeEditorAuthHeaders({
+      ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+      ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+      ...userIdHeader,
+    });
     // Start timing
     const startTime = Date.now();
 

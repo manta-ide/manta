@@ -27,10 +27,11 @@ export async function POST(request: NextRequest) {
 
     let user: { id: string; email?: string };
     
-    // Handle server-to-server calls with userId parameter
-    if (userId) {
+    // Handle server-to-server calls with userId parameter or x-user-id header
+    const headerUserId = request.headers.get('x-user-id') || undefined;
+    if (userId || headerUserId) {
       console.log(`[${requestId}] Server-to-server call with userId: ${userId}`);
-      user = { id: userId };
+      user = { id: (userId || headerUserId)! };
     } else {
       // Handle regular user session authentication
       const session = await auth.api.getSession({ headers: request.headers });
@@ -244,12 +245,42 @@ export async function POST(request: NextRequest) {
             throw new Error('User sandbox not found');
           }
           console.log(`[${requestId}] User sandbox retrieved, listing files...`);
-          const { subdirectories, files } = await sandbox.fs.ls(targetDir);
-          
-          // Convert Blaxel format to our expected format
+          const lsResult = await sandbox.fs.ls(targetDir);
+          const subdirectories = Array.isArray(lsResult?.subdirectories) ? lsResult.subdirectories : [];
+          const files = Array.isArray(lsResult?.files) ? lsResult.files : [];
+
+          const normalizeName = (item: any): string => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item.name === 'string') return item.name;
+            if (item && typeof item.path === 'string') {
+              const p = item.path as string;
+              const parts = p.split('/').filter(Boolean);
+              return parts[parts.length - 1] || p;
+            }
+            return String(item ?? '').toString();
+          };
+
+          const normalizePath = (item: any, parent: string): string => {
+            if (typeof item === 'string') {
+              return parent === '/' ? `/${item}` : `${parent}/${item}`;
+            }
+            if (item && typeof item.path === 'string') return item.path;
+            const name = (item && item.name) ? item.name : normalizeName(item);
+            return parent === '/' ? `/${name}` : `${parent}/${name}`;
+          };
+
+          // Convert Blaxel format to our expected format, including absolute path
           const allFiles = [
-            ...subdirectories.map(dir => ({ name: dir, isDirectory: true })),
-            ...files.map(file => ({ name: file, isDirectory: false }))
+            ...subdirectories.map((dirItem: any) => ({ 
+              name: normalizeName(dirItem), 
+              path: normalizePath(dirItem, targetDir),
+              isDirectory: true 
+            })),
+            ...files.map((fileItem: any) => ({ 
+              name: normalizeName(fileItem), 
+              path: normalizePath(fileItem, targetDir),
+              isDirectory: false 
+            }))
           ];
           
           console.log(`[${requestId}] Files listed successfully`, { fileCount: allFiles.length });
@@ -319,69 +350,9 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'saveGraph':
-        console.log(`[${requestId}] Saving graph from blaxel/app/_graph to server`);
-        try {
-          const sandbox = await BlaxelService.getUserSandbox(user.id);
-          if (!sandbox) {
-            throw new Error('User sandbox not found');
-          }
-          console.log(`[${requestId}] User sandbox retrieved, reading and saving graph files...`);
-          
-          const graphDir = 'blaxel/app/_graph';
-          const savedDir = join(process.cwd(), 'saved');
-          const savedFiles: string[] = [];
-          
-          // Ensure saved directory exists
-          try {
-            await mkdir(savedDir, { recursive: true });
-          } catch (error) {
-            console.log(`[${requestId}] Failed to create saved directory:`, JSON.stringify(error));
-            // Directory might already exist, that's fine
-          }
-          
-          // Try to read and save graph.json
-          try {
-            const graphContent = await sandbox.fs.read(`${graphDir}/graph.json`);
-            const graphPath = join(savedDir, 'graph.json');
-            await writeFile(graphPath, graphContent, 'utf8');
-            savedFiles.push('graph.json');
-            console.log(`[${requestId}] graph.json saved to ${graphPath}`);
-          } catch (error) {
-            console.log(`[${requestId}] Failed to read/save graph.json:`, JSON.stringify(error));
-          }
-          
-          // Try to read and save vars.json
-          try {
-            const varsContent = await sandbox.fs.read(`${graphDir}/vars.json`);
-            const varsPath = join(savedDir, 'vars.json');
-            await writeFile(varsPath, varsContent, 'utf8');
-            savedFiles.push('vars.json');
-            console.log(`[${requestId}] vars.json saved to ${varsPath}`);
-          } catch (error) {
-            console.log(`[${requestId}] Failed to read/save vars.json:`, JSON.stringify(error));
-          }
-          
-          if (savedFiles.length === 0) {
-            result = {
-              success: false,
-              error: 'No graph files found in blaxel/app/_graph directory'
-            };
-          } else {
-            result = {
-              success: true,
-              savedFiles,
-              savedDirectory: 'saved/',
-              message: `Graph files saved to server: ${savedFiles.join(', ')}`
-            };
-          }
-        } catch (error) {
-          console.log(`[${requestId}] Graph save failed:`, JSON.stringify(error));
-          result = {
-            success: false,
-            error: 'Failed to save graph from sandbox',
-            details: error instanceof Error ? error.message : 'Unknown error'
-          };
-        }
+        // No-op: avoid local FS writes; keep everything in Blaxel/Supabase
+        console.log(`[${requestId}] saveGraph called – ignoring local writes per policy`);
+        result = { success: true, message: 'Graph save ignored (use Supabase + Blaxel only)' };
         break;
 
       case 'exportProject':

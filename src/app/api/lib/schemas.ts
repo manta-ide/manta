@@ -27,10 +27,15 @@ export const MessageVariablesSchema = z.object({
   USER_REQUEST: z.string().optional(),
   
   // File context
-  PROJECT_FILES: z.array(z.object({
-    route: z.string(),
-    lines: z.number(),
-  })).optional(),
+  PROJECT_FILES: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        route: z.string(),
+        lines: z.number().optional(),
+      })
+    ])
+  ).optional(),
   CURRENT_FILE: z.string().optional(),
   CURRENT_FILE_CONTENT: z.string().optional(),
   

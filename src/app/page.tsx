@@ -45,7 +45,7 @@ export default function Home() {
         
         if (graph && graph.nodes.length > 0) {
           const rootNode = graph.nodes[0]; // First node is the root
-          setSelectedNode(rootNode.id, rootNode);
+          setSelectedNode(rootNode.id);
         }
       } catch (error) {
         console.error('Failed to set root node as selected:', error);

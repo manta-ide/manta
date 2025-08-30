@@ -165,69 +165,6 @@ export default function SelectedNodeSidebar() {
 		}
 	};
 
-	const handleGenerateProperties = async () => {
-		if (!selectedNodeId) return;
-		try {
-			setIsGeneratingProperties(true);
-			
-			// Get current graph from store
-			const { graph, getFileContent } = useProjectStore.getState();
-			if (!graph) {
-				console.error('No graph found for property generation');
-				return;
-			}
-			
-			// Get current code content from store
-			const generatedCode = getFileContent('src/app/page.tsx') || '';
-			
-			// Generate properties for the selected node
-			const propertyRes = await fetch('/api/agents/generate-properties', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					graph: graph,
-					nodeId: selectedNodeId,
-					generatedCode,
-					filePath: 'base-template/src/app/page.tsx'
-				}),
-			});
-			
-			if (propertyRes.ok) {
-				const propertyData = await propertyRes.json();
-				if (propertyData.success && propertyData.properties.length > 0) {
-					// Use the updated graph from the response
-					const updatedGraph = propertyData.updatedGraph;
-					const updatedNode = updatedGraph.nodes.find((n: any) => n.id === selectedNodeId);
-					
-					if (updatedNode) {
-						// Update local state
-						setSelectedNode(selectedNodeId, updatedNode);
-						
-						// Initialize property values
-						const initialValues: Record<string, any> = {};
-						for (const prop of propertyData.properties) {
-							initialValues[prop.id] = prop.value;
-						}
-						setPropertyValues(initialValues);
-						
-						// Trigger refresh to ensure UI is updated
-						triggerRefresh();
-					} else {
-						console.error('Updated node not found in response');
-					}
-				} else {
-					console.log('No properties generated for this node');
-				}
-			} else {
-				const errorData = await propertyRes.json().catch(() => ({}));
-				console.error('Failed to generate properties:', errorData.error || propertyRes.statusText);
-			}
-		} catch (error) {
-			console.error('Error generating properties:', error);
-		} finally {
-			setIsGeneratingProperties(false);
-		}
-	};
 
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI

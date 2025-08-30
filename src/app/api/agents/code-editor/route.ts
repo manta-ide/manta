@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
@@ -23,16 +24,32 @@ const CODE_EDITOR_CONFIG = {
 
 const RequestSchema = z.object({ 
   userMessage: MessageSchema,
-  rebuildAll: z.boolean().optional().default(false)
+  rebuildAll: z.boolean().optional().default(false),
+  nodeIds: z.array(z.string()).optional(),
+  nodeId: z.string().optional(),
 });
 
 async function buildParsedMessages(
   userMessage: Message,
   promptTemplates: Record<'system' | 'user' | 'assistant', string>,
-  extraVariables?: Record<string, unknown>
+  extraVariables: Record<string, unknown> | undefined,
+  req: NextRequest
 ): Promise<ParsedMessage[]> {
   const session = getConversationSession();
-  const systemMessage = await createSystemMessage();
+  const filesRes = await fetch(`${req.nextUrl.origin}/api/files?list=true&from=blaxel`, {
+    headers: {
+      ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+      ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+    },
+  });
+  let files: string[] = [];
+  if (filesRes.ok) {
+    const data = await filesRes.json();
+    files = Array.isArray(data.files)
+      ? data.files.map((f: any) => String(f.route || '').replace(/^\/?(?:blaxel\/app\/)?/i, ''))
+      : [];
+  }
+  const systemMessage = await createSystemMessage({ files });
   addMessageToSession(userMessage);
   const allMessages = [systemMessage, ...session];
 
@@ -50,10 +67,16 @@ async function buildParsedMessages(
   return parsed;
 }
 
-async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
-  return fetch(`${process.env.BACKEND_URL}/api/llm-agent/run`, {
+async function callAgent(request: NextRequest, body: unknown, userId?: string): Promise<Response> {
+  const base = process.env.BACKEND_URL || request.nextUrl.origin;
+  return fetch(`${base}/api/llm-agent/run`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(request.headers.get('cookie') ? { cookie: request.headers.get('cookie') as string } : {}),
+      ...(request.headers.get('authorization') ? { authorization: request.headers.get('authorization') as string } : {}),
+      ...(userId ? { 'x-user-id': userId } : {}),
+    },
     body: JSON.stringify(body),
     signal: request.signal,
   });
@@ -73,6 +96,9 @@ function filterGraphForUnbuiltNodes(graph: any, unbuiltNodeIds: string[]): any {
 
 export async function POST(req: NextRequest) {
   try {
+    // Resolve user for DB updates
+    const session = await auth.api.getSession({ headers: req.headers });
+    const userId = session?.user?.id as string | undefined;
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
@@ -82,6 +108,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { userMessage, rebuildAll } = parsed.data;
+    const explicitNodeIds = parsed.data.nodeIds && parsed.data.nodeIds.length > 0
+      ? parsed.data.nodeIds
+      : (parsed.data.nodeId ? [parsed.data.nodeId] : undefined);
     
     // Get graph from API
     const graph = await fetchGraphFromApi(req);
@@ -102,6 +131,11 @@ export async function POST(req: NextRequest) {
       nodeIdsToProcess = graph.nodes.map((node: any) => node.id);
       filteredGraph = graph; // Use full graph
       console.log(`🔄 Rebuild mode: processing all ${nodeIdsToProcess.length} nodes`);
+    } else if (explicitNodeIds && explicitNodeIds.length > 0) {
+      // Explicit selection: process provided node ids only
+      nodeIdsToProcess = explicitNodeIds;
+      filteredGraph = filterGraphForUnbuiltNodes(graph, nodeIdsToProcess);
+      console.log(`🎯 Explicit node selection: processing ${nodeIdsToProcess.length} nodes`);
     } else {
       // Normal mode: only process unbuilt nodes
       nodeIdsToProcess = await fetchUnbuiltNodeIdsFromApi(req);
@@ -122,7 +156,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Get project files for the prompt template
-    const projectFilesRes = await fetch(`${req.nextUrl.origin}/api/files?list=true`);
+    // Ask files API to list from Blaxel (latest content in sandbox)
+    const projectFilesRes = await fetch(`${process.env.BACKEND_URL || req.nextUrl.origin}/api/files?list=true&from=blaxel`, {
+      // forward cookies for auth
+      headers: {
+        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+      }
+    });
     let projectFiles = [];
     if (projectFilesRes.ok) {
       const filesData = await projectFilesRes.json();
@@ -136,7 +177,8 @@ export async function POST(req: NextRequest) {
       { 
         GRAPH_DATA: JSON.stringify(filteredGraph, null, 2),
         PROJECT_FILES: projectFiles,
-      }
+      },
+      req
     );
 
     
@@ -145,7 +187,7 @@ export async function POST(req: NextRequest) {
       parsedMessages: parsedCodeEditorMessages,
       config: CODE_EDITOR_CONFIG,
       operationName: 'code-editor',
-    });
+    }, userId);
 
     if (!codeEditorResponse.ok) {
       return new Response(
@@ -161,7 +203,9 @@ export async function POST(req: NextRequest) {
     
     // Mark processed nodes as built
     try {
-      await markNodesBuilt(nodeIdsToProcess);
+      if (userId) {
+        await markNodesBuilt(nodeIdsToProcess, userId);
+      }
     } catch (error) {
       console.warn('Failed to mark nodes as built:', error);
     }

@@ -95,7 +95,7 @@ Choose ONE palette for new graphs:
 - **CRITICAL**: All size properties use select type with predefined options
 - **CRITICAL**: Choose ONE color palette and use consistently
 - **CRITICAL**: Set `state: "unbuilt"` when changing prompts or properties structure
-- This is a **Next.js** project using **TypeScript** and **Tailwind CSS**
+- This is a **Vite** project using **TypeScript** and **Tailwind CSS**
 - Complete the entire structure in one operation
 
 ## Workflow

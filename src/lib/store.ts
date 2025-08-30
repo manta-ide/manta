@@ -231,6 +231,37 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (!supabaseRealtimeService.connected) {
         throw new Error('Supabase not connected');
       }
+      // Optimistic local update: update selectedNode and graph immediately
+      const state = get();
+      const currentSelected = state.selectedNodeId === nodeId ? state.selectedNode : null;
+      const nextSelected = currentSelected ? {
+        ...currentSelected,
+        properties: (currentSelected.properties || []).map((p: any) =>
+          p.id === propertyId ? { ...p, value } : p
+        ).sort((a: any, b: any) => a.id.localeCompare(b.id))
+      } as any : null;
+
+      if (nextSelected) {
+        set({ selectedNode: nextSelected });
+      }
+
+      if (state.graph) {
+        const updatedGraph = {
+          ...state.graph,
+          nodes: state.graph.nodes.map((n: any) =>
+            n.id === nodeId
+              ? ({
+                  ...n,
+                  properties: (n.properties || []).map((p: any) =>
+                    p.id === propertyId ? { ...p, value } : p
+                  ).sort((a: any, b: any) => a.id.localeCompare(b.id))
+                })
+              : n
+          )
+        } as any;
+        set({ graph: updatedGraph });
+      }
+
       await supabaseRealtimeService.updateProperty(nodeId, propertyId, value);
       console.log(`✅ Property updated in Supabase: ${propertyId}`);
     } catch (error) {
@@ -351,12 +382,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 break;
                 
               case 'property_updated': {
-                // Optimize: avoid full graph updates to prevent GraphView re-renders
-                if (state.selectedNodeId === event.nodeId && state.selectedNode) {
+                // Update both selectedNode and graph.nodes to ensure persistence across node switches
+                if (state.selectedNodeId === event.nodeId && state.selectedNode && state.graph) {
                   const updatedProps = (state.selectedNode.properties || [])
                     .map(p => p.id === event.property.id ? { ...p, ...event.property } : p)
                     .sort((a, b) => a.id.localeCompare(b.id));
-                  set({ selectedNode: { ...state.selectedNode, properties: updatedProps } as any });
+
+                  const updatedSelectedNode = { ...state.selectedNode, properties: updatedProps } as any;
+
+                  // Also update the node in the graph.nodes array
+                  const updatedGraph = {
+                    ...state.graph,
+                    nodes: state.graph.nodes.map(n =>
+                      n.id === event.nodeId ? updatedSelectedNode : n
+                    )
+                  };
+
+                  set({
+                    selectedNode: updatedSelectedNode,
+                    graph: updatedGraph
+                  });
                 }
                 break;
               }
@@ -392,8 +437,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 break;
                 
               case 'property_updated_broadcast':
-                // Optimize: only update selected node locally to avoid GraphView churn
-                if (event.fromBroadcast && state.selectedNodeId === event.nodeId && state.selectedNode) {
+                // Minimize churn: update only selectedNode for broadcasts; graph refresh comes from DB changes
+                if (state.selectedNodeId === event.nodeId && state.selectedNode) {
                   const existingVal = state.selectedNode.properties?.find(p => p.id === event.propertyId)?.value;
                   if (existingVal === event.value) break;
                   const updatedProps = (state.selectedNode.properties || []).map(p =>

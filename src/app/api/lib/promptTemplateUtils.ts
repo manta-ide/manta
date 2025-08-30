@@ -45,7 +45,11 @@ export function parseTemplate(
 
     if (key === 'PROJECT_FILES' && Array.isArray(value)) {
       const fileList = value
-        .map((file) => `${file.route} (${file.lines} lines)`)
+        .map((file) => {
+          if (typeof file === 'string') return file;
+          if (file && typeof file.route === 'string') return file.route;
+          return String(file ?? '');
+        })
         .join('\n');
       result = result.replace(placeholder, fileList);
     } else {

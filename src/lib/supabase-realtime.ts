@@ -304,6 +304,9 @@ class SupabaseRealtimeService {
             })
             .on('broadcast', { event: 'property_update' }, (payload) => {
               console.log('📡 Received property broadcast (user):', payload);
+              console.log('📡 My clientId:', this.clientId);
+              console.log('📡 Broadcast clientId:', payload.payload?.clientId);
+              console.log('📡 Broadcast channel room:', this.broadcastChannel?.topic);
               this.handlePropertyBroadcast(payload);
             })
             .on('broadcast', { event: 'property' }, (payload) => {
@@ -314,7 +317,12 @@ class SupabaseRealtimeService {
             .on('broadcast', { event: 'graph_reload' }, async () => {
               try { await this.loadGraph(); } catch (e) { console.warn('⚠️ reload failed (user):', e); }
             })
-            .subscribe();
+            .subscribe((status) => {
+              console.log('📡 Broadcast channel subscription status:', status);
+              if (status === 'SUBSCRIBED') {
+                console.log('📡 Broadcast channel successfully subscribed');
+              }
+            });
 
             // Resolve sandbox room and subscribe if different
             (async () => {
@@ -826,25 +834,46 @@ class SupabaseRealtimeService {
 
   // Broadcast property updates for real-time collaboration (non-blocking)
   broadcastProperty(nodeId: string, propertyId: string, value: any): void {
+    console.log('📡 broadcastProperty called:', { nodeId, propertyId, value });
+    console.log('📡 broadcast status:', {
+      hasChannel: !!this.broadcastChannel,
+      isConnected: this.isConnected,
+      channelState: this.broadcastChannel?.state,
+      topic: this.broadcastChannel?.topic
+    });
     if (!this.broadcastChannel || !this.isConnected) {
+      console.log('📡 broadcastProperty skipped: not connected');
       return;
     }
 
     try {
+      const payload = {
+        nodeId,
+        propertyId,
+        value,
+        userId: this.userId,
+        clientId: this.clientId,
+        timestamp: Date.now()
+      };
+      console.log('📡 Sending broadcast with payload:', payload);
       this.broadcastChannel.send({
         type: 'broadcast',
         event: 'property_update',
-        payload: {
-          nodeId,
-          propertyId,
-          value,
-          userId: this.userId,
-          clientId: this.clientId,
-          timestamp: Date.now()
-        }
+        payload
       });
+      console.log('📡 Broadcast sent successfully');
     } catch (error) {
-      console.debug('Failed to broadcast property:', error);
+      console.error('📡 Failed to broadcast property:', error);
+
+      // Fallback: trigger local update even if broadcast fails
+      console.log('📡 Broadcast failed, triggering local update as fallback');
+      this.notifyHandlers({
+        type: 'property_updated_broadcast',
+        nodeId,
+        propertyId,
+        value,
+        fromBroadcast: false
+      });
     }
   }
 
@@ -879,12 +908,17 @@ class SupabaseRealtimeService {
 
   // Handle received property broadcasts
   private handlePropertyBroadcast(payload: any): void {
+    console.log('📡 handlePropertyBroadcast called with payload:', payload);
     try {
       const { nodeId, propertyId, value, userId, clientId, timestamp } = payload.payload || {};
-      
-      // Ignore our own broadcasts (same browser tab)
-      if (clientId === this.clientId) {
-        return;
+
+      console.log('📡 Extracted data:', { nodeId, propertyId, value, userId, clientId, myClientId: this.clientId });
+
+      // For property updates, we want to process our own broadcasts too for local consistency
+      // This ensures the graph state stays in sync even for same-client updates
+      const isOwnBroadcast = clientId === this.clientId;
+      if (isOwnBroadcast) {
+        console.log('📡 Processing own broadcast for local consistency');
       }
 
       if (!nodeId || !propertyId) {
@@ -895,6 +929,13 @@ class SupabaseRealtimeService {
       console.log(`📡 Applying property update from user ${userId}:`, { nodeId, propertyId, value });
       
       // Update the property in our local graph state
+      console.log('📡 Notifying handlers with event:', {
+        type: 'property_updated_broadcast',
+        nodeId,
+        propertyId,
+        value,
+        fromBroadcast: true
+      });
       this.notifyHandlers({
         type: 'property_updated_broadcast',
         nodeId,

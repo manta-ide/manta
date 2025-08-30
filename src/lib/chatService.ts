@@ -172,8 +172,8 @@ export function useChatService() {
         }
       };
 
-      // Make request to build-nodes API for node rebuild requests
-      const response = await fetch('/api/backend/agent-request/build-nodes', {
+      // Use the code-editor agent with explicit node selection
+      const response = await fetch('/api/agents/code-editor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

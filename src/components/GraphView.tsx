@@ -35,11 +35,14 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
   
+  // Derive effective visual state: honor built flag even if state wasn't updated yet
+  const effectiveState = node.built ? 'built' : (node.state || 'unbuilt');
+  
   // Determine styling based on node state (built/unbuilt/building)
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '3px' : '0px';
     
-    switch (node.state) {
+    switch (effectiveState) {
       case 'built':
         return {
           background: selected ? '#f8fafc' : '#ffffff',
@@ -94,7 +97,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         }}
       >
         {/* Building state indicator */}
-        {node.state === 'building' && (
+        {effectiveState === 'building' && (
           <div style={{
             position: 'absolute',
             top: '10px',
@@ -119,7 +122,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             fontSize: '24px',
             fontWeight: '700',
             color: selected ? 
-              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
               '#1f2937',
             textAlign: 'center',
             lineHeight: '1.2',
@@ -163,7 +166,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           position={Position.Top}
           style={{
             background: selected ? 
-              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
               '#6b7280',
             width: selected ? '10px' : '8px',
             height: selected ? '10px' : '8px',
@@ -176,7 +179,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           position={Position.Bottom}
           style={{
             background: selected ? 
-              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
               '#6b7280',
             width: selected ? '10px' : '8px',
             height: selected ? '10px' : '8px',
@@ -209,7 +212,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       }}
     >
       {/* Building state indicator */}
-      {node.state === 'building' && (
+      {effectiveState === 'building' && (
         <div style={{
           position: 'absolute',
           top: '10px',
@@ -222,6 +225,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           animation: 'spin 1s linear infinite',
         }} />
       )}
+      <style jsx>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       
       {/* Main content area */}
       <div style={{ flex: 1 }}>
@@ -231,7 +239,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             fontSize: '16px',
             fontWeight: '600',
             color: selected ? 
-              (node.state === 'built' ? '#2563eb' : '#ea580c') : 
+              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
               '#1f2937',
             marginBottom: '12px',
             lineHeight: '1.4',
@@ -576,16 +584,31 @@ function GraphCanvas() {
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
-    // Find the corresponding graph node data
-    const graphNode = node.data?.node as GraphNode;
-    if (graphNode) {
-      setSelectedNode(node.id, graphNode);
+    // Always get the fresh node data from the current graph state
+    const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
+    const reactFlowNode = node.data?.node as GraphNode;
+
+    console.log('🎯 onNodeClick:', node.id);
+    const bgColorFresh = freshGraphNode?.properties?.find(p => p.id === 'background-color')?.value;
+    const bgColorReactFlow = reactFlowNode?.properties?.find(p => p.id === 'background-color')?.value;
+    console.log('🎯 background-color comparison:', {
+      fresh: bgColorFresh,
+      reactFlow: bgColorReactFlow,
+      match: bgColorFresh === bgColorReactFlow
+    });
+    console.log('🎯 freshGraphNode properties:', freshGraphNode?.properties?.map(p => ({ id: p.id, value: p.value })));
+    console.log('🎯 reactFlowNode properties:', reactFlowNode?.properties?.map(p => ({ id: p.id, value: p.value })));
+
+    if (freshGraphNode) {
+      setSelectedNode(node.id, freshGraphNode);
     }
-  }, [setSelectedNode]);
+  }, [setSelectedNode, graph]);
 
   // Process graph data and create ReactFlow nodes/edges
   useEffect(() => {
+    console.log('🔄 GraphView: Rebuilding ReactFlow nodes from graph');
     if (!graph || !graph.nodes) {
+      console.log('🔄 GraphView: No graph data, clearing nodes');
       setNodes([]);
       setEdges([]);
       return;
@@ -615,10 +638,14 @@ function GraphCanvas() {
       const position = isDragging
         ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
         : (nodePositions.get(node.id) || { x: 0, y: 0 });
+
+      const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
+      console.log(`🔄 GraphView: Creating ReactFlow node ${node.id} with background-color: ${backgroundColor}`);
+
       return {
         id: node.id,
         position,
-        data: { 
+        data: {
           label: node.title,
           node: node,
           state: node.state || "unbuilt",
@@ -863,7 +890,8 @@ function GraphCanvas() {
       >
         <MiniMap 
           nodeColor={(node: any) => {
-            const nodeState = node.data?.node?.state;
+            const nd = node.data?.node;
+            const nodeState = nd?.built ? 'built' : nd?.state;
             if (nodeState === 'built') return '#9ca3af';
             if (nodeState === 'building') return '#ea580c';
             return '#fbbf24'; // unbuilt
