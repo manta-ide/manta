@@ -14,11 +14,15 @@ import SliderPropertyEditor from './SliderPropertyEditor';
 interface PropertyEditorProps {
   property: Property;
   onChange: (propertyId: string, value: any) => void;
+  onPreview?: (propertyId: string, value: any) => void;
 }
 
-export default function PropertyEditor({ property, onChange }: PropertyEditorProps) {
+export default function PropertyEditor({ property, onChange, onPreview }: PropertyEditorProps) {
   const handleChange = (value: any) => {
     onChange(property.id, value);
+  };
+  const handlePreview = (value: any) => {
+    onPreview?.(property.id, value);
   };
 
   switch (property.type) {
@@ -29,13 +33,17 @@ export default function PropertyEditor({ property, onChange }: PropertyEditorPro
           onChange={handleChange}
         />
       );
-    case 'select':
+    case 'select': {
+      // Narrow property to include options to satisfy the editor props
+      const p = property as Property & { type: 'select'; options: string[] };
       return (
         <SelectPropertyEditor
-          property={property as Property & { type: 'select'; options: string[] }}
+          property={p}
           onChange={handleChange}
+          onPreview={handlePreview}
         />
       );
+    }
     case 'text':
       return (
         <TextPropertyEditor

@@ -23,9 +23,7 @@ export default function SelectedNodeSidebar() {
 		updateNodeInSupabase,
 		updatePropertyInSupabase,
 		supabaseConnected,
-		connectToGraphEvents,
-		hoveredNodeId,
-		hoveredNode,
+		connectToGraphEvents
 	} = useProjectStore();
 	const { actions } = useChatService();
 	const { user } = useAuth();
@@ -58,9 +56,7 @@ export default function SelectedNodeSidebar() {
 	}, [user?.id, supabaseConnected]);
 
 	useEffect(() => {
-		// Prefer hovered node (preview) over selected for property panel values
-		const active = hoveredNode || selectedNode;
-		setPromptDraft(active?.prompt ?? '');
+		setPromptDraft(selectedNode?.prompt ?? '');
 		setRebuildError(null);
 		setRebuildSuccess(false);
 		
@@ -71,15 +67,15 @@ export default function SelectedNodeSidebar() {
 		}
 		
 		// Initialize property values from current properties
-		if (active?.properties && active.properties.length > 0) {
+		if (selectedNode?.properties && selectedNode.properties.length > 0) {
 			const initialValues: Record<string, any> = {};
-			for (const prop of active.properties) {
+			for (const prop of selectedNode.properties) {
 				initialValues[prop.id] = prop.value;
 			}
 			setPropertyValues(initialValues);
 			stagedPropertyValuesRef.current = initialValues;
 		}
-	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties, hoveredNodeId, hoveredNode?.prompt, hoveredNode?.properties]);
+	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
 
 	// Cleanup timeout on unmount
 	useEffect(() => {
@@ -92,7 +88,7 @@ export default function SelectedNodeSidebar() {
 
 
 
-	if (!selectedNodeId && !hoveredNodeId) return null;
+	if (!selectedNodeId) return null;
 
 	const handleRebuild = async () => {
 		if (!selectedNodeId) return;
@@ -287,9 +283,17 @@ export default function SelectedNodeSidebar() {
 		}, 250); // slightly faster debounce for smoother UX
 	}, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, supabaseConnected, updatePropertyInSupabase]);
 
+	// Preview handler: update UI and broadcast without persisting
+	const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
+		setPropertyValues(prev => ({ ...prev, [propertyId]: value }));
+		if (supabaseConnected && selectedNodeId) {
+			supabaseRealtimeService.broadcastProperty(selectedNodeId, propertyId, value);
+		}
+	}, [supabaseConnected, selectedNodeId]);
+
 	// Helper function to apply property changes to Supabase database only
 	const applyPropertyChangesToSupabase = useCallback(async (newPropertyValues: Record<string, any>) => {
-		if (selectedNode?.properties && selectedNodeId) {
+		if (selectedNode?.properties) {
 			try {
 				// Track which properties actually changed
 				const changedProperties: Array<{propertyId: string, oldValue: any, newValue: any}> = [];
@@ -369,7 +373,7 @@ export default function SelectedNodeSidebar() {
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
 			<div className="px-3 py-2 border-b border-zinc-700">
-				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={(selectedNode?.title || selectedNodeId || '')}>
+				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={selectedNode?.title || selectedNodeId}>
 					{selectedNode?.title || selectedNodeId}
 				</span>
 			</div>
@@ -429,6 +433,7 @@ export default function SelectedNodeSidebar() {
 												value: (propertyValues[property.id] ?? property.value)
 											}}
 											onChange={handlePropertyChange}
+											onPreview={handlePropertyPreview}
 										/>
 									</div>
 								))}

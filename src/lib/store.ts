@@ -14,8 +14,6 @@ interface ProjectStore {
   // Graph state
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
-  hoveredNodeId: string | null;
-  hoveredNode: GraphNode | null;
   graph: Graph | null;
   graphLoading: boolean;
   graphError: string | null;
@@ -40,7 +38,6 @@ interface ProjectStore {
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
-  setHoveredNode: (id: string | null, node?: GraphNode | null) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
   updateGraph: (graph: Graph) => void;
@@ -78,8 +75,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph state
   selectedNodeId: null,
   selectedNode: null,
-  hoveredNodeId: null,
-  hoveredNode: null,
   graph: null,
   graphLoading: true,
   graphError: null,
@@ -95,8 +90,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     refreshTrigger: 0,
     selectedNodeId: null,
     selectedNode: null,
-    hoveredNodeId: null,
-    hoveredNode: null,
     graph: null,
     graphLoading: true,
     graphError: null,
@@ -137,7 +130,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setSelectedFile: (path) => set({ selectedFile: path }),
   setSelection: (selection) => set({ selection }),
   setSelectedNode: (id, node = null) => set({ selectedNodeId: id, selectedNode: node ?? null }),
-  setHoveredNode: (id, node = null) => set({ hoveredNodeId: id, hoveredNode: node ?? null }),
   
   getFileContent: (path) => {
     return get().files.get(path) || '';

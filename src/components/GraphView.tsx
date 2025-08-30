@@ -330,7 +330,7 @@ function GraphCanvas() {
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
-  const { setSelectedNode, setHoveredNode, selectedNodeId, selectedNode } = useProjectStore();
+  const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
   const { user } = useAuth();
   
   // Use the store for graph data with Supabase integration
@@ -582,16 +582,6 @@ function GraphCanvas() {
       setSelectedNode(node.id, graphNode);
     }
   }, [setSelectedNode]);
-
-  // Hover handlers to drive property editors preview
-  const onNodeMouseEnter: NodeMouseHandler = useCallback((event, node) => {
-    const graphNode = node.data?.node as GraphNode;
-    if (graphNode) setHoveredNode(node.id, graphNode);
-  }, [setHoveredNode]);
-
-  const onNodeMouseLeave: NodeMouseHandler = useCallback((event, node) => {
-    setHoveredNode(null, null);
-  }, [setHoveredNode]);
 
   // Process graph data and create ReactFlow nodes/edges
   useEffect(() => {
@@ -858,8 +848,6 @@ function GraphCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
-        onNodeMouseEnter={onNodeMouseEnter}
-        onNodeMouseLeave={onNodeMouseLeave}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}

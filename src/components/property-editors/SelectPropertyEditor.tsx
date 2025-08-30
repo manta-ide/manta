@@ -8,9 +8,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface SelectPropertyEditorProps {
   property: Property & { type: 'select'; options: string[] };
   onChange: (value: string) => void;
+  onPreview?: (value: string) => void;
 }
 
-export default function SelectPropertyEditor({ property, onChange }: SelectPropertyEditorProps) {
+export default function SelectPropertyEditor({ property, onChange, onPreview }: SelectPropertyEditorProps) {
   return (
     <BasePropertyEditor title={property.title}>
       <div className="flex items-center border border-zinc-700 rounded bg-zinc-800">
@@ -20,7 +21,13 @@ export default function SelectPropertyEditor({ property, onChange }: SelectPrope
           </SelectTrigger>
           <SelectContent className="bg-zinc-800 border-zinc-700">
             {Array.isArray(property.options) ? property.options.map((option) => (
-              <SelectItem key={option} value={option} className="text-white hover:bg-zinc-700 focus:bg-zinc-700">
+              <SelectItem
+                key={option}
+                value={option}
+                className="text-white hover:bg-zinc-700 focus:bg-zinc-700"
+                // Hover previews: broadcast/update UI only, do not commit selection (avoid checkmark moving)
+                onMouseEnter={() => onPreview?.(option)}
+              >
                 {option}
               </SelectItem>
             )) : (
