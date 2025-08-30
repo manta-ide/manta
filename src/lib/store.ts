@@ -100,128 +100,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   loadProject: async () => {
     try {
-      console.log('📂 Loading project from filesystem...');
-      const response = await fetch('/api/files?graphs=true');
-      const data = await response.json();
-      
-      if (response.ok) {
-        const files = new Map(Object.entries(data.files as Record<string, string>));
-        console.log(`✅ Loaded ${files.size} files from backend`);
-        console.log('📁 File tree structure:', data.fileTree);
-        
-        // Initialize in-memory graph storage from filesystem as source of truth
-        await fetch('/api/backend/storage/initialize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        // Also trigger graph API refresh to ensure it has the latest data
-        await fetch('/api/backend/graph-api', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'refresh' })
-        });
-        
-        set({ files, fileTree: data.fileTree });
-        
-        // Load graph data
-        await get().loadGraph();
-      } else {
-        console.error('❌ Error loading project:', data.error);
-      }
+      console.log('📊 Loading project from Supabase...');
+
+      // Load graph data directly from Supabase
+      await get().loadGraph();
+
+      console.log('✅ Project loaded from Supabase successfully');
     } catch (error) {
-      console.error('❌ Error loading project from filesystem:', error);
+      console.error('❌ Error loading project from Supabase:', error);
     }
   },
   
   setFileContent: async (filePath, content) => {
-    try {
-      console.log(`📝 Updating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch('/api/files', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath, content })
-      });
-      
-      if (response.ok) {
-        const files = new Map(get().files);
-        files.set(filePath, content);
-        set({ files });
-        console.log(`✅ File updated in store: ${filePath}`);
-        
-        // Trigger iframe refresh after file update
-        get().triggerRefresh();
-      } else {
-        const data = await response.json();
-        console.error('❌ Error updating file:', data.error);
-      }
-    } catch (error) {
-      console.error('❌ Error writing file:', error);
-    }
+    // File operations disabled - using Supabase only
+    console.log(`📝 File update skipped (Supabase only mode): ${filePath}`);
   },
   
   deleteFile: async (filePath) => {
-    try {
-      console.log(`🗑️ Deleting file: ${filePath}`);
-      const response = await fetch('/api/files', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath })
-      });
-      
-      if (response.ok) {
-        const files = new Map(get().files);
-        files.delete(filePath);
-        const state = get();
-        set({ 
-          files,
-          currentFile: state.currentFile === filePath ? null : state.currentFile
-        });
-        console.log(`✅ File deleted from store: ${filePath}`);
-        
-        // Refresh the file tree to reflect the deletion
-        console.log('🔄 Refreshing file tree after delete');
-        await get().loadProject();
-        
-        // Trigger iframe refresh after file deletion
-        get().triggerRefresh();
-      } else {
-        const data = await response.json();
-        console.error('❌ Error deleting file:', data.error);
-      }
-    } catch (error) {
-      console.error('❌ Error deleting file:', error);
-    }
+    // File operations disabled - using Supabase only
+    console.log(`🗑️ File deletion skipped (Supabase only mode): ${filePath}`);
   },
   
   createFile: async (filePath, content) => {
-    try {
-      console.log(`➕ Creating file: ${filePath} (${content.length} chars)`);
-      const response = await fetch('/api/files', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath, content })
-      });
-      
-      if (response.ok) {
-        const files = new Map(get().files);
-        files.set(filePath, content);
-        set({ files });
-        console.log(`✅ File created in store: ${filePath}`);
-        
-        // Refresh the file tree to reflect the new file
-        console.log('🔄 Refreshing file tree after create');
-        await get().loadProject();
-        
-        // Trigger iframe refresh after file creation
-        get().triggerRefresh();
-      } else {
-        const data = await response.json();
-        console.error('❌ Error creating file:', data.error);
-      }
-    } catch (error) {
-      console.error('❌ Error creating file:', error);
-    }
+    // File operations disabled - using Supabase only
+    console.log(`➕ File creation skipped (Supabase only mode): ${filePath}`);
   },
   
   setCurrentFile: (path) => set({ currentFile: path }),
@@ -249,62 +151,29 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       set({ graphLoading: true, graphError: null });
       
-      // Try Supabase first if connected
-      if (supabaseRealtimeService.connected) {
-        try {
-          console.log('📊 Loading graph from Supabase...');
-          const graph = await supabaseRealtimeService.loadGraph();
-          if (graph && graph.nodes && graph.nodes.length > 0) {
-            set({ graph, graphLoading: false });
-            console.log(`✅ Loaded graph from Supabase with ${graph.nodes.length} nodes and ${graph.edges?.length || 0} edges`);
-            if (graph.edges && graph.edges.length > 0) {
-              console.log('📊 Store: Edge details:', graph.edges);
-            }
-            return;
-          } else {
-            console.log('📊 Supabase has no nodes, falling back to backend API...');
-          }
-        } catch (supabaseError) {
-          console.warn('⚠️ Supabase graph load failed, falling back to backend API:', supabaseError);
-        }
+      // Load graph from Supabase only
+      if (!supabaseRealtimeService.connected) {
+        console.warn('⚠️ Supabase not connected, cannot load graph');
+        set({ graphLoading: false, graphError: 'Supabase connection required to load graph' });
+        return;
       }
-      
-      // Fallback to backend API
-      console.log('📊 Loading graph from backend API...');
-      const response = await fetch('/api/backend/graph-api', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'refresh' })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.graph) {
-          set({ graph: data.graph, graphLoading: false });
-          console.log(`✅ Loaded graph from backend with ${data.graph.nodes?.length || 0} nodes`);
-          
-          // Sync to Supabase if connected and graph has nodes
-          if (supabaseRealtimeService.connected && data.graph.nodes && data.graph.nodes.length > 0) {
-            try {
-              console.log('🔄 Syncing backend graph to Supabase...');
-              await get().syncGraphToSupabase(data.graph);
-              console.log('✅ Graph synced to Supabase successfully');
-            } catch (syncError) {
-              console.warn('⚠️ Failed to sync graph to Supabase:', syncError);
-            }
+
+      try {
+        console.log('📊 Loading graph from Supabase...');
+        const graph = await supabaseRealtimeService.loadGraph();
+        if (graph) {
+          set({ graph, graphLoading: false });
+          console.log(`✅ Loaded graph from Supabase with ${graph.nodes?.length || 0} nodes and ${graph.edges?.length || 0} edges`);
+          if (graph.edges && graph.edges.length > 0) {
+            console.log('📊 Store: Edge details:', graph.edges);
           }
         } else {
-          set({ graph: null, graphLoading: false });
-          console.log('ℹ️ No graph found');
+          console.log('📊 No graph data found in Supabase');
+          set({ graph: { nodes: [], edges: [] }, graphLoading: false });
         }
-      } else if (response.status === 404) {
-        // Graph not found is not an error, just set to null
-        set({ graph: null, graphLoading: false });
-        console.log('ℹ️ No graph found (404)');
-      } else {
-        const errorData = await response.json();
-        set({ graphError: errorData.error || 'Failed to load graph', graphLoading: false });
-        console.error('❌ Error loading graph:', errorData.error);
+      } catch (supabaseError) {
+        console.error('❌ Supabase graph load failed:', supabaseError);
+        set({ graphLoading: false, graphError: 'Failed to load graph from Supabase' });
       }
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });

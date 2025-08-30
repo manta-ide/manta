@@ -14,12 +14,11 @@ export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
 	const DEBOUNCE_PROPERTY_CHANGES = true;
 	
-	const { 
-		selectedNodeId, 
-		selectedNode, 
-		setSelectedNode, 
-		loadProject: loadProjectFromFileSystem, 
-		triggerRefresh, 
+	const {
+		selectedNodeId,
+		selectedNode,
+		setSelectedNode,
+		triggerRefresh,
 		refreshGraph,
 		updateNodeInSupabase,
 		updatePropertyInSupabase,
@@ -87,25 +86,7 @@ export default function SelectedNodeSidebar() {
 		};
 	}, []);
 
-	// Reload freshest node data from backend after server-side updates
-	const reloadSelectedNodeFromBackend = useCallback(async () => {
-		if (!selectedNodeId) return;
-		try {
-			const res = await fetch('/api/backend/graph-api', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ nodeId: selectedNodeId })
-			});
-			if (res.ok) {
-				const data = await res.json();
-				if (data?.success && data?.node) {
-					setSelectedNode(selectedNodeId, data.node);
-				}
-			}
-		} catch (e) {
-			console.warn('Failed to reload selected node from backend:', e);
-		}
-	}, [selectedNodeId, setSelectedNode]);
+
 
 	if (!selectedNodeId) return null;
 
@@ -114,62 +95,31 @@ export default function SelectedNodeSidebar() {
 		try {
 			setRebuildError(null); // Clear previous errors
 			setRebuildSuccess(false); // Clear previous success
-			
-			// First update the node state to "building" - try Supabase first
+
+			// Store the previous prompt for the rebuild operation
+			const previousPrompt = selectedNode?.prompt ?? '';
+
+			// Update the node state to "building" via Supabase
 			try {
 				if (supabaseConnected) {
-					await updateNodeInSupabase(selectedNodeId, { state: 'building' });
-					console.log('✅ Node state updated to building via Supabase');
+					await updateNodeInSupabase(selectedNodeId, {
+						state: 'building',
+						prompt: promptDraft // Update prompt in Supabase
+					});
+					console.log('✅ Node state and prompt updated to building via Supabase');
 				} else {
 					throw new Error('Supabase not connected');
 				}
 			} catch (supabaseError) {
-				console.warn('⚠️ Supabase update failed, using backend API:', supabaseError);
-				
-				// Fallback to backend API
-				const updateStateRes = await fetch('/api/backend/graph-api', {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ 
-						nodeId: selectedNodeId, 
-						state: 'building' 
-					})
-				});
-				
-				if (!updateStateRes.ok) {
-					console.error('Failed to update node state to building');
-					throw new Error('Failed to update node state to building');
-				}
-				
-				const updatedNode = await updateStateRes.json();
-				if (updatedNode?.success && updatedNode?.updatedNode) {
-					setSelectedNode(selectedNodeId, updatedNode.updatedNode);
-				}
-			}
-			
-			// 1) Save latest prompt before rebuild via new backend storage API
-			const previousPrompt = selectedNode?.prompt ?? '';
-			const saveRes = await fetch(`/api/backend/storage`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ nodeId: selectedNodeId, prompt: promptDraft })
-			});
-			
-			if (!saveRes.ok) {
-				console.error('Failed to save prompt before rebuild');
-				throw new Error('Failed to save prompt before rebuild');
-			}
-			
-			const saved = await saveRes.json();
-			if (saved?.node) {
-				setSelectedNode(selectedNodeId, saved.node);
-				await reloadSelectedNodeFromBackend();
+				console.error('❌ Supabase update failed:', supabaseError);
+				setRebuildError('Failed to update node state. Supabase connection required.');
+				return;
 			}
 
-			// 2) Trigger rebuild through chat service (agent-request orchestration)
+			// Trigger rebuild through chat service (agent-request orchestration)
 			await actions.rebuildNode(selectedNodeId, previousPrompt, promptDraft);
 
-			// 3) Refresh the graph to get the latest state
+			// Refresh the graph to get the latest state from Supabase
 			try {
 				await refreshGraph();
 				// Find the updated node in the refreshed graph
@@ -182,16 +132,7 @@ export default function SelectedNodeSidebar() {
 				console.warn('Failed to refresh graph after rebuild:', e);
 			}
 
-			// 4) Ensure freshest filesystem state
-			try {
-				await loadProjectFromFileSystem();
-			} catch (e) {
-				console.warn('Reload after rebuild failed:', e);
-			}
-			triggerRefresh();
-			await reloadSelectedNodeFromBackend();
-			
-			// 5) Update the node state to "built" upon success
+			// Update the node state to "built" upon success
 			try {
 				if (supabaseConnected) {
 					await updateNodeInSupabase(selectedNodeId, { state: 'built' });
@@ -200,25 +141,9 @@ export default function SelectedNodeSidebar() {
 					throw new Error('Supabase not connected');
 				}
 			} catch (supabaseError) {
-				console.warn('⚠️ Supabase final update failed, using backend API:', supabaseError);
-				
-				const finalUpdateRes = await fetch('/api/backend/graph-api', {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ 
-						nodeId: selectedNodeId, 
-						state: 'built' 
-					})
-				});
-				
-				if (finalUpdateRes.ok) {
-					const finalNode = await finalUpdateRes.json();
-					if (finalNode?.success && finalNode?.updatedNode) {
-						setSelectedNode(selectedNodeId, finalNode.updatedNode);
-					}
-				}
+				console.error('❌ Supabase final update failed:', supabaseError);
 			}
-			
+
 			// Show success message
 			setRebuildSuccess(true);
 			// Clear success message after 3 seconds
@@ -226,23 +151,13 @@ export default function SelectedNodeSidebar() {
 		} catch (error) {
 			console.error('Rebuild failed:', error);
 			setRebuildError('Failed to rebuild node. Please try again.');
-			
-			// Update the node state back to its previous state (likely "unbuilt")
+
+			// Update the node state back to its previous state via Supabase
 			try {
-				const revertStateRes = await fetch('/api/backend/graph-api', {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ 
-						nodeId: selectedNodeId, 
-						state: selectedNode?.state === 'built' ? 'built' : 'unbuilt' 
-					})
-				});
-				
-				if (revertStateRes.ok) {
-					const revertedNode = await revertStateRes.json();
-					if (revertedNode?.success && revertedNode?.updatedNode) {
-						setSelectedNode(selectedNodeId, revertedNode.updatedNode);
-					}
+				if (supabaseConnected) {
+					await updateNodeInSupabase(selectedNodeId, {
+						state: selectedNode?.state === 'built' ? 'built' : 'unbuilt'
+					});
 				}
 			} catch (e) {
 				console.error('Failed to revert node state after error:', e);
@@ -297,8 +212,6 @@ export default function SelectedNodeSidebar() {
 						
 						// Trigger refresh to ensure UI is updated
 						triggerRefresh();
-						// Reload node from backend to reflect built=false after structure change
-						await reloadSelectedNodeFromBackend();
 					} else {
 						console.error('Updated node not found in response');
 					}
@@ -351,10 +264,10 @@ export default function SelectedNodeSidebar() {
 			}
 		}
 
-		// Handle file system updates (debounced for performance)
+		// Handle Supabase database updates (debounced for performance)
 		if (!DEBOUNCE_PROPERTY_CHANGES) {
 			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
-			applyPropertyChangesToFiles(payloadValues).catch(() => {});
+			applyPropertyChangesToSupabase(payloadValues).catch(() => {});
 			return;
 		}
 
@@ -363,114 +276,91 @@ export default function SelectedNodeSidebar() {
 			clearTimeout(propertyChangeTimeoutRef.current);
 		}
 
-		// Debounce the file system update only
+		// Debounce the Supabase database update only
 		propertyChangeTimeoutRef.current = setTimeout(async () => {
 			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
-			await applyPropertyChangesToFiles(payloadValues);
+			await applyPropertyChangesToSupabase(payloadValues);
 		}, 250); // slightly faster debounce for smoother UX
 	}, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, supabaseConnected, updatePropertyInSupabase]);
 
-	// Helper function to apply property changes to files only (Blaxel/backend)
-	const applyPropertyChangesToFiles = useCallback(async (newPropertyValues: Record<string, any>) => {
+	// Helper function to apply property changes to Supabase database only
+	const applyPropertyChangesToSupabase = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
-				// Track which properties actually changed and if any affect code generation
-				let hasCodeAffectingChanges = false;
+				// Track which properties actually changed
 				const changedProperties: Array<{propertyId: string, oldValue: any, newValue: any}> = [];
-				
-				// Check which properties changed and if they affect code generation
+
+				// Check which properties changed
 				for (const prop of selectedNode.properties) {
 					const oldValue = propertyValues[prop.id];
 					const newValue = newPropertyValues[prop.id];
-					
+
 					if (oldValue !== newValue) {
 						changedProperties.push({ propertyId: prop.id, oldValue, newValue });
-						
-						// Check if this property affects code generation (you can customize this logic)
-						// For now, assume all properties might affect code generation
-						hasCodeAffectingChanges = true;
 					}
 				}
-				
+
 				if (changedProperties.length === 0) {
 					console.log('ℹ️ No properties were changed');
 					return;
 				}
-				
-				console.log('🔄 Updating properties:', changedProperties);
-				
-				// Save properties to both Supabase database and files (final persistence)
+
+				console.log('🔄 Updating properties via Supabase:', changedProperties);
+
+				// Save properties to Supabase database only
 				const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
-					console.log(`🔄 Saving property ${propertyId} to Supabase database and files`);
-					
+					console.log(`🔄 Saving property ${propertyId} to Supabase database`);
+
 					// Save to Supabase database for persistence
 					try {
 						await updatePropertyInSupabase(selectedNodeId, propertyId, newValue);
 						console.log(`✅ Property ${propertyId} persisted to Supabase database`);
+
+						return {
+							propertyId,
+							oldValue,
+							newValue,
+							success: true
+						};
 					} catch (supabaseError) {
 						console.warn(`⚠️ Failed to persist property ${propertyId} to Supabase:`, supabaseError);
+						return {
+							propertyId,
+							oldValue,
+							newValue,
+							success: false,
+							error: supabaseError
+						};
 					}
-					
-					// Save to files via backend API
-					const response = await fetch('/api/backend/graph-api', {
-						method: 'PATCH',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
-							nodeId: selectedNodeId,
-							propertyId: propertyId,
-							value: newValue
-						})
-					});
-					
-					if (!response.ok) {
-						const errorData = await response.json().catch(() => ({}));
-						throw new Error(`Failed to save property ${propertyId} to files: ${errorData.error || response.statusText}`);
-					}
-					
-					const result = await response.json();
-					if (result.success && result.updatedNode) {
-						// Update the local node state with the updated node
-						setSelectedNode(selectedNodeId, result.updatedNode);
-					}
-					
-					return {
-						propertyId,
-						oldValue,
-						newValue,
-						success: true
-					};
 				});
-				
+
 				const results = await Promise.all(updatePromises);
 				const successfulUpdates = results.filter(r => r.success);
-				
+				const failedUpdates = results.filter(r => !r.success);
+
 				if (successfulUpdates.length > 0) {
-					console.log('✅ Successfully saved properties to files:', successfulUpdates);
-					
-					// Only trigger refresh if properties affect code generation
-					if (hasCodeAffectingChanges) {
-						console.log('🔄 Properties affect code generation, triggering refresh...');
-						triggerRefresh();
-					} else {
-						console.log('ℹ️ Properties saved to files without affecting code generation');
-					}
-					
-					// Ensure the store graph reflects latest property values when re-selecting nodes
-					try {
-						await refreshGraph();
-					} catch {}
+					console.log('✅ Successfully saved properties to Supabase:', successfulUpdates);
+
+					// Property changes are now handled via Supabase realtime sync
+					// No automatic refresh needed - changes will propagate via realtime events
+				}
+
+				if (failedUpdates.length > 0) {
+					console.warn('⚠️ Some property updates failed:', failedUpdates);
+					setRebuildError(`Failed to update ${failedUpdates.length} properties. Please try again.`);
+					setTimeout(() => setRebuildError(null), 5000);
 				}
 			} catch (error) {
 				console.error('Failed to apply property changes:', error);
 				// Revert the local state change on error
 				setPropertyValues(propertyValues);
-				
-				// Show error to user (you might want to add a toast notification here)
+
+				// Show error to user
 				setRebuildError(`Failed to update properties: ${error instanceof Error ? error.message : 'Unknown error'}`);
 				setTimeout(() => setRebuildError(null), 5000);
 			}
 		}
-	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode, triggerRefresh]);
+	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode]);
 
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">

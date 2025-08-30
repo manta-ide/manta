@@ -61,19 +61,25 @@ export async function GET(request: NextRequest) {
 
     const { user } = session;
 
-    // Get existing sandbox info
-    const sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);
-
-    if (!sandboxInfo) {
-      return NextResponse.json({
-        sandbox: null,
-        message: 'No sandbox found for user'
-      });
+    // Try to get sandbox, and auto-create if missing (backup path)
+    let sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);
+    if (!sandboxInfo || !sandboxInfo.previewUrl) {
+      try {
+        sandboxInfo = await SandboxService.initializeUserSandbox(user.id, user.email);
+        // Fire-and-forget template setup
+        SandboxService.setupBaseTemplate(user.id).catch(err => {
+          console.error('Failed to setup base template (non-blocking GET):', err);
+        });
+      } catch (e) {
+        console.warn('Auto-create sandbox (GET) failed:', e);
+      }
     }
 
-    return NextResponse.json({
-      sandbox: sandboxInfo
-    });
+    if (!sandboxInfo) {
+      return NextResponse.json({ sandbox: null, message: 'No sandbox found for user' });
+    }
+
+    return NextResponse.json({ sandbox: sandboxInfo });
   } catch (error) {
     console.error('Failed to get sandbox info:', error);
     

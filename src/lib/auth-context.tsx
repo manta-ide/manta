@@ -67,6 +67,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id, isClient, connectToGraphEvents, disconnectFromGraphEvents]);
 
+  // Ensure sandbox exists for the authenticated user; create if missing
+  useEffect(() => {
+    if (!user?.id || !isClient) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const check = await fetch('/api/sandbox/init', { method: 'GET', credentials: 'include' });
+        const data = await check.json().catch(() => ({}));
+        const hasSandbox = !!data?.sandbox;
+        const hasPreview = !!data?.sandbox?.previewUrl;
+        if (!cancelled && (!check.ok || !hasSandbox || !hasPreview)) {
+          await fetch('/api/sandbox/init', { method: 'POST', credentials: 'include' });
+        }
+      } catch (e) {
+        // Non-fatal; user can retry from UI
+        console.warn('Sandbox ensure failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, isClient]);
+
   const initializeAuth = async () => {
     try {
       // Use Better Auth client to get current session

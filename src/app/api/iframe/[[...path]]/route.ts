@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { SandboxService } from '@/lib/sandbox-service';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest, { params }: { params: { path?: string[] } }) {
   try {
@@ -15,7 +16,32 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
     }
 
     const { user } = session;
-    
+
+    // Short-circuit for internal API handled by Next: /iframe/api/vars
+    const pathSegments = (await params).path || [];
+    if (pathSegments.length >= 2 && pathSegments[0] === 'api' && pathSegments[1] === 'vars') {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!supabaseUrl || !serviceRoleKey) {
+        return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
+      }
+      const client = createClient(supabaseUrl, serviceRoleKey);
+      const { data, error } = await client
+        .from('graph_properties')
+        .select('id, value')
+        .eq('user_id', user.id);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      const vars: Record<string, any> = {};
+      for (const row of data || []) {
+        if (row && typeof row.id === 'string') {
+          (vars as any)[row.id] = (row as any).value;
+        }
+      }
+      return NextResponse.json({ vars });
+    }
+
     // Get user's sandbox info including preview URL
     const sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);
     
@@ -27,9 +53,9 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
     }
 
     // Construct the target URL
-    const pathSegments = (await params).path || [];
+    const pathSegments2 = (await params).path || [];
     // Always include /iframe/ in the path since we're proxying iframe requests
-    const targetPath = `/iframe${pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/'}`;
+    const targetPath = `/iframe${pathSegments2.length > 0 ? `/${pathSegments2.join('/')}` : '/'}`;
     const searchParams = request.nextUrl.searchParams.toString();
     const queryString = searchParams ? `?${searchParams}` : '';
     

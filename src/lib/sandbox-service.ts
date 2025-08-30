@@ -525,6 +525,26 @@ export class SandboxService {
       await sandbox.fs.writeTree(files, "/blaxel/app");
       console.log(`[SandboxService] ✅ Files synced to sandbox`);
 
+      // Write environment variables for the Vite app to connect to Supabase and resolve room
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // Resolve sandboxId for this user (already known via DB update earlier)
+        const sandboxInfo = await this.getUserSandboxInfo(userId);
+        const envLines = [
+          supabaseUrl ? `VITE_SUPABASE_URL=${supabaseUrl}` : '',
+          supabaseAnon ? `VITE_SUPABASE_ANON_KEY=${supabaseAnon}` : '',
+          `VITE_USER_ID=${userId}`,
+          sandboxInfo?.sandboxId ? `VITE_SANDBOX_ID=${sandboxInfo.sandboxId}` : '',
+        ].filter(Boolean);
+
+        const envContent = envLines.join('\n') + '\n';
+        await sandbox.fs.write('/blaxel/app/.env', envContent);
+        console.log(`[SandboxService] ✅ Wrote .env for Vite app`);
+      } catch (e) {
+        console.warn(`[SandboxService] ⚠️ Failed to write .env for Vite app:`, e);
+      }
+
       // Install dependencies
       console.log(`[SandboxService] Installing dependencies...`);
       await sandbox.process.exec({
