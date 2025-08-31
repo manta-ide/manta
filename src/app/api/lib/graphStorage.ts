@@ -159,11 +159,6 @@ function normalizeGraphForSupabase(original: Graph): Graph {
       if (seenPropIds.has(p.id)) continue;
       seenPropIds.add(p.id);
       let newId = p.id as string;
-      const owner = globalPropOwner[newId];
-      if (owner && owner !== node.id) {
-        // Make ID unique by prefixing with node id
-        newId = `${node.id}__${newId}`;
-      }
       globalPropOwner[newId] = node.id;
       nextProps.push({ ...p, id: newId });
     }

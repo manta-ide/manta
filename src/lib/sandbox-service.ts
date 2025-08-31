@@ -494,7 +494,7 @@ export class SandboxService {
         // Insert properties if they exist
         if (node.properties && node.properties.length > 0) {
           const propertiesData = node.properties.map(prop => ({
-            id: `${node.id}__${prop.id}`,
+            id: prop.id,
             node_id: node.id,
             name: prop.title,
             type: prop.type,
