@@ -201,6 +201,84 @@ export class SandboxService {
   }
 
   /**
+   * Retry helper with exponential backoff.
+   */
+  private static async retryWithBackoff<T>(fn: () => Promise<T>, attempts = 3, baseMs = 500): Promise<T> {
+    let lastErr: any;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        lastErr = err;
+        const delay = baseMs * Math.pow(2, i);
+        console.warn(`[SandboxService] write attempt ${i + 1} failed, retrying in ${delay}ms...`, err?.message || err);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+    throw lastErr;
+  }
+
+  /**
+   * Chunk files to keep each request small to avoid socket closures.
+   */
+  private static chunkFilesByLimit(files: { path: string; content: string }[], maxFiles = 25, maxBytes = 800_000) {
+    const batches: { path: string; content: string }[][] = [];
+    let current: { path: string; content: string }[] = [];
+    let bytes = 0;
+    for (const f of files) {
+      const size = Buffer.byteLength(f.content, 'utf8');
+      const wouldExceed = current.length >= maxFiles || (bytes + size) > maxBytes;
+      if (current.length > 0 && wouldExceed) {
+        batches.push(current);
+        current = [];
+        bytes = 0;
+      }
+      // If a single file is huge, put it in its own batch
+      if (size > maxBytes) {
+        if (current.length > 0) {
+          batches.push(current);
+          current = [];
+          bytes = 0;
+        }
+        batches.push([f]);
+        continue;
+      }
+      current.push(f);
+      bytes += size;
+    }
+    if (current.length > 0) batches.push(current);
+    return batches;
+  }
+
+  /**
+   * Robustly write a file tree to the sandbox in chunks with retries.
+   */
+  private static async writeTreeInChunks(sandbox: SandboxInstance, files: { path: string; content: string }[], dest: string) {
+    const batches = this.chunkFilesByLimit(files);
+    console.log(`[SandboxService] Writing files in ${batches.length} batches`);
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`[SandboxService] Writing batch ${i + 1}/${batches.length} (${batch.length} files)`);
+      try {
+        await this.retryWithBackoff(() => sandbox.fs.writeTree(batch, dest), 3, 600);
+      } catch (batchErr) {
+        console.warn(`[SandboxService] Batch ${i + 1} failed, falling back to per-file writes...`);
+        // Fallback: write files one-by-one to isolate failures
+        for (const f of batch) {
+          try {
+            await this.retryWithBackoff(() => sandbox.fs.writeTree([f], dest), 3, 600);
+          } catch (fileErr) {
+            console.error(`[SandboxService] Failed to write file ${f.path}`, fileErr);
+            throw fileErr;
+          }
+        }
+      }
+      // Small pacing delay between batches
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+
+  /**
    * Get server-side Supabase client with service role
    */
   private static async getSupabaseServiceClient(): Promise<SupabaseClient> {
@@ -374,6 +452,7 @@ export class SandboxService {
     };
   }
 
+
   /**
    * Sync base template graph to Supabase for a user
    */
@@ -522,7 +601,7 @@ export class SandboxService {
       ];
 
       console.log(`[SandboxService] Syncing ${files.length} files to sandbox`);
-      await sandbox.fs.writeTree(files, "/blaxel/app");
+      await this.writeTreeInChunks(sandbox, files, "/blaxel/app");
       console.log(`[SandboxService] ✅ Files synced to sandbox`);
 
       // Write environment variables for the Vite app to connect to Supabase and resolve room
