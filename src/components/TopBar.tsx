@@ -4,12 +4,14 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download } from 'lucide-react';
+import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 // Remove SandboxService import - using direct API calls now
+import { toast } from 'sonner';
+import { useProjectStore } from '@/lib/store';
 
 interface TopBarProps {
   panels: {
@@ -29,6 +31,8 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const { user, signOut, loading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const { loadProject } = useProjectStore();
 
   const handleSignOut = async () => {
     await signOut();
@@ -61,6 +65,31 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
       alert('Export failed. Check console for details.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleResetProject = async () => {
+    if (isResetting) return;
+    const confirmed = window.confirm('Reset project to base template? This will overwrite files and graph.');
+    if (!confirmed) return;
+    try {
+      setIsResetting(true);
+      toast.loading('Resetting project to base template...', { id: 'reset-project' });
+      const res = await fetch('/api/sandbox/setup-template', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || 'Reset failed');
+      }
+      toast.success('Project reset started. Reloading data...', { id: 'reset-project' });
+      // Give backend a moment, then reload project state
+      setTimeout(() => {
+        loadProject().catch(() => {});
+      }, 750);
+    } catch (error) {
+      console.error('Reset failed:', error);
+      toast.error('Failed to reset project.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -161,6 +190,22 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
             ) : (
               <Download className="w-4 h-4" />
+            )}
+          </Button>
+
+          {/* Reset to Template Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetProject}
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            title="Reset project to base template"
+            disabled={isResetting}
+          >
+            {isResetting ? (
+              <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
+            ) : (
+              <RotateCcw className="w-4 h-4" />
             )}
           </Button>
 

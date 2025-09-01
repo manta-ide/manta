@@ -5,9 +5,10 @@
  * No streaming complexity - just basic message management.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { isValidSelection } from '@/app/api/lib/selectionUtils';
+import { useAuth } from '@/lib/auth-context';
 import { 
   Message, 
   MessageContext
@@ -19,9 +20,63 @@ import {
  */
 export function useChatService() {
   const { currentFile, selection, setSelection, selectedNodeId, selectedNode } = useProjectStore();
+  const { user } = useAuth();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Load chat history when user becomes available
+  useEffect(() => {
+    if (user?.id) {
+      loadChatHistory();
+    }
+  }, [user?.id]);
+
+  // Function to load chat history from database
+  const loadChatHistory = useCallback(async () => {
+    if (!user?.id) return;
+
+    setLoadingHistory(true);
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const { chatHistory } = await response.json();
+        setMessages(chatHistory || []);
+      } else {
+        // Only log error if it's not a 404 (user has no chat history yet)
+        if (response.status !== 404) {
+          console.error('Failed to load chat history:', response.status, response.statusText);
+        }
+        // Set empty array for new users
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [user?.id]);
+
+  // Function to save chat history to database
+  const saveChatHistory = useCallback(async (newMessages: Message[]) => {
+    if (!user?.id) return;
+
+    try {
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ chatHistory: newMessages }),
+      });
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
+  }, [user?.id]);
 
   const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNode?: boolean }) => {
     if (!input.trim()) return;
@@ -82,20 +137,24 @@ export function useChatService() {
       };
     }
 
-    // Add user message to UI
-    setMessages((prev) => [...prev, userMessage]);
+    // Add user message to UI and save to database
+    const newMessagesWithUser = [...messages, userMessage];
+    setMessages(newMessagesWithUser);
+    await saveChatHistory(newMessagesWithUser);
 
     setLoading(true);
 
+    // Create assistant message placeholder
+    const assistantMessage: Message = {
+      role: 'assistant',
+      content: 'Processing your request...',
+      messageContext
+    };
+    
+    const newMessagesWithAssistant = [...newMessagesWithUser, assistantMessage];
+
     try {
-      // Create assistant message placeholder
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: 'Processing your request...',
-        messageContext
-      };
-      
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages(newMessagesWithAssistant);
 
       // Make request to edit-graph API for general chat messages
       const response = await fetch('/api/backend/agent-request/edit-graph', {
@@ -112,18 +171,18 @@ export function useChatService() {
       const result = await response.json();
       
       // Update the assistant message with the result
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastMessage = updated[updated.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
-          updated[updated.length - 1] = {
-            ...lastMessage,
-            content: result.message || 'Request completed successfully',
-            variables: { ASSISTANT_RESPONSE: result.message || 'Request completed successfully' }
-          };
-        }
-        return updated;
-      });
+      const updatedMessages = [...newMessagesWithAssistant];
+      const lastMessage = updatedMessages[updatedMessages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        updatedMessages[updatedMessages.length - 1] = {
+          ...lastMessage,
+          content: result.message || 'Request completed successfully',
+          variables: { ASSISTANT_RESPONSE: result.message || 'Request completed successfully' }
+        };
+      }
+      setMessages(updatedMessages);
+      // Save the completed conversation to database
+      await saveChatHistory(updatedMessages);
 
       // Clear selection if it was valid and used
       if (validSelection) {
@@ -140,21 +199,21 @@ export function useChatService() {
       console.error('Chat service error:', error);
       
       // Update the assistant message with error
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastMessage = updated[updated.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
-          updated[updated.length - 1] = {
-            ...lastMessage,
-            content: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
-          };
-        }
-        return updated;
-      });
+      const errorMessages = [...newMessagesWithAssistant];
+      const lastMessage = errorMessages[errorMessages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        errorMessages[errorMessages.length - 1] = {
+          ...lastMessage,
+          content: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+        };
+      }
+      setMessages(errorMessages);
+      // Save the error state to database
+      await saveChatHistory(errorMessages);
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, selectedNodeId, selectedNode, setSelection]);
+  }, [currentFile, selection, selectedNodeId, selectedNode, setSelection, messages, saveChatHistory]);
 
   const rebuildNode = useCallback(async (nodeId: string, previousPrompt: string, newPrompt: string) => {
     setLoading(true);
@@ -211,8 +270,20 @@ export function useChatService() {
       setMessages([]);
       setLoading(false);
       
-      // Clear backend conversation
-      const response = await fetch('/api/chat/clear', {
+      // Clear user's chat history from database
+      if (user?.id) {
+        const response = await fetch('/api/chat', {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to clear chat history from database');
+        }
+      }
+      
+      // Clear backend conversation (keep existing functionality)
+      const response = await fetch('/api/llm-agent/clear', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,10 +297,10 @@ export function useChatService() {
     } catch (error) {
       console.error('Error clearing conversation:', error);
     }
-  }, []);
+  }, [user?.id]);
 
   return {
-    state: { messages, loading },
-    actions: { sendMessage, clearMessages, rebuildNode }
+    state: { messages, loading, loadingHistory },
+    actions: { sendMessage, clearMessages, rebuildNode, loadChatHistory }
   };
 } 

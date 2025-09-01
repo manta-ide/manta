@@ -32,6 +32,8 @@ interface ProjectStore {
   setSelection: (selection: Selection | null) => void;
   getFileContent: (path: string) => string;
   getAllFiles: () => Map<string, string>;
+  setFileCacheContent: (path: string, content: string) => void;
+  hasFileInCache: (path: string) => boolean;
   buildFileTree: () => void;
   triggerRefresh: () => void;
   setIframeReady: (ready: boolean) => void;
@@ -100,20 +102,66 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   loadProject: async () => {
     try {
-      console.log('📊 Loading project from Supabase...');
+      console.log('📊 Loading project (graph + files)...');
 
-      // Load graph data directly from Supabase
-      await get().loadGraph();
+      // Load graph data directly from Supabase (non-blocking for files)
+      try {
+        await get().loadGraph();
+        console.log('✅ Graph load initiated');
+      } catch (graphErr) {
+        console.warn('⚠️ Graph load error (continuing to load files):', graphErr);
+      }
 
-      console.log('✅ Project loaded from Supabase successfully');
+      // Load file tree from backend API (Blaxel-backed)
+      try {
+        const response = await fetch('/api/files', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          const nextFiles = new Map<string, string>();
+          if (data?.files && typeof data.files === 'object') {
+            for (const [path, content] of Object.entries<string>(data.files)) {
+              nextFiles.set(path, content || '');
+            }
+          }
+          set({ fileTree: Array.isArray(data?.fileTree) ? data.fileTree : [], files: nextFiles });
+          console.log(`✅ Loaded file tree with ${Array.isArray(data?.fileTree) ? data.fileTree.length : 0} root entries`);
+        } else {
+          console.warn('⚠️ Failed to load file tree: HTTP', response.status);
+          set({ fileTree: [] });
+        }
+      } catch (filesErr) {
+        console.warn('⚠️ Error loading file tree:', filesErr);
+        set({ fileTree: [] });
+      }
+
+      console.log('✅ Project load completed');
     } catch (error) {
       console.error('❌ Error loading project from Supabase:', error);
     }
   },
   
   setFileContent: async (filePath, content) => {
-    // File operations disabled - using Supabase only
-    console.log(`📝 File update skipped (Supabase only mode): ${filePath}`);
+    try {
+      const res = await fetch('/api/files', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, content })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.error || 'Failed to save file');
+      }
+      // Update local cache
+      set(state => {
+        const nextFiles = new Map(state.files);
+        nextFiles.set(filePath, content);
+        return { files: nextFiles };
+      });
+      console.log(`💾 Saved file: ${filePath}`);
+    } catch (err) {
+      console.error('❌ Failed to save file:', err);
+      throw err;
+    }
   },
   
   deleteFile: async (filePath) => {
@@ -137,6 +185,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   getAllFiles: () => {
     return new Map(get().files);
+  },
+  
+  setFileCacheContent: (path, content) => {
+    set(state => {
+      const nextFiles = new Map(state.files);
+      nextFiles.set(path, content);
+      return { files: nextFiles };
+    });
+  },
+
+  hasFileInCache: (path) => {
+    const content = get().files.get(path);
+    return typeof content === 'string';
   },
   
   buildFileTree: () => {
