@@ -42,6 +42,7 @@ export const auth = betterAuth({
       name: { type: "string" },
       avatar: { type: "string", required: false },
       sandboxId: { type: "string", required: false },
+      chat_history: { type: "string", required: false },
     },
   },
 });

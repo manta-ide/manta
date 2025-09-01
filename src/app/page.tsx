@@ -23,6 +23,7 @@ export default function Home() {
     graph: true,
     sandbox: false,
   });
+  const [panelsLoaded, setPanelsLoaded] = useState(false);
   
   const [isEditMode, setIsEditMode] = useState(true);
 
@@ -35,6 +36,43 @@ export default function Home() {
       loadProjectFromFileSystem();
     }
   }, [user, loading, loadProjectFromFileSystem]);
+
+  // Restore panel layout from localStorage once after auth is ready
+  useEffect(() => {
+    if (!user || loading || panelsLoaded) return;
+    try {
+      const key = `manta.panels.${user.id}`;
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const next = {
+          files: typeof parsed?.files === 'boolean' ? parsed.files : panels.files,
+          editor: typeof parsed?.editor === 'boolean' ? parsed.editor : panels.editor,
+          viewer: typeof parsed?.viewer === 'boolean' ? parsed.viewer : panels.viewer,
+          graph: typeof parsed?.graph === 'boolean' ? parsed.graph : panels.graph,
+          sandbox: typeof parsed?.sandbox === 'boolean' ? parsed.sandbox : panels.sandbox,
+        };
+        setPanels(next);
+      }
+    } catch (e) {
+      console.warn('Failed to restore panel layout:', e);
+    } finally {
+      setPanelsLoaded(true);
+    }
+  }, [user, loading, panelsLoaded, panels.files, panels.editor, panels.viewer, panels.graph, panels.sandbox]);
+
+  // Persist panel layout on change (per-user)
+  useEffect(() => {
+    if (!user || loading) return;
+    try {
+      const key = `manta.panels.${user.id}`;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(panels));
+      }
+    } catch (e) {
+      console.warn('Failed to persist panel layout:', e);
+    }
+  }, [panels, user, loading]);
 
   // Set root node as selected on mount
   useEffect(() => {

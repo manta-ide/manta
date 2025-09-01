@@ -35,7 +35,7 @@ export default function FloatingChat() {
 
   // Use simplified chat service
   const { state, actions } = useChatService();
-  const { messages, loading } = state;
+  const { messages, loading, loadingHistory } = state;
   const { sendMessage, clearMessages } = actions;
 
   // Reset context flags when actual selections change
@@ -298,7 +298,21 @@ export default function FloatingChat() {
 
       {/* Messages */}
       <div className="max-h-64 overflow-y-auto p-3 pb-0 space-y-2">
-        {lastTwoMessages.length === 0 && loading && (
+        {loadingHistory && (
+          <div className="w-full">
+            <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
+              <ShimmeringText
+                text="Loading chat history..."
+                duration={0.8}
+                wave={true}
+                color="var(--color-zinc-400)"
+                shimmeringColor="var(--color-zinc-200)"
+                className="text-sm"
+              />
+            </div>
+          </div>
+        )}
+        {!loadingHistory && lastTwoMessages.length === 0 && loading && (
           <div className="w-full">
             <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
               <ShimmeringText
@@ -312,7 +326,7 @@ export default function FloatingChat() {
             </div>
           </div>
         )}
-        {lastTwoMessages.map((m, idx) => (
+        {!loadingHistory && lastTwoMessages.map((m, idx) => (
           <div key={idx} className="w-full">
             <div
               className={`rounded-lg w-full text-xs ${

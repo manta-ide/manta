@@ -15,18 +15,44 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export default function FileEditor() {
-  const { currentFile, getFileContent, setFileContent, setCurrentFile } = useProjectStore();
+  const { currentFile, getFileContent, setFileContent, setCurrentFile, setFileCacheContent, hasFileInCache } = useProjectStore();
   const [content, setContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     console.log('📂 File changed:', currentFile);
     if (currentFile) {
-      const fileContent = getFileContent(currentFile);
-      console.log('📝 File content length:', fileContent.length);
-      console.log('📝 File content preview:', fileContent.substring(0, 100) + '...');
-      setContent(fileContent);
-      setIsEditing(false);
+      // Display cached content immediately (including empty string)
+      const cached = getFileContent(currentFile);
+      if (typeof cached === 'string') {
+        setContent(cached);
+        setIsEditing(false);
+      }
+      // Fetch latest content if not cached yet
+      if (!hasFileInCache(currentFile)) {
+        (async () => {
+          try {
+            const res = await fetch(`/api/files?path=${encodeURIComponent(currentFile)}`, { credentials: 'include' });
+            const data = await res.json();
+            if (res.ok && data?.success && typeof data.content === 'string') {
+              setContent(data.content);
+              setIsEditing(false);
+              // Update cache without writing to backend
+              setFileCacheContent(currentFile, data.content);
+            } else {
+              console.warn('⚠️ Failed to fetch file content; showing empty');
+              setContent('');
+              setIsEditing(false);
+              setFileCacheContent(currentFile, '');
+            }
+          } catch (e) {
+            console.warn('⚠️ Error fetching file content:', e);
+            setContent('');
+            setIsEditing(false);
+            setFileCacheContent(currentFile, '');
+          }
+        })();
+      }
     } else {
       setContent('');
     }

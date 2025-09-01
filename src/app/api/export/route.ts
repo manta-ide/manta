@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
+import { auth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    // Resolve current user for server-to-server authorization
+    let userId: string | undefined;
+    try {
+      const session = await auth.api.getSession({ headers: req.headers });
+      userId = session?.user?.id;
+    } catch {}
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Get all files from Blaxel sandbox
     const blaxelResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3000'}/api/blaxel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-user-id': userId,
       },
       body: JSON.stringify({
         action: 'exportProject'
