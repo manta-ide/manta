@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import JSZip from 'jszip';
 import { auth } from '@/lib/auth';
+import { getGraphFilesFromSupabase } from '@/app/api/lib/graphStorage';
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,11 +39,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: blaxelData.error || 'Failed to export from sandbox' }, { status: 500 });
     }
 
-    const files = blaxelData.files;
+    const files = blaxelData.files as Record<string, string>;
     
     if (!files || Object.keys(files).length === 0) {
       return NextResponse.json({ error: 'No files found in sandbox' }, { status: 404 });
     }
+
+    // Substitute `_graph` from Supabase (replace sandbox folder entirely)
+    try {
+      const { graphJson, varsJson } = await getGraphFilesFromSupabase(userId);
+      // Remove any existing sandbox _graph files
+      for (const key of Object.keys(files)) {
+        if (key.includes('/_graph/') || key.endsWith('/_graph') || key.endsWith('\\_graph')) {
+          delete files[key];
+        }
+      }
+      // Inject Supabase-driven files if available
+      if (graphJson) {
+        files['blaxel/app/_graph/graph.json'] = graphJson;
+      }
+      if (varsJson) {
+        files['blaxel/app/_graph/vars.json'] = varsJson;
+      }
+    } catch {}
 
     // Create a new zip file
     const zip = new JSZip();

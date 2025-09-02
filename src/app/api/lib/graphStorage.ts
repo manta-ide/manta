@@ -99,6 +99,24 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
   const graph: Graph = { nodes };
   return graph.nodes.length > 0 ? graph : null;
 }
+
+/**
+ * Build `_graph` files (graph.json and vars.json) from Supabase for a given user.
+ * Returns pretty-printed JSON strings when available.
+ */
+export async function getGraphFilesFromSupabase(userId: string): Promise<{ graphJson?: string; varsJson?: string }> {
+  try {
+    const graph = await loadGraphFromSupabase(userId);
+    if (!graph) return {};
+    const vars = extractVariablesFromGraph(graph);
+    return {
+      graphJson: JSON.stringify(graph, null, 2),
+      varsJson: JSON.stringify(vars, null, 2),
+    };
+  } catch (e) {
+    return {};
+  }
+}
 async function updatePropertyInSupabase(userId: string, nodeId: string, propertyId: string, value: any): Promise<void> {
   const client = getSupabaseServiceClient();
   // Upsert property row to ensure existence and set value without needing a select/count
