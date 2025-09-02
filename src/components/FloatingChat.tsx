@@ -387,14 +387,17 @@ export default function FloatingChat() {
           const typedCacheRef = (FloatingChat as any)._typedCache || ((FloatingChat as any)._typedCache = new Set<string>());
           const shouldTypeFinal = m.role === 'assistant' && !loading && idx === lastTwoMessages.length - 1 && !!m.content && !typedCacheRef.has(m.content);
 
-          function AnimatedTyping({ text, onDone }: { text: string; onDone?: () => void }) {
+          function AnimatedTyping({ text, onDone, speed = 1 }: { text: string; onDone?: () => void; speed?: number }) {
             const [shown, setShown] = useState('');
             const raf = useRef<number | null>(null);
             const idxRef = useRef(0);
             useEffect(() => {
               idxRef.current = 0;
               setShown('');
-              const perChar = Math.max(12, Math.min(28, 1800 / Math.max(20, text.length))); // fast but readable
+              // Base typing speed (ms per character). Apply multiplier: higher speed => faster typing.
+              const basePerChar = Math.max(8, Math.min(20, 1200 / Math.max(20, text.length)));
+              const multiplier = Math.max(0.1, speed);
+              const perChar = basePerChar / multiplier;
               let last = performance.now();
               const step = (now: number) => {
                 const elapsed = now - last;
@@ -412,7 +415,7 @@ export default function FloatingChat() {
               };
               raf.current = requestAnimationFrame(step);
               return () => { if (raf.current) cancelAnimationFrame(raf.current); };
-            }, [text, onDone]);
+            }, [text, onDone, speed]);
             return (
               <div className="text-zinc-200">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -458,9 +461,11 @@ export default function FloatingChat() {
                     )}
                   </div>
                 ) : shouldTypeFinal ? (
-                  <AnimatedTyping 
-                    text={m.content!} 
+                  <AnimatedTyping
+                    text={m.content!}
                     onDone={() => { typedCacheRef.add(m.content!); setTypedTick((n) => n + 1); }}
+                    // Speed multiplier: 1 = base speed, larger = faster
+                    speed={1.5}
                   />
                 ) : (
                   <ReactMarkdown
