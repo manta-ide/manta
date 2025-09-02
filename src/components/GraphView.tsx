@@ -15,6 +15,7 @@ import {
   Position,
   useViewport,
   ColorMode,
+  PanOnScrollMode,
   useReactFlow,
   ReactFlowProvider,
 } from '@xyflow/react';
@@ -463,7 +464,7 @@ function GraphCanvas() {
           rebuildAll: true
         }),
       });
-
+      
       if (response.ok) {
         console.log('✅ Full graph rebuild started successfully');
         // The graph will be automatically updated via SSE
@@ -883,6 +884,11 @@ function GraphCanvas() {
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}
+        /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
+        panOnScroll={true}
+        panOnScrollMode={PanOnScrollMode.Free}
+        zoomOnScroll={false}
+        zoomOnPinch={true}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={false}
