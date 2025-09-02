@@ -10,7 +10,6 @@ import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 // Remove SandboxService import - using direct API calls now
-import { toast } from 'sonner';
 import { useProjectStore } from '@/lib/store';
 
 interface TopBarProps {
@@ -32,7 +31,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const { loadProject } = useProjectStore();
+  const { loadProject, setGraphLoading, resetStore } = useProjectStore();
 
   const handleSignOut = async () => {
     await signOut();
@@ -70,24 +69,55 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
 
   const handleResetProject = async () => {
     if (isResetting) return;
-    const confirmed = window.confirm('Reset project to base template? This will overwrite files and graph.');
+    const confirmed = window.confirm('Reset project to base template? This will clear chat, overwrite files and graph.');
     if (!confirmed) return;
     try {
       setIsResetting(true);
-      toast.loading('Resetting project to base template...', { id: 'reset-project' });
-      const res = await fetch('/api/sandbox/setup-template', { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.error) {
+      // Show global overlay while resetting
+      setGraphLoading(true);
+      // Clear app-local storages (not auth). Keep this resilient to future keys.
+      try {
+        if (typeof window !== 'undefined') {
+          const preservedKeys = new Set<string>([
+            // Add auth-related keys here if any are ever stored in localStorage.
+          ]);
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+            // Remove our app keys while preserving anything unrelated to auth
+            if (key.startsWith('manta.') && !preservedKeys.has(key)) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+        }
+      } catch (e) {
+        console.warn('Local storage cleanup failed (continuing):', e);
+      }
+
+      // Hit consolidated reset route (clears chat, server sessions, graph, and resets template)
+      const res = await fetch('/api/reset', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Reset failed');
       }
-      toast.success('Project reset started. Reloading data...', { id: 'reset-project' });
-      // Give backend a moment, then reload project state
-      setTimeout(() => {
-        loadProject().catch(() => {});
-      }, 750);
+
+      // Hard reload to ensure all client state and hooks reinitialize cleanly
+      // This also ensures FloatingChat and other components reflect cleared sessions
+      if (typeof window !== 'undefined') {
+        // Small delay to let overlay paint
+        setTimeout(() => { window.location.reload(); }, 200);
+      } else {
+        // Fallback: reset store and try reloading project
+        resetStore();
+        setTimeout(() => { loadProject().catch(() => {}); }, 500);
+      }
     } catch (error) {
       console.error('Reset failed:', error);
-      toast.error('Failed to reset project.');
+      // Keep overlay off if we failed
+      setGraphLoading(false);
+      alert('Failed to reset project. Check console for details.');
     } finally {
       setIsResetting(false);
     }
