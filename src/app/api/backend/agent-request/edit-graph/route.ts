@@ -39,8 +39,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to process graph editor request' }, { status: 500 });
     }
 
+    // If the inner response is streaming text, proxy it through
+    const contentType = graphEditorResponse.headers.get('Content-Type') || '';
+    if (contentType.includes('text/plain')) {
+      return new NextResponse(graphEditorResponse.body, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+        },
+      });
+    }
+
     const graphEditorResult = await graphEditorResponse.json();
-    
     return NextResponse.json(graphEditorResult);
   } catch (error) {
     console.error('❌ Edit graph request error:', error);

@@ -144,10 +144,11 @@ export function useChatService() {
 
     setLoading(true);
 
-    // Create assistant message placeholder
+    // Create assistant message placeholder with empty content so the UI
+    // can render the shimmering "Thinking..." indicator instead of plain text
     const assistantMessage: Message = {
       role: 'assistant',
-      content: 'Processing your request...',
+      content: '',
       messageContext
     };
     
@@ -156,33 +157,110 @@ export function useChatService() {
     try {
       setMessages(newMessagesWithAssistant);
 
-      // Make request to edit-graph API for general chat messages
-      const response = await fetch('/api/backend/agent-request/edit-graph', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage }),
-      });
+    // Route: simple Q&A vs graph editing
+    // Always use the full graph agent. It will decide whether to answer, read, or edit.
+    const response = await fetch('/api/backend/agent-request/edit-graph', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userMessage }),
+    });
 
       if (!response.ok) {
         throw new Error(`Request failed: ${response.statusText}`);
       }
 
-      // Get the JSON response
-      const result = await response.json();
-      
-      // Update the assistant message with the result
-      const updatedMessages = [...newMessagesWithAssistant];
-      const lastMessage = updatedMessages[updatedMessages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        updatedMessages[updatedMessages.length - 1] = {
-          ...lastMessage,
-          content: result.message || 'Request completed successfully',
-          variables: { ASSISTANT_RESPONSE: result.message || 'Request completed successfully' }
+      const contentType = response.headers.get('Content-Type') || '';
+
+      if (contentType.includes('text/plain')) {
+        // Streaming mode: show only the latest line during stream.
+        // For the final message, display a few sentences (accumulated lines), not just one.
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let latestLine = '';
+        const stripLabel = (s: string) => s.replace(/^\s*(Conclusion:|Final:|Result:)\s*/i, '');
+        const finalLines: string[] = [];
+        const seenLines = new Set<string>();
+        const pushFinal = (line: string) => {
+          const clean = stripLabel(line.trim());
+          if (!clean) return;
+          // Avoid echoing the user prompt verbatim
+          if (clean.toLowerCase() === input.toLowerCase().trim()) return;
+          if (seenLines.has(clean)) return;
+          seenLines.add(clean);
+          finalLines.push(clean);
         };
+
+        if (reader) {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+
+            // Split into lines; keep last partial in buffer
+            const parts = buffer.split(/\r?\n/);
+            buffer = parts.pop() || '';
+            const completed = parts.filter((l) => l.trim().length > 0);
+            if (completed.length > 0) {
+              // Accumulate completed lines for final display
+              completed.forEach((l) => pushFinal(l));
+              latestLine = stripLabel(completed[completed.length - 1].trim());
+              // Update UI with only the latest line
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, content: latestLine } as any;
+                }
+                return updated;
+              });
+            }
+          }
+        }
+
+        // Process any remaining buffer as a final line
+        const leftover = buffer.trim();
+        if (leftover.length > 0) {
+          latestLine = stripLabel(leftover);
+          pushFinal(latestLine);
+        }
+
+        // Final content: a few sentences (accumulated). Limit to keep it concise.
+        const MAX_LINES = 6;
+        const finalContent = (finalLines.length > 0
+          ? finalLines.slice(0, MAX_LINES).join('\n')
+          : (latestLine || 'Done.'));
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last && last.role === 'assistant') {
+            updated[updated.length - 1] = {
+              ...last,
+              content: finalContent,
+              variables: { ASSISTANT_RESPONSE: finalContent }
+            } as any;
+          }
+          // Persist only the final short message
+          saveChatHistory(updated);
+          return updated;
+        });
+      } else {
+        // Non-streaming JSON response
+        const result = await response.json();
+        
+        const updatedMessages = [...newMessagesWithAssistant];
+        const lastMessage = updatedMessages[updatedMessages.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant') {
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            content: result.message || result.result?.content || 'Request completed successfully',
+            variables: { ASSISTANT_RESPONSE: result.message || result.result?.content || 'Request completed successfully' }
+          } as any;
+        }
+        setMessages(updatedMessages);
+        await saveChatHistory(updatedMessages);
       }
-      setMessages(updatedMessages);
-      // Save the completed conversation to database
-      await saveChatHistory(updatedMessages);
 
       // Clear selection if it was valid and used
       if (validSelection) {

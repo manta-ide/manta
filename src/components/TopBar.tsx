@@ -175,21 +175,19 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
                <Network className="w-3.5 h-3.5" />
             </Button>
             
-          </div>
-
           {/* Export Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportProject}
-            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
             title="Export project as ZIP"
             disabled={isExporting}
           >
             {isExporting ? (
-              <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
             ) : (
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5" />
             )}
           </Button>
 
@@ -198,16 +196,17 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
             variant="outline"
             size="sm"
             onClick={handleResetProject}
-            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
             title="Reset project to base template"
             disabled={isResetting}
           >
             {isResetting ? (
-              <div className="w-4 h-4 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-zinc-600 border-t-white rounded-full animate-spin" />
             ) : (
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
             )}
           </Button>
+          </div>
 
           {/* Authentication Section */}
           <div className="flex items-center gap-2">

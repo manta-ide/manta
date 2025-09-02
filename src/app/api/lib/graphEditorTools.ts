@@ -325,7 +325,6 @@ const UpdatePropertiesParamsSchema = z.object({
   properties: z.array(PropertySchema).describe('Array of property objects to update/add (merges with existing properties)'),
   title: z.string().optional().describe('New title for the node (optional)'),
   prompt: z.string().optional().describe('New prompt/description for the node (optional)'),
-  built: z.boolean().optional().describe('Whether the node has been built (optional)'),
 }).strict();
 
 const ReadGraphParamsSchema = z.object({
@@ -632,7 +631,7 @@ export const graphEditorTools = {
   update_properties: tool({
     description: 'Update/add properties of an existing node (merges with existing properties, other fields optional)',
     parameters: UpdatePropertiesParamsSchema,
-    execute: async ({ nodeId, properties, title, prompt, built }) => withGraphLock(async () => {
+    execute: async ({ nodeId, properties, title, prompt }) => withGraphLock(async () => {
       try {
         if (!pendingGraph) await setCurrentGraph();
 
@@ -678,7 +677,7 @@ export const graphEditorTools = {
           });
         }
         if (prompt !== undefined) nodeToEdit.prompt = prompt;
-        if (built !== undefined) nodeToEdit.state = built ? "built" : "unbuilt";
+        // Graph editor is not allowed to set nodes to built; building is handled by a separate agent.
 
         ensureGraphConsistency(modifiedGraph);
 

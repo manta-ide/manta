@@ -22,6 +22,7 @@ import {
 
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
+import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
@@ -605,119 +606,177 @@ function GraphCanvas() {
     }
   }, [setSelectedNode, graph]);
 
-  // Process graph data and create ReactFlow nodes/edges
+  // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
-    console.log('🔄 GraphView: Rebuilding ReactFlow nodes from graph');
-    if (!graph || !graph.nodes) {
-      console.log('🔄 GraphView: No graph data, clearing nodes');
-      setNodes([]);
-      setEdges([]);
-      return;
-    }
-
-    // Always use positions from database (position_x, position_y from Supabase)
-    console.log('📊 GraphView: Using stored positions from database');
-    let nodePositions = new Map<string, { x: number; y: number }>();
-    
-    graph.nodes.forEach(node => {
-      if (node.position) {
-        nodePositions.set(node.id, { x: node.position.x, y: node.position.y });
-      } else {
-        // Fallback to default position if no position stored
-        console.warn(`⚠️ Node ${node.id} has no stored position, using default`);
-        nodePositions.set(node.id, { x: 100, y: 100 });
+    const rebuild = async () => {
+      console.log('🔄 GraphView: Rebuilding ReactFlow nodes from graph');
+      if (!graph || !graph.nodes) {
+        console.log('🔄 GraphView: No graph data, clearing nodes');
+        setNodes([]);
+        setEdges([]);
+        return;
       }
-    });
-    
-    // Current positions map from latest nodes to preserve positions without re-triggering this effect
-    const currentPositions = new Map<string, { x: number; y: number }>();
-    for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
-    // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
-    const reactFlowNodes: Node[] = graph.nodes.map((node) => {
-      const isDragging = draggingNodeIdsRef.current.has(node.id);
-      const position = isDragging
-        ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
-        : (nodePositions.get(node.id) || { x: 0, y: 0 });
+      // Collect positions from database if present
+      console.log('📊 GraphView: Using stored positions from database where available');
+      let nodePositions = new Map<string, { x: number; y: number }>();
+      const nodesMissingPos: string[] = [];
 
-      const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
-      console.log(`🔄 GraphView: Creating ReactFlow node ${node.id} with background-color: ${backgroundColor}`);
-
-      return {
-        id: node.id,
-        position,
-        data: {
-          label: node.title,
-          node: node,
-          state: node.state || "unbuilt",
-          properties: node.properties || []
-        },
-        type: 'custom',
-        selected: selectedNodeId === node.id, // Set initial selection state
-      };
-    });
-
-    // Create edges from both the edges array and children relationships
-    const reactFlowEdges: Edge[] = [];
-    const addedEdges = new Set<string>();
-
-    // First, add edges from the graph.edges array (from Supabase)
-    if (graph.edges && graph.edges.length > 0) {
-      graph.edges.forEach(edge => {
-        const edgeId = `${edge.source}-${edge.target}`;
-        if (!addedEdges.has(edgeId)) {
-          reactFlowEdges.push({
-            id: edge.id,
-            source: edge.source,
-            target: edge.target,
-            type: 'smoothstep',
-            style: { 
-              stroke: '#9ca3af', 
-              strokeWidth: 2,
-            },
-            animated: false,
-          });
-          addedEdges.add(edgeId);
+      graph.nodes.forEach(node => {
+        if (node.position) {
+          nodePositions.set(node.id, { x: node.position.x, y: node.position.y });
+        } else {
+          nodesMissingPos.push(node.id);
         }
       });
-    }
 
-    // Then, add edges from children relationships (fallback or additional)
-    graph.nodes.forEach(node => {
-      if (node.children && node.children.length > 0) {
-        node.children.forEach(child => {
-          const edgeId = `${node.id}-${child.id}`;
+      // If some nodes are missing positions, compute a tree layout for them using ELK
+      if (nodesMissingPos.length > 0) {
+        try {
+          const elk = new ELK();
+          const elkNodes = graph.nodes.map(n => ({ id: n.id, width: 260, height: 160 }));
+          const seen = new Set<string>();
+          const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
+          // From explicit edges
+          if (Array.isArray((graph as any).edges)) {
+            (graph as any).edges.forEach((e: any, i: number) => {
+              const id = `${e.source}-${e.target}`;
+              if (!seen.has(id)) {
+                elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
+                seen.add(id);
+              }
+            });
+          }
+          // From children relationships
+          graph.nodes.forEach(n => {
+            (n.children || []).forEach((c: any) => {
+              const id = `${n.id}-${c.id}`;
+              if (!seen.has(id)) {
+                elkEdges.push({ id: `c-${id}`, sources: [n.id], targets: [c.id] });
+                seen.add(id);
+              }
+            });
+          });
+
+          const elkGraph = {
+            id: 'root',
+            layoutOptions: {
+              'elk.algorithm': 'layered',
+              'elk.direction': 'DOWN',
+              'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+              'elk.spacing.nodeNode': '80',
+            },
+            children: elkNodes,
+            edges: elkEdges,
+          } as any;
+
+          const layout = await elk.layout(elkGraph);
+          if (Array.isArray(layout.children)) {
+            layout.children.forEach((c: any) => {
+              if (typeof c.x === 'number' && typeof c.y === 'number') {
+                // Only assign auto-layout positions for nodes that lacked one
+                if (!nodePositions.has(c.id)) {
+                  nodePositions.set(c.id, { x: Math.round(c.x), y: Math.round(c.y) });
+                }
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('⚠️ ELK layout failed, falling back to simple grid:', e);
+          // Simple fallback: place missing nodes in a grid below existing ones
+          let col = 0, row = 0;
+          const gapX = 320, gapY = 220;
+          nodesMissingPos.forEach((id) => {
+            nodePositions.set(id, { x: col * gapX, y: 400 + row * gapY });
+            col++;
+            if (col >= 4) { col = 0; row++; }
+          });
+        }
+      }
+
+      // Current positions map from latest nodes to preserve positions while dragging
+      const currentPositions = new Map<string, { x: number; y: number }>();
+      for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
+
+      // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
+      const reactFlowNodes: Node[] = graph.nodes.map((node) => {
+        const isDragging = draggingNodeIdsRef.current.has(node.id);
+        const position = isDragging
+          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
+          : (nodePositions.get(node.id) || { x: 0, y: 0 });
+
+        const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
+        console.log(`🔄 GraphView: Creating ReactFlow node ${node.id} with background-color: ${backgroundColor}`);
+
+        return {
+          id: node.id,
+          position,
+          data: {
+            label: node.title,
+            node: node,
+            state: node.state || "unbuilt",
+            properties: node.properties || []
+          },
+          type: 'custom',
+          selected: selectedNodeId === node.id,
+        };
+      });
+
+      // Create edges from both the edges array and children relationships
+      const reactFlowEdges: Edge[] = [];
+      const addedEdges = new Set<string>();
+
+      if ((graph as any).edges && (graph as any).edges.length > 0) {
+        (graph as any).edges.forEach((edge: any) => {
+          const edgeId = `${edge.source}-${edge.target}`;
           if (!addedEdges.has(edgeId)) {
             reactFlowEdges.push({
-              id: `${node.id}-${child.id}`,
-              source: node.id,
-              target: child.id,
+              id: edge.id,
+              source: edge.source,
+              target: edge.target,
               type: 'smoothstep',
-              style: { 
-                stroke: '#9ca3af', 
-                strokeWidth: 2,
-              },
+              style: { stroke: '#9ca3af', strokeWidth: 2 },
               animated: false,
             });
             addedEdges.add(edgeId);
           }
         });
       }
-    });
 
-    console.log(`📊 GraphView: Created ${reactFlowEdges.length} visual edges from graph data`);
-    if (graph.edges) {
-      console.log(`📊 GraphView: Graph has ${graph.edges.length} edges in data`);
-    }
+      graph.nodes.forEach(node => {
+        if (node.children && node.children.length > 0) {
+          node.children.forEach(child => {
+            const edgeId = `${node.id}-${child.id}`;
+            if (!addedEdges.has(edgeId)) {
+              reactFlowEdges.push({
+                id: `${node.id}-${child.id}`,
+                source: node.id,
+                target: child.id,
+                type: 'smoothstep',
+                style: { stroke: '#9ca3af', strokeWidth: 2 },
+                animated: false,
+              });
+              addedEdges.add(edgeId);
+            }
+          });
+        }
+      });
 
-    setNodes(reactFlowNodes);
-    setEdges(reactFlowEdges);
+      console.log(`📊 GraphView: Created ${reactFlowEdges.length} visual edges from graph data`);
+      if ((graph as any).edges) {
+        console.log(`📊 GraphView: Graph has ${(graph as any).edges.length} edges in data`);
+      }
 
-    // Select root node by default if nothing is selected
-    if (!selectedNodeId && reactFlowNodes.length > 0) {
-      const root = reactFlowNodes[0];
-      setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
-    }
+      setNodes(reactFlowNodes);
+      setEdges(reactFlowEdges);
+
+      // Select root node by default if nothing is selected
+      if (!selectedNodeId && reactFlowNodes.length > 0) {
+        const root = reactFlowNodes[0];
+        setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
+      }
+    };
+    rebuild();
   }, [graph, setNodes, setEdges]);
 
   // Update node selection without re-rendering the whole graph
@@ -868,7 +927,10 @@ function GraphCanvas() {
   }
 
     return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', position: 'relative' }}>
+    <div
+      id="graph-view-container"
+      style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', position: 'relative' }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { setGraphEditorAuthHeaders, setGraphEditorBaseUrl } from '../../lib/graphEditorTools';
 import { z } from 'zod';
-import { generateObject, generateText } from 'ai';
+import { generateObject, generateText, streamText } from 'ai';
 import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
-import { addMessageToSession } from '@/app/api/lib/conversationStorage';
+// Do not use in-memory conversation storage; chat history is persisted via /api/chat
 import { graphEditorTools } from '../../lib/graphEditorTools';
 import { codeEditorTools, setCodeEditorAuthHeaders } from '../../lib/codeEditorTools';
 import { 
@@ -22,6 +22,7 @@ import { promises as fsp } from 'fs';
 const TOOLSET_MAP = {
   'code-editor': codeEditorTools,
   'graph-editor': graphEditorTools,
+  'none': [] as any[],
 } as const;
 
 // Direct mapping for schemas
@@ -246,13 +247,7 @@ export async function POST(req: NextRequest) {
       // Note: Google Gemini structured output doesn't provide usage statistics in the same format
       writeLog(`[${operationName}] usage-statistics: Not available for Google structured output`);
 
-      // Add assistant response to conversation
-      const assistantMessage = {
-        role: 'assistant' as const,
-        content: JSON.stringify(result),
-        variables: { ASSISTANT_RESPONSE: JSON.stringify(result) }
-      };
-      addMessageToSession(assistantMessage);
+      // Do not mutate in-memory session; client persists final message to DB
 
       // Write summary before ending
       const endTime = Date.now();
@@ -319,13 +314,7 @@ export async function POST(req: NextRequest) {
         writeLog(`[${operationName}]   Total Tokens: ${result.usage.totalTokens || 'N/A'}`);
       }
 
-      // Add assistant response to conversation
-      const assistantMessage = {
-        role: 'assistant' as const,
-        content: JSON.stringify(result.object),
-        variables: { ASSISTANT_RESPONSE: JSON.stringify(result.object) }
-      };
-      addMessageToSession(assistantMessage);
+      // Do not mutate in-memory session; client persists final message to DB
 
       // Write summary before ending
       const endTime = Date.now();
@@ -422,7 +411,59 @@ export async function POST(req: NextRequest) {
     // Set initial step start time
     stepStartTime = Date.now();
 
-    // Non-streaming mode only
+    // Streaming mode
+    if (config.streaming) {
+      const streamed = await streamText({
+        model: selectModel(config.model, config.provider) as any,
+        messages: messages,
+        tools: tools,
+        maxSteps: config.maxSteps,
+        abortSignal: req.signal,
+        temperature: config.temperature,
+        onStepFinish: onStepFinish
+      } as any);
+
+      // Tee the text stream: one branch to the client, one to logs
+      const [toClient, toLog] = streamed.textStream.tee();
+
+      // Asynchronously consume the log branch and write chunks to the log file
+      (async () => {
+        const reader = toLog.getReader();
+        let accumulated = '';
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = typeof value === 'string' ? value : String(value);
+            accumulated += chunk;
+            writeLog(`[${operationName}] stream: ${chunk}`);
+          }
+        } catch (e: any) {
+          writeLog(`[${operationName}] stream-error: ${e?.message || String(e)}`);
+        } finally {
+          const endTime = Date.now();
+          const totalTimeMs = endTime - startTime;
+          const totalMinutes = Math.floor(totalTimeMs / 60000);
+          const totalSeconds = Math.floor((totalTimeMs % 60000) / 1000);
+          writeLog(`\n[${operationName}] === SUMMARY ===`);
+          writeLog(`[${operationName}] Description: ${operationName} operation with streaming text`);
+          writeLog(`[${operationName}] Total Steps (so far): ${totalSteps}`);
+          writeLog(`[${operationName}] Total Time: ${totalMinutes}m ${totalSeconds}s`);
+          writeLog(`[${operationName}] Model: ${config.model}`);
+          writeLog(`[${operationName}] Streamed Characters: ${accumulated.length}`);
+          writeLog(`[${operationName}] === END SUMMARY ===\n`);
+          logStream.end();
+        }
+      })();
+
+      // Return streaming response to client
+      return new Response(toClient.pipeThrough(new TextEncoderStream()), {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
+
+    // Non-streaming mode
     const result = await generateText({
       model: selectModel(config.model, config.provider) as any,
       messages: messages,
@@ -493,13 +534,7 @@ export async function POST(req: NextRequest) {
       writeLog(`[${operationName}] finish-reason: ${result.finishReason}`);
     }
 
-    // Add assistant response to conversation
-    const assistantMessage = {
-      role: 'assistant' as const,
-      content: text,
-      variables: { ASSISTANT_RESPONSE: text }
-    };
-    addMessageToSession(assistantMessage);
+    // Do not mutate in-memory session; client persists final message to DB
 
     // Write summary before ending
     const endTime = Date.now();

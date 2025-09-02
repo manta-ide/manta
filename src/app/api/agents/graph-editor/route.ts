@@ -12,7 +12,7 @@ import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGra
 const GRAPH_EDITOR_CONFIG = {
   model: 'gpt-4o',
   maxSteps: 20,
-  streaming: false,
+  streaming: true,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'minimal' } },
   promptTemplates: {
@@ -32,14 +32,34 @@ const RequestSchema = z.object({
 });
 
 async function buildParsedMessages(
+  req: NextRequest,
   userMessage: Message,
   promptTemplates: Record<'system' | 'user' | 'assistant', string>,
   extraVariables?: Record<string, unknown>
 ): Promise<ParsedMessage[]> {
-  const session = getConversationSession();
   const systemMessage = await createSystemMessage();
-  addMessageToSession(userMessage);
-  const allMessages = [systemMessage, ...session];
+  // Load chat history from database for the authenticated user
+  let chatHistory: Message[] = [];
+  try {
+    const chatRes = await fetch(`${req.nextUrl.origin}/api/chat`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+      },
+      signal: req.signal,
+    });
+    if (chatRes.ok) {
+      const data = await chatRes.json();
+      if (Array.isArray(data?.chatHistory)) {
+        chatHistory = data.chatHistory as Message[];
+      }
+    }
+  } catch {}
+  // Prefer DB history (already includes current userMessage saved by client) but ensure it's present
+  const all = chatHistory.length > 0 ? chatHistory : [userMessage];
+  const allMessages = [systemMessage, ...all];
 
   const parsed: ParsedMessage[] = await Promise.all(
     allMessages.map(async (message) => {
@@ -135,6 +155,7 @@ export async function POST(req: NextRequest) {
     };
 
     const parsedMessages = await buildParsedMessages(
+      req,
       userMessage,
       GRAPH_EDITOR_CONFIG.promptTemplates,
       variables
@@ -151,6 +172,24 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // If streaming is enabled, forward the stream directly
+    if (GRAPH_EDITOR_CONFIG.streaming) {
+      if (!response.ok) {
+        return new Response(
+          `Graph editor failed: ${response.statusText}`,
+          { status: 500, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+        );
+      }
+      // Best-effort: forward streaming body as-is
+      return new Response(response.body, {
+        status: 200,
+        headers: {
+          'Content-Type': response.headers.get('Content-Type') || 'text/plain; charset=utf-8',
+        },
+      });
+    }
+
+    // Non-streaming fallback
     if (!response.ok) {
       return new Response(
         JSON.stringify({ error: `Graph editor failed: ${response.statusText}` }),
@@ -159,15 +198,15 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await response.json();
-    
+
     // Check if the agent applied changes and saved the graph
     const finalGraph = await fetchGraphFromApi(req);
     const graphWasModified = finalGraph && JSON.stringify(finalGraph) !== JSON.stringify(graph);
-    
+
     // Reset pending changes after the operation
     resetPendingChanges();
-    
-    return new Response(JSON.stringify({ 
+
+    return new Response(JSON.stringify({
       success: true,
       result: result.result,
       graphModified: graphWasModified,

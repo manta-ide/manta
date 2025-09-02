@@ -143,6 +143,7 @@ async function writeVarsJsonToBlaxel(userId: string, graph: Graph): Promise<void
 function normalizeGraphForSupabase(original: Graph): Graph {
   const seenNodeIds = new Set<string>();
   const normalizedNodes = [] as any[];
+  // Track which node first claimed a property id
   const globalPropOwner: Record<string, string> = {};
 
   for (const node of original.nodes || []) {
@@ -150,15 +151,22 @@ function normalizeGraphForSupabase(original: Graph): Graph {
     if (seenNodeIds.has(node.id)) continue;
     seenNodeIds.add(node.id);
 
-    // Dedupe properties per node and ensure global uniqueness of property IDs
+    // Dedupe properties per node and enforce global uniqueness of property IDs
     const seenPropIds = new Set<string>();
     let properties = Array.isArray(node.properties) ? [...node.properties] : [];
     const nextProps: any[] = [];
     for (const p of properties) {
       if (!p || !p.id) continue;
-      if (seenPropIds.has(p.id)) continue;
-      seenPropIds.add(p.id);
-      let newId = p.id as string;
+      if (seenPropIds.has(p.id)) continue; // remove duplicates within same node
+      let newId = String(p.id);
+      // If another node already claimed this id, rename to ensure global uniqueness
+      const owner = globalPropOwner[newId];
+      if (owner && owner !== node.id) {
+        const prefixed = `${node.id}-${newId}`;
+        console.warn(`Duplicate property id "${newId}" detected in multiple nodes; renaming to "${prefixed}" on node ${node.id}`);
+        newId = prefixed;
+      }
+      seenPropIds.add(newId);
       globalPropOwner[newId] = node.id;
       nextProps.push({ ...p, id: newId });
     }
@@ -178,16 +186,19 @@ function normalizeGraphForSupabase(original: Graph): Graph {
     }
   }
 
-  // Deduplicate edges if present and generate missing IDs
+  // Deduplicate edges by (source,target) pair regardless of id, and generate deterministic IDs
   const edges: any[] = ([...(original as any).edges || [], ...computedEdges]);
-  const seenEdgeIds = new Set<string>();
+  const byPair = new Set<string>();
   const nextEdges: any[] = [];
   for (const e of edges) {
-    const id = e?.id || `${e?.source || e?.source_id}-${e?.target || e?.target_id}`;
-    if (!id) continue;
-    if (seenEdgeIds.has(id)) continue;
-    seenEdgeIds.add(id);
-    nextEdges.push({ ...e, id });
+    const source = e?.source || e?.source_id;
+    const target = e?.target || e?.target_id;
+    if (!source || !target) continue;
+    const pair = `${source}→${target}`;
+    if (byPair.has(pair)) continue;
+    byPair.add(pair);
+    const id = `${source}-${target}`;
+    nextEdges.push({ id, source, target });
   }
 
   const normalized: any = { nodes: normalizedNodes };
@@ -220,12 +231,19 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
   // Upsert edges if present on graph (optional)
   const edges: any[] = (normalized as any).edges || [];
   if (Array.isArray(edges) && edges.length > 0) {
+    // Dedupe by (user_id, source_id, target_id) to avoid ON CONFLICT multi-hit
+    const pairSet = new Set<string>();
     const edgeRows = edges.map((e: any) => ({
       id: e.id,
       source_id: e.source || e.source_id,
       target_id: e.target || e.target_id,
       user_id: userId,
-    }));
+    })).filter((row) => {
+      const key = `${row.user_id}:${row.source_id}:${row.target_id}`;
+      if (pairSet.has(key)) return false;
+      pairSet.add(key);
+      return true;
+    });
     const { error } = await client.from('graph_edges').upsert(edgeRows);
     if (error) throw error;
   }
@@ -248,7 +266,15 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
     }
   });
   if (propRows.length > 0) {
-    const { error } = await client.from('graph_properties').upsert(propRows);
+    // Dedupe properties by unique id to avoid multiple hits in single upsert
+    const seen = new Set<string>();
+    const uniqueProps = propRows.filter((r) => {
+      const key = String(r.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const { error } = await client.from('graph_properties').upsert(uniqueProps);
     if (error) throw error;
   }
 }

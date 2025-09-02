@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Send, Trash2, Move, Minimize2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +27,8 @@ export default function FloatingChat() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
+  const [typedTick, setTypedTick] = useState(0);
+  const [positionInitialized, setPositionInitialized] = useState(false);
   
   // Local state to track what context should be included in the next message
   const [includeFile, setIncludeFile] = useState(true);
@@ -53,6 +55,60 @@ export default function FloatingChat() {
 
   // Get only the last 2 messages
   const lastTwoMessages = messages.slice(-2);
+
+  // Position near bottom-left of GraphView on first mount (robust to late mount)
+  useEffect(() => {
+    if (positionInitialized) return;
+
+    let cancelled = false;
+
+    const place = () => {
+      try {
+        const container = document.getElementById('graph-view-container');
+        if (!container) return false;
+
+        const rect = container.getBoundingClientRect();
+        const margin = 16; // small inset from edges
+
+        // Approximate chat box size for initial placement
+        const approxWidth = 288; // ~w-72
+        const approxHeight = 340; // allow taller messages area
+
+        // Place near left-bottom area of the graph container
+        let x = rect.left + margin;
+        let y = rect.bottom - approxHeight - margin;
+
+        // Ensure stays within viewport bounds
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        x = Math.max(-approxWidth + 50, Math.min(x, vw - 50));
+        y = Math.max(-approxHeight + 50, Math.min(y, vh - 50));
+
+        if (!cancelled) {
+          setPosition({ x, y });
+          setPositionInitialized(true);
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    // Try immediately, then poll briefly if the container isn't ready yet
+    if (!place()) {
+      let tries = 0;
+      const maxTries = 40; // ~4s total
+      const interval = setInterval(() => {
+        if (cancelled) { clearInterval(interval); return; }
+        if (place() || ++tries >= maxTries) {
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => { cancelled = true; clearInterval(interval); };
+    }
+
+    return () => { cancelled = true; };
+  }, [positionInitialized]);
 
   // Memoize markdown components to prevent re-rendering
   const markdownComponents = useMemo(() => ({
@@ -297,7 +353,7 @@ export default function FloatingChat() {
       </div>
 
       {/* Messages */}
-      <div className="max-h-64 overflow-y-auto p-3 pb-0 space-y-2">
+      <div className="max-h-[60vh] overflow-y-auto p-3 pb-2 space-y-2">
         {loadingHistory && (
           <div className="w-full">
             <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
@@ -306,7 +362,7 @@ export default function FloatingChat() {
                 duration={0.8}
                 wave={true}
                 color="var(--color-zinc-400)"
-                shimmeringColor="var(--color-zinc-200)"
+                shimmeringColor="#FFFFFF"
                 className="text-sm"
               />
             </div>
@@ -316,48 +372,112 @@ export default function FloatingChat() {
           <div className="w-full">
             <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
               <ShimmeringText
-                text="Processing your request..."
-                duration={0.8}
+                text="Thinking..."
+                duration={1.0}
                 wave={true}
-                color="var(--color-zinc-400)"
-                shimmeringColor="var(--color-zinc-200)"
-                className="text-sm"
+                transition={{ repeatDelay: 0 }}
+                color="hsla(var(--color-zinc-500))" /* zinc-500 */
+                shimmeringColor="hsla(var(--color-white))" /* white */
               />
             </div>
           </div>
         )}
-        {!loadingHistory && lastTwoMessages.map((m, idx) => (
-          <div key={idx} className="w-full">
-            <div
-              className={`rounded-lg w-full text-xs ${
-                m.role === 'user'
-                  ? 'p-2 bg-zinc-800 text-zinc-200'
-                  : 'px-2 bg-zinc-900 text-zinc-200'
-              }`}
-            >
-              {/* Display badges for context only for actual messages */}
-              {m.content && (
-                <MessageBadges
-                  currentFile={m.messageContext?.currentFile}
-                  selection={m.messageContext?.selection}
-                  selectedNodeId={m.variables?.SELECTED_NODE_ID}
-                  selectedNode={m.variables?.SELECTED_NODE_TITLE ? { title: m.variables.SELECTED_NODE_TITLE } : null}
-                  variant={m.role === 'user' ? 'light' : 'dark'}
-                />
-              )}
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={markdownComponents}
+        {!loadingHistory && lastTwoMessages.map((m, idx) => {
+          const isStreamingAssistant = m.role === 'assistant' && loading && idx === lastTwoMessages.length - 1;
+          const typedCacheRef = (FloatingChat as any)._typedCache || ((FloatingChat as any)._typedCache = new Set<string>());
+          const shouldTypeFinal = m.role === 'assistant' && !loading && idx === lastTwoMessages.length - 1 && !!m.content && !typedCacheRef.has(m.content);
+
+          function AnimatedTyping({ text, onDone }: { text: string; onDone?: () => void }) {
+            const [shown, setShown] = useState('');
+            const raf = useRef<number | null>(null);
+            const idxRef = useRef(0);
+            useEffect(() => {
+              idxRef.current = 0;
+              setShown('');
+              const perChar = Math.max(12, Math.min(28, 1800 / Math.max(20, text.length))); // fast but readable
+              let last = performance.now();
+              const step = (now: number) => {
+                const elapsed = now - last;
+                const add = Math.floor(elapsed / perChar);
+                if (add > 0) {
+                  last += add * perChar;
+                  idxRef.current = Math.min(text.length, idxRef.current + add);
+                  setShown(text.slice(0, idxRef.current));
+                }
+                if (idxRef.current < text.length) {
+                  raf.current = requestAnimationFrame(step);
+                } else {
+                  onDone?.();
+                }
+              };
+              raf.current = requestAnimationFrame(step);
+              return () => { if (raf.current) cancelAnimationFrame(raf.current); };
+            }, [text, onDone]);
+            return (
+              <div className="text-zinc-200">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {shown}
+                </ReactMarkdown>
+              </div>
+            );
+          }
+          return (
+            <div key={idx} className="w-full">
+              <div
+                className={`rounded-lg w-full text-xs ${
+                  m.role === 'user'
+                    ? 'p-2 bg-zinc-800 text-zinc-200'
+                    : 'px-2 bg-zinc-900 text-zinc-200'
+                }`}
               >
-                {m.content || ''}
-              </ReactMarkdown>
+                {/* Display badges for context only for actual messages */}
+                {m.content && (
+                  <MessageBadges
+                    currentFile={m.messageContext?.currentFile}
+                    selection={m.messageContext?.selection}
+                    selectedNodeId={m.variables?.SELECTED_NODE_ID}
+                    selectedNode={m.variables?.SELECTED_NODE_TITLE ? { title: m.variables.SELECTED_NODE_TITLE } : null}
+                    variant={m.role === 'user' ? 'light' : 'dark'}
+                  />
+                )}
+                {isStreamingAssistant ? (
+                  <div className="mb-2">
+                    {m.content && m.content.trim().length > 0 ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        {m.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <ShimmeringText
+                        text={'Thinking...'}
+                        duration={1.0}
+                        wave={false}
+                        transition={{ repeatDelay: 0 }}
+                        shimmeringColor="#FFFFFF" /* white */
+                        color="#71717A" /* zinc-500 */
+                      />
+                    )}
+                  </div>
+                ) : shouldTypeFinal ? (
+                  <AnimatedTyping 
+                    text={m.content!} 
+                    onDone={() => { typedCacheRef.add(m.content!); setTypedTick((n) => n + 1); }}
+                  />
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {m.content || ''}
+                  </ReactMarkdown>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Input */}
-      <div className={`px-3 pb-3 pt-0 ${messages.length > 0 ? 'border-t border-zinc-700' : ''}`}>
+      <div className={`px-3 pb-3 ${messages.length > 0 ? 'pt-3 border-t border-zinc-700' : 'pt-0'}`}>
         <form onSubmit={handleSubmit} className="space-y-2">
           {/* Show current selection badges above input for context */}
           <SelectionBadges
