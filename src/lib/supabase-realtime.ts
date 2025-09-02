@@ -48,7 +48,7 @@ export interface DatabaseProperty {
   id: string;
   node_id: string;
   name: string;
-  type: 'color' | 'text' | 'number' | 'select' | 'boolean' | 'checkbox' | 'radio' | 'slider' | 'object' | 'object-list';
+  type: 'color' | 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'checkbox' | 'radio' | 'slider' | 'object' | 'object-list';
   value: any;
   options?: string[];
   // Complex schema columns
@@ -738,7 +738,7 @@ class SupabaseRealtimeService {
     if (!client) return;
 
     // Valid property types according to database constraint
-    const validTypes = ['color', 'text', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider', 'object', 'object-list'];
+    const validTypes = ['color', 'text', 'textarea', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider', 'object', 'object-list'];
     
     const databaseProperties = properties.map(prop => ({
       id: prop.id,

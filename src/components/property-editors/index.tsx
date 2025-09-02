@@ -12,6 +12,7 @@ import RadioPropertyEditor from './RadioPropertyEditor';
 import SliderPropertyEditor from './SliderPropertyEditor';
 import ObjectPropertyEditor from './ObjectPropertyEditor';
 import ObjectListPropertyEditor from './ObjectListPropertyEditor';
+import TextAreaPropertyEditor from './TextAreaPropertyEditor';
 
 interface PropertyEditorProps {
   property: Property;
@@ -28,6 +29,13 @@ export default function PropertyEditor({ property, onChange, onPreview }: Proper
   };
 
   switch (property.type) {
+    case 'textarea':
+      return (
+        <TextAreaPropertyEditor
+          property={property as Property & { type: 'textarea' }}
+          onChange={handleChange}
+        />
+      );
     case 'object':
       return (
         <ObjectPropertyEditor

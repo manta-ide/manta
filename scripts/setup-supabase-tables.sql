@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS graph_properties (
 -- 1) Extend allowed types to include new complex types
 ALTER TABLE graph_properties DROP CONSTRAINT IF EXISTS graph_properties_type_check;
 ALTER TABLE graph_properties ADD CONSTRAINT graph_properties_type_check
-  CHECK (type IN ('color','text','number','select','boolean','checkbox','radio','slider','object','object-list'));
+  CHECK (type IN ('color','text','textarea','number','select','boolean','checkbox','radio','slider','object','object-list'));
 
 -- 2) Add missing columns if they don't exist
 ALTER TABLE graph_properties ADD COLUMN IF NOT EXISTS fields JSONB;

@@ -116,6 +116,7 @@ export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 export const PropertyTypeEnum = z.enum([
   'color',
   'text',
+  'textarea',
   'number',
   'select',
   'boolean',

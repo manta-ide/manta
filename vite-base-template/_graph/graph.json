@@ -623,7 +623,7 @@
             "title": "Bio Text",
             "type": "text",
             "value": "I craft maintainable systems and delightful experiences. I enjoy shipping fast while keeping quality high through tests, automation, and clean design.",
-            "maxLength": 400
+            "maxLength": 1000
           },
           {
             "id": "years-experience",
