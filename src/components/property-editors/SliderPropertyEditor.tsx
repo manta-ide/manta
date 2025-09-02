@@ -25,7 +25,7 @@ export default function SliderPropertyEditor({ property, onChange }: SliderPrope
           max={property.max || 100}
           step={property.step || 1}
           aria-label={property.title}
-          className="[&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+          className="[&_[data-slot=slider-track]]:bg-zinc-700 [&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-thumb]]:h-3 [&_[data-slot=slider-thumb]]:w-3"
         />
       </div>
     </BasePropertyEditor>

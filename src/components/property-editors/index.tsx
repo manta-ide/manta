@@ -10,6 +10,8 @@ import BooleanPropertyEditor from './BooleanPropertyEditor';
 import CheckboxPropertyEditor from './CheckboxPropertyEditor';
 import RadioPropertyEditor from './RadioPropertyEditor';
 import SliderPropertyEditor from './SliderPropertyEditor';
+import ObjectPropertyEditor from './ObjectPropertyEditor';
+import ObjectListPropertyEditor from './ObjectListPropertyEditor';
 
 interface PropertyEditorProps {
   property: Property;
@@ -26,6 +28,20 @@ export default function PropertyEditor({ property, onChange, onPreview }: Proper
   };
 
   switch (property.type) {
+    case 'object':
+      return (
+        <ObjectPropertyEditor
+          property={property as Property & { type: 'object' }}
+          onChange={handleChange}
+        />
+      );
+    case 'object-list':
+      return (
+        <ObjectListPropertyEditor
+          property={property as Property & { type: 'object-list' }}
+          onChange={handleChange}
+        />
+      );
     case 'color':
       return (
         <ColorPropertyEditor

@@ -47,7 +47,14 @@ export async function POST(req: NextRequest) {
       console.warn('[reset] Failed to clear in-memory graph session:', e);
     }
 
-    // 4) Reset project to base template (files + sync graph to Supabase)
+    // 4) Clear user graph data explicitly in Supabase to ensure a clean slate
+    try {
+      await SandboxService.clearUserGraphData(userId);
+    } catch (e) {
+      console.warn('[reset] Failed to clear Supabase graph data (continuing):', e);
+    }
+
+    // 5) Reset project to base template (files + sync graph to Supabase)
     //    This mirrors the previous behavior but consolidates under a single reset endpoint.
     try {
       await SandboxService.setupBaseTemplate(userId);
@@ -62,4 +69,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to reset project' }, { status: 500 });
   }
 }
-

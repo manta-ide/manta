@@ -113,7 +113,19 @@ export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 // Property schemas for graph node properties
 
 // Property type enum - defines the available property types for graph nodes
-export const PropertyTypeEnum = z.enum(['color', 'text', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider']);
+export const PropertyTypeEnum = z.enum([
+  'color',
+  'text',
+  'number',
+  'select',
+  'boolean',
+  'checkbox',
+  'radio',
+  'slider',
+  // New complex property types
+  'object',        // grouped fields as a single object value
+  'object-list'    // list of objects with the same field schema
+]);
 export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 
 // Property definition - represents a configurable property of a graph node
@@ -121,12 +133,27 @@ export const PropertySchema = z.object({
   id: z.string().describe('Unique identifier for the property (should follow pattern: property-name)'),
   title: z.string().describe('Human-readable title/name for the property'),
   type: PropertyTypeEnum.describe('The type of property (color, text, number, or select)'),
-  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional().describe('The current/default value for the property'),
+  // Value supports primitives, arrays, objects, and arrays of objects
+  value: z
+    .union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.array(z.any()),
+      z.record(z.any())
+    ])
+    .optional()
+    .describe('The current/default value for the property'),
   options: z.array(z.string()).nullable().optional().describe('Array of available options (required for select type)'),
   maxLength: z.number().optional().describe('Maximum length constraint for text properties'),
   min: z.number().optional().describe('Minimum value constraint for number properties'),
   max: z.number().optional().describe('Maximum value constraint for number properties'),
   step: z.number().optional().describe('Step increment for number properties'),
+  // For complex types: nested field schemas
+  fields: z.array(z.lazy(() => PropertySchema)).optional().describe('Nested fields for object type'),
+  itemFields: z.array(z.lazy(() => PropertySchema)).optional().describe('Nested fields for object-list type'),
+  itemTitle: z.string().optional().describe('Singular label for items in object-list editor'),
+  addLabel: z.string().optional().describe('Label for "+" button in list editors'),
 });
 
 export type Property = z.infer<typeof PropertySchema>;

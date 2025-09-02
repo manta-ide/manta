@@ -30,190 +30,69 @@
         "state": "built",
         "properties": [
           {
-            "id": "background-color",
-            "title": "Background Color",
-            "type": "color",
-            "value": "#000000"
-          },
-          {
-            "id": "text-color",
-            "title": "Text Color",
-            "type": "color",
-            "value": "#dd4290"
-          },
-          {
-            "id": "accent-color",
-            "title": "Accent Color",
-            "type": "color",
-            "value": "#7c34cd"
-          },
-          {
-            "id": "muted-color",
-            "title": "Muted Color",
-            "type": "color",
-            "value": "#b2adac"
-          },
-          {
-            "id": "border-color",
-            "title": "Border Color",
-            "type": "color",
-            "value": "#161a1d"
-          },
-          {
-            "id": "font-family",
-            "title": "Font Family",
-            "type": "select",
-            "value": "Poppins",
-            "options": [
-              "Lato",
-              "Lora",
-              "Montserrat",
-              "Noto Sans",
-              "Open Sans",
-              "Oswald",
-              "Playfair Display",
-              "Poppins",
-              "PT Sans",
-              "Raleway",
-              "Roboto",
-              "Source Sans Pro"
-            ]
-          },
-          {
-            "id": "base-font-size",
-            "title": "Base Font Size",
-            "type": "select",
-            "value": "1rem",
-            "options": [
-              "0rem",
-              "0.25rem",
-              "0.5rem",
-              "0.75rem",
-              "1rem",
-              "1.25rem",
-              "1.5rem",
-              "2rem",
-              "2.5rem",
-              "3rem",
-              "4rem",
-              "5rem",
-              "6rem"
-            ]
-          },
-          {
-            "id": "max-content-width",
-            "title": "Max Content Width",
-            "type": "select",
-            "value": "1024px",
-            "options": [
-              "0px",
-              "4px",
-              "8px",
-              "12px",
-              "16px",
-              "20px",
-              "24px",
-              "32px",
-              "40px",
-              "48px",
-              "56px",
-              "64px",
-              "80px",
-              "96px",
-              "128px",
-              "160px",
-              "192px",
-              "224px",
-              "256px",
-              "1024px"
-            ]
-          },
-          {
-            "id": "section-padding-y",
-            "title": "Section Padding Y",
-            "type": "select",
-            "value": "48px",
-            "options": [
-              "0px",
-              "4px",
-              "8px",
-              "12px",
-              "16px",
-              "20px",
-              "24px",
-              "32px",
-              "40px",
-              "48px",
-              "56px",
-              "64px",
-              "80px",
-              "96px",
-              "128px",
-              "160px",
-              "192px",
-              "224px",
-              "256px"
-            ]
-          },
-          {
-            "id": "section-padding-x",
-            "title": "Section Padding X",
-            "type": "select",
-            "value": "20px",
-            "options": [
-              "0px",
-              "4px",
-              "8px",
-              "12px",
-              "16px",
-              "20px",
-              "24px",
-              "32px",
-              "40px",
-              "48px",
-              "56px",
-              "64px",
-              "80px",
-              "96px",
-              "128px",
-              "160px",
-              "192px",
-              "224px",
-              "256px"
-            ]
-          },
-          {
-            "id": "border-radius-global",
-            "title": "Global Border Radius",
-            "type": "select",
-            "value": "16px",
-            "options": [
-              "0px",
-              "4px",
-              "8px",
-              "12px",
-              "16px",
-              "20px",
-              "24px",
-              "32px",
-              "40px",
-              "48px",
-              "56px",
-              "64px",
-              "80px",
-              "96px",
-              "128px",
-              "160px",
-              "192px",
-              "224px",
-              "256px"
-            ]
-          },
-          {
             "id": "is-dark-theme",
             "title": "Is Dark Theme",
             "type": "boolean",
             "value": true
+          },
+          {
+            "id": "root-styles",
+            "title": "Root Styles",
+            "type": "object",
+            "fields": [
+              { "id": "background-color", "title": "Background Color", "type": "color" },
+              { "id": "text-color", "title": "Text Color", "type": "color" },
+              { "id": "accent-color", "title": "Accent Color", "type": "color" },
+              { "id": "muted-color", "title": "Muted Color", "type": "color" },
+              { "id": "border-color", "title": "Border Color", "type": "color" },
+              { "id": "font-family", "title": "Font Family", "type": "select", "options": [
+                "Lato","Lora","Montserrat","Noto Sans","Open Sans","Oswald","Playfair Display","Poppins","PT Sans","Raleway","Roboto","Source Sans Pro"
+              ] },
+              { "id": "base-font-size", "title": "Base Font Size", "type": "select", "options": [
+                "0rem","0.25rem","0.5rem","0.75rem","1rem","1.25rem","1.5rem","2rem","2.5rem","3rem","4rem","5rem","6rem"
+              ] },
+              { "id": "max-content-width", "title": "Max Content Width", "type": "select", "options": [
+                "0px","4px","8px","12px","16px","20px","24px","32px","40px","48px","56px","64px","80px","96px","128px","160px","192px","224px","256px","1024px"
+              ] },
+              { "id": "section-padding-y", "title": "Section Padding Y", "type": "select", "options": [
+                "0px","4px","8px","12px","16px","20px","24px","32px","40px","48px","56px","64px","80px","96px","128px","160px","192px","224px","256px"
+              ] },
+              { "id": "section-padding-x", "title": "Section Padding X", "type": "select", "options": [
+                "0px","4px","8px","12px","16px","20px","24px","32px","40px","48px","56px","64px","80px","96px","128px","160px","192px","224px","256px"
+              ] },
+              { "id": "border-radius-global", "title": "Global Border Radius", "type": "select", "options": [
+                "0px","4px","8px","12px","16px","20px","24px","32px","40px","48px","56px","64px","80px","96px","128px","160px","192px","224px","256px"
+              ] }
+            ],
+            "value": {
+              "background-color": "#000000",
+              "text-color": "#dd4290",
+              "accent-color": "#7c34cd",
+              "muted-color": "#b2adac",
+              "border-color": "#161a1d",
+              "font-family": "Poppins",
+              "base-font-size": "1rem",
+              "max-content-width": "1024px",
+              "section-padding-y": "48px",
+              "section-padding-x": "20px",
+              "border-radius-global": "16px"
+            }
+          },
+          {
+            "id": "social-links",
+            "title": "Social Links",
+            "type": "object-list",
+            "itemTitle": "Link",
+            "addLabel": "+ Add Link",
+            "itemFields": [
+              { "id": "name", "title": "Name", "type": "text", "maxLength": 40 },
+              { "id": "url", "title": "URL", "type": "text", "maxLength": 200 }
+            ],
+            "value": [
+              { "name": "GitHub", "url": "https://github.com/yourhandle" },
+              { "name": "LinkedIn", "url": "https://www.linkedin.com/in/yourhandle/" },
+              { "name": "Twitter", "url": "https://twitter.com/yourhandle" }
+            ]
           }
         ]
       },
@@ -609,130 +488,45 @@
             "maxLength": 200
           },
           {
-            "id": "project-1-title",
-            "title": "Project 1 Title",
-            "type": "text",
-            "value": "Realtime Dashboard",
-            "maxLength": 80
-          },
-          {
-            "id": "project-1-description",
-            "title": "Project 1 Description",
-            "type": "text",
-            "value": "Operational analytics dashboard with live data and custom charts.",
-            "maxLength": 200
-          },
-          {
-            "id": "project-1-image",
-            "title": "Project 1 Image",
-            "type": "text",
-            "value": "https://placehold.co/512x400/white/black?text=Realtime&font=Poppins",
-            "maxLength": 240
-          },
-          {
-            "id": "project-1-tech",
-            "title": "Project 1 Tech (comma-separated)",
-            "type": "text",
-            "value": "Next.js, TypeScript, WebSocket, Tailwind",
-            "maxLength": 200
-          },
-          {
-            "id": "project-1-github",
-            "title": "Project 1 GitHub URL",
-            "type": "text",
-            "value": "https://github.com/yourhandle/realtime-dashboard",
-            "maxLength": 200
-          },
-          {
-            "id": "project-1-live",
-            "title": "Project 1 Live URL",
-            "type": "text",
-            "value": "https://example.com/realtime-dashboard",
-            "maxLength": 200
-          },
-          {
-            "id": "project-2-title",
-            "title": "Project 2 Title",
-            "type": "text",
-            "value": "API Platform",
-            "maxLength": 80
-          },
-          {
-            "id": "project-2-description",
-            "title": "Project 2 Description",
-            "type": "text",
-            "value": "Scalable REST and GraphQL APIs with robust observability.",
-            "maxLength": 200
-          },
-          {
-            "id": "project-2-image",
-            "title": "Project 2 Image",
-            "type": "text",
-            "value": "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins",
-            "maxLength": 240
-          },
-          {
-            "id": "project-2-tech",
-            "title": "Project 2 Tech (comma-separated)",
-            "type": "text",
-            "value": "Node.js, TypeScript, PostgreSQL, Docker, AWS",
-            "maxLength": 200
-          },
-          {
-            "id": "project-2-github",
-            "title": "Project 2 GitHub URL",
-            "type": "text",
-            "value": "https://github.com/yourhandle/api-platform",
-            "maxLength": 200
-          },
-          {
-            "id": "project-2-live",
-            "title": "Project 2 Live URL",
-            "type": "text",
-            "value": "https://example.com/api-platform",
-            "maxLength": 200
-          },
-          {
-            "id": "project-3-title",
-            "title": "Project 3 Title",
-            "type": "text",
-            "value": "Design System",
-            "maxLength": 80
-          },
-          {
-            "id": "project-3-description",
-            "title": "Project 3 Description",
-            "type": "text",
-            "value": "Reusable UI kit and tokens built with Radix and Tailwind.",
-            "maxLength": 200
-          },
-          {
-            "id": "project-3-image",
-            "title": "Project 3 Image",
-            "type": "text",
-            "value": "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins",
-            "maxLength": 240
-          },
-          {
-            "id": "project-3-tech",
-            "title": "Project 3 Tech (comma-separated)",
-            "type": "text",
-            "value": "React, TypeScript, Radix UI, Tailwind",
-            "maxLength": 200
-          },
-          {
-            "id": "project-3-github",
-            "title": "Project 3 GitHub URL",
-            "type": "text",
-            "value": "https://github.com/yourhandle/design-system",
-            "maxLength": 200
-          },
-          {
-            "id": "project-3-live",
-            "title": "Project 3 Live URL",
-            "type": "text",
-            "value": "https://example.com/design-system",
-            "maxLength": 200
+            "id": "projects",
+            "title": "Projects",
+            "type": "object-list",
+            "itemTitle": "Project",
+            "addLabel": "+ Add Project",
+            "itemFields": [
+              { "id": "title", "title": "Title", "type": "text", "maxLength": 80 },
+              { "id": "description", "title": "Description", "type": "text", "maxLength": 240 },
+              { "id": "image", "title": "Image URL", "type": "text", "maxLength": 240 },
+              { "id": "tech", "title": "Tech (comma-separated)", "type": "text", "maxLength": 200 },
+              { "id": "github", "title": "GitHub URL", "type": "text", "maxLength": 200 },
+              { "id": "live", "title": "Live URL", "type": "text", "maxLength": 200 }
+            ],
+            "value": [
+              {
+                "title": "Realtime Dashboard",
+                "description": "Operational analytics dashboard with live data and custom charts.",
+                "image": "https://placehold.co/512x400/white/black?text=Realtime&font=Poppins",
+                "tech": "Next.js, TypeScript, WebSocket, Tailwind",
+                "github": "https://github.com/yourhandle/realtime-dashboard",
+                "live": "https://example.com/realtime-dashboard"
+              },
+              {
+                "title": "API Platform",
+                "description": "Scalable REST and GraphQL APIs with robust observability.",
+                "image": "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins",
+                "tech": "Node.js, TypeScript, PostgreSQL, Docker, AWS",
+                "github": "https://github.com/yourhandle/api-platform",
+                "live": "https://example.com/api-platform"
+              },
+              {
+                "title": "Design System",
+                "description": "Reusable UI kit and tokens built with Radix and Tailwind.",
+                "image": "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins",
+                "tech": "React, TypeScript, Radix UI, Tailwind",
+                "github": "https://github.com/yourhandle/design-system",
+                "live": "https://example.com/design-system"
+              }
+            ]
           },
           {
             "id": "grid-gap",

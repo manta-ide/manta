@@ -20,6 +20,7 @@ interface ProjectStore {
   graphConnected: boolean;
   supabaseConnected: boolean;
   iframeReady: boolean;
+  resetting: boolean;
   resetStore: () => void;
   
   // File operations
@@ -37,6 +38,7 @@ interface ProjectStore {
   buildFileTree: () => void;
   triggerRefresh: () => void;
   setIframeReady: (ready: boolean) => void;
+  setResetting: (resetting: boolean) => void;
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
@@ -83,6 +85,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   graphConnected: false,
   supabaseConnected: false,
   iframeReady: false,
+  resetting: false,
   resetStore: () => set({
     files: new Map(),
     currentFile: null,
@@ -206,6 +209,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   triggerRefresh: () => set(state => ({ refreshTrigger: state.refreshTrigger + 1 })),
   setIframeReady: (ready) => set({ iframeReady: ready }),
+  setResetting: (resetting) => set({ resetting }),
   
   // Graph operations
   loadGraph: async () => {

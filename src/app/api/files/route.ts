@@ -83,12 +83,22 @@ const LIST_EXCLUDED_FILES = new Set([
 
 async function listFilesRecursively(userId?: string, startDir: string = '/blaxel/app'): Promise<string[]> {
   const results: string[] = [];
+  const collapseDupSegments = (p: string): string => {
+    const parts = p.split('/').filter(Boolean);
+    const collapsed: string[] = [];
+    for (const seg of parts) {
+      if (collapsed[collapsed.length - 1] === seg) continue;
+      collapsed.push(seg);
+    }
+    return '/' + collapsed.join('/');
+  };
   async function walk(dir: string) {
-    const res = await callBlaxelApi('listFiles', { directory: dir }, userId);
+    const res = await callBlaxelApi('listFiles', { directory: collapseDupSegments(dir) }, userId);
     if (!res?.success || !Array.isArray(res.files)) return;
     for (const entry of res.files as Array<{ name: string; path?: string; isDirectory: boolean }>) {
       const name = entry?.name;
-      const entryPath = entry?.path || (dir === '/' ? `/${name}` : `${dir}/${name}`);
+      const rawPath = entry?.path || (dir === '/' ? `/${name}` : `${dir}/${name}`);
+      const entryPath = collapseDupSegments(rawPath);
       if (!name || !entryPath) continue;
       if (entry.isDirectory) {
         // Skip excluded dirs by name

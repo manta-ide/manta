@@ -54,7 +54,7 @@ Live progress style:
 {
   "id": "property-name",
   "title": "Property Title",
-  "type": "color|text|number|select|boolean|checkbox|radio|slider",
+  "type": "color|text|number|select|boolean|checkbox|radio|slider|object|object-list",
   "value": "default-value",
   "options": ["option1", "option2"], // for select/radio
   "maxLength": 100, // for text
@@ -83,6 +83,8 @@ Live progress style:
 - **checkbox**: Individual checkbox
 - **radio**: Radio button group
 - **slider**: Range slider
+- **object**: Group of nested fields edited together; store `value` as an object keyed by field ids. Use `fields: Property[]` to define children.
+- **object-list**: Repeatable list of objects with the same schema; store `value` as an array of objects. Use `itemFields: Property[]`, `itemTitle` and `addLabel` for UX.
 
 ## Size Properties
 **CRITICAL**: All size properties MUST use **select** type with predefined options:
@@ -110,6 +112,11 @@ Choose ONE palette for new graphs:
 - Do not set any node state to `built` (building is handled by a separate agent)
 - This is a **Vite** project using **TypeScript** and **Tailwind CSS**
 - Complete the entire structure in one operation
+
+## Grouping With Objects
+- Use `object` to group related settings on the same node. Example: a CMS-style root node can have a `root-styles` object with fields like `background-color`, `text-color`, `font-family`, `base-font-size`, etc.
+- Use `object-list` for repeatable content groups. Example: `social-links` with items of `{ name: text, url: text }` and a "+ Add Link" button in the editor.
+- Nested field ids should still follow global uniqueness conventions when used outside the group; otherwise they act as keys within the object value.
 
 ## Workflow
 1. Understand the user's request

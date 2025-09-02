@@ -5,10 +5,12 @@ import { useProjectStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth-context';
 
 export default function GlobalLoaderOverlay() {
-  const { graphLoading, supabaseConnected, iframeReady } = useProjectStore();
+  const { graphLoading, supabaseConnected, iframeReady, resetting } = useProjectStore();
   const { user } = useAuth();
 
   const show = useMemo(() => {
+    // Always show when resetting
+    if (resetting) return true;
     // Show while graph is loading
     if (graphLoading) return true;
     // If user is authenticated, require Supabase and iframe
@@ -17,7 +19,7 @@ export default function GlobalLoaderOverlay() {
     }
     // If not authenticated, only wait for iframe (editor preview)
     return !iframeReady;
-  }, [graphLoading, supabaseConnected, iframeReady, user]);
+  }, [resetting, graphLoading, supabaseConnected, iframeReady, user]);
 
   // Prevent body scroll when overlay visible
   useEffect(() => {
@@ -29,9 +31,11 @@ export default function GlobalLoaderOverlay() {
 
   if (!show) return null;
 
-  const message = user
-    ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')
-    : 'Starting preview…';
+  const message = resetting
+    ? 'Resetting project…'
+    : user
+      ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')
+      : 'Starting preview…';
 
   return (
     <div
@@ -46,5 +50,4 @@ export default function GlobalLoaderOverlay() {
     </div>
   );
 }
-
 

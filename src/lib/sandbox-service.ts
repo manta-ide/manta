@@ -295,7 +295,7 @@ export class SandboxService {
   /**
    * Clear all graph data for a user from Supabase
    */
-  private static async clearUserGraphData(userId: string): Promise<void> {
+  static async clearUserGraphData(userId: string): Promise<void> {
     try {
       console.log(`[SandboxService] Clearing graph data for user ${userId}`);
       
@@ -400,7 +400,12 @@ export class SandboxService {
         type: prop.type,
         value: prop.value,
         options: prop.options,
-        maxLength: prop.maxLength
+        maxLength: prop.maxLength,
+        // Preserve complex schema for object/object-list
+        ...(Array.isArray(prop.fields) ? { fields: prop.fields } : {}),
+        ...(Array.isArray(prop.itemFields) ? { itemFields: prop.itemFields } : {}),
+        ...(prop.itemTitle ? { itemTitle: prop.itemTitle } : {}),
+        ...(prop.addLabel ? { addLabel: prop.addLabel } : {}),
       }));
 
       // Convert node
@@ -493,13 +498,18 @@ export class SandboxService {
 
         // Insert properties if they exist
         if (node.properties && node.properties.length > 0) {
-          const propertiesData = node.properties.map(prop => ({
+          const propertiesData = node.properties.map((prop: any) => ({
             id: prop.id,
             node_id: node.id,
             name: prop.title,
             type: prop.type,
             value: prop.value,
             options: prop.options,
+            // Persist complex schema columns
+            fields: prop.fields,
+            item_fields: prop.itemFields,
+            item_title: prop.itemTitle,
+            add_label: prop.addLabel,
             user_id: userId
           }));
 

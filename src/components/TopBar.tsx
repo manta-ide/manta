@@ -31,7 +31,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const { loadProject, setGraphLoading, resetStore } = useProjectStore();
+  const { loadProject, setGraphLoading, resetStore, setResetting } = useProjectStore();
 
   const handleSignOut = async () => {
     await signOut();
@@ -73,6 +73,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
     if (!confirmed) return;
     try {
       setIsResetting(true);
+      setResetting(true);
       // Show global overlay while resetting
       setGraphLoading(true);
       // Clear app-local storages (not auth). Keep this resilient to future keys.
@@ -117,6 +118,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
       console.error('Reset failed:', error);
       // Keep overlay off if we failed
       setGraphLoading(false);
+      setResetting(false);
       alert('Failed to reset project. Check console for details.');
     } finally {
       setIsResetting(false);

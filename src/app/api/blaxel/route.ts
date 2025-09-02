@@ -440,6 +440,15 @@ export async function POST(request: NextRequest) {
 // Helper function to recursively get all files from sandbox
 async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Record<string, string>> {
   const files: Record<string, string> = {};
+  const collapseDupSegments = (p: string): string => {
+    const parts = String(p || '/').split('/').filter(Boolean);
+    const out: string[] = [];
+    for (const seg of parts) {
+      if (out[out.length - 1] === seg) continue;
+      out.push(seg);
+    }
+    return '/' + out.join('/');
+  };
   
   // Define excluded directories and files
   const EXCLUDED_DIRS = new Set([
@@ -492,7 +501,7 @@ async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Re
 
   try {
     // Make sure directory is a string
-    const dirStr = String(directory);
+    const dirStr = collapseDupSegments(String(directory));
     console.log(`Listing directory: ${dirStr}`);
     
     // Use the SDK properly according to documentation
@@ -530,9 +539,10 @@ async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Re
       }
       
       // Get file path - either from the object or construct it
-      const filePath = typeof fileItem === 'object' && fileItem !== null && fileItem.path
-        ? fileItem.path
-        : dirStr === '/' ? `/${fileName}` : `${dirStr}/${fileName}`;
+      const rawFilePath = typeof fileItem === 'object' && fileItem !== null && fileItem.path
+        ? String(fileItem.path)
+        : (dirStr === '/' ? `/${fileName}` : `${dirStr}/${fileName}`);
+      const filePath = collapseDupSegments(rawFilePath);
       
       try {
         console.log(`Reading file: ${filePath}`);
@@ -571,9 +581,10 @@ async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Re
       }
       
       // Get directory path - either from the object or construct it
-      const dirPath = typeof dirItem === 'object' && dirItem !== null && dirItem.path
-        ? dirItem.path
-        : dirStr === '/' ? `/${dirName}` : `${dirStr}/${dirName}`;
+      const rawDirPath = typeof dirItem === 'object' && dirItem !== null && dirItem.path
+        ? String(dirItem.path)
+        : (dirStr === '/' ? `/${dirName}` : `${dirStr}/${dirName}`);
+      const dirPath = collapseDupSegments(rawDirPath);
       
       console.log(`Recursively processing directory: ${dirPath}`);
       

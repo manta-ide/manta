@@ -48,9 +48,14 @@ export interface DatabaseProperty {
   id: string;
   node_id: string;
   name: string;
-  type: 'color' | 'text' | 'number' | 'select' | 'boolean' | 'checkbox' | 'radio' | 'slider';
+  type: 'color' | 'text' | 'number' | 'select' | 'boolean' | 'checkbox' | 'radio' | 'slider' | 'object' | 'object-list';
   value: any;
   options?: string[];
+  // Complex schema columns
+  fields?: any;
+  item_fields?: any;
+  item_title?: string;
+  add_label?: string;
   user_id: string;
   created_at?: string;
   updated_at?: string;
@@ -733,7 +738,7 @@ class SupabaseRealtimeService {
     if (!client) return;
 
     // Valid property types according to database constraint
-    const validTypes = ['color', 'text', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider'];
+    const validTypes = ['color', 'text', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider', 'object', 'object-list'];
     
     const databaseProperties = properties.map(prop => ({
       id: prop.id,
@@ -742,6 +747,11 @@ class SupabaseRealtimeService {
       type: validTypes.includes(prop.type) ? prop.type : 'text', // Validate type
       value: prop.value,
       options: prop.options,
+      // Persist complex schema columns when present
+      fields: (prop as any).fields,
+      item_fields: (prop as any).itemFields,
+      item_title: (prop as any).itemTitle,
+      add_label: (prop as any).addLabel,
       user_id: this.userId!
     }));
     
@@ -803,10 +813,15 @@ class SupabaseRealtimeService {
     return {
       id: dbProperty.id,
       title: dbProperty.name, // Map database name to Property title
-      type: dbProperty.type,
+      type: dbProperty.type as any,
       value: dbProperty.value,
-      options: dbProperty.options
-    };
+      options: dbProperty.options,
+      // Complex schema mapping
+      ...(dbProperty.fields ? { fields: dbProperty.fields as any } : {}),
+      ...(dbProperty.item_fields ? { itemFields: dbProperty.item_fields as any } : {}),
+      ...(dbProperty.item_title ? { itemTitle: dbProperty.item_title } : {}),
+      ...(dbProperty.add_label ? { addLabel: dbProperty.add_label } : {}),
+    } as any;
   }
 
   // Broadcast position updates for real-time collaboration (non-blocking)

@@ -35,11 +35,28 @@ CREATE TABLE IF NOT EXISTS graph_properties (
     name TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('color', 'text', 'number', 'select', 'boolean', 'checkbox', 'radio', 'slider')),
     value JSONB,
-    options TEXT[], -- For select type properties
+    options TEXT[], -- For select/radio type properties
+    -- New columns for complex property schemas (nullable for backwards compatibility)
+    fields JSONB,       -- For 'object' type: array of nested field schemas
+    item_fields JSONB,  -- For 'object-list' type: array of nested field schemas
+    item_title TEXT,    -- Singular label for items in object-list
+    add_label TEXT,     -- Label for add button in list editors
     user_id TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Evolve schema for existing deployments
+-- 1) Extend allowed types to include new complex types
+ALTER TABLE graph_properties DROP CONSTRAINT IF EXISTS graph_properties_type_check;
+ALTER TABLE graph_properties ADD CONSTRAINT graph_properties_type_check
+  CHECK (type IN ('color','text','number','select','boolean','checkbox','radio','slider','object','object-list'));
+
+-- 2) Add missing columns if they don't exist
+ALTER TABLE graph_properties ADD COLUMN IF NOT EXISTS fields JSONB;
+ALTER TABLE graph_properties ADD COLUMN IF NOT EXISTS item_fields JSONB;
+ALTER TABLE graph_properties ADD COLUMN IF NOT EXISTS item_title TEXT;
+ALTER TABLE graph_properties ADD COLUMN IF NOT EXISTS add_label TEXT;
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_graph_nodes_user_id ON graph_nodes(user_id);
@@ -132,9 +149,35 @@ CREATE POLICY "Users can delete their own properties" ON graph_properties
     FOR DELETE USING (auth.uid()::text = user_id);
 
 -- Enable Realtime for the tables
-ALTER PUBLICATION supabase_realtime ADD TABLE graph_nodes;
-ALTER PUBLICATION supabase_realtime ADD TABLE graph_edges;
-ALTER PUBLICATION supabase_realtime ADD TABLE graph_properties;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'graph_nodes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.graph_nodes;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'graph_edges'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.graph_edges;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'graph_properties'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.graph_properties;
+  END IF;
+END $$;
 
 -- Create a function to get user graphs (optional helper)
 CREATE OR REPLACE FUNCTION get_user_graph(p_user_id TEXT)
@@ -170,7 +213,11 @@ BEGIN
                         'name', name,
                         'type', type,
                         'value', value,
-                        'options', options
+                        'options', options,
+                        'fields', fields,
+                        'item_fields', item_fields,
+                        'item_title', item_title,
+                        'add_label', add_label
                     )
                 ) as data
             FROM graph_properties

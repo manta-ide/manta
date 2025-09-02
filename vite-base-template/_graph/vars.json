@@ -45,24 +45,32 @@
     "section-subtitle": "A selection of work spanning web apps, APIs, and infrastructure.",
     "search-placeholder": "Search projects...",
     "tags": "Next.js, TypeScript, Node.js, React, Tailwind, AWS, Docker, PostgreSQL",
-    "project-1-title": "Realtime Dashboard",
-    "project-1-description": "Operational analytics dashboard with live data and custom charts.",
-    "project-1-image": "https://placehold.co/512x400/white/black?text=Realtime&font=Poppins",
-    "project-1-tech": "Next.js, TypeScript, WebSocket, Tailwind",
-    "project-1-github": "https://github.com/yourhandle/realtime-dashboard",
-    "project-1-live": "https://example.com/realtime-dashboard",
-    "project-2-title": "API Platform",
-    "project-2-description": "Scalable REST and GraphQL APIs with robust observability.",
-    "project-2-image": "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins",
-    "project-2-tech": "Node.js, TypeScript, PostgreSQL, Docker, AWS",
-    "project-2-github": "https://github.com/yourhandle/api-platform",
-    "project-2-live": "https://example.com/api-platform",
-    "project-3-title": "Design System",
-    "project-3-description": "Reusable UI kit and tokens built with Radix and Tailwind.",
-    "project-3-image": "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins",
-    "project-3-tech": "React, TypeScript, Radix UI, Tailwind",
-    "project-3-github": "https://github.com/yourhandle/design-system",
-    "project-3-live": "https://example.com/design-system",
+    "projects": [
+      {
+        "title": "Realtime Dashboard",
+        "description": "Operational analytics dashboard with live data and custom charts.",
+        "image": "https://placehold.co/512x400/white/black?text=Realtime&font=Poppins",
+        "tech": "Next.js, TypeScript, WebSocket, Tailwind",
+        "github": "https://github.com/yourhandle/realtime-dashboard",
+        "live": "https://example.com/realtime-dashboard"
+      },
+      {
+        "title": "API Platform",
+        "description": "Scalable REST and GraphQL APIs with robust observability.",
+        "image": "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins",
+        "tech": "Node.js, TypeScript, PostgreSQL, Docker, AWS",
+        "github": "https://github.com/yourhandle/api-platform",
+        "live": "https://example.com/api-platform"
+      },
+      {
+        "title": "Design System",
+        "description": "Reusable UI kit and tokens built with Radix and Tailwind.",
+        "image": "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins",
+        "tech": "React, TypeScript, Radix UI, Tailwind",
+        "github": "https://github.com/yourhandle/design-system",
+        "live": "https://example.com/design-system"
+      }
+    ],
     "grid-gap": "24px",
     "card-radius": "12px",
     "card-padding": "16px",
@@ -102,5 +110,24 @@
     "review-3-testimonial": "I've worked with Alex on multiple projects; his technical flow and leadership are exceptional.",
     "searchbar-background-color": "#161a1d",
     "searchbar-text-color": "#dd4290",
-    "searchbar-border-color": "#7c34cd"
-  }
+  "searchbar-border-color": "#7c34cd"
+  ,
+  "root-styles": {
+    "background-color": "#000000",
+    "text-color": "#dd4290",
+    "accent-color": "#7c34cd",
+    "muted-color": "#b2adac",
+    "border-color": "#161a1d",
+    "font-family": "Poppins",
+    "base-font-size": "1rem",
+    "max-content-width": "1024px",
+    "section-padding-y": "48px",
+    "section-padding-x": "20px",
+    "border-radius-global": "16px"
+  },
+  "social-links": [
+    { "name": "GitHub", "url": "https://github.com/yourhandle" },
+    { "name": "LinkedIn", "url": "https://www.linkedin.com/in/yourhandle/" },
+    { "name": "Twitter", "url": "https://twitter.com/yourhandle" }
+  ]
+}

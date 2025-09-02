@@ -296,12 +296,30 @@ const ChildLinkSchema = z.object({
   title: z.string(),
 }).strict();
 
+// Non-recursive property schema for tool parameters to avoid JSON Schema recursion
+const PropertyInputSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  type: z.string(),
+  value: z.any().optional(),
+  options: z.array(z.string()).optional().nullable(),
+  maxLength: z.number().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  step: z.number().optional(),
+  // Avoid recursive references by treating nested schemas as any
+  fields: z.any().optional(),
+  itemFields: z.any().optional(),
+  itemTitle: z.string().optional(),
+  addLabel: z.string().optional(),
+}).strict();
+
 const AddNodeParamsSchema = z.object({
   parentId: z.string().describe('ID of the parent node to add the new node as a child'),
   nodeId: z.string().describe('Unique ID for the new node'),
   title: z.string().describe('Display title for the new node'),
   prompt: z.string().describe('Description/prompt for the new node'),
-  properties: z.array(PropertySchema).optional().describe('Array of property objects'),
+  properties: z.array(PropertyInputSchema).optional().describe('Array of property objects'),
   children: z.array(ChildLinkSchema).optional().describe('Array of child node references'),
   state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
@@ -315,14 +333,14 @@ const EditNodeParamsSchema = z.object({
   nodeId: z.string().describe('ID of the node to edit'),
   title: z.string().optional().describe('New title for the node'),
   prompt: z.string().optional().describe('New prompt/description for the node'),
-  properties: z.array(PropertySchema).describe('Array of property objects (required to set/delete properties)'),
+  properties: z.array(PropertyInputSchema).describe('Array of property objects (required to set/delete properties)'),
   children: z.array(ChildLinkSchema).optional(),
   state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
 
 const UpdatePropertiesParamsSchema = z.object({
   nodeId: z.string().describe('ID of the node to update properties for'),
-  properties: z.array(PropertySchema).describe('Array of property objects to update/add (merges with existing properties)'),
+  properties: z.array(PropertyInputSchema).describe('Array of property objects to update/add (merges with existing properties)'),
   title: z.string().optional().describe('New title for the node (optional)'),
   prompt: z.string().optional().describe('New prompt/description for the node (optional)'),
 }).strict();
@@ -588,7 +606,7 @@ export const graphEditorTools = {
           const before = originalProperties || [];
           const after = Array.isArray(properties) ? properties : [];
           if (before.length !== after.length) return true;
-          // Compare structural fields only (id, title, type, options, constraints), ignore value changes
+          // Compare structural fields only (id, title, type, options, constraints, complex schemas), ignore value changes
           const normalize = (p: any) => ({
             id: p?.id ?? '',
             title: p?.title ?? '',
@@ -598,6 +616,10 @@ export const graphEditorTools = {
             max: p?.max ?? undefined,
             step: p?.step ?? undefined,
             options: Array.isArray(p?.options) ? [...p.options] : undefined,
+            fields: p?.fields ? JSON.stringify(p.fields) : undefined,
+            itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
+            itemTitle: p?.itemTitle ?? undefined,
+            addLabel: p?.addLabel ?? undefined,
           });
           for (let i = 0; i < before.length; i++) {
             const a = normalize(before[i]);
@@ -692,7 +714,7 @@ export const graphEditorTools = {
           const before = originalProperties || [];
           const after = Array.isArray(properties) ? properties : [];
           if (before.length !== after.length) return true;
-          // Compare structural fields only (id, title, type, options, constraints), ignore value changes
+          // Compare structural fields only (id, title, type, options, constraints, complex schemas), ignore value changes
           const normalize = (p: any) => ({
             id: p?.id ?? '',
             title: p?.title ?? '',
@@ -702,6 +724,10 @@ export const graphEditorTools = {
             max: p?.max ?? undefined,
             step: p?.step ?? undefined,
             options: Array.isArray(p?.options) ? [...p.options] : undefined,
+            fields: p?.fields ? JSON.stringify(p.fields) : undefined,
+            itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
+            itemTitle: p?.itemTitle ?? undefined,
+            addLabel: p?.addLabel ?? undefined,
           });
           for (let i = 0; i < before.length; i++) {
             const a = normalize(before[i]);

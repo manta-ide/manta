@@ -83,7 +83,18 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
   (propsData || []).forEach((p: any) => {
     const node = byId.get(p.node_id);
     if (!node) return;
-    const prop = { id: p.id, title: p.name, type: p.type, value: p.value, options: p.options } as any;
+    const prop = {
+      id: p.id,
+      title: p.name,
+      type: p.type,
+      value: p.value,
+      options: p.options,
+      // Complex schema support
+      fields: p.fields || undefined,
+      itemFields: p.item_fields || undefined,
+      itemTitle: p.item_title || undefined,
+      addLabel: p.add_label || undefined,
+    } as any;
     if (!node.properties) node.properties = [] as any;
     (node.properties as any[]).push(prop);
   });
@@ -119,10 +130,58 @@ export async function getGraphFilesFromSupabase(userId: string): Promise<{ graph
 }
 async function updatePropertyInSupabase(userId: string, nodeId: string, propertyId: string, value: any): Promise<void> {
   const client = getSupabaseServiceClient();
-  // Upsert property row to ensure existence and set value without needing a select/count
-  const { error } = await client
+  // Prefer updating existing row to preserve type/metadata
+  const { data: existing, error: readErr } = await client
     .from('graph_properties')
-    .upsert({ id: propertyId, node_id: nodeId, name: propertyId, type: 'text', value, user_id: userId });
+    .select('id, type, name, options, fields, item_fields, item_title, add_label')
+    .eq('id', propertyId)
+    .eq('user_id', userId)
+    .limit(1);
+  if (readErr) throw readErr;
+
+  if (existing && existing.length > 0) {
+    const { error } = await client
+      .from('graph_properties')
+      .update({ value })
+      .eq('id', propertyId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return;
+  }
+
+  // Fallback: insert a new row inferring the type from currentGraph if possible
+  let inferredType: string = 'text';
+  let inferredTitle: string = propertyId;
+  let extra: any = {};
+  if (currentGraph) {
+    for (const n of currentGraph.nodes || []) {
+      if (!Array.isArray(n.properties)) continue;
+      for (const p of n.properties) {
+        if (p?.id === propertyId) {
+          inferredType = (p as any).type || 'text';
+          inferredTitle = (p as any).title || propertyId;
+          extra = {
+            options: (p as any).options,
+            fields: (p as any).fields,
+            item_fields: (p as any).itemFields,
+            item_title: (p as any).itemTitle,
+            add_label: (p as any).addLabel,
+          };
+          break;
+        }
+      }
+    }
+  }
+  const insertRow: any = {
+    id: propertyId,
+    node_id: nodeId,
+    name: inferredTitle,
+    type: inferredType,
+    value,
+    user_id: userId,
+    ...extra,
+  };
+  const { error } = await client.from('graph_properties').upsert(insertRow);
   if (error) throw error;
 }
 
@@ -278,6 +337,11 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
           type: p.type || 'text',
           value: p.value,
           options: p.options,
+          // Persist complex schemas when present
+          fields: p.fields,
+          item_fields: p.itemFields,
+          item_title: p.itemTitle,
+          add_label: p.addLabel,
           user_id: userId,
         });
       });
@@ -376,6 +440,11 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
       max: p?.max ?? undefined,
       step: p?.step ?? undefined,
       options: Array.isArray(p?.options) ? [...p.options] : undefined,
+      // Include complex schemas in structural comparison
+      fields: p?.fields ? JSON.stringify(p.fields) : undefined,
+      itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
+      itemTitle: p?.itemTitle ?? undefined,
+      addLabel: p?.addLabel ?? undefined,
     }));
   };
   const aStruct = JSON.stringify(normalizeProps(a.properties));

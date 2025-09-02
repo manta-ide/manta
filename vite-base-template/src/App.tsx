@@ -7,18 +7,19 @@ interface AppProps {
 }
 
 export default function App({ vars }: AppProps) {
+  const rootStyles = (vars["root-styles"] as Record<string, any>) || {};
   const cssVars = {
-    "--background-color": vars["background-color"] || "#0b090a",
-    "--text-color": vars["text-color"] || "#f5f3f4",
-    "--accent-color": vars["accent-color"] || "#e5383b",
-    "--muted-color": vars["muted-color"] || "#b1a7a6",
-    "--border-color": vars["border-color"] || "#161a1d",
-    "--font-family": vars["font-family"] || "Poppins",
-    "--base-font-size": vars["base-font-size"] || "1rem",
-    "--max-content-width": vars["max-content-width"] || "256px",
-    "--section-padding-y": vars["section-padding-y"] || "48px", 
-    "--section-padding-x": vars["section-padding-x"] || "24px",
-    "--border-radius-global": vars["border-radius-global"] || "12px",
+    "--background-color": rootStyles["background-color"] ?? vars["background-color"] ?? "#0b090a",
+    "--text-color": rootStyles["text-color"] ?? vars["text-color"] ?? "#f5f3f4",
+    "--accent-color": rootStyles["accent-color"] ?? vars["accent-color"] ?? "#e5383b",
+    "--muted-color": rootStyles["muted-color"] ?? vars["muted-color"] ?? "#b1a7a6",
+    "--border-color": rootStyles["border-color"] ?? vars["border-color"] ?? "#161a1d",
+    "--font-family": rootStyles["font-family"] ?? vars["font-family"] ?? "Poppins",
+    "--base-font-size": rootStyles["base-font-size"] ?? vars["base-font-size"] ?? "1rem",
+    "--max-content-width": rootStyles["max-content-width"] ?? vars["max-content-width"] ?? "256px",
+    "--section-padding-y": rootStyles["section-padding-y"] ?? vars["section-padding-y"] ?? "48px", 
+    "--section-padding-x": rootStyles["section-padding-x"] ?? vars["section-padding-x"] ?? "24px",
+    "--border-radius-global": rootStyles["border-radius-global"] ?? vars["border-radius-global"] ?? "12px",
   } as React.CSSProperties;
 
   const navLinks = (vars["nav-links"] as string || "Home, Projects, About, Contact")
@@ -26,38 +27,49 @@ export default function App({ vars }: AppProps) {
     .map((s: string) => s.trim())
     .filter(Boolean);
 
-  const social = [
-    { name: "GitHub", url: vars["social-github"] as string || "#" },
-    { name: "LinkedIn", url: vars["social-linkedin"] as string || "#" },
-    { name: "Twitter", url: vars["social-twitter"] as string || "#" },
-  ];
+  const social = Array.isArray(vars["social-links"]) && (vars["social-links"] as any[]).length
+    ? (vars["social-links"] as any[]).map((it) => ({ name: it?.name || 'Link', url: it?.url || '#' }))
+    : [
+        { name: "GitHub", url: (vars["social-github"] as string) || "#" },
+        { name: "LinkedIn", url: (vars["social-linkedin"] as string) || "#" },
+        { name: "Twitter", url: (vars["social-twitter"] as string) || "#" },
+      ];
 
-  const projects = [
-    {
-      title: vars["project-1-title"] as string || "Realtime Dashboard",
-      description: vars["project-1-description"] as string || "Operational analytics dashboard with live data and custom charts.",
-      image: vars["project-1-image"] as string || "https://placehold.co/512x400/white/black?text=Realtime+Dashboard&font=Poppins",
-      tech: vars["project-1-tech"] as string || "Next.js, TypeScript, WebSocket, Tailwind",
-      github: vars["project-1-github"] as string || "#",
-      live: vars["project-1-live"] as string || "#",
-    },
-    {
-      title: vars["project-2-title"] as string || "API Platform",
-      description: vars["project-2-description"] as string || "Scalable REST and GraphQL APIs with robust observability.",
-      image: vars["project-2-image"] as string || "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins",
-      tech: vars["project-2-tech"] as string || "Node.js, TypeScript, PostgreSQL, Docker, AWS",
-      github: vars["project-2-github"] as string || "#",
-      live: vars["project-2-live"] as string || "#",
-    },
-    {
-      title: vars["project-3-title"] as string || "Design System",
-      description: vars["project-3-description"] as string || "Reusable UI kit and tokens built with Radix and Tailwind.",
-      image: vars["project-3-image"] as string || "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins",
-      tech: vars["project-3-tech"] as string || "React, TypeScript, Radix UI, Tailwind",
-      github: vars["project-3-github"] as string || "#",
-      live: vars["project-3-live"] as string || "#",
-    },
-  ];
+  const projects = Array.isArray(vars["projects"]) && (vars["projects"] as any[]).length
+    ? (vars["projects"] as any[]).map((p) => ({
+        title: p?.title || "Untitled Project",
+        description: p?.description || "",
+        image: p?.image || "https://placehold.co/512x400/white/black?text=Project&font=Poppins",
+        tech: p?.tech || "",
+        github: p?.github || "#",
+        live: p?.live || "#",
+      }))
+    : [
+        {
+          title: (vars["project-1-title"] as string) || "Realtime Dashboard",
+          description: (vars["project-1-description"] as string) || "Operational analytics dashboard with live data and custom charts.",
+          image: (vars["project-1-image"] as string) || "https://placehold.co/512x400/white/black?text=Realtime+Dashboard&font=Poppins",
+          tech: (vars["project-1-tech"] as string) || "Next.js, TypeScript, WebSocket, Tailwind",
+          github: (vars["project-1-github"] as string) || "#",
+          live: (vars["project-1-live"] as string) || "#",
+        },
+        {
+          title: (vars["project-2-title"] as string) || "API Platform",
+          description: (vars["project-2-description"] as string) || "Scalable REST and GraphQL APIs with robust observability.",
+          image: (vars["project-2-image"] as string) || "https://placehold.co/512x400/white/black?text=API+Platform&font=Poppins",
+          tech: (vars["project-2-tech"] as string) || "Node.js, TypeScript, PostgreSQL, Docker, AWS",
+          github: (vars["project-2-github"] as string) || "#",
+          live: (vars["project-2-live"] as string) || "#",
+        },
+        {
+          title: (vars["project-3-title"] as string) || "Design System",
+          description: (vars["project-3-description"] as string) || "Reusable UI kit and tokens built with Radix and Tailwind.",
+          image: (vars["project-3-image"] as string) || "https://placehold.co/512x400/white/black?text=Design+System&font=Poppins",
+          tech: (vars["project-3-tech"] as string) || "React, TypeScript, Radix UI, Tailwind",
+          github: (vars["project-3-github"] as string) || "#",
+          live: (vars["project-3-live"] as string) || "#",
+        },
+      ];
 
   const skills = (vars["skills-list"] as string || "TypeScript, React, Next.js, Node.js, PostgreSQL, AWS, Docker, CI/CD, Testing, Design Systems")
     .split(",")
