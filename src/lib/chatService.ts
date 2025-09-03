@@ -171,34 +171,16 @@ export function useChatService() {
 
       const contentType = response.headers.get('Content-Type') || '';
 
-      if (contentType.includes('text/plain')) {
-        // Streaming mode: accumulate and display the full response progressively.
+      if (contentType.includes('text/plain') || contentType.includes('text/event-stream')) {
+        // Streaming mode: accumulate raw chunks without per-line trimming to avoid accidental loss.
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
         let fullText = '';
-        const stripLabel = (s: string) => s.replace(/^\s*(Conclusion:|Final:|Result:)\s*/i, '');
 
-        const pushLine = (line: string) => {
-          // Preserve leading indentation for Markdown structure (nested lists/code)
-          if (line === undefined || line === null) return;
-          // Keep exact leading spaces, trim only the right side
-          const match = String(line).match(/^(\s*)(.*)$/) as RegExpMatchArray | null;
-          const indent = match ? match[1] : '';
-          const rest = match ? match[2] : String(line);
-          const stripped = stripLabel(rest);
-          const combined = indent + stripped.replace(/\s+$/, '');
-
-          // Avoid echoing the user prompt verbatim
-          if (combined.trim().toLowerCase() === input.toLowerCase().trim()) return;
-
-          // If the line is empty, still add a newline to maintain paragraph/list spacing
-          if (combined.length === 0) {
-            fullText += '\n';
-            return;
-          }
-
-          fullText += (fullText ? '\n' : '') + combined;
+        const sanitizeAssistant = (text: string) => {
+          return text
+            .replace(/\{\{#ASSISTANT_RESPONSE\}\}/g, '')
+            .replace(/\{\{\/ASSISTANT_RESPONSE\}\}/g, '');
         };
 
         const normalizeMarkdownLists = (text: string) => {
@@ -245,35 +227,24 @@ export function useChatService() {
             const { value, done } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value, { stream: true });
-            buffer += chunk;
+            // Append chunk as-is to avoid losing large content due to line splitting edge cases
+            fullText += chunk;
 
-            // Split into lines; keep last partial in buffer
-            const parts = buffer.split(/\r?\n/);
-            buffer = parts.pop() || '';
-            const completed = parts; // include empty lines and preserve indentation
-            if (completed.length > 0) {
-              completed.forEach((l) => pushLine(l));
-              // Update UI with the full accumulated content for proper Markdown rendering
-              const nextText = normalizeMarkdownLists(fullText);
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last && last.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, content: nextText } as any;
-                }
-                return updated;
-              });
-            }
+            // Update UI progressively
+            const nextText = normalizeMarkdownLists(sanitizeAssistant(fullText));
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last && last.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, content: nextText } as any;
+              }
+              return updated;
+            });
           }
         }
 
-        // Process any remaining buffer as final text
-        const leftover = buffer;
-        if (leftover.length > 0) {
-          pushLine(leftover);
-        }
-
-        const finalContent = normalizeMarkdownLists(fullText || 'Done.');
+        const finalContentRaw = sanitizeAssistant(fullText).trim();
+        const finalContent = normalizeMarkdownLists(finalContentRaw);
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -281,7 +252,7 @@ export function useChatService() {
             updated[updated.length - 1] = {
               ...last,
               content: finalContent,
-              variables: { ASSISTANT_RESPONSE: finalContent }
+              variables: finalContent ? { ASSISTANT_RESPONSE: finalContent } : last.variables
             } as any;
           }
           // Persist the complete final message
