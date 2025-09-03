@@ -390,14 +390,16 @@ export default function FloatingChat() {
         {!loadingHistory && lastTwoMessages.map((m, idx) => {
           const isStreamingAssistant = m.role === 'assistant' && loading && idx === lastTwoMessages.length - 1;
           const typedCacheRef = (FloatingChat as any)._typedCache || ((FloatingChat as any)._typedCache = new Set<string>());
-          const isMarkdownHeavy = !!m.content && /(\n|^)\s*(\d+\.\s|[-*+]\s|```|#{1,6}\s|>\s)/.test(m.content);
+          // Consider only fenced code blocks as risky for typing animation.
+          // Lists, headings, and quotes are fine to animate as a full chunk.
+          const hasCodeFence = !!m.content && /```|~~~/.test(m.content);
           const shouldTypeFinal = (
             m.role === 'assistant' &&
             !loading &&
             idx === lastTwoMessages.length - 1 &&
             !!m.content &&
             !typedCacheRef.has(m.content) &&
-            !isMarkdownHeavy &&
+            !hasCodeFence &&
             m.content.length < 1500 &&
             // Do not animate if we already revealed streaming chunks
             (m as any)?.variables?.HAD_STREAMING !== '1'

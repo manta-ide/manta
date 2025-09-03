@@ -182,6 +182,7 @@ export function useChatService() {
         const revealDelayMs = 900; // small delay to favor full-animation on short responses
         const minCharsBeforeReveal = 400; // wait until we have a decent chunk
         let revealed = false; // whether we've started showing partial content
+        let lastPushedLen = 0; // length of last content we pushed during stream
 
         const sanitizeAssistant = (text: string) => {
           return text
@@ -249,6 +250,7 @@ export function useChatService() {
                   const updated = [...prev];
                   const last = updated[updated.length - 1];
                   if (last && last.role === 'assistant') {
+                    lastPushedLen = nextText.length;
                     updated[updated.length - 1] = {
                       ...last,
                       content: nextText,
@@ -266,6 +268,7 @@ export function useChatService() {
                 const updated = [...prev];
                 const last = updated[updated.length - 1];
                 if (last && last.role === 'assistant') {
+                  lastPushedLen = nextText.length;
                   updated[updated.length - 1] = { ...last, content: nextText } as any;
                 }
                 return updated;
@@ -280,13 +283,24 @@ export function useChatService() {
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && last.role === 'assistant') {
+            // Determine if we truly streamed (pushed partial content before final)
+            const hadPartialBeforeFinal = revealed && lastPushedLen > 0 && lastPushedLen < finalContent.length;
+            const nextVars = { ...(last as any).variables } as Record<string, any> | undefined;
+            if (nextVars) {
+              if (hadPartialBeforeFinal) {
+                nextVars.HAD_STREAMING = '1';
+              } else {
+                // Ensure the flag is not set if we never showed partial content
+                delete (nextVars as any).HAD_STREAMING;
+              }
+            }
             updated[updated.length - 1] = {
               ...last,
               content: finalContent,
-              // Preserve HAD_STREAMING if it was set; set final response for persistence
+              // Preserve or clear HAD_STREAMING depending on whether we actually streamed
               variables: finalContent
-                ? { ...(last as any).variables, ASSISTANT_RESPONSE: finalContent }
-                : (last as any).variables
+                ? { ...(nextVars || {}), ASSISTANT_RESPONSE: finalContent }
+                : nextVars
             } as any;
           }
           // Persist the complete final message
