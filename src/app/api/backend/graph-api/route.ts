@@ -48,17 +48,9 @@ export async function GET(req: NextRequest) {
                }
                
                if (graph && graph.nodes) {
-                 const graphWithBuiltStatus = {
-                   ...graph,
-                   nodes: graph.nodes.map(node => ({
-                     ...node,
-                     built: !!node.built
-                   }))
-                 };
-                 
-                 const data = `data: ${JSON.stringify({
+               const data = `data: ${JSON.stringify({
                    type: 'graph-update',
-                   graph: graphWithBuiltStatus
+                   graph: graph
                  })}\n\n`;
                  
                  controller.enqueue(new TextEncoder().encode(data));
@@ -105,7 +97,7 @@ export async function GET(req: NextRequest) {
 
       // Get unbuilt node IDs
       const unbuiltNodeIds = graph.nodes
-        .filter(node => !node.built || node.built === undefined)
+        .filter(node => node.state !== 'built')
         .map(node => node.id);
 
       console.log(`✅ Returning ${unbuiltNodeIds.length} unbuilt node IDs`);
@@ -136,17 +128,9 @@ export async function GET(req: NextRequest) {
     console.log(`✅ Returning graph with ${graph.nodes?.length || 0} nodes`);
 
     // Return graph with built status for each node
-    const graphWithBuiltStatus = {
-      ...graph,
-      nodes: graph.nodes?.map(node => ({
-        ...node,
-        built: !!node.built
-      })) || []
-    };
-
     return NextResponse.json({ 
       success: true,
-      graph: graphWithBuiltStatus
+      graph: graph
     });
   } catch (error) {
     console.error('Error fetching graph data:', error);
@@ -191,17 +175,9 @@ export async function POST(req: NextRequest) {
 
       console.log(`✅ Refreshed graph with ${graph.nodes?.length || 0} nodes`);
 
-      const graphWithBuiltStatus = {
-        ...graph,
-        nodes: graph.nodes?.map(node => ({
-          ...node,
-          built: !!node.built
-        })) || []
-      };
-
       return NextResponse.json({ 
         success: true,
-        graph: graphWithBuiltStatus
+        graph: graph
       });
     }
     
@@ -238,10 +214,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true,
-      node: {
-        ...node,
-        built: !!node.built
-      }
+      node: node
     });
   } catch (error) {
     console.error('Error in graph API POST:', error);

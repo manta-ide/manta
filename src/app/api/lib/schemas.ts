@@ -130,7 +130,7 @@ export const PropertyTypeEnum = z.enum([
 export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 
 // Property definition - represents a configurable property of a graph node
-export const PropertySchema = z.object({
+export const PropertySchema: z.ZodType<any> = z.lazy(() => z.object({
   id: z.string().describe('Unique identifier for the property (should follow pattern: property-name)'),
   title: z.string().describe('Human-readable title/name for the property'),
   type: PropertyTypeEnum.describe('The type of property (color, text, number, or select)'),
@@ -151,11 +151,11 @@ export const PropertySchema = z.object({
   max: z.number().optional().describe('Maximum value constraint for number properties'),
   step: z.number().optional().describe('Step increment for number properties'),
   // For complex types: nested field schemas
-  fields: z.array(z.lazy(() => PropertySchema)).optional().describe('Nested fields for object type'),
-  itemFields: z.array(z.lazy(() => PropertySchema)).optional().describe('Nested fields for object-list type'),
+  fields: z.array(PropertySchema).optional().describe('Nested fields for object type'),
+  itemFields: z.array(PropertySchema).optional().describe('Nested fields for object-list type'),
   itemTitle: z.string().optional().describe('Singular label for items in object-list editor'),
   addLabel: z.string().optional().describe('Label for "+" button in list editors'),
-});
+}));
 
 export type Property = z.infer<typeof PropertySchema>;
 
@@ -178,7 +178,6 @@ export const GraphNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number() }).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
-  built: z.boolean().optional(),
 });
 
 export const GraphEdgeSchema = z.object({

@@ -37,8 +37,16 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
   
-  // Derive effective visual state: honor built flag even if state wasn't updated yet
-  const effectiveState = node.built ? 'built' : (node.state || 'unbuilt');
+  // Derive effective visual state:
+  // - If explicitly building, show building even if built flag is true
+  // - Otherwise built if either state says built or built flag is true
+  // - Else unbuilt
+  const effectiveState =
+    node.state === 'building'
+      ? 'building'
+      : node.state === 'built'
+        ? 'built'
+        : 'unbuilt';
   
   // Determine styling based on node state (built/unbuilt/building)
   const getNodeStyles = () => {
@@ -488,6 +496,18 @@ function GraphCanvas() {
 
     setIsBuildingSelected(true);
     try {
+      // Optimistic UI update: mark selected node as building locally
+      try {
+        const current = useProjectStore.getState();
+        const g = current.graph;
+        if (g) {
+          const updatedNodes = g.nodes.map((n: any) => n.id === selectedNode.id ? { ...n, state: 'building' } : n);
+          const updatedGraph = { ...g, nodes: updatedNodes } as any;
+          const updatedSelected = { ...selectedNode, state: 'building' } as any;
+          useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected });
+        }
+      } catch {}
+
       // Update node state to "building" - try Supabase first
       try {
         if (supabaseConnected) {
@@ -554,6 +574,18 @@ function GraphCanvas() {
             console.error('Failed to update node state to built');
           }
         }
+
+        // Optimistic completion update
+        try {
+          const current = useProjectStore.getState();
+          const g = current.graph;
+          if (g) {
+            const updatedNodes = g.nodes.map((n: any) => n.id === selectedNode.id ? { ...n, state: 'built' } : n);
+            const updatedGraph = { ...g, nodes: updatedNodes } as any;
+            const updatedSelected = { ...selectedNode, state: 'built' } as any;
+            useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected });
+          }
+        } catch {}
       } else {
         console.error('❌ Failed to build selected node');
         
@@ -959,7 +991,11 @@ function GraphCanvas() {
         <MiniMap 
           nodeColor={(node: any) => {
             const nd = node.data?.node;
-            const nodeState = nd?.built ? 'built' : nd?.state;
+            const nodeState = nd?.state === 'building'
+              ? 'building'
+              : nd?.state === 'built'
+                ? 'built'
+                : 'unbuilt';
             if (nodeState === 'built') return '#9ca3af';
             if (nodeState === 'building') return '#ea580c';
             return '#fbbf24'; // unbuilt
@@ -982,14 +1018,14 @@ function GraphCanvas() {
         {selectedNode && (
           <Button
             onClick={buildSelectedNode}
-            disabled={isBuildingSelected}
+            disabled={isBuildingSelected || selectedNode.state === 'building'}
             variant="outline"
             size="sm"
             className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title={isBuildingSelected ? "Building selected node..." : `Build node: ${selectedNode.title}`}
+            title={(isBuildingSelected || selectedNode.state === 'building') ? "Building selected node..." : `Build node: ${selectedNode.title}`}
           >
             <Play className="w-4 h-4" />
-            {isBuildingSelected ? 'Building...' : 'Build Selected'}
+            {(isBuildingSelected || selectedNode.state === 'building') ? 'Building...' : 'Build Selected'}
           </Button>
         )}
         

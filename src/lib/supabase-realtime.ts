@@ -8,7 +8,6 @@ export interface GraphNode extends BaseGraphNode {
   position?: { x: number; y: number };
   width?: number;
   height?: number;
-  built?: boolean;
 }
 
 export interface Graph extends Omit<BaseGraph, 'nodes'> {
@@ -30,7 +29,6 @@ export interface DatabaseNode {
   position_y: number;
   width?: number;
   height?: number;
-  built: boolean;
   created_at?: string;
   updated_at?: string;
   user_id: string;
@@ -582,7 +580,6 @@ class SupabaseRealtimeService {
       position_y: node.position?.y || 0,
       width: node.width,
       height: node.height,
-      built: node.built || false,
       user_id: this.userId
     };
 
@@ -632,7 +629,6 @@ class SupabaseRealtimeService {
     }
     if (updates.width !== undefined) databaseUpdates.width = updates.width;
     if (updates.height !== undefined) databaseUpdates.height = updates.height;
-    if (updates.built !== undefined) databaseUpdates.built = updates.built;
 
     const { error } = await client
       .from('graph_nodes')
@@ -803,7 +799,6 @@ class SupabaseRealtimeService {
       position: { x: dbNode.position_x, y: dbNode.position_y },
       width: dbNode.width,
       height: dbNode.height,
-      built: dbNode.built,
       properties: properties.length > 0 ? properties : undefined,
       children: [] // Will be populated by graph loading logic
     };

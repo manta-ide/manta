@@ -73,7 +73,6 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
     position: { x: db.position_x || 0, y: db.position_y || 0 },
     width: db.width || undefined,
     height: db.height || undefined,
-    built: !!db.built,
     properties: undefined as any,
     children: [] as any[],
   }));
@@ -297,7 +296,6 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
     position_y: n.position?.y || 0,
     width: n.width,
     height: n.height,
-    built: !!n.built,
     user_id: userId,
   }));
   if (nodeRows.length > 0) {
@@ -373,27 +371,8 @@ export function getGraphSession(): Graph | null {
  * Saves to both Blaxel sandbox and local file system
  */
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
-  // Merge with existing graph to preserve built flags when nodes are unchanged
-  let merged: Graph = graph;
-
-  if (currentGraph) {
-    const prevById = new Map(currentGraph.nodes.map(n => [n.id, n]));
-    const nodes = graph.nodes.map(n => {
-      const before = prevById.get(n.id);
-      if (!before) {
-        return { ...n, built: false };
-      }
-      const isSame = nodesEqual(before, n);
-      const built = isSame ? !!before.built : false;
-      return { ...n, built };
-    });
-    merged = { ...graph, nodes };
-  } else {
-    merged = { ...graph, nodes: graph.nodes.map(n => ({ ...n, built: false })) };
-  }
-
   // Store in memory (normalized to keep IDs consistent with DB)
-  const normalized = normalizeGraphForSupabase(merged);
+  const normalized = normalizeGraphForSupabase(graph);
   currentGraph = normalized;
 
   // Persist to Supabase (no sockets)
@@ -430,7 +409,7 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
 }
 
 function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boolean {
-  // Compare core fields; ignore built flag and children array changes
+  // Compare core fields; ignore children array changes
   if (a.title !== b.title) return false;
   if (a.prompt !== b.prompt) return false;
   // Don't compare children arrays - changes to children shouldn't mark parent as unbuilt
@@ -531,7 +510,7 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
 export function getUnbuiltNodeIds(): string[] {
   console.log("graphStorage currentGraph", currentGraph);
   if (!currentGraph) return [];
-  return currentGraph.nodes.filter(n => !n.built || n.built === undefined).map(n => n.id);
+  return currentGraph.nodes.filter(n => (n.state || 'unbuilt') !== 'built').map(n => n.id);
 }
 
 /**
@@ -542,12 +521,12 @@ export async function markNodesBuilt(nodeIds: string[], userId: string): Promise
   const idSet = new Set(nodeIds);
   const updated: Graph = {
     ...currentGraph,
-    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: true } : n)),
+    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)),
   };
   currentGraph = updated;
-  // Persist flags
+  // Persist state
   const client = getSupabaseServiceClient();
-  await client.from('graph_nodes').update({ built: true }).in('id', nodeIds).eq('user_id', userId);
+  await client.from('graph_nodes').update({ state: 'built' }).in('id', nodeIds).eq('user_id', userId);
 }
 
 /**
@@ -558,11 +537,11 @@ export async function markNodesUnbuilt(nodeIds: string[], userId: string): Promi
   const idSet = new Set(nodeIds);
   const updated: Graph = {
     ...currentGraph,
-    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, built: false } : n)),
+    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)),
   };
   currentGraph = updated;
   const client = getSupabaseServiceClient();
-  await client.from('graph_nodes').update({ built: false }).in('id', nodeIds).eq('user_id', userId);
+  await client.from('graph_nodes').update({ state: 'unbuilt' }).in('id', nodeIds).eq('user_id', userId);
 }
 
 /**

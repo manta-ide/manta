@@ -99,6 +99,19 @@ export default function SelectedNodeSidebar() {
 			// Store the previous prompt for the rebuild operation
 			const previousPrompt = selectedNode?.prompt ?? '';
 
+			// Optimistic UI update: mark node as building locally
+			try {
+				const state = useProjectStore.getState();
+				const g = state.graph;
+				if (g) {
+					const updatedNodes = g.nodes.map((n: any) => n.id === selectedNodeId ? { ...n, state: 'building', prompt: promptDraft } : n);
+					useProjectStore.setState({
+						graph: { ...g, nodes: updatedNodes } as any,
+						selectedNode: state.selectedNodeId === selectedNodeId && state.selectedNode ? { ...state.selectedNode, state: 'building', prompt: promptDraft } as any : state.selectedNode
+					});
+				}
+			} catch {}
+
 			// Update the node state to "building" via Supabase
 			try {
 				if (supabaseConnected) {
@@ -143,6 +156,19 @@ export default function SelectedNodeSidebar() {
 			} catch (supabaseError) {
 				console.error('❌ Supabase final update failed:', supabaseError);
 			}
+
+			// Optimistic completion update
+			try {
+				const state = useProjectStore.getState();
+				const g = state.graph;
+				if (g) {
+					const updatedNodes = g.nodes.map((n: any) => n.id === selectedNodeId ? { ...n, state: 'built' } : n);
+					useProjectStore.setState({
+						graph: { ...g, nodes: updatedNodes } as any,
+						selectedNode: state.selectedNodeId === selectedNodeId && state.selectedNode ? { ...state.selectedNode, state: 'built' } as any : state.selectedNode
+					});
+				}
+			} catch {}
 
 			// Show success message
 			setRebuildSuccess(true);
@@ -396,5 +422,4 @@ export default function SelectedNodeSidebar() {
 		</div>
 	);
 }
-
 

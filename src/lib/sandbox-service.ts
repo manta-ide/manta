@@ -415,7 +415,6 @@ export class SandboxService {
         prompt: templateNode.prompt || '',
         state: templateNode.state || 'unbuilt',
         position: this.calculateNodePosition(templateNode, templateGraph.nodes), // Calculate position based on hierarchy
-        built: templateNode.state === 'built',
         properties: properties.length > 0 ? properties : undefined,
         children: (templateNode.children || []).map((child: any) => ({
           id: child.id,
@@ -488,7 +487,6 @@ export class SandboxService {
             position_y: node.position?.y || 0,
             width: node.width,
             height: node.height,
-            built: node.built,
             user_id: userId
           });
 
