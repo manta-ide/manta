@@ -152,6 +152,46 @@ function normalizeGraph(raw: unknown): Graph {
    Graph Sync / Consistency
    ========================= */
 
+// Compare property structures ignoring only the value field and order; return true if structurally equal
+function arePropertyStructuresEqual(a?: GraphNode['properties'], b?: GraphNode['properties']): boolean {
+  const arrA = Array.isArray(a) ? a : [];
+  const arrB = Array.isArray(b) ? b : [];
+  if (arrA.length !== arrB.length) return false;
+
+  const normalize = (p: any) => ({
+    id: p?.id ?? '',
+    title: p?.title ?? '',
+    type: p?.type ?? '',
+    maxLength: p?.maxLength ?? undefined,
+    min: p?.min ?? undefined,
+    max: p?.max ?? undefined,
+    step: p?.step ?? undefined,
+    options: Array.isArray(p?.options) ? [...p.options] : undefined,
+    fields: p?.fields ? JSON.stringify(p.fields) : undefined,
+    itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
+    itemTitle: p?.itemTitle ?? undefined,
+    addLabel: p?.addLabel ?? undefined,
+  });
+
+  const mapA = new Map<string, string>();
+  for (const p of arrA) {
+    const key = String(p?.id ?? '');
+    mapA.set(key, JSON.stringify(normalize(p)));
+  }
+  const mapB = new Map<string, string>();
+  for (const p of arrB) {
+    const key = String(p?.id ?? '');
+    mapB.set(key, JSON.stringify(normalize(p)));
+  }
+
+  if (mapA.size !== mapB.size) return false;
+  for (const [id, normA] of mapA.entries()) {
+    const normB = mapB.get(id);
+    if (normA !== normB) return false;
+  }
+  return true;
+}
+
 function buildIndex(graph: Graph): Map<string, GraphNode> {
   return new Map<string, GraphNode>(graph.nodes.map((n) => [n.id, n] as const));
 }
@@ -599,37 +639,11 @@ export const graphEditorTools = {
           return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'edit_node', nodeId } };
         }
 
-        // Auto mark node as unbuilt if prompt or properties structure changed
+        // Auto mark node as unbuilt if prompt or properties structure changed (ignore pure value updates)
         const didPromptChange = typeof prompt === 'string' && prompt !== originalPrompt;
-        const didPropertyStructureChange = (() => {
-          if (properties === undefined) return false;
-          const before = originalProperties || [];
-          const after = Array.isArray(properties) ? properties : [];
-          if (before.length !== after.length) return true;
-          // Compare structural fields only (id, title, type, options, constraints, complex schemas), ignore value changes
-          const normalize = (p: any) => ({
-            id: p?.id ?? '',
-            title: p?.title ?? '',
-            type: p?.type ?? '',
-            maxLength: p?.maxLength ?? undefined,
-            min: p?.min ?? undefined,
-            max: p?.max ?? undefined,
-            step: p?.step ?? undefined,
-            options: Array.isArray(p?.options) ? [...p.options] : undefined,
-            fields: p?.fields ? JSON.stringify(p.fields) : undefined,
-            itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
-            itemTitle: p?.itemTitle ?? undefined,
-            addLabel: p?.addLabel ?? undefined,
-          });
-          for (let i = 0; i < before.length; i++) {
-            const a = normalize(before[i]);
-            const b = normalize(after[i]);
-            const aKey = JSON.stringify(a);
-            const bKey = JSON.stringify(b);
-            if (aKey !== bKey) return true;
-          }
-          return false;
-        })();
+        const didPropertyStructureChange = properties === undefined
+          ? false
+          : !arePropertyStructuresEqual(originalProperties, properties);
 
         if (didPromptChange || didPropertyStructureChange) {
           nodeToEdit.state = "unbuilt";
@@ -708,36 +722,9 @@ export const graphEditorTools = {
           return { success: false, message: `Invalid graph structure: ${validationResult.error.message}`, operation: { type: 'update_properties', nodeId } };
         }
 
-        // Auto mark node as unbuilt if prompt or properties structure changed
+        // Auto mark node as unbuilt if prompt or properties structure changed (ignore pure value updates)
         const didPromptChange = typeof prompt === 'string' && prompt !== originalPrompt;
-        const didPropertyStructureChange = (() => {
-          const before = originalProperties || [];
-          const after = Array.isArray(properties) ? properties : [];
-          if (before.length !== after.length) return true;
-          // Compare structural fields only (id, title, type, options, constraints, complex schemas), ignore value changes
-          const normalize = (p: any) => ({
-            id: p?.id ?? '',
-            title: p?.title ?? '',
-            type: p?.type ?? '',
-            maxLength: p?.maxLength ?? undefined,
-            min: p?.min ?? undefined,
-            max: p?.max ?? undefined,
-            step: p?.step ?? undefined,
-            options: Array.isArray(p?.options) ? [...p.options] : undefined,
-            fields: p?.fields ? JSON.stringify(p.fields) : undefined,
-            itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
-            itemTitle: p?.itemTitle ?? undefined,
-            addLabel: p?.addLabel ?? undefined,
-          });
-          for (let i = 0; i < before.length; i++) {
-            const a = normalize(before[i]);
-            const b = normalize(after[i]);
-            const aKey = JSON.stringify(a);
-            const bKey = JSON.stringify(b);
-            if (aKey !== bKey) return true;
-          }
-          return false;
-        })();
+        const didPropertyStructureChange = !arePropertyStructuresEqual(originalProperties, nodeToEdit.properties);
 
         if (didPromptChange || didPropertyStructureChange) {
           nodeToEdit.state = "unbuilt";

@@ -206,4 +206,18 @@
   display: none;
 }
 
+/* Keep numbering continuous across multiple top-level ordered lists
+   inside a single rendered Markdown block. Nested lists remain unaffected. */
+.md-ol-continue {
+  counter-reset: mdTopOl;
+}
+.md-ol-continue > ol {
+  list-style: none; /* hide default marker for top-level ol only */
+}
+.md-ol-continue > ol > li {
+  counter-increment: mdTopOl;
+}
+.md-ol-continue > ol > li::marker {
+  content: counter(mdTopOl) ". ";
+}
 

@@ -116,10 +116,15 @@ export default function FloatingChat() {
     h1: ({ children }: any) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
     h2: ({ children }: any) => <h2 className="text-base font-bold text-white mb-2">{children}</h2>,
     h3: ({ children }: any) => <h3 className="text-sm font-bold text-white mb-1">{children}</h3>,
-    p: ({ children }: any) => <p className="text-zinc-200 mb-2">{children}</p>,
-    ul: ({ children }: any) => <ul className="list-disc list-inside text-zinc-200 mb-2 space-y-1">{children}</ul>,
-    ol: ({ children }: any) => <ol className="list-decimal list-inside text-zinc-200 mb-2 space-y-1">{children}</ol>,
-    li: ({ children }: any) => <li className="text-zinc-200">{children}</li>,
+    p: ({ children }: any) => <p className="text-zinc-200 mb-2 break-words">{children}</p>,
+    // Use outside markers with padding to avoid numbering issues
+    ul: ({ children }: any) => (
+      <ul className="list-disc pl-4 text-zinc-200 mb-2 space-y-1">{children}</ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol className="list-decimal pl-4 text-zinc-200 mb-2 space-y-1">{children}</ol>
+    ),
+    li: ({ children }: any) => <li className="text-zinc-200 break-words">{children}</li>,
     strong: ({ children }: any) => <strong className="font-bold text-white">{children}</strong>,
     em: ({ children }: any) => <em className="italic text-zinc-300">{children}</em>,
     code: ({ children, className }: any) => {
@@ -385,7 +390,16 @@ export default function FloatingChat() {
         {!loadingHistory && lastTwoMessages.map((m, idx) => {
           const isStreamingAssistant = m.role === 'assistant' && loading && idx === lastTwoMessages.length - 1;
           const typedCacheRef = (FloatingChat as any)._typedCache || ((FloatingChat as any)._typedCache = new Set<string>());
-          const shouldTypeFinal = m.role === 'assistant' && !loading && idx === lastTwoMessages.length - 1 && !!m.content && !typedCacheRef.has(m.content);
+          const isMarkdownHeavy = !!m.content && /(\n|^)\s*(\d+\.\s|[-*+]\s|```|#{1,6}\s|>\s)/.test(m.content);
+          const shouldTypeFinal = (
+            m.role === 'assistant' &&
+            !loading &&
+            idx === lastTwoMessages.length - 1 &&
+            !!m.content &&
+            !typedCacheRef.has(m.content) &&
+            !isMarkdownHeavy &&
+            m.content.length < 1500
+          );
 
           function AnimatedTyping({ text, onDone, speed = 1 }: { text: string; onDone?: () => void; speed?: number }) {
             const [shown, setShown] = useState('');
@@ -418,9 +432,11 @@ export default function FloatingChat() {
             }, [text, onDone, speed]);
             return (
               <div className="text-zinc-200">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {shown}
-                </ReactMarkdown>
+                <div className="md-ol-continue">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                    {shown}
+                  </ReactMarkdown>
+                </div>
               </div>
             );
           }
@@ -446,9 +462,11 @@ export default function FloatingChat() {
                 {isStreamingAssistant ? (
                   <div className="mb-2">
                     {m.content && m.content.trim().length > 0 ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                        {m.content}
-                      </ReactMarkdown>
+                      <div className="md-ol-continue">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {m.content}
+                        </ReactMarkdown>
+                      </div>
                     ) : (
                       <ShimmeringText
                         text={'Thinking...'}
@@ -468,12 +486,14 @@ export default function FloatingChat() {
                     speed={1.5}
                   />
                 ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {m.content || ''}
-                  </ReactMarkdown>
+                  <div className="md-ol-continue">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {m.content || ''}
+                    </ReactMarkdown>
+                  </div>
                 )}
               </div>
             </div>

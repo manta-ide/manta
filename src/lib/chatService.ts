@@ -172,23 +172,72 @@ export function useChatService() {
       const contentType = response.headers.get('Content-Type') || '';
 
       if (contentType.includes('text/plain')) {
-        // Streaming mode: show only the latest line during stream.
-        // For the final message, display a few sentences (accumulated lines), not just one.
+        // Streaming mode: accumulate and display the full response progressively.
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let latestLine = '';
+        let fullText = '';
         const stripLabel = (s: string) => s.replace(/^\s*(Conclusion:|Final:|Result:)\s*/i, '');
-        const finalLines: string[] = [];
-        const seenLines = new Set<string>();
-        const pushFinal = (line: string) => {
-          const clean = stripLabel(line.trim());
-          if (!clean) return;
+
+        const pushLine = (line: string) => {
+          // Preserve leading indentation for Markdown structure (nested lists/code)
+          if (line === undefined || line === null) return;
+          // Keep exact leading spaces, trim only the right side
+          const match = String(line).match(/^(\s*)(.*)$/) as RegExpMatchArray | null;
+          const indent = match ? match[1] : '';
+          const rest = match ? match[2] : String(line);
+          const stripped = stripLabel(rest);
+          const combined = indent + stripped.replace(/\s+$/, '');
+
           // Avoid echoing the user prompt verbatim
-          if (clean.toLowerCase() === input.toLowerCase().trim()) return;
-          if (seenLines.has(clean)) return;
-          seenLines.add(clean);
-          finalLines.push(clean);
+          if (combined.trim().toLowerCase() === input.toLowerCase().trim()) return;
+
+          // If the line is empty, still add a newline to maintain paragraph/list spacing
+          if (combined.length === 0) {
+            fullText += '\n';
+            return;
+          }
+
+          fullText += (fullText ? '\n' : '') + combined;
+        };
+
+        const normalizeMarkdownLists = (text: string) => {
+          const lines = text.split(/\r?\n/);
+          let insideOl = false;
+          let sawOlItemOnPrevNonEmptyLine = false;
+          const out: string[] = [];
+          for (let i = 0; i < lines.length; i++) {
+            const raw = lines[i];
+            const isOl = /^\s*\d+\.\s+/.test(raw);
+            const isUlTop = /^\s*[-*+]\s+/.test(raw);
+            const isEmpty = /^\s*$/.test(raw);
+
+            if (isOl) {
+              insideOl = true;
+              sawOlItemOnPrevNonEmptyLine = true;
+              out.push(raw);
+              continue;
+            }
+
+            if (isUlTop && insideOl && sawOlItemOnPrevNonEmptyLine) {
+              // Ensure nested UL is actually nested inside the preceding OL item by indenting
+              const indented = '    ' + raw.trimStart();
+              out.push(indented);
+              continue;
+            }
+
+            if (!isEmpty) {
+              // Any non-list, non-empty line breaks the OL context
+              insideOl = false;
+              sawOlItemOnPrevNonEmptyLine = false;
+            } else {
+              // Keep empty line but don't break OL context; next UL may still belong to current li
+              sawOlItemOnPrevNonEmptyLine = false;
+            }
+
+            out.push(raw);
+          }
+          return out.join('\n');
         };
 
         if (reader) {
@@ -201,17 +250,16 @@ export function useChatService() {
             // Split into lines; keep last partial in buffer
             const parts = buffer.split(/\r?\n/);
             buffer = parts.pop() || '';
-            const completed = parts.filter((l) => l.trim().length > 0);
+            const completed = parts; // include empty lines and preserve indentation
             if (completed.length > 0) {
-              // Accumulate completed lines for final display
-              completed.forEach((l) => pushFinal(l));
-              latestLine = stripLabel(completed[completed.length - 1].trim());
-              // Update UI with only the latest line
+              completed.forEach((l) => pushLine(l));
+              // Update UI with the full accumulated content for proper Markdown rendering
+              const nextText = normalizeMarkdownLists(fullText);
               setMessages((prev) => {
                 const updated = [...prev];
                 const last = updated[updated.length - 1];
                 if (last && last.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, content: latestLine } as any;
+                  updated[updated.length - 1] = { ...last, content: nextText } as any;
                 }
                 return updated;
               });
@@ -219,18 +267,13 @@ export function useChatService() {
           }
         }
 
-        // Process any remaining buffer as a final line
-        const leftover = buffer.trim();
+        // Process any remaining buffer as final text
+        const leftover = buffer;
         if (leftover.length > 0) {
-          latestLine = stripLabel(leftover);
-          pushFinal(latestLine);
+          pushLine(leftover);
         }
 
-        // Final content: a few sentences (accumulated). Limit to keep it concise.
-        const MAX_LINES = 6;
-        const finalContent = (finalLines.length > 0
-          ? finalLines.slice(0, MAX_LINES).join('\n')
-          : (latestLine || 'Done.'));
+        const finalContent = normalizeMarkdownLists(fullText || 'Done.');
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -241,7 +284,7 @@ export function useChatService() {
               variables: { ASSISTANT_RESPONSE: finalContent }
             } as any;
           }
-          // Persist only the final short message
+          // Persist the complete final message
           saveChatHistory(updated);
           return updated;
         });
