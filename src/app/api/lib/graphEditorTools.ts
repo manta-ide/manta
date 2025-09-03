@@ -7,6 +7,7 @@ import {
   // Types from your schemas
   Graph,
   GraphNode,
+  Property,
 } from './schemas';
 
 /* =========
@@ -152,42 +153,60 @@ function normalizeGraph(raw: unknown): Graph {
    Graph Sync / Consistency
    ========================= */
 
-// Compare property structures ignoring only the value field and order; return true if structurally equal
+// Deeply compare property structures ignoring value fields and order
 function arePropertyStructuresEqual(a?: GraphNode['properties'], b?: GraphNode['properties']): boolean {
   const arrA = Array.isArray(a) ? a : [];
   const arrB = Array.isArray(b) ? b : [];
   if (arrA.length !== arrB.length) return false;
 
-  const normalize = (p: any) => ({
-    id: p?.id ?? '',
-    title: p?.title ?? '',
-    type: p?.type ?? '',
-    maxLength: p?.maxLength ?? undefined,
-    min: p?.min ?? undefined,
-    max: p?.max ?? undefined,
-    step: p?.step ?? undefined,
-    options: Array.isArray(p?.options) ? [...p.options] : undefined,
-    fields: p?.fields ? JSON.stringify(p.fields) : undefined,
-    itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
-    itemTitle: p?.itemTitle ?? undefined,
-    addLabel: p?.addLabel ?? undefined,
-  });
+  const sortOptions = (opts?: string[]) => Array.isArray(opts) ? [...opts].sort() : undefined;
 
-  const mapA = new Map<string, string>();
+  const normalizeProperty = (p: any): any => {
+    const base: any = {
+      id: p?.id ?? '',
+      title: p?.title ?? '',
+      type: p?.type ?? '',
+      maxLength: p?.maxLength ?? undefined,
+      min: p?.min ?? undefined,
+      max: p?.max ?? undefined,
+      step: p?.step ?? undefined,
+      options: sortOptions(p?.options),
+      itemTitle: p?.itemTitle ?? undefined,
+      addLabel: p?.addLabel ?? undefined,
+    };
+    // Normalize nested fields recursively, ignoring values
+    if (Array.isArray(p?.fields)) {
+      const byId: Record<string, any> = {};
+      for (const child of p.fields) {
+        byId[String(child?.id ?? '')] = normalizeProperty(child);
+      }
+      base.fields = byId;
+    }
+    if (Array.isArray(p?.itemFields)) {
+      const byId: Record<string, any> = {};
+      for (const child of p.itemFields) {
+        byId[String(child?.id ?? '')] = normalizeProperty(child);
+      }
+      base.itemFields = byId;
+    }
+    return base;
+  };
+
+  const mapA = new Map<string, any>();
   for (const p of arrA) {
     const key = String(p?.id ?? '');
-    mapA.set(key, JSON.stringify(normalize(p)));
+    mapA.set(key, normalizeProperty(p));
   }
-  const mapB = new Map<string, string>();
+  const mapB = new Map<string, any>();
   for (const p of arrB) {
     const key = String(p?.id ?? '');
-    mapB.set(key, JSON.stringify(normalize(p)));
+    mapB.set(key, normalizeProperty(p));
   }
 
   if (mapA.size !== mapB.size) return false;
   for (const [id, normA] of mapA.entries()) {
     const normB = mapB.get(id);
-    if (normA !== normB) return false;
+    if (!normB || JSON.stringify(normA) !== JSON.stringify(normB)) return false;
   }
   return true;
 }
@@ -393,8 +412,68 @@ const ReadGraphParamsSchema = z.object({
 }).strict();
 
 /* =========================
-   Tools (typed)
-   ========================= */
+  Tools (typed)
+  ========================= */
+
+// Update a property's value by id. If the id belongs to a nested field under an object/object-list
+// property, update the container's value payload rather than the field schema.
+function updatePropertyValueById(props: Property[], newProp: Property): boolean {
+  const targetId = (newProp as any).id as string;
+  for (const p of props) {
+    const type = (p as any).type as string | undefined;
+    // Direct top-level match
+    if (p.id === targetId) {
+      (p as any).value = (newProp as any).value;
+      return true;
+    }
+
+    // Object: if fields contain the target, set it on the object's value map
+    if (type === 'object' && Array.isArray((p as any).fields)) {
+      const hasField = ((p as any).fields as any[]).some(f => (f?.id as string) === targetId);
+      if (hasField) {
+        if (!(p as any).value || typeof (p as any).value !== 'object') {
+          (p as any).value = {};
+        }
+        const objVal = (p as any).value as Record<string, any>;
+        objVal[targetId] = (newProp as any).value;
+        return true;
+      }
+      // Also handle nested objects within fields schemas by checking their types
+      for (const f of (p as any).fields as any[]) {
+        if (f?.type === 'object' || f?.type === 'object-list') {
+          // Delegate by treating container p as current and recursing into a synthetic props list
+          const nestedContainer: Property = {
+            id: p.id,
+            title: p.title,
+            type: p.type as any,
+            value: (p as any).value,
+            fields: (p as any).fields,
+            itemFields: (p as any).itemFields,
+          } as any;
+          if (updatePropertyValueById([nestedContainer], newProp)) return true;
+        }
+      }
+    }
+
+    // Object-list: update each item's map when schema has the field
+    if (type === 'object-list' && Array.isArray((p as any).itemFields)) {
+      const hasItemField = ((p as any).itemFields as any[]).some(f => (f?.id as string) === targetId);
+      if (hasItemField) {
+        if (!Array.isArray((p as any).value)) {
+          // If there is no list yet, nothing to update. Do not create items implicitly.
+          return true; // Consider handled structurally
+        }
+        for (const item of ((p as any).value as any[])) {
+          if (item && typeof item === 'object') {
+            item[targetId] = (newProp as any).value;
+          }
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 export const graphEditorTools = {
   add_node: tool({
@@ -682,25 +761,25 @@ export const graphEditorTools = {
         const originalPrompt = nodeToEdit.prompt;
         const originalProperties = Array.isArray(nodeToEdit.properties) ? [...nodeToEdit.properties] : undefined;
 
-        // Merge properties (update existing ones, add new ones, preserve others)
+        // Merge properties with recursive update of nested fields by ID to avoid structural duplication
         const existingProperties = Array.isArray(nodeToEdit.properties) ? nodeToEdit.properties : [];
-        const updatedProperties = [...existingProperties];
-        
-        // Create a map of existing properties by ID for quick lookup
-        const existingPropsMap = new Map(existingProperties.map(p => [p.id, p]));
-        
-        // Update/add properties from the provided array
-        properties.forEach(newProp => {
-          const existingIndex = updatedProperties.findIndex(p => p.id === newProp.id);
-          if (existingIndex >= 0) {
-            // Update existing property
-            updatedProperties[existingIndex] = { ...updatedProperties[existingIndex], ...newProp };
-          } else {
-            // Add new property
-            updatedProperties.push(newProp);
+        const updatedProperties: Property[] = JSON.parse(JSON.stringify(existingProperties));
+
+        for (const newProp of properties as unknown as Property[]) {
+          const updatedNested = updatePropertyValueById(updatedProperties, newProp);
+          if (!updatedNested) {
+            // Fallback: update or add at top-level if not found nested
+            const idx = updatedProperties.findIndex(p => p.id === (newProp as any).id);
+            if (idx >= 0) {
+              // Only update value to avoid structural changes unless the caller truly changes schema
+              if ('value' in (newProp as any)) (updatedProperties[idx] as any).value = (newProp as any).value;
+            } else {
+              // If no existing property anywhere, add new one at top-level
+              updatedProperties.push(newProp as any);
+            }
           }
-        });
-        
+        }
+
         nodeToEdit.properties = updatedProperties;
 
         // Update optional fields

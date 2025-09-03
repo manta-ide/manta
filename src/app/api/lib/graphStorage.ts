@@ -398,6 +398,12 @@ export async function storeGraph(graph: Graph, userId: string): Promise<void> {
 
   // Persist to Supabase (no sockets)
   await saveGraphToSupabase(normalized, userId);
+  // Update vars.json used by Vite/Blaxel runtime so UI reflects property value changes
+  try {
+    await writeVarsJsonToBlaxel(userId, normalized);
+  } catch (e) {
+    console.warn('Failed to write vars.json after save; UI may lag until next PATCH update', e);
+  }
   // Notify connected clients to reload via Realtime broadcast
   await broadcastGraphReload(userId);
 }
@@ -428,10 +434,12 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
   if (a.title !== b.title) return false;
   if (a.prompt !== b.prompt) return false;
   // Don't compare children arrays - changes to children shouldn't mark parent as unbuilt
-  // Compare properties structure (ignore values). If structure differs, treat as changed
-  const normalizeProps = (props?: any[]) => {
-    if (!Array.isArray(props)) return [] as any[];
-    return props.map((p) => ({
+
+  // Deeply compare properties structure, ignoring value fields and order of options/fields
+  const sortOptions = (opts?: string[]) => Array.isArray(opts) ? [...opts].sort() : undefined;
+
+  const normalizeProperty = (p: any): any => {
+    const base: any = {
       id: p?.id ?? '',
       title: p?.title ?? '',
       type: p?.type ?? '',
@@ -439,14 +447,37 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
       min: p?.min ?? undefined,
       max: p?.max ?? undefined,
       step: p?.step ?? undefined,
-      options: Array.isArray(p?.options) ? [...p.options] : undefined,
-      // Include complex schemas in structural comparison
-      fields: p?.fields ? JSON.stringify(p.fields) : undefined,
-      itemFields: p?.itemFields ? JSON.stringify(p.itemFields) : undefined,
+      options: sortOptions(p?.options),
       itemTitle: p?.itemTitle ?? undefined,
       addLabel: p?.addLabel ?? undefined,
-    }));
+    };
+    if (Array.isArray(p?.fields)) {
+      const byId: Record<string, any> = {};
+      for (const child of p.fields) {
+        byId[String(child?.id ?? '')] = normalizeProperty(child);
+      }
+      base.fields = byId;
+    }
+    if (Array.isArray(p?.itemFields)) {
+      const byId: Record<string, any> = {};
+      for (const child of p.itemFields) {
+        byId[String(child?.id ?? '')] = normalizeProperty(child);
+      }
+      base.itemFields = byId;
+    }
+    return base;
   };
+
+  const normalizeProps = (props?: any[]) => {
+    if (!Array.isArray(props)) return {} as Record<string, any>;
+    const map: Record<string, any> = {};
+    for (const p of props) {
+      const id = String(p?.id ?? '');
+      map[id] = normalizeProperty(p);
+    }
+    return map;
+  };
+
   const aStruct = JSON.stringify(normalizeProps(a.properties));
   const bStruct = JSON.stringify(normalizeProps(b.properties));
   if (aStruct !== bStruct) return false;

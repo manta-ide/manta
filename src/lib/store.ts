@@ -471,8 +471,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
                 break;
               }
                 
-              case 'graph_loaded':
-                set({ graph: event.graph, graphLoading: false });
+              case 'graph_loaded': {
+                // Update graph snapshot; also refresh selectedNode from latest graph to reflect server-side changes
+                const nextGraph = event.graph;
+                const currentSelectedId = state.selectedNodeId;
+                if (currentSelectedId) {
+                  const updatedSelected = nextGraph.nodes.find(n => n.id === currentSelectedId) || null;
+                  set({ graph: nextGraph, graphLoading: false, selectedNode: updatedSelected });
+                } else {
+                  set({ graph: nextGraph, graphLoading: false });
+                }
+                break;
+              }
                 break;
                 
               case 'node_position_updated':
