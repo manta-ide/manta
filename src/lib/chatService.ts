@@ -176,6 +176,12 @@ export function useChatService() {
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let fullText = '';
+        // We want to wait a bit before revealing the first chunks
+        // so the UI can animate the whole message when generation is quick.
+        const streamStart = Date.now();
+        const revealDelayMs = 900; // small delay to favor full-animation on short responses
+        const minCharsBeforeReveal = 400; // wait until we have a decent chunk
+        let revealed = false; // whether we've started showing partial content
 
         const sanitizeAssistant = (text: string) => {
           return text
@@ -230,16 +236,41 @@ export function useChatService() {
             // Append chunk as-is to avoid losing large content due to line splitting edge cases
             fullText += chunk;
 
-            // Update UI progressively
-            const nextText = normalizeMarkdownLists(sanitizeAssistant(fullText));
-            setMessages((prev) => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last && last.role === 'assistant') {
-                updated[updated.length - 1] = { ...last, content: nextText } as any;
+            // Decide whether to reveal streaming content yet, or keep showing Thinking...
+            const now = Date.now();
+            if (!revealed) {
+              const waitedLongEnough = now - streamStart >= revealDelayMs;
+              const hasEnoughContent = fullText.length >= minCharsBeforeReveal;
+              // Reveal only if generation is taking longer AND we have some meaningful text
+              if (waitedLongEnough && hasEnoughContent) {
+                revealed = true;
+                const nextText = normalizeMarkdownLists(sanitizeAssistant(fullText));
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last && last.role === 'assistant') {
+                    updated[updated.length - 1] = {
+                      ...last,
+                      content: nextText,
+                      // Mark that this message began streaming in the UI
+                      variables: { ...(last as any).variables, HAD_STREAMING: '1' }
+                    } as any;
+                  }
+                  return updated;
+                });
               }
-              return updated;
-            });
+            } else {
+              // Already revealing; keep updating progressively
+              const nextText = normalizeMarkdownLists(sanitizeAssistant(fullText));
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, content: nextText } as any;
+                }
+                return updated;
+              });
+            }
           }
         }
 
@@ -252,7 +283,10 @@ export function useChatService() {
             updated[updated.length - 1] = {
               ...last,
               content: finalContent,
-              variables: finalContent ? { ASSISTANT_RESPONSE: finalContent } : last.variables
+              // Preserve HAD_STREAMING if it was set; set final response for persistence
+              variables: finalContent
+                ? { ...(last as any).variables, ASSISTANT_RESPONSE: finalContent }
+                : (last as any).variables
             } as any;
           }
           // Persist the complete final message

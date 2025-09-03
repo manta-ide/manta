@@ -398,7 +398,9 @@ export default function FloatingChat() {
             !!m.content &&
             !typedCacheRef.has(m.content) &&
             !isMarkdownHeavy &&
-            m.content.length < 1500
+            m.content.length < 1500 &&
+            // Do not animate if we already revealed streaming chunks
+            (m as any)?.variables?.HAD_STREAMING !== '1'
           );
 
           function AnimatedTyping({ text, onDone, speed = 1 }: { text: string; onDone?: () => void; speed?: number }) {
