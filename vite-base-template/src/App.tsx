@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -21,6 +21,33 @@ export default function App({ vars }: AppProps) {
     "--section-padding-x": rootStyles["section-padding-x"] ?? vars["section-padding-x"] ?? "24px",
     "--border-radius-global": rootStyles["border-radius-global"] ?? vars["border-radius-global"] ?? "12px",
   } as React.CSSProperties;
+
+  // Pick the active font family from vars/root-styles
+  const activeFontFamily = (rootStyles["font-family"] ?? vars["font-family"] ?? "Poppins") as string;
+
+  // Build a Google Fonts href for the selected family (simple weights)
+  const googleFontHref = useMemo(() => {
+    // Skip if the font looks like a generic stack
+    if (!activeFontFamily || /,/.test(activeFontFamily)) return null;
+    const family = encodeURIComponent(activeFontFamily).replace(/%20/g, "+");
+    return `https://fonts.googleapis.com/css2?family=${family}:wght@400;600;700&display=swap`;
+  }, [activeFontFamily]);
+
+  // Inject/update Google Fonts <link> when font family changes
+  useEffect(() => {
+    if (!googleFontHref) return;
+    const id = "dynamic-google-font-link";
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    if (link.href !== googleFontHref) {
+      link.href = googleFontHref;
+    }
+  }, [googleFontHref]);
 
   const navLinks = (vars["nav-links"] as string || "Home, Projects, About, Contact")
     .split(",")
@@ -84,7 +111,12 @@ export default function App({ vars }: AppProps) {
   return (
     <main
       id="portfolio-page"
-      style={cssVars}
+      style={{
+        ...cssVars,
+        // Apply the font variables globally on the page root
+        fontFamily: 'var(--font-family), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"',
+        fontSize: 'var(--base-font-size)'
+      }}
       className={
         "min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/30 selection:text-white" 
       }
