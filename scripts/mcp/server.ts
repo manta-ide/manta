@@ -61,12 +61,11 @@ server.registerTool(
       // userId is not used by the backend endpoint; access is determined by the token's subject.
       userId: z.string().optional(),
       includeEdges: z.boolean().optional().default(true),
-      baseUrl: z.string().url().optional(),
       accessToken: z.string().optional(),
     },
   },
-  async ({ includeEdges, baseUrl, accessToken }) => {
-    const origin = resolveBaseUrl(baseUrl);
+  async ({ includeEdges, accessToken }) => {
+    const origin = resolveBaseUrl();
     const token = resolveAccessToken(accessToken);
     const url = `${origin}/api/backend/graph-api`;
     const data = await httpGet(url, token);
@@ -88,12 +87,11 @@ server.registerTool(
     description: "Fetch IDs of nodes that are not built via authenticated backend API.",
     inputSchema: {
       userId: z.string().optional(),
-      baseUrl: z.string().url().optional(),
       accessToken: z.string().optional(),
     },
   },
-  async ({ baseUrl, accessToken }) => {
-    const origin = resolveBaseUrl(baseUrl);
+  async ({ accessToken }) => {
+    const origin = resolveBaseUrl();
     const token = resolveAccessToken(accessToken);
     const url = `${origin}/api/backend/graph-api?unbuilt=true`;
     const data = await httpGet(url, token);
@@ -109,12 +107,11 @@ server.registerTool(
     description: "Fetch a specific node by id via authenticated backend API.",
     inputSchema: {
       nodeId: z.string().min(1, "nodeId is required"),
-      baseUrl: z.string().url().optional(),
       accessToken: z.string().optional(),
     },
   },
-  async ({ nodeId, baseUrl, accessToken }) => {
-    const origin = resolveBaseUrl(baseUrl);
+  async ({ nodeId, accessToken }) => {
+    const origin = resolveBaseUrl();
     const token = resolveAccessToken(accessToken);
     const url = `${origin}/api/backend/graph-api`;
     const data = await httpPost(url, { nodeId }, token);

@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, RotateCcw, Key, Copy } from 'lucide-react';
+import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, RotateCcw, Key, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,6 +38,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const [apiKey, setApiKey] = useState<string>('');
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -64,9 +65,10 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const copyApiKey = async () => {
     try {
       await navigator.clipboard.writeText(apiKey);
-      alert('API key copied');
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 1500);
     } catch {
-      alert('Failed to copy API key');
+      console.warn('Failed to copy API key');
     }
   };
 
@@ -339,7 +341,11 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
                 <div className="flex items-center gap-2">
                   <Input readOnly value={apiKey} className="font-mono text-xs" />
                   <Button variant="outline" size="sm" onClick={copyApiKey} title="Copy">
-                    <Copy className="w-3.5 h-3.5" />
+                    {apiKeyCopied ? (
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
                   </Button>
                 </div>
                 <p className="text-[11px] text-zinc-500">

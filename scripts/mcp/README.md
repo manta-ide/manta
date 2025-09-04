@@ -11,14 +11,14 @@ Auth model (per MCP over HTTP guidance)
 
 Exposed tools (all require Bearer):
 - `graph_read`:
-  - input: `{ includeEdges?: boolean, baseUrl?: string, accessToken?: string }`
+  - input: `{ includeEdges?: boolean, accessToken?: string }`
   - behavior: `GET /api/backend/graph-api`
   - output: `{ graph }`, optionally with edges stripped
 - `graph_unbuilt`:
-  - input: `{ baseUrl?: string, accessToken?: string }`
+  - input: `{ accessToken?: string }`
   - behavior: `GET /api/backend/graph-api?unbuilt=true`
 - `graph_node`:
-  - input: `{ nodeId: string, baseUrl?: string, accessToken?: string }`
+  - input: `{ nodeId: string, accessToken?: string }`
   - behavior: `POST /api/backend/graph-api` with `{ nodeId }`
 
 Install deps:
