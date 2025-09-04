@@ -12,7 +12,7 @@ const CODE_EDITOR_CONFIG = {
   maxSteps: 50,
   streaming: false,
   temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'minimal' } },
+  providerOptions: { azure: { reasoning_effort: 'medium' } },
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
@@ -67,8 +67,18 @@ async function buildParsedMessages(
   return parsed;
 }
 
-async function callAgent(request: NextRequest, body: unknown, userId?: string): Promise<Response> {
+async function callAgent(request: NextRequest, body: any, userId?: string): Promise<Response> {
   const base = process.env.BACKEND_URL || request.nextUrl.origin;
+  // Inject metadata hints for runner/tool behavior (informational; tools enforce caps)
+  const payload = {
+    ...body,
+    metadata: {
+      enforceWindowedReads: true,
+      defaultReadLimitLines: 400,
+      maxReadChars: 3000,
+      truncateToolOutputs: true,
+    },
+  };
   return fetch(`${base}/api/llm-agent/run`, {
     method: 'POST',
     headers: {
@@ -77,7 +87,7 @@ async function callAgent(request: NextRequest, body: unknown, userId?: string): 
       ...(request.headers.get('authorization') ? { authorization: request.headers.get('authorization') as string } : {}),
       ...(userId ? { 'x-user-id': userId } : {}),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
     signal: request.signal,
   });
 }
@@ -198,8 +208,12 @@ export async function POST(req: NextRequest) {
 
     // Get the full response as JSON instead of streaming
     const result = await codeEditorResponse.json();
-    
-    console.log('📝 Code editor result:', JSON.stringify(result, null, 2));
+    // Avoid logging massive payloads; log a compact summary
+    try {
+      const content = result?.result?.content || result?.result?.text || result?.content || '';
+      const preview = typeof content === 'string' ? content.slice(0, 400) : '';
+      console.log('📝 Code editor result: finishReason=', result?.result?.finishReason || result?.finishReason, ' contentLen=', typeof content === 'string' ? content.length : 0, ' preview=', preview);
+    } catch {}
     
     // Mark processed nodes as built
     try {

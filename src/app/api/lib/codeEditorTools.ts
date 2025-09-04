@@ -10,8 +10,11 @@ export function setCodeEditorAuthHeaders(headers: Record<string, string>) {
 }
 
 
-// Maximum file size to read (in lines) to prevent memory issues
-const MAX_FILE_LINES = 1000;
+// Hard caps to prevent context bloat
+const DEFAULT_WINDOW_LINES = 400; // make this the norm for reads
+const MAX_FILE_LINES = 1000; // absolute guardrail on line slices
+const MAX_READ_CHARS = 3000; // hard cap for readFile return payload
+const PREVIEW_CHARS = 300; // preview size for write operations
 
 // Unified file API functions (handles both Blaxel and local files)
 async function callFilesApi(method: string, path: string, body?: any) {
@@ -242,12 +245,12 @@ export async function buildProject(filePath?: string) {
 // }
 export const codeEditorTools: ToolSet = {
   readFile: tool({
-    description: 'Read a file and return its content. Uses unified API that handles both Blaxel sandbox and local file system.',
+    description: 'Read a file window (not the whole file). Always pass a window using offset + limit; responses are clipped to ~3k chars. Uses unified API that handles both Blaxel sandbox and local file system.',
     parameters: z.object({
       /* explanation: z.string().describe('Short explanation of why you want to read this file'), */
       path: z.string().describe('The file path relative to the project root'),
-      offset: z.number().int().min(0).optional().describe('Optional line offset (0-based) for partial reads'),
-      limit: z.number().int().min(1).optional().describe('Optional number of lines to read after offset'),
+      offset: z.number().int().min(0).optional().describe('Line offset (0-based). Required for partial reads; defaults to 0.'),
+      limit: z.number().int().min(1).optional().describe('Number of lines to read after offset. Defaults to 400 and will be clamped.'),
     }),
     execute: async ({ path, offset, limit }) => {
       try {
@@ -265,8 +268,9 @@ export const codeEditorTools: ToolSet = {
         const { content, source } = result;
         const allLines = content.split('\n');
         const start = Math.max(0, Number.isFinite(offset as number) ? (offset as number) : 0);
-        const hasLimit = Number.isFinite(limit as number);
-        const end = hasLimit ? Math.min(allLines.length, start + (limit as number)) : allLines.length;
+        const requestedLimit = Number.isFinite(limit as number) ? (limit as number) : DEFAULT_WINDOW_LINES;
+        const clampedLimit = Math.max(1, Math.min(requestedLimit, DEFAULT_WINDOW_LINES));
+        const end = Math.min(allLines.length, start + clampedLimit);
         const lines = allLines.slice(start, end);
         
         // Enforce max payload only for the returned slice
@@ -280,14 +284,22 @@ export const codeEditorTools: ToolSet = {
           };
         }
         
-        // Do not run project-wide validation on read; return content only
-        return { 
-          success: true, 
-          message: `Successfully read file from ${source}: ${path}`,
-          content: lines.join('\n'),
+        // Clip payload to a hard char cap to prevent bloat
+        const joined = lines.join('\n');
+        const clipped = joined.length > MAX_READ_CHARS
+          ? joined.slice(0, MAX_READ_CHARS)
+          : joined;
+
+        // Do not run project-wide validation on read; return content only (windowed + clipped)
+        return {
+          success: true,
+          message: `Read ${lines.length} line window from ${source}: ${path} (lines ${start}-${end})` + (joined.length > clipped.length ? ' [clipped]' : ''),
+          content: clipped,
           lines: lines.length,
           path: path,
-          source: source
+          source: source,
+          window: { start, end, requestedLimit, appliedLimit: clampedLimit },
+          clipped: joined.length > clipped.length,
         };
       } catch (error) {
         return { 
@@ -324,18 +336,25 @@ export const codeEditorTools: ToolSet = {
           result.blaxelSuccess ? `Created file in Blaxel: ${path}` :
           `Created file locally: ${path}`;
         
-        return { 
-          success: true, 
+        // Prevent echoing entire file content back into the context
+        const preview = String(content || '').slice(0, PREVIEW_CHARS);
+        return {
+          success: true,
           message: successMessage,
-          operation: { type: 'create', path, content },
+          operation: {
+            type: 'create',
+            path,
+            contentPreview: preview,
+            contentLength: String(content || '').length,
+          },
           blaxelSuccess: result.blaxelSuccess,
-          localSuccess: result.localSuccess
+          localSuccess: result.localSuccess,
         };
       } catch (error) {
         return { 
           success: false, 
           message: `Failed to create file: ${error}`,
-          operation: { type: 'create', path, content }
+          operation: { type: 'create', path }
         };
       }
     },
@@ -367,18 +386,25 @@ export const codeEditorTools: ToolSet = {
           result.localSuccess ? `Updated file locally: ${path}` :
           `Failed to update file in both systems: ${path}`;
         
-        return { 
-          success: result.success, 
+        // Prevent echoing entire file content back into the context
+        const preview = String(content || '').slice(0, PREVIEW_CHARS);
+        return {
+          success: result.success,
           message: successMessage,
-          operation: { type: 'update', path, content },
+          operation: {
+            type: 'update',
+            path,
+            contentPreview: preview,
+            contentLength: String(content || '').length,
+          },
           blaxelSuccess: result.blaxelSuccess,
-          localSuccess: result.localSuccess
+          localSuccess: result.localSuccess,
         };
       } catch (error) {
         return { 
           success: false, 
           message: `Failed to update file: ${error}`,
-          operation: { type: 'update', path, content }
+          operation: { type: 'update', path }
         };
       }
     },
