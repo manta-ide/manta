@@ -54,7 +54,7 @@ Live progress style:
 {
   "id": "property-name",
   "title": "Property Title",
-  "type": "color|text|number|select|boolean|checkbox|radio|slider|object|object-list",
+  "type": "color|text|number|select|boolean|checkbox|radio|slider|font|object|object-list",
   "value": "default-value",
   "options": ["option1", "option2"], // for select/radio
   "maxLength": 100, // for text
@@ -83,6 +83,7 @@ Live progress style:
 - **checkbox**: Individual checkbox
 - **radio**: Radio button group
 - **slider**: Range slider
+- **font**: Font selector storing an object value `{ "family": string }`. Only set the family name; do not include weights or styles.
 - **object**: Group of nested fields edited together; store `value` as an object keyed by field ids. Use `fields: Property[]` to define children.
 - **object-list**: Repeatable list of objects with the same schema; store `value` as an array of objects. Use `itemFields: Property[]`, `itemTitle` and `addLabel` for UX.
 
@@ -100,6 +101,13 @@ Choose ONE palette for new graphs:
 **Minimalist**: ["#ffffff","#363636","#000000"]
 **Warm Earth**: ["#463f3a","#8a817c","#bcb8b1","#f4f3ee","#e0afa0"]
 
+## Fonts
+- Use a dedicated `font` property to declare fonts. Example on the page/root node:
+  - `{ id: "root-font", title: "Root Font", type: "font", options: ["Inter","Lato","Poppins",...], value: { family: "Poppins" } }`
+- Do NOT include weight/style in the property; the runtime loads all weights and italics for the selected family.
+- Continue to control actual usage via component classes (e.g., Tailwind `font-semibold`, `italic`) and other properties.
+- Keep base size separate: model base font size as a `select` (e.g., `base-font-size`) with `rem` options.
+
 ## Guidelines
 - Build hierarchy: `page → sections` (max 5 nodes)
 - Include all child element properties in parent nodes
@@ -115,6 +123,7 @@ Choose ONE palette for new graphs:
 
 ## Grouping With Objects
 - Use `object` to group related settings on the same node. Example: a CMS-style root node can have a `root-styles` object with fields like `background-color`, `text-color`, `font-family`, `base-font-size`, etc.
+  - Prefer the dedicated `font` property (e.g., `root-font`) instead of a plain `font-family` field.
 - Use `object-list` for repeatable content groups. Example: `social-links` with items of `{ name: text, url: text }` and a "+ Add Link" button in the editor.
 - Nested field ids should still follow global uniqueness conventions when used outside the group; otherwise they act as keys within the object value.
 

@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS graph_properties (
   id TEXT PRIMARY KEY,
   node_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('color','text','textarea','number','select','boolean','checkbox','radio','slider','object','object-list')),
+  type TEXT NOT NULL CHECK (type IN ('color','text','textarea','number','select','boolean','checkbox','radio','slider','font','object','object-list')),
   value JSONB,
   options TEXT[],
   fields JSONB,
@@ -39,6 +39,26 @@ CREATE TABLE IF NOT EXISTS graph_properties (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Ensure legacy CHECK constraints on graph_properties.type allow 'font'
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT conname
+    FROM pg_constraint
+    WHERE contype = 'c'
+      AND conrelid = 'public.graph_properties'::regclass
+  ) LOOP
+    -- Drop any existing CHECK constraint to redefine it
+    EXECUTE format('ALTER TABLE public.graph_properties DROP CONSTRAINT IF EXISTS %I', r.conname);
+  END LOOP;
+  -- Recreate a single CHECK constraint allowing the extended set including 'font'
+  ALTER TABLE public.graph_properties
+    ADD CONSTRAINT graph_properties_type_check
+    CHECK (type IN ('color','text','textarea','number','select','boolean','checkbox','radio','slider','font','object','object-list'));
+END $$;
 
 -- 2) Migration: drop legacy built column and map any existing values into state
 DO $$

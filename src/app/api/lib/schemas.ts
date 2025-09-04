@@ -123,6 +123,7 @@ export const PropertyTypeEnum = z.enum([
   'checkbox',
   'radio',
   'slider',
+  'font',
   // New complex property types
   'object',        // grouped fields as a single object value
   'object-list'    // list of objects with the same field schema

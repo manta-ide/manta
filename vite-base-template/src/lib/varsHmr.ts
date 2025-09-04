@@ -5,6 +5,64 @@ export type Vars = Record<string, any>;
 let supabase: SupabaseClient | null = null;
 let currentVars: Vars = {};
 
+function getVarRaw(vars: Vars, key: string): string | undefined {
+  const root = (vars["root-styles"] as Record<string, any>) || {};
+  return (root[key] as string) ?? (vars[key] as string) ?? undefined;
+}
+
+function ensureGoogleFontLoaded(family: string | undefined) {
+  if (!family) return;
+  // Skip if a stack is provided (contains comma) — assume already available
+  if (/,/.test(family)) return;
+  const familyParam = encodeURIComponent(family).replace(/%20/g, "+");
+  const weights = ['100','200','300','400','500','600','700','800','900'];
+  const pairs = weights.map((w) => `0,${w}`).concat(weights.map((w) => `1,${w}`)).join(';');
+  const axis = `ital,wght@${pairs}`;
+  const href = `https://fonts.googleapis.com/css2?family=${familyParam}:${axis}&display=swap`;
+  const id = "dynamic-google-font-link";
+  let link = document.getElementById(id) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }
+  if (link.href !== href) link.href = href;
+}
+
+function applyCssVarsFrom(vars: Vars) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const set = (name: string, value: string | undefined) => {
+    if (value === undefined || value === null || value === "") {
+      root.style.removeProperty(name);
+    } else {
+      root.style.setProperty(name, value);
+    }
+  };
+  // Always apply if a var value is present; otherwise remove it
+  set("--background-color", getVarRaw(vars, "background-color"));
+  set("--text-color", getVarRaw(vars, "text-color"));
+  set("--accent-color", getVarRaw(vars, "accent-color"));
+  set("--muted-color", getVarRaw(vars, "muted-color"));
+  set("--border-color", getVarRaw(vars, "border-color"));
+  set("--font-family", getVarRaw(vars, "font-family"));
+  set("--base-font-size", getVarRaw(vars, "base-font-size"));
+  set("--max-content-width", getVarRaw(vars, "max-content-width"));
+  set("--section-padding-y", getVarRaw(vars, "section-padding-y"));
+  set("--section-padding-x", getVarRaw(vars, "section-padding-x"));
+  set("--border-radius-global", getVarRaw(vars, "border-radius-global"));
+
+  // Load font if a dedicated font property exists (no flags)
+  const fontObj = (vars["root-font"] || vars["font"]) as any;
+  if (fontObj && typeof fontObj === 'object') {
+    const family = fontObj.family as string | undefined;
+    // If a font property is present, it governs the CSS var
+    if (family) root.style.setProperty('--font-family', family);
+    ensureGoogleFontLoaded(family);
+  }
+}
+
 function resolveEnv(name: string): string | undefined {
   // Vite exposes import.meta.env; fall back to process.env if available
   // @ts-ignore
@@ -49,7 +107,8 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
 
   // Emit initial vars (async fetch), then listen to broadcasts for updates
   fetchInitialVars().then((vars) => {
-    currentVars = vars;
+    currentVars = vars || {};
+    applyCssVarsFrom(currentVars);
     onUpdate(currentVars);
   });
 
@@ -63,6 +122,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
       const prop = data.property || {};
       if (prop?.id !== undefined) {
         currentVars = { ...currentVars, [prop.id]: prop.value };
+        applyCssVarsFrom(currentVars);
         onUpdate(currentVars);
       }
     })
@@ -71,6 +131,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
       const data = (payload as any)?.payload || {};
       if (data?.propertyId !== undefined) {
         currentVars = { ...currentVars, [data.propertyId]: data.value };
+        applyCssVarsFrom(currentVars);
         onUpdate(currentVars);
       }
     })
@@ -78,6 +139,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
     .on("broadcast", { event: "graph_reload" }, async () => {
       const next = await fetchInitialVars();
       currentVars = { ...next };
+      applyCssVarsFrom(currentVars);
       onUpdate(currentVars);
     })
     .subscribe();
@@ -96,4 +158,3 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
 export function getInitialVars(): Vars {
   return currentVars;
 }
-

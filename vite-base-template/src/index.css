@@ -117,3 +117,8 @@
   --sidebar-ring: oklch(0.442 0.017 285.786);
 }
 
+/* Inherit font family/size from CSS vars when provided (no defaults) */
+body {
+  font-family: var(--font-family), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: var(--base-font-size);
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -8,46 +8,6 @@ interface AppProps {
 
 export default function App({ vars }: AppProps) {
   const rootStyles = (vars["root-styles"] as Record<string, any>) || {};
-  const cssVars = {
-    "--background-color": rootStyles["background-color"] ?? vars["background-color"] ?? "#0b090a",
-    "--text-color": rootStyles["text-color"] ?? vars["text-color"] ?? "#f5f3f4",
-    "--accent-color": rootStyles["accent-color"] ?? vars["accent-color"] ?? "#e5383b",
-    "--muted-color": rootStyles["muted-color"] ?? vars["muted-color"] ?? "#b1a7a6",
-    "--border-color": rootStyles["border-color"] ?? vars["border-color"] ?? "#161a1d",
-    "--font-family": rootStyles["font-family"] ?? vars["font-family"] ?? "Poppins",
-    "--base-font-size": rootStyles["base-font-size"] ?? vars["base-font-size"] ?? "1rem",
-    "--max-content-width": rootStyles["max-content-width"] ?? vars["max-content-width"] ?? "256px",
-    "--section-padding-y": rootStyles["section-padding-y"] ?? vars["section-padding-y"] ?? "48px", 
-    "--section-padding-x": rootStyles["section-padding-x"] ?? vars["section-padding-x"] ?? "24px",
-    "--border-radius-global": rootStyles["border-radius-global"] ?? vars["border-radius-global"] ?? "12px",
-  } as React.CSSProperties;
-
-  // Pick the active font family from vars/root-styles
-  const activeFontFamily = (rootStyles["font-family"] ?? vars["font-family"] ?? "Poppins") as string;
-
-  // Build a Google Fonts href for the selected family (simple weights)
-  const googleFontHref = useMemo(() => {
-    // Skip if the font looks like a generic stack
-    if (!activeFontFamily || /,/.test(activeFontFamily)) return null;
-    const family = encodeURIComponent(activeFontFamily).replace(/%20/g, "+");
-    return `https://fonts.googleapis.com/css2?family=${family}:wght@400;600;700&display=swap`;
-  }, [activeFontFamily]);
-
-  // Inject/update Google Fonts <link> when font family changes
-  useEffect(() => {
-    if (!googleFontHref) return;
-    const id = "dynamic-google-font-link";
-    let link = document.getElementById(id) as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement("link");
-      link.id = id;
-      link.rel = "stylesheet";
-      document.head.appendChild(link);
-    }
-    if (link.href !== googleFontHref) {
-      link.href = googleFontHref;
-    }
-  }, [googleFontHref]);
 
   const navLinks = (vars["nav-links"] as string || "Home, Projects, About, Contact")
     .split(",")
@@ -111,12 +71,6 @@ export default function App({ vars }: AppProps) {
   return (
     <main
       id="portfolio-page"
-      style={{
-        ...cssVars,
-        // Apply the font variables globally on the page root
-        fontFamily: 'var(--font-family), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"',
-        fontSize: 'var(--base-font-size)'
-      }}
       className={
         "min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased selection:bg-[var(--accent-color)]/30 selection:text-white" 
       }
