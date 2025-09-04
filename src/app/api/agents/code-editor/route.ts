@@ -9,7 +9,7 @@ import { fetchGraphFromApi, fetchUnbuiltNodeIdsFromApi } from '@/app/api/lib/gra
 
 const CODE_EDITOR_CONFIG = {
   model: 'gpt-5-mini',
-  maxSteps: 50,
+  maxSteps: 15,
   streaming: false,
   temperature: 1,
   providerOptions: { azure: { reasoning_effort: 'medium' } },
@@ -75,7 +75,7 @@ async function callAgent(request: NextRequest, body: any, userId?: string): Prom
     metadata: {
       enforceWindowedReads: true,
       defaultReadLimitLines: 400,
-      maxReadChars: 3000,
+      maxReadChars: 6000,
       truncateToolOutputs: true,
     },
   };

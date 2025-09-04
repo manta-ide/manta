@@ -11,15 +11,14 @@ export function setCodeEditorAuthHeaders(headers: Record<string, string>) {
 
 
 // Hard caps to prevent context bloat
-const DEFAULT_WINDOW_LINES = 400; // make this the norm for reads
-const MAX_FILE_LINES = 1000; // absolute guardrail on line slices
-const MAX_READ_CHARS = 3000; // hard cap for readFile return payload
+const DEFAULT_WINDOW_LINES = 400; // default slice size for reads
+const MAX_READ_CHARS = 6000; // hard cap for readFile return payload
 const PREVIEW_CHARS = 300; // preview size for write operations
 
-// Unified file API functions (handles both Blaxel and local files)
+// Unified file API functions
 async function callFilesApi(method: string, path: string, body?: any) {
   try {
-    // Constrain to app directory: strip any leading blaxel/app/ and send relative
+    // Constrain to app directory: strip known prefixes and send relative
     const rel = (path || '').replace(/^\/?(?:blaxel\/app\/)?/i, '');
     const url = rel ? `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/files?path=${encodeURIComponent(rel)}` : `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/files`;
     const response = await fetch(url, {
@@ -55,30 +54,22 @@ async function readFileFromUnifiedApi(filePath: string): Promise<{ content: stri
   }
 }
 
-async function writeFileToUnifiedApi(filePath: string, content: string, isUpdate: boolean = false): Promise<{ success: boolean; blaxelSuccess?: boolean; localSuccess?: boolean }> {
+async function writeFileToUnifiedApi(filePath: string, content: string, isUpdate: boolean = false): Promise<{ success: boolean }> {
   try {
     const method = isUpdate ? 'PUT' : 'POST';
     const body = isUpdate ? { filePath, content } : { filePath, content };
     const result = await callFilesApi(method, '', body);
-    return {
-      success: result.success,
-      blaxelSuccess: result.blaxelSuccess,
-      localSuccess: result.localSuccess
-    };
+    return { success: !!result?.success };
   } catch (error) {
     console.log(`Failed to write file to unified API: ${filePath}`, error);
     return { success: false };
   }
 }
 
-async function deleteFileFromUnifiedApi(filePath: string): Promise<{ success: boolean; blaxelSuccess?: boolean; localSuccess?: boolean }> {
+async function deleteFileFromUnifiedApi(filePath: string): Promise<{ success: boolean }> {
   try {
     const result = await callFilesApi('DELETE', '', { filePath });
-    return {
-      success: result.success,
-      blaxelSuccess: result.blaxelSuccess,
-      localSuccess: result.localSuccess
-    };
+    return { success: !!result?.success };
   } catch (error) {
     console.log(`Failed to delete file from unified API: ${filePath}`, error);
     return { success: false };
@@ -245,167 +236,119 @@ export async function buildProject(filePath?: string) {
 // }
 export const codeEditorTools: ToolSet = {
   readFile: tool({
-    description: 'Read a file window (not the whole file). Always pass a window using offset + limit; responses are clipped to ~3k chars. Uses unified API that handles both Blaxel sandbox and local file system.',
+    description: 'Read a slice of a file. Provide optional offset and limit.',
     parameters: z.object({
-      /* explanation: z.string().describe('Short explanation of why you want to read this file'), */
-      path: z.string().describe('The file path relative to the project root'),
-      offset: z.number().int().min(0).optional().describe('Line offset (0-based). Required for partial reads; defaults to 0.'),
-      limit: z.number().int().min(1).optional().describe('Number of lines to read after offset. Defaults to 400 and will be clamped.'),
-    }),
-    execute: async ({ path, offset, limit }) => {
-      try {
-        // Use unified API to read file
-        const result = await readFileFromUnifiedApi(path);
-        
-        if (!result) {
-          return { 
-            success: false, 
-            message: `File not found: ${path}`,
-            error: 'FILE_NOT_FOUND'
-          };
-        }
-        
-        const { content, source } = result;
-        const allLines = content.split('\n');
-        const start = Math.max(0, Number.isFinite(offset as number) ? (offset as number) : 0);
-        const requestedLimit = Number.isFinite(limit as number) ? (limit as number) : DEFAULT_WINDOW_LINES;
-        const clampedLimit = Math.max(1, Math.min(requestedLimit, DEFAULT_WINDOW_LINES));
-        const end = Math.min(allLines.length, start + clampedLimit);
-        const lines = allLines.slice(start, end);
-        
-        // Enforce max payload only for the returned slice
-        if (lines.length > MAX_FILE_LINES) {
-          return { 
-            success: false, 
-            message: `File too long: ${path} has ${lines.length} lines (max: ${MAX_FILE_LINES})`,
-            error: 'FILE_TOO_LONG',
-            lines: lines.length,
-            maxLines: MAX_FILE_LINES
-          };
-        }
-        
-        // Clip payload to a hard char cap to prevent bloat
-        const joined = lines.join('\n');
-        const clipped = joined.length > MAX_READ_CHARS
-          ? joined.slice(0, MAX_READ_CHARS)
-          : joined;
+      path: z.string().describe('File path relative to project root'),
+      offset: z.number().int().min(0).optional().describe('Line offset (0-based). Defaults to 0'),
+      limit: z.number().int().min(1).optional().describe('Lines to read after offset. Defaults to 400'),
+    }).strict(),
+    // readFile.execute (drop-in)
+execute: async ({ path, offset, limit }) => {
+  try {
+    const result = await readFileFromUnifiedApi(path);
+    if (!result) {
+      return { success: false, message: `File not found: ${path}` };
+    }
 
-        // Do not run project-wide validation on read; return content only (windowed + clipped)
-        return {
-          success: true,
-          message: `Read ${lines.length} line window from ${source}: ${path} (lines ${start}-${end})` + (joined.length > clipped.length ? ' [clipped]' : ''),
-          content: clipped,
-          lines: lines.length,
-          path: path,
-          source: source,
-          window: { start, end, requestedLimit, appliedLimit: clampedLimit },
-          clipped: joined.length > clipped.length,
-        };
-      } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to read file: ${error}`,
-          error: 'READ_ERROR'
-        };
+    const { content } = result;
+    const allLines = content.split('\n');
+    const totalLines = allLines.length;
+
+    const start = Math.max(0, Number.isFinite(offset as number) ? (offset as number) : 0);
+    const requestedLimit = Math.max(1, Number.isFinite(limit as number) ? (limit as number) : DEFAULT_WINDOW_LINES);
+
+    if (start >= totalLines) {
+      return {
+        success: false,
+        message: `Offset ${start} is beyond end of file (${totalLines} lines).`,
+        totalLines,
+      };
+    }
+
+    // Compute a line window, then shrink it to respect MAX_READ_CHARS **by lines**, not by raw char slice
+    let end = Math.min(totalLines, start + requestedLimit);
+    let joined = allLines.slice(start, end).join('\n');
+
+    if (joined.length > MAX_READ_CHARS) {
+      // shrink window until it fits; do it quickly by ratio, then fine-tune
+      let low = start + 1;
+      let high = end;
+      // binary search for maximum end that fits into MAX_READ_CHARS
+      while (low < high) {
+        const mid = Math.max(low, Math.floor((low + high + 1) / 2));
+        const probe = allLines.slice(start, mid).join('\n');
+        if (probe.length <= MAX_READ_CHARS) {
+          low = mid;
+          joined = probe;
+        } else {
+          high = mid - 1;
+        }
       }
-    },
+      end = low;
+    }
+
+    const actualLines = end - start;
+    const hasMoreBefore = start > 0;
+    const hasMoreAfter = end < totalLines;
+
+    return {
+      success: true,
+      content: joined,
+      // New helpful metadata
+      startLine: start,
+      endLineExclusive: end,
+      actualLines,
+      totalLines,
+      hasMoreBefore,
+      hasMoreAfter,
+      nextOffset: end,  // agent can chain windows deterministically
+    };
+  } catch (error) {
+    return { success: false, message: `Failed to read file: ${error}` };
+  }
+},
   }),
 
   createFile: tool({
-    description: 'Create a new file with the given content. Uses unified API that handles both Blaxel sandbox and local file system.',
+    description: 'Create a new file with the given content.',
     parameters: z.object({
-      /* explanation: z.string().describe('Short explanation of why you want to create this file'), */
-      path: z.string().describe('The file path relative to the project root'),
-      content: z.string().describe('The content to write to the file'),
-    }),
+      path: z.string().describe('File path relative to project root'),
+      content: z.string().describe('Content to write to the file'),
+    }).strict(),
     execute: async ({ path, content }) => {
       try {
         // Use unified API to create file
         const result = await writeFileToUnifiedApi(path, content, false);
         
         if (!result.success) {
-          return { 
-            success: false, 
-            message: `Failed to create file: ${path}`,
-            operation: { type: 'create', path, content }
-          };
+          return { success: false, message: `Failed to create file: ${path}` };
         }
-        
-        const successMessage = result.blaxelSuccess && result.localSuccess ? 
-          `Created file in both Blaxel and local: ${path}` :
-          result.blaxelSuccess ? `Created file in Blaxel: ${path}` :
-          `Created file locally: ${path}`;
-        
         // Prevent echoing entire file content back into the context
         const preview = String(content || '').slice(0, PREVIEW_CHARS);
-        return {
-          success: true,
-          message: successMessage,
-          operation: {
-            type: 'create',
-            path,
-            contentPreview: preview,
-            contentLength: String(content || '').length,
-          },
-          blaxelSuccess: result.blaxelSuccess,
-          localSuccess: result.localSuccess,
-        };
+        return { success: true, message: `Created file: ${path}`, preview, length: String(content || '').length };
       } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to create file: ${error}`,
-          operation: { type: 'create', path }
-        };
+        return { success: false, message: `Failed to create file: ${error}` };
       }
     },
   }),
 
   updateFile: tool({
-    description: 'Update an existing file with new content. Uses unified API that handles both Blaxel sandbox and local file system.',
+    description: 'Replace an existing file with new content.',
     parameters: z.object({
-      /* explanation: z.string().describe('Short explanation of why you want to update this file'), */
-      path: z.string().describe('The file path relative to the project root'),
-      content: z.string().describe('The new content for the file'),
-    }),
+      path: z.string().describe('File path relative to project root'),
+      content: z.string().describe('New content for the file'),
+    }).strict(),
     execute: async ({ path, content }) => {
       try {
         // Use unified API to update file
         const result = await writeFileToUnifiedApi(path, content, true);
         
         if (!result.success) {
-          return { 
-            success: false, 
-            message: `Failed to update file: ${path}`,
-            operation: { type: 'update', path, content }
-          };
+          return { success: false, message: `Failed to update file: ${path}` };
         }
-        
-        const successMessage = result.blaxelSuccess && result.localSuccess ? 
-          `Updated file in both Blaxel and local: ${path}` :
-          result.blaxelSuccess ? `Updated file in Blaxel: ${path}` :
-          result.localSuccess ? `Updated file locally: ${path}` :
-          `Failed to update file in both systems: ${path}`;
-        
-        // Prevent echoing entire file content back into the context
-        const preview = String(content || '').slice(0, PREVIEW_CHARS);
-        return {
-          success: result.success,
-          message: successMessage,
-          operation: {
-            type: 'update',
-            path,
-            contentPreview: preview,
-            contentLength: String(content || '').length,
-          },
-          blaxelSuccess: result.blaxelSuccess,
-          localSuccess: result.localSuccess,
-        };
+        return { success: true, message: `Updated file: ${path}` };
       } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to update file: ${error}`,
-          operation: { type: 'update', path }
-        };
+        return { success: false, message: `Failed to update file: ${error}` };
       }
     },
   }),
@@ -416,27 +359,19 @@ export const codeEditorTools: ToolSet = {
       /* explanation: z.string().describe('Short explanation of why you want to patch this file'), */
       path: z.string().describe('The file path relative to the project root'),
       patchDescription: z.string().describe('EXACT code replacement format: "// Original code:\n[exact lines from file]\n\n// Updated code:\n[new lines with changes]" - Must include verbatim context from the target file'),
-    }),
+    }).strict(),
     execute: async ({ path, patchDescription }) => {
       try {
         // Check if file exists using unified API instead of local filesystem
         const fileCheck = await readFileFromUnifiedApi(path);
         if (!fileCheck) {
-          return { 
-            success: false, 
-            message: `File does not exist: ${path}`,
-            operation: { type: 'patch', path, patchDescription }
-          };
+          return { success: false, message: `File does not exist: ${path}` };
         }
         
         // Read current content using unified API
         const fileResult = await readFileFromUnifiedApi(path);
         if (!fileResult) {
-          return { 
-            success: false, 
-            message: `File does not exist: ${path}`,
-            operation: { type: 'patch', path, patchDescription }
-          };
+          return { success: false, message: `File does not exist: ${path}` };
         }
         
         const currentContent = fileResult.content;
@@ -457,7 +392,6 @@ export const codeEditorTools: ToolSet = {
             success: false,
             message:
               'PATCH_DESCRIPTION_INVALID: You must provide EXACT code in this format:\n\n// Original code:\n[copy exact lines from the file here]\n\n// Updated code:\n[your modified version here]\n\nExample:\n// Original code:\n<section id="projects-section" className="relative">\n\n// Updated code:\n<section id="projects-section" className="relative m-4">\n\nDO NOT use natural language descriptions. Copy actual code from the file.',
-            operation: { type: 'patch', path, patchDescription },
           };
         }
         
@@ -473,21 +407,13 @@ export const codeEditorTools: ToolSet = {
         });
 
         if (!response.ok) {
-          return { 
-            success: false, 
-            message: `Patch API failed: ${response.statusText}`,
-            operation: { type: 'patch', path, patchDescription }
-          };
+          return { success: false, message: `Patch API failed: ${response.statusText}` };
         }
 
         const patchResult = await response.json();
         
         if (!patchResult.success) {
-          return { 
-            success: false, 
-            message: `Patch failed: ${patchResult.error}`,
-            operation: { type: 'patch', path, patchDescription }
-          };
+          return { success: false, message: `Patch failed: ${patchResult.error}` };
         }
         console.log(">>>>>>>>>>patchFile patchResult", patchResult);
 
@@ -577,78 +503,36 @@ export const codeEditorTools: ToolSet = {
 
         // If nothing changed, treat as a failure so the caller can try a different strategy
         if (adjusted === currentContent) {
-          return {
-            success: false,
-            message: 'PATCH_NOOP: No changes were applied to the file. Ensure your patch uses verbatim context from the target file and touches the intended code.',
-            operation: { type: 'patch', path, patchDescription }
-          };
+          return { success: false, message: 'No changes were applied to the file.' };
         }
 
         // Write the patched content using unified API
         const writeResult = await writeFileToUnifiedApi(path, adjusted, true);
 
-        const successMessage = writeResult.blaxelSuccess && writeResult.localSuccess ? 
-          `Patch applied successfully to both Blaxel and local: ${path}` :
-          writeResult.blaxelSuccess ? `Patch applied successfully to Blaxel: ${path}` :
-          writeResult.localSuccess ? `Patch applied successfully locally: ${path}` :
-          `Failed to apply patch to both systems: ${path}`;
-
-        return { 
-          success: writeResult.success, 
-          message: successMessage,
-          operation: { type: 'patch', path, patchDescription },
-          blaxelSuccess: writeResult.blaxelSuccess,
-          localSuccess: writeResult.localSuccess,
-          contentSource
-        };
+        return { success: writeResult.success, message: `Patched file: ${path}` };
       } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to patch file: ${error}`,
-          operation: { type: 'patch', path, patchDescription }
-        };
+        return { success: false, message: `Failed to patch file: ${error}` };
       }
     },
   }),
 
   deleteFile: tool({
-    description: 'Delete an existing file using unified API that handles both Blaxel sandbox and local file system',
+    description: 'Delete an existing file.',
     parameters: z.object({
-      explanation: z.string().describe('Short explanation of why you want to delete this file'),
-      path: z.string().describe('The file path relative to the project root'),
-    }),
+      path: z.string().describe('File path relative to project root'),
+    }).strict(),
     execute: async ({ path }) => {
       try {
         // Use unified API to delete file
         const result = await deleteFileFromUnifiedApi(path);
         
         if (!result.success) {
-          return { 
-            success: false, 
-            message: `Failed to delete file: ${path}`,
-            operation: { type: 'delete', path }
-          };
+          return { success: false, message: `Failed to delete file: ${path}` };
         }
         
-        const successMessage = result.blaxelSuccess && result.localSuccess ? 
-          `Deleted file from both Blaxel and local: ${path}` :
-          result.blaxelSuccess ? `Deleted file from Blaxel: ${path}` :
-          result.localSuccess ? `Deleted file locally: ${path}` :
-          `Failed to delete file from both systems: ${path}`;
-        
-        return { 
-          success: result.success, 
-          message: successMessage,
-          operation: { type: 'delete', path },
-          blaxelSuccess: result.blaxelSuccess,
-          localSuccess: result.localSuccess
-        };
+        return { success: true, message: `Deleted file: ${path}` };
       } catch (error) {
-        return { 
-          success: false, 
-          message: `Failed to delete file: ${error}`,
-          operation: { type: 'delete', path }
-        };
+        return { success: false, message: `Failed to delete file: ${error}` };
       }
     },
   }),
