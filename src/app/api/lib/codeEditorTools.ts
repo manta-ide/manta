@@ -54,6 +54,20 @@ async function readFileFromUnifiedApi(filePath: string): Promise<{ content: stri
   }
 }
 
+// Blaxel API helper for sandbox command execution and FS ops
+async function callBlaxelApi(action: string, payload: any = {}) {
+  const base = process.env.BACKEND_URL || 'http://localhost:3000';
+  const res = await fetch(`${base}/api/blaxel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...codeEditorAuthHeaders },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  if (!res.ok) {
+    throw new Error(`Blaxel API failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
 async function writeFileToUnifiedApi(filePath: string, content: string, isUpdate: boolean = false): Promise<{ success: boolean }> {
   try {
     const method = isUpdate ? 'PUT' : 'POST';
@@ -537,38 +551,34 @@ execute: async ({ path, offset, limit }) => {
     },
   }),
 
-  /* buildProject: tool({
+  buildProject: tool({
     description:
       'ALWAYS call this first when the user says “fix”, “debug” or similar but has not ' +
-      'pasted an error.  Runs `tsc --noEmit --pretty false` to surface syntax & type ' +
-      'errors (those are what show up in the red overlay). If it returns success:false, ' +
-      'inspect `errorLines`, patch the offending file, and call again until success:true.',
-    parameters: z.object({}), // no arguments
+      'pasted an error. Runs `tsc --noEmit --pretty false` inside the user sandbox (Blaxel) to surface syntax & type ' +
+      'errors. If it returns success:false, inspect `errorLines`, patch the offending file, and call again until success:true.',
+    parameters: z.object({}),
     execute: async () => {
-      const { exec } = await import('child_process');
-      const run = (cmd: string) =>
-        new Promise<{ ok: boolean; out: string }>((res) =>
-          exec(
-            cmd,
-            { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
-            (e, so, se) => res({ ok: !e, out: `${so}\n${se}` }),
-          ),
-        );
+      try {
+        // Ensure sandbox is ready (optional, best-effort)
+        try { await callBlaxelApi('connect'); } catch {}
 
-      const { ok, out } = await run('npx tsc --noEmit --pretty false');
+        // Execute TypeScript project check inside sandbox
+        const execRes = await callBlaxelApi('execute', { command: 'npx tsc --noEmit --pretty false' });
+        const output: string = String(execRes?.output || execRes?.stdout || execRes?.stderr || '');
+        const ok: boolean = !!execRes?.success && !/error\s+TS\d+:/i.test(output);
 
-      if (ok) return { success: true };
+        if (ok) return { success: true };
 
-      // strip ANSI colour codes
-      const plain = out.replace(/\x1b\[[0-9;]*m/g, '');
-      const lines = plain.split('\n').filter((l) => l.trim());
-      const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
-      const errorLines =
-        (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
-
-      return { success: false, errorLines };
+        const plain = output.replace(/\x1b\[[0-9;]*m/g, '');
+        const lines = plain.split('\n').filter((l) => l.trim());
+        const firstErr = lines.findIndex((l) => /error\s+TS\d+:/i.test(l));
+        const errorLines = (firstErr >= 0 ? lines.slice(firstErr) : lines).slice(0, 30);
+        return { success: false, errorLines };
+      } catch (error) {
+        return { success: false, error: `Build failed: ${error instanceof Error ? error.message : String(error)}` } as any;
+      }
     },
-  }), */
+  }),
  
   /* getRuntimeError: tool({
     description:

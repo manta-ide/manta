@@ -362,9 +362,9 @@ export function useChatService() {
       // Create user message for rebuild request
       const userMessage = {
         role: 'user',
-        content: 'Rebuild selected node',
+        content: 'Build this node',
         variables: { 
-          USER_REQUEST: 'Rebuild selected node',
+          USER_REQUEST: 'Build this node',
           NODE_ID: nodeId,
           PREVIOUS_PROMPT: previousPrompt,
           NEW_PROMPT: newPrompt
