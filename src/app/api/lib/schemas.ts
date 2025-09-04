@@ -134,7 +134,8 @@ export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 export const PropertySchema: z.ZodType<any> = z.lazy(() => z.object({
   id: z.string().describe('Unique identifier for the property (should follow pattern: property-name)'),
   title: z.string().describe('Human-readable title/name for the property'),
-  type: PropertyTypeEnum.describe('The type of property (color, text, number, or select)'),
+  // For 'font', the value should be an object: { family: string }
+  type: PropertyTypeEnum.describe('The type of property (color, text, number, select, boolean, checkbox, radio, slider, font, object, object-list)'),
   // Value supports primitives, arrays, objects, and arrays of objects
   value: z
     .union([

@@ -150,6 +150,105 @@ function normalizeGraph(raw: unknown): Graph {
 }
 
 /* =========================
+   Positioning helpers
+   ========================= */
+
+// Basic layout constants (tweak as needed)
+const H_SPACING = 320; // horizontal distance between siblings
+const V_SPACING = 220; // vertical distance from parent to child row
+const NODE_WIDTH_DEFAULT = 260;
+const NODE_HEIGHT_DEFAULT = 160;
+const NODE_MARGIN = 40; // extra padding to avoid visual overlaps
+const DEFAULT_ROOT_X = 400;
+const DEFAULT_ROOT_Y = 100;
+
+function getNodePositionOrDefault(n?: GraphNode): { x: number; y: number } {
+  if (!n) return { x: DEFAULT_ROOT_X, y: DEFAULT_ROOT_Y };
+  const x = typeof n.position?.x === 'number' ? n.position.x : DEFAULT_ROOT_X;
+  const y = typeof n.position?.y === 'number' ? n.position.y : DEFAULT_ROOT_Y;
+  return { x, y };
+}
+
+function calculatePositionForNewNode(graph: Graph, opts: { parentId?: string; newNodeId: string }): { x: number; y: number } {
+  const { parentId, newNodeId } = opts;
+
+  // If we have a parent, place the new node below it and to the right of existing siblings
+  if (parentId) {
+    const parent = graph.nodes.find(n => n.id === parentId);
+    const parentPos = getNodePositionOrDefault(parent);
+    // Count existing siblings (exclude the new node if already inserted)
+    const siblings = graph.nodes.filter(n => n.parentId === parentId && n.id !== newNodeId);
+    const index = siblings.length; // place after last sibling
+
+    // Optionally center siblings around parent: startX = parentX - (index * H_SPACING)/2
+    // Simpler: place to the right of parent by index * spacing
+    const x = parentPos.x - Math.floor(Math.max(index - 1, 0) * H_SPACING / 2) + index * H_SPACING;
+    const y = parentPos.y + V_SPACING;
+    return { x, y };
+  }
+
+  // No parent: place to the right of existing top-level nodes
+  const roots = graph.nodes.filter(n => !n.parentId);
+  if (roots.length === 0) {
+    return { x: DEFAULT_ROOT_X, y: DEFAULT_ROOT_Y };
+  }
+  // Use the maximum X among root nodes that have positions
+  let maxX = -Infinity;
+  let baseY = DEFAULT_ROOT_Y;
+  for (const r of roots) {
+    const pos = getNodePositionOrDefault(r);
+    if (pos.x > maxX) maxX = pos.x;
+    // try to keep the same row as the majority; default to first seen
+    baseY = pos.y || baseY;
+  }
+  if (!isFinite(maxX)) maxX = DEFAULT_ROOT_X;
+  return { x: maxX + H_SPACING, y: baseY };
+}
+
+function rectsOverlap(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
+  return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
+}
+
+function isOccupied(graph: Graph, candidate: { x: number; y: number }, excludeId?: string): boolean {
+  const a = { x: candidate.x - NODE_MARGIN / 2, y: candidate.y - NODE_MARGIN / 2, w: NODE_WIDTH_DEFAULT + NODE_MARGIN, h: NODE_HEIGHT_DEFAULT + NODE_MARGIN };
+  for (const n of graph.nodes) {
+    if (n.id === excludeId) continue;
+    if (!n.position) continue;
+    const w = typeof n.width === 'number' ? n.width : NODE_WIDTH_DEFAULT;
+    const h = typeof n.height === 'number' ? n.height : NODE_HEIGHT_DEFAULT;
+    const b = { x: n.position.x - NODE_MARGIN / 2, y: n.position.y - NODE_MARGIN / 2, w: w + NODE_MARGIN, h: h + NODE_MARGIN };
+    if (rectsOverlap(a, b)) return true;
+  }
+  return false;
+}
+
+function findFirstFreeSpot(graph: Graph, desired: { x: number; y: number }, context?: { parentId?: string; newNodeId?: string }): { x: number; y: number } {
+  // If nothing is occupied, use desired directly
+  if (!isOccupied(graph, desired, context?.newNodeId)) return desired;
+
+  // Try stepping to the right until free; if too many tries, go to next row
+  const parent = context?.parentId ? graph.nodes.find(n => n.id === context.parentId) : undefined;
+  const parentPos = getNodePositionOrDefault(parent);
+  let x = desired.x;
+  let y = desired.y;
+  let tries = 0;
+  const MAX_TRIES = 500;
+  while (tries < MAX_TRIES) {
+    x += H_SPACING;
+    if (!isOccupied(graph, { x, y }, context?.newNodeId)) return { x, y };
+    tries++;
+    // Every 10 collisions, drop to next row and reset near parent X
+    if (tries % 10 === 0) {
+      y += V_SPACING;
+      x = parent ? parentPos.x : (x - 10 * H_SPACING); // reset towards parent or earlier column
+      if (!isOccupied(graph, { x, y }, context?.newNodeId)) return { x, y };
+    }
+  }
+  // As last resort, return desired even if occupied
+  return desired;
+}
+
+/* =========================
    Graph Sync / Consistency
    ========================= */
 
@@ -557,6 +656,16 @@ export const graphEditorTools = {
 
         // Snap this node into any already-declared relationships
         syncDeferredRelationsForNewNode(newNode, modifiedGraph);
+
+        // Calculate and set a sensible initial position based on parent/siblings
+        try {
+          const finalParentId = newNode.parentId || parentId;
+          const desired = calculatePositionForNewNode(modifiedGraph, { parentId: finalParentId, newNodeId: newNode.id });
+          const pos = findFirstFreeSpot(modifiedGraph, desired, { parentId: finalParentId, newNodeId: newNode.id });
+          newNode.position = pos;
+        } catch (e) {
+          // Fallback silently if positioning fails; backend will default to 0,0
+        }
 
         // Ensure consistency
         ensureGraphConsistency(modifiedGraph);
