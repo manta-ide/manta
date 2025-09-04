@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "mcp": "npx @modelcontextprotocol/inspector node scripts/mcp/server.ts",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector node scripts/mcp/server.ts",
+    "mcp": "npx node scripts/mcp/server.ts",
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
