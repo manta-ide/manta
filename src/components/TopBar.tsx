@@ -4,11 +4,13 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, RotateCcw } from 'lucide-react';
+import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, RotateCcw, Key, Copy } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthModal from '@/components/auth/AuthModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 // Remove SandboxService import - using direct API calls now
 import { useProjectStore } from '@/lib/store';
 
@@ -32,9 +34,40 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { loadProject, setGraphLoading, resetStore, setResetting } = useProjectStore();
+  const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
+  const [apiKey, setApiKey] = useState<string>('');
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const openApiKeyDialog = async () => {
+    setIsApiKeyOpen(true);
+    if (!user) return;
+    setApiKey('');
+    setApiKeyError(null);
+    setApiKeyLoading(true);
+    try {
+      const res = await fetch('/api/backend/mcp/access-token', { method: 'GET', credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to fetch API key');
+      setApiKey(data?.token || '');
+    } catch (e: any) {
+      setApiKeyError(e?.message || 'Failed to fetch API key');
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  const copyApiKey = async () => {
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      alert('API key copied');
+    } catch {
+      alert('Failed to copy API key');
+    }
   };
 
   const handleExportProject = async () => {
@@ -238,6 +271,19 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               <RotateCcw className="w-3.5 h-3.5" />
             )}
           </Button>
+
+          {/* API Key Dialog Button */}
+          {user && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openApiKeyDialog}
+              className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
+              title="Show API key for MCP"
+            >
+              <Key className="w-3.5 h-3.5" />
+            </Button>
+          )}
           </div>
 
           {/* Authentication Section */}
@@ -275,6 +321,38 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
       />
+
+      {/* API Key Dialog */}
+      <Dialog open={isApiKeyOpen} onOpenChange={setIsApiKeyOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>API Key for MCP</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {apiKeyLoading ? (
+              <div className="text-sm text-zinc-400">Loading key…</div>
+            ) : apiKeyError ? (
+              <div className="text-sm text-red-400">{apiKeyError}</div>
+            ) : (
+              <>
+                <label className="text-xs text-zinc-400">Use this as MCP_ACCESS_TOKEN</label>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={apiKey} className="font-mono text-xs" />
+                  <Button variant="outline" size="sm" onClick={copyApiKey} title="Copy">
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <p className="text-[11px] text-zinc-500">
+                  Paste into your MCP server environment as MCP_ACCESS_TOKEN. Treat this like a password.
+                </p>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsApiKeyOpen(false)} variant="outline" size="sm">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 } 

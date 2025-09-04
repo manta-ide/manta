@@ -13,9 +13,25 @@ function resolveBaseUrl(override?: string): string {
   );
 }
 
-// Simple HTTP GET wrapper
-async function httpGet(url: string) {
-  const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+// Resolve access token from input or env
+function resolveAccessToken(override?: string): string | undefined {
+  return (
+    override ||
+    process.env.MCP_ACCESS_TOKEN ||
+    process.env.MCP_BEARER_TOKEN ||
+    undefined
+  );
+}
+
+function buildAuthHeaders(token?: string): HeadersInit {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+// Simple HTTP helpers that send Bearer on every request
+async function httpGet(url: string, token?: string) {
+  const res = await fetch(url, { method: 'GET', headers: buildAuthHeaders(token) });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`GET ${url} failed: ${res.status} ${res.statusText} - ${text}`);
@@ -23,25 +39,37 @@ async function httpGet(url: string) {
   return res.json();
 }
 
+async function httpPost(url: string, body: any, token?: string) {
+  const res = await fetch(url, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`POST ${url} failed: ${res.status} ${res.statusText} - ${text}`);
+  }
+  return res.json();
+}
+
 // Create an MCP server focused on graph reads
 const server = new McpServer({ name: "graph-server", version: "1.0.0" });
 
-// Tool: read full graph
+// Tool: read full graph (authenticated)
 server.registerTool(
   "graph_read",
   {
     title: "Read Graph",
-    description: "Fetch the full graph for a user via the public API.",
+    description: "Fetch the full graph via the authenticated backend API. Sends Bearer on every request.",
     inputSchema: {
-      userId: z.string().min(1, "userId is required"),
+      // userId is not used by the backend endpoint; access is determined by the token's subject.
+      userId: z.string().optional(),
       includeEdges: z.boolean().optional().default(true),
       baseUrl: z.string().url().optional(),
+      accessToken: z.string().optional(),
     },
   },
-  async ({ userId, includeEdges, baseUrl }) => {
+  async ({ includeEdges, baseUrl, accessToken }) => {
     const origin = resolveBaseUrl(baseUrl);
-    const url = `${origin}/api/public/graph?userId=${encodeURIComponent(userId)}`;
-    const data = await httpGet(url);
+    const token = resolveAccessToken(accessToken);
+    const url = `${origin}/api/backend/graph-api`;
+    const data = await httpGet(url, token);
     // Optionally strip edges if requested
     if (data?.graph && includeEdges === false) {
       const { graph } = data;
@@ -52,41 +80,44 @@ server.registerTool(
   }
 );
 
-// Tool: read unbuilt node ids
+// Tool: read unbuilt node ids (authenticated)
 server.registerTool(
   "graph_unbuilt",
   {
     title: "Unbuilt Node IDs",
-    description: "Fetch IDs of nodes that are not built.",
+    description: "Fetch IDs of nodes that are not built via authenticated backend API.",
     inputSchema: {
-      userId: z.string().min(1, "userId is required"),
+      userId: z.string().optional(),
       baseUrl: z.string().url().optional(),
+      accessToken: z.string().optional(),
     },
   },
-  async ({ userId, baseUrl }) => {
+  async ({ baseUrl, accessToken }) => {
     const origin = resolveBaseUrl(baseUrl);
-    const url = `${origin}/api/public/graph?userId=${encodeURIComponent(userId)}&unbuilt=true`;
-    const data = await httpGet(url);
+    const token = resolveAccessToken(accessToken);
+    const url = `${origin}/api/backend/graph-api?unbuilt=true`;
+    const data = await httpGet(url, token);
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   }
 );
 
-// Tool: read a specific node
+// Tool: read a specific node (authenticated)
 server.registerTool(
   "graph_node",
   {
     title: "Read Graph Node",
-    description: "Fetch a specific node by id.",
+    description: "Fetch a specific node by id via authenticated backend API.",
     inputSchema: {
-      userId: z.string().min(1, "userId is required"),
       nodeId: z.string().min(1, "nodeId is required"),
       baseUrl: z.string().url().optional(),
+      accessToken: z.string().optional(),
     },
   },
-  async ({ userId, nodeId, baseUrl }) => {
+  async ({ nodeId, baseUrl, accessToken }) => {
     const origin = resolveBaseUrl(baseUrl);
-    const url = `${origin}/api/public/graph?userId=${encodeURIComponent(userId)}&nodeId=${encodeURIComponent(nodeId)}`;
-    const data = await httpGet(url);
+    const token = resolveAccessToken(accessToken);
+    const url = `${origin}/api/backend/graph-api`;
+    const data = await httpPost(url, { nodeId }, token);
     return { content: [{ type: 'text', text: JSON.stringify(data.node ?? data, null, 2) }] };
   }
 );
