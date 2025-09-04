@@ -168,6 +168,10 @@ export default function SelectedNodeSidebar() {
 						selectedNode: state.selectedNodeId === selectedNodeId && state.selectedNode ? { ...state.selectedNode, state: 'built' } as any : state.selectedNode
 					});
 				}
+				// Trigger iframe refresh since code changed during rebuild
+				try {
+					state.triggerRefresh();
+				} catch {}
 			} catch {}
 
 			// Show success message
@@ -422,4 +426,3 @@ export default function SelectedNodeSidebar() {
 		</div>
 	);
 }
-

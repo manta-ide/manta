@@ -142,5 +142,5 @@ export default function App({ vars }: AppProps) {
 - **ALWAYS VALIDATE:** After making all changes, use the `buildProject` tool to check for errors. Fix any issues before finishing.
 
 **Goal:** Create a mind-blowing, conversion-optimized website that would make a VC want to invest. Work quickly and efficiently using only the provided graph data and variable system. Do not read any additional files. Blend the aesthetic brilliance of Linear with the technical precision required by the graph and variable system. The final output must be both beautiful and editable through the integrated variable system (CSS custom properties for global styling, direct vars access for content).
-
+For small updates, extra sections etc. - try to use patches and change as little code as possible, just to implement a specific change. 
 

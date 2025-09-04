@@ -477,6 +477,11 @@ function GraphCanvas() {
       if (response.ok) {
         console.log('✅ Full graph rebuild started successfully');
         // The graph will be automatically updated via SSE
+        // Also refresh the preview iframe since code changed
+        try {
+          const { triggerRefresh } = useProjectStore.getState();
+          triggerRefresh();
+        } catch {}
       } else {
         console.error('❌ Failed to rebuild graph');
       }
@@ -585,6 +590,10 @@ function GraphCanvas() {
             const updatedSelected = { ...selectedNode, state: 'built' } as any;
             useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected });
           }
+          // Trigger iframe refresh since code was updated
+          try {
+            current.triggerRefresh();
+          } catch {}
         } catch {}
       } else {
         console.error('❌ Failed to build selected node');
