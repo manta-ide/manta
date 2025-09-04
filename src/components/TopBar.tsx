@@ -337,7 +337,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
               <div className="text-sm text-red-400">{apiKeyError}</div>
             ) : (
               <>
-                <label className="text-xs text-zinc-400">Use this as MCP_ACCESS_TOKEN</label>
+                <label className="text-xs text-zinc-400">Use this as MANTA_API_KEY (or MCP_ACCESS_TOKEN)</label>
                 <div className="flex items-center gap-2">
                   <Input readOnly value={apiKey} className="font-mono text-xs" />
                   <Button variant="outline" size="sm" onClick={copyApiKey} title="Copy">

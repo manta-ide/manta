@@ -6,6 +6,8 @@ import { z } from "zod";
 function resolveBaseUrl(override?: string): string {
   return (
     override ||
+    process.env.MANTA_API_BASE_URL ||
+    process.env.MANTA_BASE_URL ||
     process.env.MCP_GRAPH_API_BASE_URL ||
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -17,6 +19,7 @@ function resolveBaseUrl(override?: string): string {
 function resolveAccessToken(override?: string): string | undefined {
   return (
     override ||
+    process.env.MANTA_API_KEY ||
     process.env.MCP_ACCESS_TOKEN ||
     process.env.MCP_BEARER_TOKEN ||
     undefined
