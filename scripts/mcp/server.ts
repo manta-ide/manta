@@ -3,22 +3,17 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 // Utility to resolve base URL for API calls
-function resolveBaseUrl(override?: string): string {
-  return (
-    override ||
-    process.env.MANTA_API_BASE_URL ||
-    process.env.MANTA_BASE_URL ||
-    process.env.MCP_GRAPH_API_BASE_URL ||
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000"
-  );
+function resolveBaseUrl(): string {
+  const url = process.env.MANTA_API_URL;
+  if (!url) {
+    throw new Error("MANTA_API_URL is required (set it in your MCP environment)");
+  }
+  return url;
 }
 
-// Resolve access token from input or env
-function resolveAccessToken(override?: string): string | undefined {
+// Resolve access token from env
+function resolveAccessToken(): string | undefined {
   return (
-    override ||
     process.env.MANTA_API_KEY ||
     process.env.MCP_ACCESS_TOKEN ||
     process.env.MCP_BEARER_TOKEN ||
@@ -64,12 +59,11 @@ server.registerTool(
       // userId is not used by the backend endpoint; access is determined by the token's subject.
       userId: z.string().optional(),
       includeEdges: z.boolean().optional().default(true),
-      accessToken: z.string().optional(),
     },
   },
-  async ({ includeEdges, accessToken }) => {
+  async ({ includeEdges }) => {
     const origin = resolveBaseUrl();
-    const token = resolveAccessToken(accessToken);
+    const token = resolveAccessToken();
     const url = `${origin}/api/backend/graph-api`;
     const data = await httpGet(url, token);
     // Optionally strip edges if requested
@@ -90,12 +84,11 @@ server.registerTool(
     description: "Fetch IDs of nodes that are not built via authenticated backend API.",
     inputSchema: {
       userId: z.string().optional(),
-      accessToken: z.string().optional(),
     },
   },
-  async ({ accessToken }) => {
+  async () => {
     const origin = resolveBaseUrl();
-    const token = resolveAccessToken(accessToken);
+    const token = resolveAccessToken();
     const url = `${origin}/api/backend/graph-api?unbuilt=true`;
     const data = await httpGet(url, token);
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -110,12 +103,11 @@ server.registerTool(
     description: "Fetch a specific node by id via authenticated backend API.",
     inputSchema: {
       nodeId: z.string().min(1, "nodeId is required"),
-      accessToken: z.string().optional(),
     },
   },
-  async ({ nodeId, accessToken }) => {
+  async ({ nodeId }) => {
     const origin = resolveBaseUrl();
-    const token = resolveAccessToken(accessToken);
+    const token = resolveAccessToken();
     const url = `${origin}/api/backend/graph-api`;
     const data = await httpPost(url, { nodeId }, token);
     return { content: [{ type: 'text', text: JSON.stringify(data.node ?? data, null, 2) }] };

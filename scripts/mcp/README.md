@@ -6,20 +6,20 @@ MCP Graph Server (TypeScript)
 
 Auth model (per MCP over HTTP guidance)
 - Use OAuth 2.1 access tokens; send `Authorization: Bearer <token>` on every backend API request.
-- Config via environment passed by your MCP client:
-  - Token: `MANTA_API_KEY` (preferred), or `MCP_ACCESS_TOKEN`/`MCP_BEARER_TOKEN`.
-  - Base URL: `MANTA_API_BASE_URL`/`MANTA_BASE_URL` (or `MCP_GRAPH_API_BASE_URL`), falling back to `BACKEND_URL` → `NEXT_PUBLIC_APP_URL` → `http://localhost:3000`.
+- Config via environment passed by your MCP client (required):
+  - `MANTA_API_URL`: Base URL of your app API (required).
+  - `MANTA_API_KEY`: Access token (or session token from the UI dialog).
 
-Exposed tools (all require Bearer):
+Exposed tools (all require Bearer via env):
 - `graph_read`:
-  - input: `{ includeEdges?: boolean, accessToken?: string }`
+  - input: `{ includeEdges?: boolean }`
   - behavior: `GET /api/backend/graph-api`
   - output: `{ graph }`, optionally with edges stripped
 - `graph_unbuilt`:
-  - input: `{ accessToken?: string }`
+  - input: `{}`
   - behavior: `GET /api/backend/graph-api?unbuilt=true`
 - `graph_node`:
-  - input: `{ nodeId: string, accessToken?: string }`
+  - input: `{ nodeId: string }`
   - behavior: `POST /api/backend/graph-api` with `{ nodeId }`
 
 Install deps:
@@ -29,13 +29,16 @@ Install deps:
 
 Usage with an MCP-compatible client:
 1) Install deps: `npm install`
-2) Set `MANTA_API_KEY` to a valid access token (or session token from the UI dialog). MCP config example:
+2) Set environment via your MCP client. Example config:
    {
      "mcpServers": {
        "manta": {
          "command": "npm",
          "args": ["run", "mcp"],
-         "env": { "MANTA_API_KEY": "<token>" }
+         "env": {
+           "MANTA_API_URL": "http://localhost:3000",
+           "MANTA_API_KEY": "<token>"
+         }
        }
      }
    }
