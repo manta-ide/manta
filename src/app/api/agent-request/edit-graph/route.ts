@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
-import { createSystemMessage } from '@/app/api/lib/conversationStorage';
+import { getGraphSession } from '@/app/api/lib/graph-service';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
@@ -73,6 +73,27 @@ async function buildParsedMessages(
     })
   );
   return parsed;
+}
+
+// Local system message generator (no separate module)
+async function createSystemMessage(options?: { files?: string[] }): Promise<Message> {
+  const files = Array.isArray(options?.files) ? options!.files : [];
+  let graphContext = '';
+  try {
+    const graph = getGraphSession();
+    if (graph) graphContext = JSON.stringify(graph, null, 2);
+  } catch (error) {
+    console.warn('Failed to get graph from storage:', error);
+  }
+  return {
+    role: 'system',
+    variables: {
+      PROJECT_FILES: files,
+      GRAPH_CONTEXT: graphContext,
+      MAX_NODES: '5',
+    },
+    content: '',
+  };
 }
 
 async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
