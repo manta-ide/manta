@@ -7,12 +7,8 @@ import { azure } from '@ai-sdk/azure';
 import { google } from '@ai-sdk/google';
 // Do not use in-memory conversation storage; chat history is persisted via /api/chat
 import { graphEditorTools } from '../../lib/graphEditorTools';
-import { codeEditorTools, setCodeEditorAuthHeaders } from '../../lib/codeEditorTools';
 import { 
   GraphSchema, 
-  PropertyGenerationSchema, 
-  GraphQuickPatchResponseSchema, 
-  PartialCodeGenerationResponseSchema 
 } from '../../lib/schemas';
 import path from 'path';
 import { createWriteStream } from 'fs';
@@ -20,7 +16,6 @@ import { promises as fsp } from 'fs';
 
 // Direct mapping for toolsets
 const TOOLSET_MAP = {
-  'code-editor': codeEditorTools,
   'graph-editor': graphEditorTools,
   'none': [] as any[],
 } as const;
@@ -28,9 +23,6 @@ const TOOLSET_MAP = {
 // Direct mapping for schemas
 const SCHEMA_MAP = {
   'graph': GraphSchema,
-  'property-generation': PropertyGenerationSchema,
-  'graph-quick-patch': GraphQuickPatchResponseSchema,
-  'partial-code-generation': PartialCodeGenerationResponseSchema,
 } as const;
 
 // Helper function to get tools by name
@@ -59,7 +51,7 @@ const AgentConfigSchema = z.object({
   providerOptions: z.record(z.any()).optional(),
   promptTemplates: z.record(z.string()).optional(),
   structuredOutput: z.boolean().optional(),
-  schemaName: z.enum(['graph', 'property-generation', 'graph-quick-patch', 'partial-code-generation']).optional(),
+  schemaName: z.enum(['graph']).optional(),
   toolsetName: z.string(),
   // Google Gemini specific options
   useGoogleStructuredOutput: z.boolean().optional(),
@@ -141,14 +133,14 @@ export async function POST(req: NextRequest) {
       ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
     });
     setGraphEditorBaseUrl(req.nextUrl.origin);
-    // forward headers for code editor tools as well (include x-user-id)
+    // forward headers for graph editor tools as well (include x-user-id)
     let userIdHeader: Record<string, string> = {};
     try {
       const session = await auth.api.getSession({ headers: req.headers });
       const uid = session?.user?.id as string | undefined;
       if (uid) userIdHeader = { 'x-user-id': uid };
     } catch {}
-    setCodeEditorAuthHeaders({
+    setGraphEditorAuthHeaders({
       ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
       ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
       ...userIdHeader,
@@ -467,7 +459,7 @@ export async function POST(req: NextRequest) {
     const result = await generateText({
       model: selectModel(config.model, config.provider) as any,
       messages: messages,
-      tools: tools,
+      tools: tools as any,
       maxSteps: config.maxSteps,
       abortSignal: req.signal,
       temperature: config.temperature,

@@ -197,25 +197,6 @@ function extractVariablesFromGraph(graph: Graph): Record<string, any> {
   return vars;
 }
 
-async function writeVarsJsonToBlaxel(userId: string, graph: Graph): Promise<void> {
-  const vars = extractVariablesFromGraph(graph);
-  const content = JSON.stringify(vars, null, 2);
-  const baseUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/blaxel`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'writeFile',
-      userId,
-      path: 'blaxel/app/_graph/vars.json',
-      content
-    })
-  });
-  if (!res.ok) {
-    throw new Error('Failed to write vars.json to Blaxel');
-  }
-}
-
 function normalizeGraphForSupabase(original: Graph): Graph {
   const seenNodeIds = new Set<string>();
   const normalizedNodes = [] as any[];
@@ -377,12 +358,6 @@ export async function storeGraph(graph: Graph, userId: string): Promise<void> {
 
   // Persist to Supabase (no sockets)
   await saveGraphToSupabase(normalized, userId);
-  // Update vars.json used by Vite/Blaxel runtime so UI reflects property value changes
-  try {
-    await writeVarsJsonToBlaxel(userId, normalized);
-  } catch (e) {
-    console.warn('Failed to write vars.json after save; UI may lag until next PATCH update', e);
-  }
   // Notify connected clients to reload via Realtime broadcast
   await broadcastGraphReload(userId);
 }
@@ -403,9 +378,6 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
   }
   // Persist property value
   await updatePropertyInSupabase(userId, nodeId, propertyId, value);
-  // Write only vars.json to Blaxel to avoid full dev env reload
-  const graph = currentGraph || { nodes: [] } as Graph;
-  await writeVarsJsonToBlaxel(userId, graph);
 }
 
 function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boolean {

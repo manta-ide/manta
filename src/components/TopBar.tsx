@@ -77,18 +77,36 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
     
     try {
       setIsExporting(true);
-      const response = await fetch('/api/export');
+      const response = await fetch('/api/sandbox/export', { method: 'POST' });
       
       if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'project-export.zip';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        const data = await response.json();
+        if (data.success && data.files) {
+          // Create a downloadable ZIP file from the files
+          const JSZip = (await import('jszip')).default;
+          const zip = new JSZip();
+          
+          // Add all files to the ZIP
+          Object.entries(data.files).forEach(([path, content]) => {
+            // Remove blaxel/app prefix if present for cleaner file structure
+            const cleanPath = path.replace(/^blaxel\/app\//, '');
+            zip.file(cleanPath, content as string);
+          });
+          
+          // Generate and download the ZIP
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'project-export.zip';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          console.error('Failed to export project:', data.error);
+          alert(`Export failed: ${data.error || 'Unknown error'}`);
+        }
       } else {
         const errorData = await response.json();
         console.error('Failed to export project:', errorData.error);

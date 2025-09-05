@@ -142,7 +142,7 @@ export async function POST(request: NextRequest, { params }: { params: { path?: 
     }
 
     // Construct the target URL
-    const pathSegments = params.path || [];
+    const pathSegments = (await params).path || [];
     // Forward to preview root; map `/iframe/*` -> `/*` on the preview host
     const targetPath = '/' + pathSegments.join('/');
     const searchParams = request.nextUrl.searchParams.toString();
