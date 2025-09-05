@@ -618,11 +618,33 @@ export class SandboxService {
         const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         // Resolve sandboxId for this user (already known via DB update earlier)
         const sandboxInfo = await this.getUserSandboxInfo(userId);
+        // Derive remote HMR settings from the preview URL so Vite HMR can connect cross-origin
+        let hmrHost = '';
+        let hmrProtocol = '';
+        let hmrPort = '';
+        try {
+          const previewUrl = sandboxInfo?.previewUrl || (await BlaxelService.getUserPreviewUrl(userId));
+          if (previewUrl) {
+            const u = new URL(previewUrl);
+            hmrHost = u.hostname;
+            // Use secure WS when preview is over HTTPS
+            hmrProtocol = u.protocol === 'https:' ? 'wss' : 'ws';
+            // Only set port if explicitly present on the URL
+            hmrPort = u.port || '';
+          }
+        } catch (e) {
+          console.warn(`[SandboxService] Could not derive HMR settings from preview URL:`, e);
+        }
+
         const envLines = [
           supabaseUrl ? `VITE_SUPABASE_URL=${supabaseUrl}` : '',
           supabaseAnon ? `VITE_SUPABASE_ANON_KEY=${supabaseAnon}` : '',
           `VITE_USER_ID=${userId}`,
           sandboxInfo?.sandboxId ? `VITE_SANDBOX_ID=${sandboxInfo.sandboxId}` : '',
+          // Remote-capable HMR settings (used by vite.config.ts)
+          hmrHost ? `VITE_HMR_HOST=${hmrHost}` : '',
+          hmrProtocol ? `VITE_HMR_PROTOCOL=${hmrProtocol}` : '',
+          hmrPort ? `VITE_HMR_PORT=${hmrPort}` : '',
         ].filter(Boolean);
 
         const envContent = envLines.join('\n') + '\n';

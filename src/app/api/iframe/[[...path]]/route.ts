@@ -54,8 +54,8 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
 
     // Construct the target URL
     const pathSegments2 = (await params).path || [];
-    // Always include /iframe/ in the path since we're proxying iframe requests
-    const targetPath = `/iframe${pathSegments2.length > 0 ? `/${pathSegments2.join('/')}` : '/'}`;
+    // Forward to preview root; map `/iframe/*` -> `/*` on the preview host
+    const targetPath = '/' + pathSegments2.join('/');
     const searchParams = request.nextUrl.searchParams.toString();
     const queryString = searchParams ? `?${searchParams}` : '';
     
@@ -143,8 +143,8 @@ export async function POST(request: NextRequest, { params }: { params: { path?: 
 
     // Construct the target URL
     const pathSegments = params.path || [];
-    // Always include /iframe/ in the path since we're proxying iframe requests
-    const targetPath = `/iframe${pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/'}`;
+    // Forward to preview root; map `/iframe/*` -> `/*` on the preview host
+    const targetPath = '/' + pathSegments.join('/');
     const searchParams = request.nextUrl.searchParams.toString();
     const queryString = searchParams ? `?${searchParams}` : '';
     

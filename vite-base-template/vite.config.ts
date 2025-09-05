@@ -1,4 +1,4 @@
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig, Plugin, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
@@ -38,52 +38,62 @@ function frameHeaders(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), frameHeaders()],
-  
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src')
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
+  // Remote-capable HMR: configure via env when embedding or running behind a preview URL
+  // Set these in the container/preview environment to enable cross-origin HMR:
+  //   VITE_HMR_HOST=your.preview.host
+  //   VITE_HMR_PROTOCOL=ws|wss    (default 'wss' when host is set)
+  //   VITE_HMR_PORT=443|5173      (optional; omit to use scheme default)
+  const hmrHost = env.VITE_HMR_HOST || '';
+  const hmrProto = (env.VITE_HMR_PROTOCOL || (hmrHost ? 'wss' : 'ws')) as 'ws' | 'wss';
+  const hmrPort = env.VITE_HMR_PORT ? Number(env.VITE_HMR_PORT) : undefined;
+  const hmr: any = hmrHost
+    ? { protocol: hmrProto, host: hmrHost, ...(hmrPort ? { port: hmrPort } : {}) }
+    : { protocol: 'ws', host: 'localhost', port: 5173 };
+
+  return ({
+    plugins: [react(), frameHeaders()],
+    
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src')
+      },
     },
-  },
 
-  /**
-   * IMPORTANT: keep everything under /iframe/ so the parent Next rewrite
-   *  { source: '/iframe/:path*', destination: 'http://localhost:3001/iframe/:path*' }
-   * can proxy ALL dev requests (HTML, modules, HMR, assets).
-   */
-  base: '/iframe/',
+    /**
+     * Serve the preview app at the root of the preview host.
+     * The Next.js app still mounts it at `/iframe` via a proxy, but the proxy
+     * forwards `/iframe/*` to the preview root (`/`).
+     */
+    base: '/',
 
-  define: {
-    __GRAPH_VARS__: JSON.stringify(loadGraphVars()),
-  },
-
-  // Serve on the same port your parent rewrites to
-  server: {
-    watch: {
-      usePolling: true,
+    define: {
+      __GRAPH_VARS__: JSON.stringify(loadGraphVars()),
     },
-    host: true,
-    port: 5173,
-    cors: true,
-    allowedHosts: true,
-    // HMR: connect directly to Vite even though the page is shown under the parent.
-    // Cross-origin WS is fine; this avoids relying on the parent to proxy WS upgrades.
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost',
+
+    // Dev server
+    server: {
+      watch: {
+        usePolling: true,
+      },
+      host: true,
       port: 5173,
-      // path defaults to `${base}@vite` → "/iframe/@vite"
+      cors: true,
+      allowedHosts: true,
+      // Cross-origin HMR supported; when VITE_HMR_HOST is set, connect directly to remote.
+      hmr,
     },
-  },
 
-  // Optional: if you also use `vite preview`
-  preview: {
-    allowedHosts: true,
-    host: true,
-    port: 5173,
-  },
+    // Preview server
+    preview: {
+      allowedHosts: true,
+      host: true,
+      port: 5173,
+    },
 
-  // SPA fallback means Vite will serve index.html at /iframe, /iframe/foo, etc.
-  appType: 'spa',
-}));
+    // SPA fallback means Vite will serve index.html at / and nested routes.
+    appType: 'spa',
+  });
+});
