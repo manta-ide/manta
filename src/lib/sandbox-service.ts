@@ -197,6 +197,13 @@ export class SandboxService {
   }
 
   /**
+   * Get the preview URL for a user's sandbox via active provider
+   */
+  static async getUserPreviewUrl(userId: string): Promise<string | null> {
+    return this.getProvider().getUserPreviewUrl(userId);
+  }
+
+  /**
    * Collect files from a directory recursively
    */
   private static collectFiles(dir: string, base = dir): { path: string; content: string }[] {

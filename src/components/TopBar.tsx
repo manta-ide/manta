@@ -149,7 +149,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
       }
 
       // Hit consolidated reset route (clears chat, server sessions, graph, and resets template)
-      const res = await fetch('/api/reset', { method: 'POST' });
+      const res = await fetch('/api/sandbox/reset', { method: 'POST' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Reset failed');

@@ -4,11 +4,8 @@ import { headers } from 'next/headers';
 import { Pool } from 'pg';
 import { clearConversationSession } from '@/app/api/lib/conversationStorage';
 import { clearGraphSession } from '@/app/api/lib/graphStorage';
-import { SandboxService } from '@/lib/blaxel-sandbox-service';
-import { registerBlaxelProvider } from '@/lib/blaxel';
-
-// Ensure Blaxel provider is registered
-registerBlaxelProvider();
+import '@/lib/sandbox-provider';
+import { SandboxService } from '@/lib/sandbox-service';
 import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
 
 // Single shared pool, similar to /api/chat
@@ -60,7 +57,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 5) Reset project to base template (files + sync graph to Supabase)
-    //    This mirrors the previous behavior but consolidates under a single reset endpoint.
     try {
       await SandboxService.setupBaseTemplate(userId);
     } catch (e) {
@@ -74,3 +70,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to reset project' }, { status: 500 });
   }
 }
+
