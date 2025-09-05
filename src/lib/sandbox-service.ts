@@ -1,10 +1,7 @@
-import { SandboxInstance } from "@blaxel/core";
-import { BlaxelService } from "./blaxel";
-import { auth } from "./auth";
-import { Pool } from "pg";
-import fs from "fs";
-import path from "path";
-import { SupabaseGraphService } from "@/app/api/supabase/graph-service";
+import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
+import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
 
 export interface UserSandboxInfo {
   sandboxId: string;
@@ -15,27 +12,65 @@ export interface UserSandboxInfo {
   status: 'standby' | 'active' | 'stopped';
 }
 
+// Abstractions for a generic sandbox provider
+export interface SandboxProcessManager {
+  exec(params: { name: string; command: string; waitForPorts?: number[] }): Promise<void>;
+  wait(name: string, opts: { maxWait: number; interval: number }): Promise<void>;
+}
+
+export interface SandboxFs {
+  write(filePath: string, content: string): Promise<void>;
+  writeTree(files: { path: string; content: string }[], dest: string): Promise<void>;
+}
+
+export interface SandboxHandle {
+  fs: SandboxFs;
+  process: SandboxProcessManager;
+}
+
+export interface SandboxProvider {
+  getOrCreateUserSandbox(userId: string, userEmail: string): Promise<SandboxHandle>;
+  getUserSandbox(userId: string): Promise<SandboxHandle | null>;
+  getUserPreviewUrl(userId: string): Promise<string | null>;
+  getSandboxUrl(userId: string): string;
+  getMCPServerUrl(userId: string): string;
+  generateSandboxId?(userId: string): string; // Optional helper
+  getAppRoot(): string; // Root path inside sandbox where project lives
+}
+
 export class SandboxService {
   private static pool = new Pool({
     ssl: true,
     connectionString: process.env.DATABASE_URL,
   });
 
+  private static provider: SandboxProvider | null = null;
+
   // Cache for sandbox info to avoid frequent API calls
   private static sandboxInfoCache = new Map<string, { data: UserSandboxInfo | null; timestamp: number }>();
   private static CACHE_DURATION = 30000; // 30 seconds
+
+  static setProvider(provider: SandboxProvider) {
+    this.provider = provider;
+  }
+
+  static getProvider(): SandboxProvider {
+    if (!this.provider) throw new Error('SandboxService provider not configured');
+    return this.provider;
+  }
 
   /**
    * Initialize sandbox for a user (called on first login or signup)
    */
   static async initializeUserSandbox(userId: string, userEmail: string): Promise<UserSandboxInfo> {
+    const provider = this.getProvider();
     try {
       // Check if user already has a sandbox
       const existingInfo = await this.getUserSandboxInfo(userId);
       if (existingInfo) {
         // Verify sandbox still exists and return info
         try {
-          const sandbox = await BlaxelService.getUserSandbox(userId);
+          const sandbox = await provider.getUserSandbox(userId);
           if (sandbox) {
             return existingInfo;
           }
@@ -45,22 +80,24 @@ export class SandboxService {
       }
 
       // Create new sandbox
-      const sandbox = await BlaxelService.getOrCreateUserSandbox(userId, userEmail);
-      const sandboxId = `user-${userId}`;
-      
+      await provider.getOrCreateUserSandbox(userId, userEmail);
+      const sandboxId = provider.generateSandboxId
+        ? provider.generateSandboxId(userId)
+        : `user-${userId}`;
+
       // Get preview URL for the sandbox
-      const previewUrl = await BlaxelService.getUserPreviewUrl(userId);
-      
+      const previewUrl = await provider.getUserPreviewUrl(userId);
+
       // Update user record with sandbox information
       await this.updateUserSandboxInfo(userId, sandboxId);
 
       return {
         sandboxId,
-        sandboxUrl: BlaxelService.getSandboxUrl(userId),
+        sandboxUrl: provider.getSandboxUrl(userId),
         previewUrl,
-        mcpServerUrl: BlaxelService.getMCPServerUrl(userId),
+        mcpServerUrl: provider.getMCPServerUrl(userId),
         createdAt: new Date(),
-        status: 'active'
+        status: 'active',
       };
     } catch (error) {
       console.error(`Failed to initialize sandbox for user ${userId}:`, error);
@@ -72,6 +109,7 @@ export class SandboxService {
    * Get sandbox information for a user
    */
   static async getUserSandboxInfo(userId: string): Promise<UserSandboxInfo | null> {
+    const provider = this.getProvider();
     // Check cache first
     const cached = this.sandboxInfoCache.get(userId);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
@@ -81,10 +119,7 @@ export class SandboxService {
     try {
       const client = await this.pool.connect();
       try {
-        const result = await client.query(
-          'SELECT sandbox_id FROM "user" WHERE id = $1',
-          [userId]
-        );
+        const result = await client.query('SELECT sandbox_id FROM "user" WHERE id = $1', [userId]);
 
         if (result.rows.length === 0 || !result.rows[0].sandbox_id) {
           // Cache null result
@@ -93,22 +128,22 @@ export class SandboxService {
         }
 
         const row = result.rows[0];
-        
+
         // Get preview URL for existing sandbox
-        const previewUrl = await BlaxelService.getUserPreviewUrl(userId);
-        
-        const sandboxInfo = {
+        const previewUrl = await provider.getUserPreviewUrl(userId);
+
+        const sandboxInfo: UserSandboxInfo = {
           sandboxId: row.sandbox_id,
-          sandboxUrl: BlaxelService.getSandboxUrl(userId),
+          sandboxUrl: provider.getSandboxUrl(userId),
           previewUrl,
-          mcpServerUrl: BlaxelService.getMCPServerUrl(userId),
-          createdAt: new Date(), // Use current time since we don't store creation time
-          status: 'standby' as const // Default status, could be enhanced to check actual status
+          mcpServerUrl: provider.getMCPServerUrl(userId),
+          createdAt: new Date(), // We don't store creation time yet
+          status: 'standby', // Could be enhanced to check actual status
         };
 
         // Cache the result
         this.sandboxInfoCache.set(userId, { data: sandboxInfo, timestamp: Date.now() });
-        
+
         return sandboxInfo;
       } finally {
         client.release();
@@ -128,10 +163,7 @@ export class SandboxService {
     try {
       const client = await this.pool.connect();
       try {
-        await client.query(
-          'UPDATE "user" SET sandbox_id = $1 WHERE id = $2',
-          [sandboxId, userId]
-        );
+        await client.query('UPDATE "user" SET sandbox_id = $1 WHERE id = $2', [sandboxId, userId]);
       } finally {
         client.release();
       }
@@ -144,9 +176,9 @@ export class SandboxService {
   /**
    * Get active sandbox instance for a user
    */
-  static async getActiveSandbox(userId: string): Promise<SandboxInstance | null> {
+  static async getActiveSandbox(userId: string): Promise<SandboxHandle | null> {
     try {
-      return await BlaxelService.getUserSandbox(userId);
+      return await this.getProvider().getUserSandbox(userId);
     } catch (error) {
       console.error(`Failed to get active sandbox for user ${userId}:`, error);
       return null;
@@ -157,8 +189,9 @@ export class SandboxService {
    * Connect to user's MCP server
    */
   static getMCPConnection(userId: string) {
+    const provider = this.getProvider();
     return {
-      url: BlaxelService.getMCPServerUrl(userId),
+      url: provider.getMCPServerUrl(userId),
       // Add any additional connection configuration here
     };
   }
@@ -168,7 +201,7 @@ export class SandboxService {
    */
   private static collectFiles(dir: string, base = dir): { path: string; content: string }[] {
     const out: { path: string; content: string }[] = [];
-    
+
     if (!fs.existsSync(dir)) {
       console.warn(`[SandboxService] Directory not found: ${dir}`);
       return out;
@@ -179,7 +212,7 @@ export class SandboxService {
       if (name === '.env' || name === 'node_modules' || name === 'dist' || name === 'send-to-sandbox.ts') {
         continue;
       }
-      
+
       const full = path.join(dir, name);
       const stat = fs.statSync(full);
       if (stat.isDirectory()) {
@@ -189,7 +222,7 @@ export class SandboxService {
         // Convert Windows backslashes to forward slashes for sandbox
         const normalizedPath = relativePath.replace(/\\/g, '/');
         try {
-          out.push({ path: normalizedPath, content: fs.readFileSync(full, "utf8") });
+          out.push({ path: normalizedPath, content: fs.readFileSync(full, 'utf8') });
         } catch (error) {
           console.warn(`[SandboxService] Failed to read file ${full}:`, error);
         }
@@ -199,7 +232,7 @@ export class SandboxService {
   }
 
   /**
-   * Retry helper with exponential backoff.
+   * Retry helper with exponential backoff
    */
   private static async retryWithBackoff<T>(fn: () => Promise<T>, attempts = 3, baseMs = 500): Promise<T> {
     let lastErr: any;
@@ -210,7 +243,7 @@ export class SandboxService {
         lastErr = err;
         const delay = baseMs * Math.pow(2, i);
         console.warn(`[SandboxService] write attempt ${i + 1} failed, retrying in ${delay}ms...`, err?.message || err);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
     throw lastErr;
@@ -219,13 +252,17 @@ export class SandboxService {
   /**
    * Chunk files to keep each request small to avoid socket closures.
    */
-  private static chunkFilesByLimit(files: { path: string; content: string }[], maxFiles = 25, maxBytes = 800_000) {
+  private static chunkFilesByLimit(
+    files: { path: string; content: string }[],
+    maxFiles = 25,
+    maxBytes = 800_000,
+  ) {
     const batches: { path: string; content: string }[][] = [];
     let current: { path: string; content: string }[] = [];
     let bytes = 0;
     for (const f of files) {
       const size = Buffer.byteLength(f.content, 'utf8');
-      const wouldExceed = current.length >= maxFiles || (bytes + size) > maxBytes;
+      const wouldExceed = current.length >= maxFiles || bytes + size > maxBytes;
       if (current.length > 0 && wouldExceed) {
         batches.push(current);
         current = [];
@@ -251,7 +288,7 @@ export class SandboxService {
   /**
    * Robustly write a file tree to the sandbox in chunks with retries.
    */
-  private static async writeTreeInChunks(sandbox: SandboxInstance, files: { path: string; content: string }[], dest: string) {
+  private static async writeTreeInChunks(sandbox: SandboxHandle, files: { path: string; content: string }[], dest: string) {
     const batches = this.chunkFilesByLimit(files);
     console.log(`[SandboxService] Writing files in ${batches.length} batches`);
     for (let i = 0; i < batches.length; i++) {
@@ -272,26 +309,26 @@ export class SandboxService {
         }
       }
       // Small pacing delay between batches
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 150));
     }
   }
-
 
   /**
    * Setup base template project in user's sandbox
    */
   static async setupBaseTemplate(userId: string): Promise<void> {
     console.log(`[SandboxService] Setting up base template for user ${userId}`);
-    
+
+    const provider = this.getProvider();
     try {
-      const sandbox = await BlaxelService.getUserSandbox(userId);
+      const sandbox = await provider.getUserSandbox(userId);
       if (!sandbox) {
         throw new Error(`No sandbox found for user ${userId}`);
       }
 
       // Get the base template path
       const baseTemplatePath = path.join(process.cwd(), 'vite-base-template');
-      
+
       console.log(`[SandboxService] Looking for base template at: ${baseTemplatePath}`);
 
       if (!fs.existsSync(baseTemplatePath)) {
@@ -303,12 +340,12 @@ export class SandboxService {
       console.log(`[SandboxService] Killing running processes...`);
       try {
         await sandbox.process.exec({
-          name: "kill-processes",
-          command: "killall node || true && killall vite || true"
+          name: 'kill-processes',
+          command: 'killall node || true && killall vite || true',
         });
-        await sandbox.process.wait("kill-processes", {
+        await sandbox.process.wait('kill-processes', {
           maxWait: 10000, // 10 seconds
-          interval: 1000
+          interval: 1000,
         });
       } catch (error) {
         console.log(`[SandboxService] Process cleanup completed (some processes may not have been running)`);
@@ -317,13 +354,14 @@ export class SandboxService {
       // Clean the directory first
       console.log(`[SandboxService] Cleaning directory...`);
       try {
+        const appRoot = provider.getAppRoot();
         await sandbox.process.exec({
-          name: "clean",
-          command: "cd /blaxel/app && find . -mindepth 1 -exec rm -r -- {} + || true"
+          name: 'clean',
+          command: `cd ${appRoot} && find . -mindepth 1 -exec rm -r -- {} + || true`,
         });
-        await sandbox.process.wait("clean", {
+        await sandbox.process.wait('clean', {
           maxWait: 60000, // 1 minute
-          interval: 2000
+          interval: 2000,
         });
       } catch (error) {
         console.log(`[SandboxService] Directory cleanup completed`);
@@ -332,15 +370,15 @@ export class SandboxService {
       // Collect files from base template
       const files = [
         // Collect src/ files
-        ...this.collectFiles(path.join(baseTemplatePath, "src"), baseTemplatePath).map(f => ({ ...f, path: f.path })),
+        ...this.collectFiles(path.join(baseTemplatePath, 'src'), baseTemplatePath).map((f) => ({ ...f, path: f.path })),
         // Collect _graph/ files if they exist
-        ...this.collectFiles(path.join(baseTemplatePath, "_graph"), baseTemplatePath).map(f => ({ ...f, path: f.path })),
+        ...this.collectFiles(path.join(baseTemplatePath, '_graph'), baseTemplatePath).map((f) => ({ ...f, path: f.path })),
         // Collect root files (like index.html, package.json, etc.)
-        ...this.collectFiles(baseTemplatePath, baseTemplatePath).map(f => ({ ...f, path: f.path })),
+        ...this.collectFiles(baseTemplatePath, baseTemplatePath).map((f) => ({ ...f, path: f.path })),
       ];
 
       console.log(`[SandboxService] Syncing ${files.length} files to sandbox`);
-      await this.writeTreeInChunks(sandbox, files, "/blaxel/app");
+      await this.writeTreeInChunks(sandbox, files, provider.getAppRoot());
       console.log(`[SandboxService] ✅ Files synced to sandbox`);
 
       // Write environment variables for the Vite app to connect to Supabase and resolve room
@@ -354,7 +392,7 @@ export class SandboxService {
         let hmrProtocol = '';
         let hmrPort = '';
         try {
-          const previewUrl = sandboxInfo?.previewUrl || (await BlaxelService.getUserPreviewUrl(userId));
+          const previewUrl = sandboxInfo?.previewUrl || (await provider.getUserPreviewUrl(userId));
           if (previewUrl) {
             const u = new URL(previewUrl);
             hmrHost = u.hostname;
@@ -379,7 +417,8 @@ export class SandboxService {
         ].filter(Boolean);
 
         const envContent = envLines.join('\n') + '\n';
-        await sandbox.fs.write('/blaxel/app/.env', envContent);
+        const appRoot = provider.getAppRoot();
+        await sandbox.fs.write(`${appRoot}/.env`, envContent);
         console.log(`[SandboxService] ✅ Wrote .env for Vite app`);
       } catch (e) {
         console.warn(`[SandboxService] ⚠️ Failed to write .env for Vite app:`, e);
@@ -388,31 +427,33 @@ export class SandboxService {
       // Install dependencies (idempotent: skip if already running)
       console.log(`[SandboxService] Installing dependencies...`);
       try {
+        const appRoot = provider.getAppRoot();
         await sandbox.process.exec({
-          name: "install",
-          command: "cd /blaxel/app && npm i"
+          name: 'install',
+          command: `cd ${appRoot} && npm i`,
         });
       } catch (e: any) {
         const msg = (e && e.message) || '';
-        if (!msg.includes("already exists and is running")) throw e;
+        if (!msg.includes('already exists and is running')) throw e;
         console.log(`[SandboxService] install already running; proceeding to wait`);
       }
-      await sandbox.process.wait("install", {
+      await sandbox.process.wait('install', {
         maxWait: 300000, // 5 minutes
-        interval: 5000
+        interval: 5000,
       });
       console.log(`[SandboxService] ✅ Dependencies installed`);
 
       // Build the project
       console.log(`[SandboxService] Building project...`);
       try {
+        const appRoot = provider.getAppRoot();
         await sandbox.process.exec({
-          name: "build",
-          command: "cd /blaxel/app && npm run build"
+          name: 'build',
+          command: `cd ${appRoot} && npm run build`,
         });
-        await sandbox.process.wait("build", {
+        await sandbox.process.wait('build', {
           maxWait: 300000, // 5 minutes
-          interval: 5000
+          interval: 5000,
         });
         console.log(`[SandboxService] ✅ Project built successfully`);
       } catch (error) {
@@ -422,14 +463,15 @@ export class SandboxService {
       // Start dev server (idempotent: ignore if already running)
       console.log(`[SandboxService] Starting dev server...`);
       try {
+        const appRoot = provider.getAppRoot();
         await sandbox.process.exec({
-          name: "dev-server",
-          command: "cd /blaxel/app && npm run dev",
-          waitForPorts: [5173]
+          name: 'dev-server',
+          command: `cd ${appRoot} && npm run dev`,
+          waitForPorts: [5173],
         });
       } catch (e: any) {
         const msg = (e && e.message) || '';
-        if (!msg.includes("already exists and is running")) throw e;
+        if (!msg.includes('already exists and is running')) throw e;
         console.log(`[SandboxService] dev-server already running; continuing`);
       }
 
@@ -444,7 +486,6 @@ export class SandboxService {
         console.error(`[SandboxService] Graph sync failed for user ${userId}:`, graphError);
         // Don't throw here - the sandbox setup was successful, graph sync is secondary
       }
-
     } catch (error) {
       console.error(`[SandboxService] Failed to setup base template for user ${userId}:`, error);
       throw error;

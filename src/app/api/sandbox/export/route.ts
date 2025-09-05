@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { SandboxService } from '@/lib/blaxel-sandbox-service';
-import { BlaxelService } from '@/lib/blaxel';
+import { SandboxService } from '@/lib/sandbox-service';
+import { BlaxelService, registerBlaxelProvider } from '@/lib/blaxel';
+
+// Ensure Blaxel provider is registered
+registerBlaxelProvider();
 
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substr(2, 9);

@@ -5,6 +5,10 @@ import { Pool } from 'pg';
 import { clearConversationSession } from '@/app/api/lib/conversationStorage';
 import { clearGraphSession } from '@/app/api/lib/graphStorage';
 import { SandboxService } from '@/lib/blaxel-sandbox-service';
+import { registerBlaxelProvider } from '@/lib/blaxel';
+
+// Ensure Blaxel provider is registered
+registerBlaxelProvider();
 import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
 
 // Single shared pool, similar to /api/chat

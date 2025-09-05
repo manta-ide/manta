@@ -1,4 +1,11 @@
 import { SandboxInstance } from "@blaxel/core";
+import {
+  SandboxService as GenericSandboxService,
+  SandboxProvider,
+  SandboxHandle,
+  SandboxFs,
+  SandboxProcessManager,
+} from './sandbox-service';
 
 // Blaxel configuration
 export const BLAXEL_CONFIG = {
@@ -218,3 +225,63 @@ export class BlaxelService {
   }
 }
 
+// Blaxel-backed provider implementation for the generic SandboxService
+class BlaxelSandboxFs implements SandboxFs {
+  constructor(private inst: SandboxInstance) {}
+  async write(filePath: string, content: string): Promise<void> {
+    await this.inst.fs.write(filePath, content);
+  }
+  async writeTree(files: { path: string; content: string }[], dest: string): Promise<void> {
+    await this.inst.fs.writeTree(files, dest);
+  }
+}
+
+class BlaxelSandboxProcess implements SandboxProcessManager {
+  constructor(private inst: SandboxInstance) {}
+  async exec(params: { name: string; command: string; waitForPorts?: number[] }): Promise<void> {
+    await this.inst.process.exec(params);
+  }
+  async wait(name: string, opts: { maxWait: number; interval: number }): Promise<void> {
+    await this.inst.process.wait(name, opts);
+  }
+}
+
+class BlaxelHandle implements SandboxHandle {
+  fs: SandboxFs;
+  process: SandboxProcessManager;
+  constructor(inst: SandboxInstance) {
+    this.fs = new BlaxelSandboxFs(inst);
+    this.process = new BlaxelSandboxProcess(inst);
+  }
+}
+
+export class BlaxelSandboxProvider implements SandboxProvider {
+  generateSandboxId(userId: string): string {
+    return BlaxelService.generateSandboxName(userId);
+  }
+  getAppRoot(): string {
+    return '/blaxel/app';
+  }
+  async getOrCreateUserSandbox(userId: string, userEmail: string): Promise<SandboxHandle> {
+    const inst = await BlaxelService.getOrCreateUserSandbox(userId, userEmail);
+    return new BlaxelHandle(inst);
+  }
+  async getUserSandbox(userId: string): Promise<SandboxHandle | null> {
+    const inst = await BlaxelService.getUserSandbox(userId);
+    return inst ? new BlaxelHandle(inst) : null;
+  }
+  async getUserPreviewUrl(userId: string): Promise<string | null> {
+    return BlaxelService.getUserPreviewUrl(userId);
+  }
+  getSandboxUrl(userId: string): string {
+    return BlaxelService.getSandboxUrl(userId);
+  }
+  getMCPServerUrl(userId: string): string {
+    return BlaxelService.getMCPServerUrl(userId);
+  }
+}
+
+// Helper to register Blaxel as the active sandbox provider
+export function registerBlaxelProvider() {
+  GenericSandboxService.setProvider(new BlaxelSandboxProvider());
+}
