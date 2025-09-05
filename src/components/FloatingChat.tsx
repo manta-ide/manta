@@ -8,7 +8,7 @@ import { useProjectStore } from '@/lib/store';
 import SelectionBadges from './SelectionBadge';
 import { MessageBadges } from './SelectionBadge';
 import { useChatService } from '@/lib/chatService';
-import { MessageRenderer } from './CodeBlock';
+import { MessageRenderer } from './MessageRenderer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ShimmeringText } from '@/components/ui/shadcn-io/shimmering-text';

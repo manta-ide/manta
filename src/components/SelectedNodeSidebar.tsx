@@ -90,112 +90,6 @@ export default function SelectedNodeSidebar() {
 
 	if (!selectedNodeId) return null;
 
-	const handleRebuild = async () => {
-		if (!selectedNodeId) return;
-		try {
-			setRebuildError(null); // Clear previous errors
-			setRebuildSuccess(false); // Clear previous success
-
-			// Store the previous prompt for the rebuild operation
-			const previousPrompt = selectedNode?.prompt ?? '';
-
-			// Optimistic UI update: mark node as building locally
-			try {
-				const state = useProjectStore.getState();
-				const g = state.graph;
-				if (g) {
-					const updatedNodes = g.nodes.map((n: any) => n.id === selectedNodeId ? { ...n, state: 'building', prompt: promptDraft } : n);
-					useProjectStore.setState({
-						graph: { ...g, nodes: updatedNodes } as any,
-						selectedNode: state.selectedNodeId === selectedNodeId && state.selectedNode ? { ...state.selectedNode, state: 'building', prompt: promptDraft } as any : state.selectedNode
-					});
-				}
-			} catch {}
-
-			// Update the node state to "building" via Supabase
-			try {
-				if (supabaseConnected) {
-					await updateNodeInSupabase(selectedNodeId, {
-						state: 'building',
-						prompt: promptDraft // Update prompt in Supabase
-					});
-					console.log('✅ Node state and prompt updated to building via Supabase');
-				} else {
-					throw new Error('Supabase not connected');
-				}
-			} catch (supabaseError) {
-				console.error('❌ Supabase update failed:', supabaseError);
-				setRebuildError('Failed to update node state. Supabase connection required.');
-				return;
-			}
-
-			// Trigger rebuild through chat service (agent-request orchestration)
-			await actions.rebuildNode(selectedNodeId, previousPrompt, promptDraft);
-
-			// Refresh the graph to get the latest state from Supabase
-			try {
-				await refreshGraph();
-				// Find the updated node in the refreshed graph
-				const { graph } = useProjectStore.getState();
-				const updatedNode = graph?.nodes.find(n => n.id === selectedNodeId);
-				if (updatedNode) {
-					setSelectedNode(selectedNodeId, updatedNode);
-				}
-			} catch (e) {
-				console.warn('Failed to refresh graph after rebuild:', e);
-			}
-
-			// Update the node state to "built" upon success
-			try {
-				if (supabaseConnected) {
-					await updateNodeInSupabase(selectedNodeId, { state: 'built' });
-					console.log('✅ Node state updated to built via Supabase');
-				} else {
-					throw new Error('Supabase not connected');
-				}
-			} catch (supabaseError) {
-				console.error('❌ Supabase final update failed:', supabaseError);
-			}
-
-			// Optimistic completion update
-			try {
-				const state = useProjectStore.getState();
-				const g = state.graph;
-				if (g) {
-					const updatedNodes = g.nodes.map((n: any) => n.id === selectedNodeId ? { ...n, state: 'built' } : n);
-					useProjectStore.setState({
-						graph: { ...g, nodes: updatedNodes } as any,
-						selectedNode: state.selectedNodeId === selectedNodeId && state.selectedNode ? { ...state.selectedNode, state: 'built' } as any : state.selectedNode
-					});
-				}
-				// Trigger iframe refresh since code changed during rebuild
-				try {
-					state.triggerRefresh();
-				} catch {}
-			} catch {}
-
-			// Show success message
-			setRebuildSuccess(true);
-			// Clear success message after 3 seconds
-			setTimeout(() => setRebuildSuccess(false), 3000);
-		} catch (error) {
-			console.error('Rebuild failed:', error);
-			setRebuildError('Failed to rebuild node. Please try again.');
-
-			// Update the node state back to its previous state via Supabase
-			try {
-				if (supabaseConnected) {
-					await updateNodeInSupabase(selectedNodeId, {
-						state: selectedNode?.state === 'built' ? 'built' : 'unbuilt'
-					});
-				}
-			} catch (e) {
-				console.error('Failed to revert node state after error:', e);
-			}
-		}
-	};
-
-
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
 		const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
@@ -354,21 +248,6 @@ export default function SelectedNodeSidebar() {
 								<div className="text-xs font-medium text-zinc-300">
 									Prompt
 								</div>
-								<button
-									className={`px-2 py-1 rounded text-xs font-medium ${
-										selectedNode?.state === 'built'
-											? 'bg-blue-600 hover:bg-blue-700' 
-											: selectedNode?.state === 'building'
-											  ? 'bg-yellow-600 hover:bg-yellow-700'
-											  : 'bg-orange-600 hover:bg-orange-700'
-									} disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200`}
-									disabled={selectedNode?.state === 'building'}
-									onClick={handleRebuild}
-								>{selectedNode?.state === 'building' 
-									? 'Building…' 
-									: selectedNode?.state === 'built' 
-									  ? 'Rebuild' 
-									  : 'Build'}</button>
 							</div>
 							<div className="space-y-1.5">
 								<Textarea

@@ -355,55 +355,6 @@ export function useChatService() {
     }
   }, [currentFile, selection, selectedNodeId, selectedNode, setSelection, messages, saveChatHistory]);
 
-  const rebuildNode = useCallback(async (nodeId: string, previousPrompt: string, newPrompt: string) => {
-    setLoading(true);
-
-    try {
-      // Create user message for rebuild request
-      const userMessage = {
-        role: 'user',
-        content: 'Build this node',
-        variables: { 
-          USER_REQUEST: 'Build this node',
-          NODE_ID: nodeId,
-          PREVIOUS_PROMPT: previousPrompt,
-          NEW_PROMPT: newPrompt
-        }
-      };
-
-      // Use the code-editor agent with explicit node selection
-      const response = await fetch('/api/agents/code-editor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage,
-          nodeId: nodeId
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to trigger rebuild');
-      }
-
-      // Get the JSON response
-      const result = await response.json();
-      console.log('Rebuild result:', result);
-
-      console.log("Skipping refresh");
-      // Only refresh if the graph was actually modified
-      /* if (result.graphModified) {
-        await loadProjectFromFileSystem();
-        triggerRefresh();
-      } */
-
-    } catch (error) {
-      console.error('Node rebuild error:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const clearMessages = useCallback(async () => {
     try {
       // Clear frontend state immediately
@@ -441,6 +392,6 @@ export function useChatService() {
 
   return {
     state: { messages, loading, loadingHistory },
-    actions: { sendMessage, clearMessages, rebuildNode, loadChatHistory }
+    actions: { sendMessage, clearMessages, loadChatHistory }
   };
 } 

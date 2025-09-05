@@ -17,24 +17,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'userMessage is required' }, { status: 400 });
     }
 
-    // Call the code editor agent for building nodes
-    const codeEditorResponse = await fetch(`${req.nextUrl.origin}/api/agents/code-editor`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userMessage,
-        rebuildAll,
-        ...(nodeId ? { nodeId } : {}),
-      }),
-    });
-
-    if (!codeEditorResponse.ok) {
-      return NextResponse.json({ error: 'Failed to process code generation request' }, { status: 500 });
-    }
-
-    const codeEditorResult = await codeEditorResponse.json();
+    console.log('🔄 Build nodes request received');
     
-    return NextResponse.json(codeEditorResult);
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('❌ Build nodes request error:', error);
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');

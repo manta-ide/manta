@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     // Expose the current Better Auth session token so the user can use it
     // as an API key for local MCP tooling. This token is scoped to the user session.
-    const token = cookies().get('better-auth.session_token')?.value;
+    const token = (await cookies()).get('better-auth.session_token')?.value;
     if (!token) {
       return NextResponse.json({ error: 'No session token found' }, { status: 404 });
     }
