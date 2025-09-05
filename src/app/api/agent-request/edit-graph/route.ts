@@ -3,8 +3,8 @@ import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
-import { addMessageToSession, createSystemMessage, getConversationSession } from '@/app/api/lib/conversationStorage';
-import { storeGraph } from '@/app/api/lib/graphStorage';
+import { createSystemMessage } from '@/app/api/lib/conversationStorage';
+import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     setGraphEditorBaseUrl(req.nextUrl.origin);
     // As a fallback for environments where headers may be dropped, use a direct save function
     setGraphEditorSaveFn(async (graph) => {
-      const res = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`, {
+      const res = await fetch(`${req.nextUrl.origin}/api/graph-api`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

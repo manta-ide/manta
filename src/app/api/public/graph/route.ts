@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadGraphFromFile, getGraphSession, getUnbuiltNodeIds, getGraphNode } from '@/app/api/lib/graphStorage';
+import { loadGraphFromFile, getGraphSession, getUnbuiltNodeIds, getGraphNode } from '@/app/api/lib/graph-service';
 
 // Public graph read endpoint
 // - GET /api/public/graph?userId=...                     -> { success, graph }
@@ -45,4 +45,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

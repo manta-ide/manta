@@ -159,7 +159,7 @@ export function useChatService() {
 
     // Route: simple Q&A vs graph editing
     // Always use the full graph agent. It will decide whether to answer, read, or edit.
-    const response = await fetch('/api/backend/agent-request/edit-graph', {
+    const response = await fetch('/api/agent-request/edit-graph', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userMessage }),

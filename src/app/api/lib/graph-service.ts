@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { GraphSchema, GraphNodeSchema } from './schemas';
+import { GraphSchema, GraphNodeSchema, Property } from './schemas';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
-// Single graph storage (in-memory cache)
+// In-memory cache of the current graph for this process
 let currentGraph: Graph | null = null;
 
-// Supabase service client for server-side operations (no sockets required)
+// --- Supabase client helpers ---
 function getSupabaseServiceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,10 +19,11 @@ function getSupabaseServiceClient(): SupabaseClient {
   return createClient(url, key);
 }
 
+// --- Realtime broadcast to notify clients to reload graph ---
 async function broadcastGraphReload(userId: string): Promise<void> {
   try {
     const client = getSupabaseServiceClient();
-    // Try sandbox-based room first to match client behavior
+    // Prefer sandbox-based room to match client behavior
     let roomId = userId;
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/sandbox/init`, { method: 'GET' });
@@ -32,18 +35,16 @@ async function broadcastGraphReload(userId: string): Promise<void> {
     const room = `graph-broadcast-${roomId}`;
     const channel = client.channel(room, { config: { broadcast: { self: false, ack: false } } });
     channel.subscribe();
-    // Fire-and-forget broadcast; if the channel isn't ready yet, Realtime will still try to deliver
     await channel.send({ type: 'broadcast', event: 'graph_reload', payload: {} });
-    // Best-effort cleanup
     try { await client.removeChannel(channel); } catch {}
   } catch (e) {
     console.warn('Broadcast graph_reload failed:', e);
   }
 }
 
+// --- Loading from Supabase into Graph ---
 async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
   const client = getSupabaseServiceClient();
-  // Load nodes, edges, and properties via HTTP requests (no realtime)
   const { data: nodesData, error: nodesError } = await client
     .from('graph_nodes')
     .select('*')
@@ -78,7 +79,6 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
   }));
 
   const byId = new Map(nodes.map(n => [n.id, n] as const));
-  // Attach properties
   (propsData || []).forEach((p: any) => {
     const node = byId.get(p.node_id);
     if (!node) return;
@@ -88,7 +88,6 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
       type: p.type,
       value: p.value,
       options: p.options,
-      // Complex schema support
       fields: p.fields || undefined,
       itemFields: p.item_fields || undefined,
       itemTitle: p.item_title || undefined,
@@ -97,7 +96,6 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
     if (!node.properties) node.properties = [] as any;
     (node.properties as any[]).push(prop);
   });
-  // Attach children from edges (source -> target)
   (edgesData || []).forEach((e: any) => {
     const source = byId.get(e.source_id);
     const target = byId.get(e.target_id);
@@ -110,10 +108,6 @@ async function loadGraphFromSupabase(userId: string): Promise<Graph | null> {
   return graph.nodes.length > 0 ? graph : null;
 }
 
-/**
- * Build `_graph` files (graph.json and vars.json) from Supabase for a given user.
- * Returns pretty-printed JSON strings when available.
- */
 export async function getGraphFilesFromSupabase(userId: string): Promise<{ graphJson?: string; varsJson?: string }> {
   try {
     const graph = await loadGraphFromSupabase(userId);
@@ -127,9 +121,9 @@ export async function getGraphFilesFromSupabase(userId: string): Promise<{ graph
     return {};
   }
 }
+
 async function updatePropertyInSupabase(userId: string, nodeId: string, propertyId: string, value: any): Promise<void> {
   const client = getSupabaseServiceClient();
-  // Prefer updating existing row to preserve type/metadata
   const { data: existing, error: readErr } = await client
     .from('graph_properties')
     .select('id, type, name, options, fields, item_fields, item_title, add_label')
@@ -200,7 +194,6 @@ function extractVariablesFromGraph(graph: Graph): Record<string, any> {
 function normalizeGraphForSupabase(original: Graph): Graph {
   const seenNodeIds = new Set<string>();
   const normalizedNodes = [] as any[];
-  // Track which node first claimed a property id
   const globalPropOwner: Record<string, string> = {};
 
   for (const node of original.nodes || []) {
@@ -208,15 +201,13 @@ function normalizeGraphForSupabase(original: Graph): Graph {
     if (seenNodeIds.has(node.id)) continue;
     seenNodeIds.add(node.id);
 
-    // Dedupe properties per node and enforce global uniqueness of property IDs
     const seenPropIds = new Set<string>();
     let properties = Array.isArray(node.properties) ? [...node.properties] : [];
     const nextProps: any[] = [];
     for (const p of properties) {
       if (!p || !p.id) continue;
-      if (seenPropIds.has(p.id)) continue; // remove duplicates within same node
+      if (seenPropIds.has(p.id)) continue;
       let newId = String(p.id);
-      // If another node already claimed this id, rename to ensure global uniqueness
       const owner = globalPropOwner[newId];
       if (owner && owner !== node.id) {
         const prefixed = `${node.id}-${newId}`;
@@ -231,7 +222,6 @@ function normalizeGraphForSupabase(original: Graph): Graph {
     normalizedNodes.push({ ...node, properties: nextProps });
   }
 
-  // Build edges from children relationships
   const computedEdges: any[] = [];
   const existingNodeIds = new Set(normalizedNodes.map(n => n.id));
   for (const parent of normalizedNodes) {
@@ -243,7 +233,6 @@ function normalizeGraphForSupabase(original: Graph): Graph {
     }
   }
 
-  // Deduplicate edges by (source,target) pair regardless of id, and generate deterministic IDs
   const edges: any[] = ([...(original as any).edges || [], ...computedEdges]);
   const byPair = new Set<string>();
   const nextEdges: any[] = [];
@@ -264,10 +253,8 @@ function normalizeGraphForSupabase(original: Graph): Graph {
 }
 
 async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> {
-  // Normalize to avoid duplicate upsert conflicts
   const normalized = normalizeGraphForSupabase(graph);
   const client = getSupabaseServiceClient();
-  // Upsert nodes
   const nodeRows = (normalized.nodes || []).map((n) => ({
     id: n.id,
     title: n.title,
@@ -284,10 +271,8 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
     if (error) throw error;
   }
 
-  // Upsert edges if present on graph (optional)
   const edges: any[] = (normalized as any).edges || [];
   if (Array.isArray(edges) && edges.length > 0) {
-    // Dedupe by (user_id, source_id, target_id) to avoid ON CONFLICT multi-hit
     const pairSet = new Set<string>();
     const edgeRows = edges.map((e: any) => ({
       id: e.id,
@@ -304,7 +289,6 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
     if (error) throw error;
   }
 
-  // Upsert properties
   const propRows: any[] = [];
   (normalized.nodes || []).forEach((n) => {
     if (Array.isArray(n.properties)) {
@@ -316,7 +300,6 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
           type: p.type || 'text',
           value: p.value,
           options: p.options,
-          // Persist complex schemas when present
           fields: p.fields,
           item_fields: p.itemFields,
           item_title: p.itemTitle,
@@ -327,7 +310,6 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
     }
   });
   if (propRows.length > 0) {
-    // Dedupe properties by unique id to avoid multiple hits in single upsert
     const seen = new Set<string>();
     const uniqueProps = propRows.filter((r) => {
       const key = String(r.id);
@@ -340,95 +322,28 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
   }
 }
 
-/**
- * Get the current graph
- */
-export function getGraphSession(): Graph | null {
-  return currentGraph;
-}
+// --- Public API (in-memory + persistence) ---
+export function getGraphSession(): Graph | null { return currentGraph; }
 
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
-  // Store in memory (normalized to keep IDs consistent with DB)
   const normalized = normalizeGraphForSupabase(graph);
   currentGraph = normalized;
-
-  // Persist to Supabase (no sockets)
   await saveGraphToSupabase(normalized, userId);
-  // Notify connected clients to reload via Realtime broadcast
   await broadcastGraphReload(userId);
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {
-  // Update in-memory graph if loaded
   if (currentGraph) {
     const idx = currentGraph.nodes.findIndex(n => n.id === nodeId);
     if (idx !== -1) {
       const node = currentGraph.nodes[idx] as any;
       if (Array.isArray(node.properties)) {
         const pIdx = node.properties.findIndex((p: any) => p.id === propertyId);
-        if (pIdx !== -1) {
-          node.properties[pIdx] = { ...node.properties[pIdx], value };
-        }
+        if (pIdx !== -1) node.properties[pIdx] = { ...node.properties[pIdx], value };
       }
     }
   }
-  // Persist property value
   await updatePropertyInSupabase(userId, nodeId, propertyId, value);
-}
-
-function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boolean {
-  // Compare core fields; ignore children array changes
-  if (a.title !== b.title) return false;
-  if (a.prompt !== b.prompt) return false;
-  // Don't compare children arrays - changes to children shouldn't mark parent as unbuilt
-
-  // Deeply compare properties structure, ignoring value fields and order of options/fields
-  const sortOptions = (opts?: string[]) => Array.isArray(opts) ? [...opts].sort() : undefined;
-
-  const normalizeProperty = (p: any): any => {
-    const base: any = {
-      id: p?.id ?? '',
-      title: p?.title ?? '',
-      type: p?.type ?? '',
-      maxLength: p?.maxLength ?? undefined,
-      min: p?.min ?? undefined,
-      max: p?.max ?? undefined,
-      step: p?.step ?? undefined,
-      options: sortOptions(p?.options),
-      itemTitle: p?.itemTitle ?? undefined,
-      addLabel: p?.addLabel ?? undefined,
-    };
-    if (Array.isArray(p?.fields)) {
-      const byId: Record<string, any> = {};
-      for (const child of p.fields) {
-        byId[String(child?.id ?? '')] = normalizeProperty(child);
-      }
-      base.fields = byId;
-    }
-    if (Array.isArray(p?.itemFields)) {
-      const byId: Record<string, any> = {};
-      for (const child of p.itemFields) {
-        byId[String(child?.id ?? '')] = normalizeProperty(child);
-      }
-      base.itemFields = byId;
-    }
-    return base;
-  };
-
-  const normalizeProps = (props?: any[]) => {
-    if (!Array.isArray(props)) return {} as Record<string, any>;
-    const map: Record<string, any> = {};
-    for (const p of props) {
-      const id = String(p?.id ?? '');
-      map[id] = normalizeProperty(p);
-    }
-    return map;
-  };
-
-  const aStruct = JSON.stringify(normalizeProps(a.properties));
-  const bStruct = JSON.stringify(normalizeProps(b.properties));
-  if (aStruct !== bStruct) return false;
-  return true;
 }
 
 export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
@@ -441,83 +356,146 @@ export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
   }
 }
 
-/**
- * Clear the current graph from memory
- */
-export async function clearGraphSession(): Promise<void> {
-  // Remove from memory only
-  currentGraph = null;
-}
+export async function clearGraphSession(): Promise<void> { currentGraph = null; }
 
-/**
- * Get graph statistics
- */
-export function getGraphStats(): { hasGraph: boolean } {
-  return {
-    hasGraph: currentGraph !== null
-  };
-}
+export function getGraphStats(): { hasGraph: boolean } { return { hasGraph: currentGraph !== null }; }
 
-/**
- * Get a specific graph node by ID
- */
 export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | null {
-  if (!currentGraph) {
-    return null;
-  }
-  
+  if (!currentGraph) return null;
   return currentGraph.nodes.find(node => node.id === nodeId) || null;
 }
 
-/**
- * Get ids of nodes that are not yet built
- */
 export function getUnbuiltNodeIds(): string[] {
-  console.log("graphStorage currentGraph", currentGraph);
   if (!currentGraph) return [];
   return currentGraph.nodes.filter(n => (n.state || 'unbuilt') !== 'built').map(n => n.id);
 }
 
-/**
- * Mark nodes as built and persist to file
- */
 export async function markNodesBuilt(nodeIds: string[], userId: string): Promise<void> {
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
-  const updated: Graph = {
-    ...currentGraph,
-    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)),
-  };
-  currentGraph = updated;
-  // Persist state
+  currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
   const client = getSupabaseServiceClient();
   await client.from('graph_nodes').update({ state: 'built' }).in('id', nodeIds).eq('user_id', userId);
 }
 
-/**
- * Mark nodes as unbuilt and persist to file
- */
 export async function markNodesUnbuilt(nodeIds: string[], userId: string): Promise<void> {
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
-  const updated: Graph = {
-    ...currentGraph,
-    nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)),
-  };
-  currentGraph = updated;
+  currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
   const client = getSupabaseServiceClient();
   await client.from('graph_nodes').update({ state: 'unbuilt' }).in('id', nodeIds).eq('user_id', userId);
 }
 
-/**
- * Initialize graph from files on startup
- * Note: This function is now deprecated as it requires a userId parameter
- */
 export async function initializeGraphsFromFiles(): Promise<void> {
-  try {
-    console.log('🔄 Initializing graphs from files...');
-    console.log('ℹ️ Graph initialization now uses Supabase per-user - skipping global initialization');
-  } catch (error) {
-    console.error('Error initializing graph from files:', error);
+  console.log('🔄 Graph initialization now uses Supabase per-user - skipping global initialization');
+}
+
+// --- Supabase-specific utilities for template sync and clearing ---
+export class SupabaseGraphService {
+  private static async getSupabaseServiceClient(): Promise<SupabaseClient> {
+    return getSupabaseServiceClient();
+  }
+  static async clearUserGraphData(userId: string): Promise<void> {
+    const client = await this.getSupabaseServiceClient();
+    const { error: propertiesError } = await client.from('graph_properties').delete().eq('user_id', userId);
+    if (propertiesError) throw new Error(`Failed to delete properties: ${propertiesError.message}`);
+    const { error: edgesError } = await client.from('graph_edges').delete().eq('user_id', userId);
+    if (edgesError) throw new Error(`Failed to delete edges: ${edgesError.message}`);
+    const { error: nodesError } = await client.from('graph_nodes').delete().eq('user_id', userId);
+    if (nodesError) throw new Error(`Failed to delete nodes: ${nodesError.message}`);
+  }
+  private static loadBaseTemplateGraph(): any {
+    const baseTemplatePath = path.join(process.cwd(), 'vite-base-template');
+    const graphPath = path.join(baseTemplatePath, '_graph', 'graph.json');
+    if (!fs.existsSync(graphPath)) throw new Error(`Base template graph not found at ${graphPath}`);
+    const graphData = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+    return this.convertTemplateGraphFormat(graphData);
+  }
+  private static calculateNodePosition(node: any, allNodes: any[]): { x: number; y: number } {
+    if (!node.parentId || node.parentId === 'root') return { x: 400, y: 100 };
+    const siblings = allNodes.filter(n => n.parentId === node.parentId);
+    const siblingIndex = siblings.findIndex(n => n.id === node.id);
+    const baseX = 100; const spacing = 300; const x = baseX + siblingIndex * spacing; const y = 300;
+    return { x, y };
+  }
+  private static convertTemplateGraphFormat(templateGraph: any): Graph {
+    const nodes: any[] = [];
+    const edges: { id: string; source: string; target: string }[] = [];
+    for (const templateNode of templateGraph.nodes || []) {
+      const properties: Property[] = (templateNode.properties || []).map((prop: any) => ({
+        id: prop.id,
+        title: prop.title,
+        type: prop.type,
+        value: prop.value,
+        options: prop.options,
+        ...(Array.isArray(prop.fields) ? { fields: prop.fields } : {}),
+        ...(Array.isArray(prop.itemFields) ? { itemFields: prop.itemFields } : {}),
+        ...(prop.itemTitle ? { itemTitle: prop.itemTitle } : {}),
+        ...(prop.addLabel ? { addLabel: prop.addLabel } : {}),
+      }));
+      const node = {
+        id: templateNode.id,
+        title: templateNode.title,
+        prompt: templateNode.prompt || '',
+        state: templateNode.state || 'unbuilt',
+        position: this.calculateNodePosition(templateNode, templateGraph.nodes),
+        properties: properties.length > 0 ? properties : undefined,
+        children: (templateNode.children || []).map((child: any) => ({ id: child.id, title: child.title })),
+      };
+      nodes.push(node);
+      if (templateNode.parentId && templateNode.parentId !== 'root') {
+        edges.push({ id: `${templateNode.parentId}-${templateNode.id}`, source: templateNode.parentId, target: templateNode.id });
+      }
+      if (templateNode.children && Array.isArray(templateNode.children)) {
+        for (const child of templateNode.children) {
+          edges.push({ id: `${templateNode.id}-${child.id}`, source: templateNode.id, target: child.id });
+        }
+      }
+    }
+    const uniqueEdges = edges.filter((edge, index, self) => index === self.findIndex(e => e.id === edge.id));
+    return { nodes, edges: uniqueEdges } as Graph;
+  }
+  static async syncTemplateGraphToSupabase(userId: string): Promise<void> {
+    const templateGraph = this.loadBaseTemplateGraph();
+    await this.clearUserGraphData(userId);
+    const client = await this.getSupabaseServiceClient();
+    for (const node of templateGraph.nodes) {
+      const { error: nodeError } = await client.from('graph_nodes').upsert({
+        id: node.id,
+        title: node.title,
+        prompt: node.prompt,
+        state: node.state,
+        position_x: node.position?.x || 0,
+        position_y: node.position?.y || 0,
+        width: node.width,
+        height: node.height,
+        user_id: userId,
+      });
+      if (nodeError) throw new Error(`Failed to save node ${node.id}: ${nodeError.message}`);
+      if (node.properties && node.properties.length > 0) {
+        const propertiesData = node.properties.map((prop: any) => ({
+          id: prop.id,
+          node_id: node.id,
+          name: prop.title,
+          type: prop.type,
+          value: prop.value,
+          options: prop.options,
+          fields: prop.fields,
+          item_fields: prop.itemFields,
+          item_title: prop.itemTitle,
+          add_label: prop.addLabel,
+          user_id: userId,
+        }));
+        const { error: propertiesError } = await client.from('graph_properties').upsert(propertiesData);
+        if (propertiesError) throw new Error(`Failed to save properties for node ${node.id}: ${propertiesError.message}`);
+      }
+    }
+    if (templateGraph.edges && templateGraph.edges.length > 0) {
+      const { error: edgesError } = await client.from('graph_edges').upsert(
+        templateGraph.edges.map((edge: any) => ({ id: edge.id, source_id: edge.source, target_id: edge.target, user_id: userId }))
+      );
+      if (edgesError) throw new Error(`Failed to save edges: ${edgesError.message}`);
+    }
   }
 }
+

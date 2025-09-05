@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 
 export async function fetchGraphFromApi(req: NextRequest): Promise<any> {
   try {
-    const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`, {
+    const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`, {
       headers: {
         'Content-Type': 'application/json',
         ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
@@ -26,7 +26,7 @@ export async function fetchGraphFromApi(req: NextRequest): Promise<any> {
 
 export async function fetchUnbuiltNodeIdsFromApi(req: NextRequest): Promise<string[]> {
   try {
-    const unbuiltRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api?unbuilt=true`, {
+    const unbuiltRes = await fetch(`${req.nextUrl.origin}/api/graph-api?unbuilt=true`, {
       headers: {
         'Content-Type': 'application/json',
         ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),

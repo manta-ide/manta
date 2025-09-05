@@ -13,20 +13,20 @@ Auth model (per MCP over HTTP guidance)
 Exposed tools (all require Bearer via env):
 - `graph_read`:
   - input: `{ includeEdges?: boolean }`
-  - behavior: `GET /api/backend/graph-api`
+  - behavior: `GET /api/graph-api`
   - output: `{ graph }`, optionally with edges stripped
 - `graph_unbuilt`:
   - input: `{}`
-  - behavior: `GET /api/backend/graph-api?unbuilt=true`
+  - behavior: `GET /api/graph-api?unbuilt=true`
 - `graph_node`:
   - input: `{ nodeId: string }`
-  - behavior: `POST /api/backend/graph-api` with `{ nodeId }`
+  - behavior: `POST /api/graph-api` with `{ nodeId }`
  - `graph_set_node_state`:
    - input: `{ nodeId: string, state: string }`
-   - behavior: Loads current graph (`GET /api/backend/graph-api`), updates the node's `state`, then persists via `PUT /api/backend/graph-api` with `{ graph }`.
+   - behavior: Loads current graph (`GET /api/graph-api`), updates the node's `state`, then persists via `PUT /api/graph-api` with `{ graph }`.
 
 Resources
-- `manta://graph` (application/json): Full graph for the authenticated user. Content is fetched from `GET /api/backend/graph-api` using `MANTA_API_KEY` as Bearer.
+- `manta://graph` (application/json): Full graph for the authenticated user. Content is fetched from `GET /api/graph-api` using `MANTA_API_KEY` as Bearer.
 
 Install deps:
 - `@modelcontextprotocol/sdk` (server + stdio transport)

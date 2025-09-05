@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeGraphsFromFiles } from '../../../lib/graphStorage';
+import { initializeGraphsFromFiles } from '../../lib/graph-service';
 
 export async function POST(_request: NextRequest) {
   try {

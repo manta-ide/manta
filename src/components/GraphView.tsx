@@ -437,7 +437,7 @@ function GraphCanvas() {
       
       // Fallback to backend API
       try {
-        const response = await fetch('/api/backend/graph-api', {
+        const response = await fetch('/api/graph-api', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -461,7 +461,7 @@ function GraphCanvas() {
 
     setIsRebuilding(true);
     try {
-      const response = await fetch('/api/backend/agent-request/build-nodes', {
+      const response = await fetch('/api/agent-request/build-nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -525,7 +525,7 @@ function GraphCanvas() {
         console.warn('⚠️ Supabase update failed, using backend API:', supabaseError);
         
         // Fallback to backend API for state update
-        const updateStateRes = await fetch('/api/backend/graph-api', {
+        const updateStateRes = await fetch('/api/graph-api', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -539,7 +539,7 @@ function GraphCanvas() {
         }
       }
 
-      const response = await fetch('/api/backend/agent-request/build-nodes', {
+      const response = await fetch('/api/agent-request/build-nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -566,7 +566,7 @@ function GraphCanvas() {
         } catch (supabaseError) {
           console.warn('⚠️ Supabase final update failed, using backend API:', supabaseError);
           
-          const finalUpdateRes = await fetch('/api/backend/graph-api', {
+          const finalUpdateRes = await fetch('/api/graph-api', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

@@ -73,7 +73,7 @@ server.registerTool(
   async ({ includeEdges }) => {
     const origin = resolveBaseUrl();
     const token = resolveAccessToken();
-    const url = `${origin}/api/backend/graph-api`;
+    const url = `${origin}/api/graph-api`;
     const data = await httpGet(url, token);
     // Optionally strip edges if requested
     if (data?.graph && includeEdges === false) {
@@ -98,7 +98,7 @@ server.registerTool(
   async () => {
     const origin = resolveBaseUrl();
     const token = resolveAccessToken();
-    const url = `${origin}/api/backend/graph-api?unbuilt=true`;
+    const url = `${origin}/api/graph-api?unbuilt=true`;
     const data = await httpGet(url, token);
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   }
@@ -117,7 +117,7 @@ server.registerTool(
   async ({ nodeId }) => {
     const origin = resolveBaseUrl();
     const token = resolveAccessToken();
-    const url = `${origin}/api/backend/graph-api`;
+    const url = `${origin}/api/graph-api`;
     const data = await httpPost(url, { nodeId }, token);
     return { content: [{ type: 'text', text: JSON.stringify(data.node ?? data, null, 2) }] };
   }
@@ -137,7 +137,7 @@ server.registerTool(
   async ({ nodeId, state }) => {
     const origin = resolveBaseUrl();
     const token = resolveAccessToken();
-    const url = `${origin}/api/backend/graph-api`;
+    const url = `${origin}/api/graph-api`;
 
     // Load current graph
     const data = await httpGet(url, token);
@@ -180,7 +180,7 @@ server.registerResource(
   async (uri) => {
     const origin = resolveBaseUrl();
     const token = resolveAccessToken();
-    const url = `${origin}/api/backend/graph-api`;
+    const url = `${origin}/api/graph-api`;
     const data = await httpGet(url, token);
     const graph = data.graph ?? data;
     return {

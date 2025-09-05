@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeGraph, getGraphSession } from '../../lib/graphStorage';
+import { storeGraph, getGraphSession } from '../lib/graph-service';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
 
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       // If not found in memory, try to load from graph-api
       if (!node) {
         try {
-          const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+          const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`);
           if (graphRes.ok) {
             const graphData = await graphRes.json();
             if (graphData.success && graphData.graph) {
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       let graph = getGraphSession();
       if (!graph) {
         try {
-          const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+          const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`);
           if (graphRes.ok) {
             const graphData = await graphRes.json();
             if (graphData.success && graphData.graph) {
@@ -133,7 +133,7 @@ export async function PUT(req: NextRequest) {
     let graph = getGraphSession();
     if (!graph) {
       try {
-        const graphRes = await fetch(`${req.nextUrl.origin}/api/backend/graph-api`);
+        const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`);
         if (graphRes.ok) {
           const graphData = await graphRes.json();
           if (graphData.success && graphData.graph) {

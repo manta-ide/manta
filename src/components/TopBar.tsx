@@ -51,7 +51,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
     setApiKeyError(null);
     setApiKeyLoading(true);
     try {
-      const res = await fetch('/api/backend/mcp/access-token', { method: 'GET', credentials: 'include' });
+      const res = await fetch('/api/mcp/access-token', { method: 'GET', credentials: 'include' });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch API key');
       setApiKey(data?.token || '');

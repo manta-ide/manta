@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { Pool } from 'pg';
-import { clearConversationSession } from '@/app/api/lib/conversationStorage';
-import { clearGraphSession } from '@/app/api/lib/graphStorage';
+import { clearGraphSession } from '@/app/api/lib/graph-service';
 import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
-import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
+import { SupabaseGraphService } from '@/app/api/lib/graph-service';
 
 // Single shared pool, similar to /api/chat
 const pool = new Pool({
@@ -25,7 +24,13 @@ export async function POST(req: NextRequest) {
 
     // 1) Reset chatting session (server-side in-memory)
     try {
-      clearConversationSession();
+      const response = await fetch('/api/chat', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        console.warn('[reset] Failed to clear conversation session:', response.status, response.statusText);
+      }
     } catch (e) {
       console.warn('[reset] Failed to clear conversation session:', e);
     }
@@ -70,4 +75,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to reset project' }, { status: 500 });
   }
 }
-

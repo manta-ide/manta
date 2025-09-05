@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
+import { SupabaseGraphService } from '@/app/api/lib/graph-service';
 
 export interface UserSandboxInfo {
   sandboxId: string;

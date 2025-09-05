@@ -8,7 +8,6 @@ import AppViewer from "@/components/AppViewer";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
-// Removed sandbox/supabase UI widgets
 import GlobalLoaderOverlay from "@/components/GlobalLoaderOverlay";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";

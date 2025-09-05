@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../../lib/graphStorage';
+import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../lib/graph-service';
 import { auth } from '@/lib/auth';
 
 // Map Authorization: Bearer <session_token> to Better Auth cookie for compatibility with MCP
@@ -365,7 +365,7 @@ export async function DELETE(req: NextRequest) {
     console.log('🗑️ Deleting graph...', req.body);
     
     // Import the clearGraphSession function
-    const { clearGraphSession } = await import('../../lib/graphStorage');
+    const { clearGraphSession } = await import('../lib/graph-service');
     
     // Clear the graph from storage and delete the file
     await clearGraphSession();

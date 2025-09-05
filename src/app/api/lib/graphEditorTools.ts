@@ -58,7 +58,7 @@ export function setGraphEditorSaveFn(fn?: (graph: Graph) => Promise<boolean>) {
 async function fetchGraphFromAPI(): Promise<Graph | null> {
   try {
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
+    const response = await fetch(`${baseUrl}/api/graph-api`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', ...(defaultAuthHeaders || {}) },
     });
@@ -90,7 +90,7 @@ async function saveGraphThroughAPI(graph: Graph): Promise<boolean> {
       return await overrideSaveGraphFn(graph);
     }
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/backend/graph-api`, {
+    const response = await fetch(`${baseUrl}/api/graph-api`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...(defaultAuthHeaders || {}) },
       body: JSON.stringify({ graph }),
