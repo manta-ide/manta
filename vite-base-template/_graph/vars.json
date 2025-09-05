@@ -117,12 +117,12 @@
     "base-font-size": "1rem",
     "border-color": "#161a1d",
     "border-radius-global": "16px",
-    "font-family": "Oswald",
+    "font-family": "Poppins",
     "max-content-width": "1024px",
     "muted-color": "#b2adac",
     "section-padding-x": "20px",
     "section-padding-y": "48px",
-    "text-color": "#bb2472"
+    "text-color": "#dd4290"
   },
   "root-font": {
     "family": "Noto Sans"

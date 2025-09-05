@@ -3,15 +3,21 @@
 
 import { SandboxService } from './sandbox-service';
 import { registerBlaxelProvider } from './blaxel';
+import { registerLocalProvider } from './local-sandbox';
 
-// In future, switch by env var (e.g., SANDBOX_PROVIDER)
-// For now, always register Blaxel as provider.
+// Switch by env var (SANDBOX_PROVIDER=local to use local provider)
 try {
-  registerBlaxelProvider();
+  const provider = "local";//process.env.SANDBOX_PROVIDER?.toLowerCase();
+  if (provider === 'local') {
+    registerLocalProvider();
+    console.log('[sandbox-provider] Registered local sandbox provider');
+  } else {
+    registerBlaxelProvider();
+    console.log('[sandbox-provider] Registered Blaxel sandbox provider');
+  }
 } catch (e) {
   // Avoid crashing module load; actual calls will surface errors if provider missing
   console.error('[sandbox-provider] Failed to register provider:', e);
 }
 
 export { SandboxService };
-
