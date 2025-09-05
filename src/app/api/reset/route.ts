@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { clearConversationSession } from '@/app/api/lib/conversationStorage';
 import { clearGraphSession } from '@/app/api/lib/graphStorage';
 import { SandboxService } from '@/lib/sandbox-service';
+import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
 
 // Single shared pool, similar to /api/chat
 const pool = new Pool({
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     // 4) Clear user graph data explicitly in Supabase to ensure a clean slate
     try {
-      await SandboxService.clearUserGraphData(userId);
+      await SupabaseGraphService.clearUserGraphData(userId);
     } catch (e) {
       console.warn('[reset] Failed to clear Supabase graph data (continuing):', e);
     }
