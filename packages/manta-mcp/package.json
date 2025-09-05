@@ -1,0 +1,26 @@
+{
+  "name": "manta-mcp",
+  "version": "0.1.2",
+  "type": "module",
+  "bin": {
+    "manta-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "prepublishOnly": "npm run build",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.4.0"
+  },
+  "devDependencies": {
+    "manta-mcp": "^0.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4"
+  }
+}
