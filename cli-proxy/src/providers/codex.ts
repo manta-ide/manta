@@ -1,5 +1,7 @@
 import {Provider, RunOptions} from './provider.js';
 import {spawnCommand, which} from './spawn.js';
+import path from 'node:path';
+import fs from 'node:fs';
 
 export class CodexProvider implements Provider {
   readonly name = 'codex';
@@ -26,7 +28,33 @@ export class CodexProvider implements Provider {
         args = ['exec', ...args];
       }
     }
-    return await spawnCommand(this.bin, args, {
+    // Inject a built-in MCP server configuration for manta
+    const mcpFlags: string[] = [];
+    try {
+      // Try to resolve the server.ts path relative to repo root (one level up from cli-proxy)
+      const candidates = [
+        path.resolve(process.cwd(), 'scripts/mcp/server.ts'),
+        path.resolve(process.cwd(), '..', 'scripts/mcp/server.ts'),
+      ];
+      const serverPath = candidates.find((p) => fs.existsSync(p));
+      if (serverPath) {
+        const base = 'mcp_servers.manta';
+        const quote = (s: string) => `"${String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+        const tomlArray = (arr: string[]) => `[${arr.map((x) => quote(x)).join(', ')}]`;
+        const envMap: Record<string, string> = {};
+        if (process.env.MANTA_API_URL) envMap.MANTA_API_URL = process.env.MANTA_API_URL as string;
+        if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;
+        const tomlMap = (obj: Record<string, string>) => `{ ${Object.entries(obj).map(([k, v]) => `${k} = ${quote(v)}`).join(', ')} }`;
+        mcpFlags.push('--config', `${base}.command=${quote(process.execPath)}`);
+        mcpFlags.push('--config', `${base}.args=${tomlArray([serverPath])}`);
+        if (Object.keys(envMap).length > 0) {
+          mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+        }
+      }
+    } catch {}
+
+    const finalArgs = [...mcpFlags, ...args];
+    return await spawnCommand(this.bin, finalArgs, {
       env: opts.env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,

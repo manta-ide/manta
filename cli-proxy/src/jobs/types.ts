@@ -7,8 +7,11 @@ export interface BaseJobPayload {
 }
 
 export interface RunJobPayload extends BaseJobPayload {
-  cmd: string; // binary or shell command to execute
+  // Either specify a raw command to execute OR a provider to delegate to
+  cmd?: string; // binary or shell command to execute
   args?: string[]; // args to pass to the command
+  provider?: string; // e.g., 'codex'
+  prompt?: string; // optional single-string prompt for provider CLIs
   cwd?: string;
   env?: Record<string, string>;
   interactive?: boolean; // defaults to false in worker
@@ -31,4 +34,3 @@ export interface JobRecord {
   finished_at?: string | null;
   error_message?: string | null;
 }
-

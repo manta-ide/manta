@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { getProvider } from '../providers/index.js';
 export class JobWorker extends EventEmitter {
     constructor(opts) {
         super();
@@ -172,17 +173,39 @@ export class JobWorker extends EventEmitter {
     }
     async handleRun(job) {
         const payload = (job.payload ?? {});
+        // If a provider is specified, delegate execution to the provider
+        if (payload.provider) {
+            const provider = getProvider(payload.provider);
+            if (!provider)
+                throw new Error(`unknown provider: ${payload.provider}`);
+            const args = payload.args && payload.args.length > 0
+                ? payload.args
+                : (payload.prompt ? [payload.prompt] : []);
+            console.log('[worker] provider exec:', { provider: provider.name, args });
+            const code = await provider.run({
+                args,
+                cwd: payload.cwd ?? process.cwd(),
+                env: { ...process.env, ...(payload.env ?? {}) },
+                interactive: payload.interactive ?? false,
+            });
+            if (code !== 0)
+                throw new Error(`provider exited with code ${code}`);
+            return;
+        }
+        // Otherwise, direct command execution
         if (!payload.cmd)
             throw new Error('run job missing payload.cmd');
         const rawArgs = payload.args ?? [];
         const envMerged = { ...process.env, ...(payload.env ?? {}) };
         // Simple $VAR substitution in args using envMerged
         const args = rawArgs.map((a) => typeof a === 'string' ? a.replace(/\$([A-Z0-9_]+)/g, (_m, v) => (envMerged[v] ?? _m)) : a);
+        // Provider (codex) is responsible for MCP configuration; no injection here
+        const finalArgs = [...args];
         const quoteArg = (s) => /[^A-Za-z0-9_\-./]/.test(s) ? `'${s.replace(/'/g, "'\\''")}'` : s;
-        const finalCmdLine = [payload.cmd, ...args.map((a) => quoteArg(String(a)))].join(' ');
-        console.log('[worker] spawning child:', { cmd: payload.cmd, args, cwd: payload.cwd || process.cwd() });
+        const finalCmdLine = [payload.cmd, ...finalArgs.map((a) => quoteArg(String(a)))].join(' ');
+        console.log('[worker] spawning child:', { cmd: payload.cmd, args: finalArgs, cwd: payload.cwd || process.cwd() });
         console.log(`[worker] exec: ${finalCmdLine} (cwd: ${payload.cwd ?? process.cwd()})`);
-        const child = spawn(payload.cmd, args, {
+        const child = spawn(payload.cmd, finalArgs, {
             cwd: payload.cwd ?? process.cwd(),
             env: envMerged,
             stdio: payload.interactive ? 'inherit' : 'pipe',

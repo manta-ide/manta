@@ -3,6 +3,8 @@ import { MessageSchema } from '@/app/api/lib/schemas';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import path from 'node:path';
+import fs from 'node:fs';
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
@@ -39,15 +41,11 @@ export async function POST(req: NextRequest) {
 
     // Simple: run codex with a single string argument (the prompt).
     // You can override command/prompt via env: CLI_JOB_CMD, CLI_CODEX_PROMPT
-    const cmd = process.env.CLI_JOB_CMD || 'codex';
     const prompt = process.env.CLI_CODEX_PROMPT || (userMessage?.content || 'explain this codebase to me');
-    // Default to non-interactive automation mode
-    const args: string[] = ['exec', prompt];
-
-    // Compose job payload
+    // Compose provider-driven job payload
     const payload = {
-      cmd,
-      args,
+      provider: 'codex',
+      prompt,
       interactive: false,
       meta: {
         kind: 'build-nodes',

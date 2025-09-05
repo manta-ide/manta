@@ -105,6 +105,32 @@ export CLI_JOB_CMD=bash
 export CLI_JOB_ARGS='["-lc","echo Message: \"$JOB_MESSAGE_TEXT\""]'
 ```
 
+### Codex MCP configuration (via env)
+
+- Provide MCP servers as JSON in `CLI_MCP_SERVERS_JSON`. The worker will convert this into Codex `--config` flags automatically when running `codex`.
+
+```
+export CLI_MCP_SERVERS_JSON='{
+  "mcpServers": {
+    "manta": {
+      "command": "/path/to/node",
+      "args": ["/path/to/scripts/mcp/server.ts"],
+      "env": {
+        "MANTA_API_KEY": "...",
+        "MANTA_API_URL": "http://localhost:3000"
+      }
+    }
+  }
+}'
+```
+
+- The worker injects flags like:
+  - `--config mcp_servers.manta.command="/path/to/node"`
+  - `--config mcp_servers.manta.args=["/path/to/scripts/mcp/server.ts"]`
+  - `--config mcp_servers.manta.env={ MANTA_API_KEY = "...", MANTA_API_URL = "http://localhost:3000" }`
+
+- This applies to any job with `cmd: "codex"` (including the build-nodes jobs).
+
 ## Add a Provider
 
 - Implement `Provider` in `src/providers/provider.ts`
