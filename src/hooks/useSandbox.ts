@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { UserSandboxInfo } from '@/lib/sandbox-service';
+import { UserSandboxInfo } from '@/lib/blaxel-sandbox-service';
 import { toast } from 'sonner';
 
 export function useSandbox() {

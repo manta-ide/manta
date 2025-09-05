@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { SandboxService } from '@/lib/sandbox-service';
+import { SandboxService } from '@/lib/blaxel-sandbox-service';
 
 export async function POST(request: NextRequest) {
   try {

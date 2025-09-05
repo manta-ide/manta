@@ -115,7 +115,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         console.warn('⚠️ Graph load error (continuing to load files):', graphErr);
       }
 
-      // Load file tree from backend API (Blaxel-backed)
       try {
         const response = await fetch('/api/files', { credentials: 'include' });
         if (response.ok) {

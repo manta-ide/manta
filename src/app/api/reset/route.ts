@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { Pool } from 'pg';
 import { clearConversationSession } from '@/app/api/lib/conversationStorage';
 import { clearGraphSession } from '@/app/api/lib/graphStorage';
-import { SandboxService } from '@/lib/sandbox-service';
+import { SandboxService } from '@/lib/blaxel-sandbox-service';
 import { SupabaseGraphService } from '@/app/api/supabase/graph-service';
 
 // Single shared pool, similar to /api/chat

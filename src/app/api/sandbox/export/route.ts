@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { SandboxService } from '@/lib/sandbox-service';
+import { SandboxService } from '@/lib/blaxel-sandbox-service';
 import { BlaxelService } from '@/lib/blaxel';
 
 export async function POST(request: NextRequest) {
@@ -220,8 +220,10 @@ async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Re
         // Remove leading slash for consistency in the output
         let normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
         
-        // Keep the full path including blaxel/app prefix for proper file organization
-        files[normalizedPath] = content;
+        // Remove blaxel/app prefix if present for cleaner file structure
+        const cleanPath = normalizedPath.replace(/^blaxel\/app\//, '');
+        
+        files[cleanPath] = content;
         console.log(`Successfully read file: ${normalizedPath}`);
       } catch (error) {
         console.log(`Failed to read file ${filePath}:`, error);

@@ -88,9 +88,7 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
           
           // Add all files to the ZIP
           Object.entries(data.files).forEach(([path, content]) => {
-            // Remove blaxel/app prefix if present for cleaner file structure
-            const cleanPath = path.replace(/^blaxel\/app\//, '');
-            zip.file(cleanPath, content as string);
+            zip.file(path, content as string);
           });
           
           // Generate and download the ZIP
