@@ -46,6 +46,15 @@ async function httpPost(url: string, body: any, token?: string) {
   return res.json();
 }
 
+async function httpPut(url: string, body: any, token?: string) {
+  const res = await fetch(url, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`PUT ${url} failed: ${res.status} ${res.statusText} - ${text}`);
+  }
+  return res.json();
+}
+
 // Create an MCP server focused on graph reads
 const server = new McpServer({ name: "graph-server", version: "1.0.0" });
 
@@ -111,6 +120,51 @@ server.registerTool(
     const url = `${origin}/api/backend/graph-api`;
     const data = await httpPost(url, { nodeId }, token);
     return { content: [{ type: 'text', text: JSON.stringify(data.node ?? data, null, 2) }] };
+  }
+);
+
+// Tool: set a node's state (authenticated)
+server.registerTool(
+  "graph_set_node_state",
+  {
+    title: "Set Node State",
+    description: "Update a node's state (e.g., built/pending/error) and persist the graph.",
+    inputSchema: {
+      nodeId: z.string().min(1, "nodeId is required"),
+      state: z.string().min(1, "state is required"),
+    },
+  },
+  async ({ nodeId, state }) => {
+    const origin = resolveBaseUrl();
+    const token = resolveAccessToken();
+    const url = `${origin}/api/backend/graph-api`;
+
+    // Load current graph
+    const data = await httpGet(url, token);
+    const graph = data.graph ?? data;
+    if (!graph || !Array.isArray(graph.nodes)) {
+      throw new Error('Graph not available or malformed');
+    }
+
+    const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
+    if (idx === -1) {
+      throw new Error(`Node ${nodeId} not found`);
+    }
+
+    graph.nodes[idx] = { ...graph.nodes[idx], state };
+
+    // Persist full graph
+    const putRes = await httpPut(url, { graph }, token);
+    const updated = putRes?.graph?.nodes?.find((n: any) => n.id === nodeId) ?? graph.nodes[idx];
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Updated node ${nodeId} state -> ${state}\n${JSON.stringify(updated, null, 2)}`,
+        },
+      ],
+    };
   }
 );
 

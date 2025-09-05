@@ -21,6 +21,9 @@ Exposed tools (all require Bearer via env):
 - `graph_node`:
   - input: `{ nodeId: string }`
   - behavior: `POST /api/backend/graph-api` with `{ nodeId }`
+ - `graph_set_node_state`:
+   - input: `{ nodeId: string, state: string }`
+   - behavior: Loads current graph (`GET /api/backend/graph-api`), updates the node's `state`, then persists via `PUT /api/backend/graph-api` with `{ graph }`.
 
 Resources
 - `manta://graph` (application/json): Full graph for the authenticated user. Content is fetched from `GET /api/backend/graph-api` using `MANTA_API_KEY` as Bearer.
