@@ -83,13 +83,6 @@ function resolveEnv(name: string): string | undefined {
     || (typeof process !== "undefined" ? (process.env as any)[name] : undefined);
 }
 
-function getRoomId(): string {
-  // Prefer explicit VITE_SANDBOX_ID if present; otherwise use VITE_USER_ID
-  const sandboxId = resolveEnv("VITE_SANDBOX_ID");
-  const userId = resolveEnv("VITE_USER_ID");
-  return sandboxId || userId || "public";
-}
-
 function getSupabase(): SupabaseClient | null {
   if (supabase) return supabase;
   const url = resolveEnv("VITE_SUPABASE_URL");
@@ -100,27 +93,51 @@ function getSupabase(): SupabaseClient | null {
 }
 
 async function fetchInitialVars(): Promise<Vars> {
-  // Expect a helper endpoint within the sandbox that proxies to Next backend for current vars
-  // If not provided, fall back to empty object; UI will use defaults
+  // Prefer local graph vars for initial load
   try {
-    const res = await fetch("/iframe/api/vars", { method: "GET" });
-    if (res.ok) {
-      const data = await res.json();
-      return (data?.vars as Vars) || {};
+    const base = (typeof window !== 'undefined' && (window.location.pathname === '/iframe' || window.location.pathname.startsWith('/iframe/')))
+      ? '/iframe'
+      : '';
+    const res = await fetch(`${base}/_graph/vars.json`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json && typeof json === 'object') {
+      return json as Vars;
     }
-  } catch {}
+  } catch (e) {
+    console.warn('Failed to load /_graph/vars.json, falling back to empty vars:', e);
+  }
   return {};
+}
+
+// Debounced persist of vars.json via vite dev-server middleware
+let persistTimer: any = null;
+async function persistVarsJsonDebounced(nextVars: Vars, delay = 200) {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(async () => {
+    try {
+      const base = (typeof window !== 'undefined' && (window.location.pathname === '/iframe' || window.location.pathname.startsWith('/iframe/')))
+        ? '/iframe'
+        : '';
+      await fetch(`${base}/__graph/vars`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextVars),
+        cache: 'no-store',
+      });
+    } catch (e) {
+      console.warn('Failed to persist vars.json:', e);
+    }
+  }, delay);
 }
 
 export function subscribeVars(onUpdate: (vars: Vars) => void) {
   const client = getSupabase();
-  const sandboxRoomId = getRoomId();
   const userRoomId = resolveEnv("VITE_USER_ID");
 
   // Emit initial vars (async fetch), then listen to broadcasts for updates
   fetchInitialVars().then((vars) => {
     currentVars = vars || {};
-    console.log("currentVars", JSON.stringify(currentVars));
     applyCssVarsFrom(currentVars);
     onUpdate(currentVars);
   });
@@ -135,9 +152,10 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
       const prop = data.property || {};
       if (prop?.id !== undefined) {
         currentVars = { ...currentVars, [prop.id]: prop.value };
-        console.log("currentVars", JSON.stringify(currentVars));
         applyCssVarsFrom(currentVars);
         onUpdate(currentVars);
+        // Persist to local vars.json asynchronously
+        persistVarsJsonDebounced(currentVars);
       }
     })
     // Also handle 'property_update' with { nodeId, propertyId, value }
@@ -145,25 +163,27 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
       const data = (payload as any)?.payload || {};
       if (data?.propertyId !== undefined) {
         currentVars = { ...currentVars, [data.propertyId]: data.value };
-        console.log("currentVars", JSON.stringify(currentVars));
         applyCssVarsFrom(currentVars);
         onUpdate(currentVars);
+         // Persist to local vars.json asynchronously
+         persistVarsJsonDebounced(currentVars);
       }
     })
     // On graph reload, refetch the full vars snapshot
     .on("broadcast", { event: "graph_reload" }, async () => {
+      console.log("broadcast 'graph_reload' received, refetching vars");
       const next = await fetchInitialVars();
       currentVars = { ...next };
-      console.log("currentVars", JSON.stringify(currentVars));
+      console.log("currentVars broadcast", JSON.stringify(currentVars));
       applyCssVarsFrom(currentVars);
       onUpdate(currentVars);
     })
     .subscribe();
 
   // Subscribe to sandbox room first
-  subscribeRoom(`graph-broadcast-${sandboxRoomId}`);
+  subscribeRoom(`graph-broadcast-${userRoomId}`);
   // If different, also subscribe to user room (client broadcasts may use user room)
-  if (userRoomId && userRoomId !== sandboxRoomId) {
+  if (userRoomId && userRoomId !== userRoomId) {
     subscribeRoom(`graph-broadcast-${userRoomId}`);
   }
 

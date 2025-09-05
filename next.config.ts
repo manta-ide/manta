@@ -21,8 +21,6 @@ const nextConfig: NextConfig = {
       { source: '/node_modules/:path*', destination: '/api/iframe/node_modules/:path*' },
       { source: '/assets/:path*', destination: '/api/iframe/assets/:path*' },
       { source: '/vite.svg', destination: '/api/iframe/vite.svg' },
-      // Optional: expose vars endpoint at a stable path used by the iframe
-      { source: '/api/vars', destination: '/api/iframe/api/vars' },
     ];
   }
 };
