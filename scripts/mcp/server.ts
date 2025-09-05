@@ -114,6 +114,32 @@ server.registerTool(
   }
 );
 
+// Expose the full graph as an MCP resource (static URI)
+server.registerResource(
+  "manta-graph",
+  "manta://graph",
+  {
+    title: "Manta Graph",
+    description: "Current graph for the authenticated user",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const origin = resolveBaseUrl();
+    const token = resolveAccessToken();
+    const url = `${origin}/api/backend/graph-api`;
+    const data = await httpGet(url, token);
+    const graph = data.graph ?? data;
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          text: JSON.stringify(graph, null, 2),
+        },
+      ],
+    };
+  }
+);
+
 // Connect via stdio
 const transport = new StdioServerTransport();
 await server.connect(transport);

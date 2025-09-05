@@ -22,6 +22,9 @@ Exposed tools (all require Bearer via env):
   - input: `{ nodeId: string }`
   - behavior: `POST /api/backend/graph-api` with `{ nodeId }`
 
+Resources
+- `manta://graph` (application/json): Full graph for the authenticated user. Content is fetched from `GET /api/backend/graph-api` using `MANTA_API_KEY` as Bearer.
+
 Install deps:
 - `@modelcontextprotocol/sdk` (server + stdio transport)
 - `@modelcontextprotocol/inspector` (optional, provides GUI inspector)
