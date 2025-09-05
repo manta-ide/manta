@@ -16,7 +16,16 @@ export class CodexProvider implements Provider {
 
   async run(opts: RunOptions): Promise<number> {
     await this.ensureAvailable();
-    const args = opts.args;
+    let args = opts.args;
+    // If user passes a single prompt string (no subcommand), default to `exec` for non-interactive automation.
+    if (args.length === 1) {
+      const first = args[0];
+      const firstLower = String(first).toLowerCase();
+      const known = new Set(['exec', 'login', 'help', '--help', '-h']);
+      if (!known.has(firstLower)) {
+        args = ['exec', ...args];
+      }
+    }
     return await spawnCommand(this.bin, args, {
       env: opts.env,
       cwd: opts.cwd,

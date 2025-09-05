@@ -545,7 +545,7 @@ function GraphCanvas() {
         body: JSON.stringify({
           userMessage: {
             role: 'user',
-            content: `Build and generate code for the node: ${selectedNode.title}`,
+            content: 'What is 100+299?',//`Build and generate code for the node: ${selectedNode.title}`,
             variables: {}
           },
           nodeId: selectedNode.id
@@ -553,48 +553,8 @@ function GraphCanvas() {
       });
 
       if (response.ok) {
-        console.log('✅ Selected node build started successfully');
-        
-        // Update node state to "built" on success - try Supabase first
-        try {
-          if (supabaseConnected) {
-            await updateNodeInSupabase(selectedNode.id, { state: 'built' });
-            console.log('✅ Node state updated to built via Supabase');
-          } else {
-            throw new Error('Supabase not connected');
-          }
-        } catch (supabaseError) {
-          console.warn('⚠️ Supabase final update failed, using backend API:', supabaseError);
-          
-          const finalUpdateRes = await fetch('/api/graph-api', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              nodeId: selectedNode.id, 
-              state: 'built' 
-            })
-          });
-          
-          if (!finalUpdateRes.ok) {
-            console.error('Failed to update node state to built');
-          }
-        }
-
-        // Optimistic completion update
-        try {
-          const current = useProjectStore.getState();
-          const g = current.graph;
-          if (g) {
-            const updatedNodes = g.nodes.map((n: any) => n.id === selectedNode.id ? { ...n, state: 'built' } : n);
-            const updatedGraph = { ...g, nodes: updatedNodes } as any;
-            const updatedSelected = { ...selectedNode, state: 'built' } as any;
-            useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected });
-          }
-          // Trigger iframe refresh since code was updated
-          try {
-            current.triggerRefresh();
-          } catch {}
-        } catch {}
+        console.log('✅ Selected node build queued successfully');
+        // Do not set node to built here; worker/agent will update state via MCP later.
       } else {
         console.error('❌ Failed to build selected node');
         

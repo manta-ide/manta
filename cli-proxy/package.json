@@ -8,17 +8,18 @@
   },
   "oclif": {
     "bin": "mproxy",
-    "commands": "./src/commands"
+    "commands": "./dist/commands"
   },
   "scripts": {
     "build": "tsc -p .",
-    "dev": "tsx src/bin.ts",
+    "dev": "npm run build && node dist/bin.js",
     "start": "node dist/bin.js",
     "lint": "echo 'no lint configured'"
   },
   "dependencies": {
     "@oclif/core": "^3.26.6",
-    "@supabase/supabase-js": "^2.45.3"
+    "@supabase/supabase-js": "^2.45.3",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

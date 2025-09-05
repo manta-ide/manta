@@ -262,3 +262,61 @@ COMMENT ON TABLE graph_nodes IS 'Stores graph nodes with positions and propertie
 COMMENT ON TABLE graph_edges IS 'Stores connections between graph nodes';
 COMMENT ON TABLE graph_properties IS 'Stores configurable properties for graph nodes';
 COMMENT ON FUNCTION get_user_graph(TEXT) IS 'Helper function to retrieve complete graph data for a user';
+
+-- 9) CLI Jobs: queue and realtime
+-- Jobs are provider-agnostic: job_name in ('run','terminate') and payload holds command details.
+
+-- Ensure pgcrypto for gen_random_uuid
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS cli_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  job_name TEXT NOT NULL CHECK (job_name IN ('run','terminate')),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','completed','failed','cancelled')),
+  payload JSONB,
+  priority INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  started_at TIMESTAMP WITH TIME ZONE,
+  finished_at TIMESTAMP WITH TIME ZONE
+);
+
+-- index to support ordering and filtering
+CREATE INDEX IF NOT EXISTS idx_cli_jobs_status ON cli_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_cli_jobs_user ON cli_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_cli_jobs_priority_created ON cli_jobs(priority DESC, created_at ASC);
+
+-- trigger to maintain updated_at
+DROP TRIGGER IF EXISTS update_cli_jobs_updated_at ON cli_jobs;
+CREATE TRIGGER update_cli_jobs_updated_at
+  BEFORE UPDATE ON cli_jobs
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- RLS for cli_jobs
+ALTER TABLE cli_jobs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own jobs" ON cli_jobs;
+CREATE POLICY "Users can view their own jobs" ON cli_jobs
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own jobs" ON cli_jobs;
+CREATE POLICY "Users can insert their own jobs" ON cli_jobs
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own jobs" ON cli_jobs;
+CREATE POLICY "Users can update their own jobs" ON cli_jobs
+  FOR UPDATE USING (auth.uid()::text = user_id);
+
+-- Realtime publication for cli_jobs
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'cli_jobs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.cli_jobs;
+  END IF;
+END $$;

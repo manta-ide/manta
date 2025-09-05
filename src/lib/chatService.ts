@@ -373,18 +373,6 @@ export function useChatService() {
         }
       }
       
-      // Clear backend conversation (keep existing functionality)
-      const response = await fetch('/api/llm-agent/clear', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to clear conversation on backend');
-      }
     } catch (error) {
       console.error('Error clearing conversation:', error);
     }
