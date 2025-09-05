@@ -1,6 +1,7 @@
 import { spawnCommand, which } from './spawn.js';
 import path from 'node:path';
 import fs from 'node:fs';
+import { readConfig } from '../config/store.js';
 export class CodexProvider {
     constructor() {
         this.name = 'codex';
@@ -52,8 +53,17 @@ export class CodexProvider {
         }
         catch { }
         const finalArgs = [...mcpFlags, ...args];
+        const cfg = readConfig();
+        const env = {
+            ...process.env,
+            ...(opts.env ?? {}),
+        };
+        if (cfg.mantaApiUrl && !env.MANTA_API_URL)
+            env.MANTA_API_URL = cfg.mantaApiUrl;
+        if (cfg.mantaApiKey && !env.MANTA_API_KEY)
+            env.MANTA_API_KEY = cfg.mantaApiKey;
         return await spawnCommand(this.bin, finalArgs, {
-            env: opts.env,
+            env,
             cwd: opts.cwd,
             interactive: opts.interactive ?? true,
         });

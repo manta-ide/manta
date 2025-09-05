@@ -2,6 +2,7 @@ import {Command, Flags} from '@oclif/core';
 import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
+import {readConfig} from '../config/store.js';
 import {JobWorker} from '../jobs/worker.js';
 
 export default class Worker extends Command {
@@ -39,11 +40,17 @@ export default class Worker extends Command {
       return;
     }
 
+    const cfg = readConfig();
+    const scopedUser = flags.user ?? cfg.userId ?? undefined;
+    if (!flags.user && cfg.userId) {
+      this.log(`[worker] using saved user id: ${cfg.userId}`);
+    }
+
     const worker = new JobWorker({
       supabaseUrl,
       supabaseAnonKey,
       supabaseServiceRoleKey,
-      userId: flags.user,
+      userId: scopedUser,
     });
 
     worker.on('error', (e) => this.logToStderr(`[worker:error] ${e?.message ?? e}`));

@@ -8,6 +8,7 @@ A lightweight oclif-based CLI that proxies other CLIs via provider implementatio
 - Interactive passthrough using stdio inheritance
 - `run` command delegates to provider with interactive passthrough
 - `worker` command subscribes to Supabase Realtime jobs and executes them serially
+- `auth` command logs into the Manta app, stores API key + user id
 
 ## Install / Dev
 
@@ -44,6 +45,14 @@ mproxy providers
 mproxy run codex -- <provider-args>
 # examples
 mproxy run codex -- --help
+```
+
+## Authenticate
+
+```
+mproxy auth --url http://localhost:3000
+# Follow the printed steps to sign in and paste your session token.
+# The CLI stores your API key + user id in ~/.mproxy/config.json.
 ```
 
 ## Authentication
@@ -107,29 +116,7 @@ export CLI_JOB_ARGS='["-lc","echo Message: \"$JOB_MESSAGE_TEXT\""]'
 
 ### Codex MCP configuration (via env)
 
-- Provide MCP servers as JSON in `CLI_MCP_SERVERS_JSON`. The worker will convert this into Codex `--config` flags automatically when running `codex`.
-
-```
-export CLI_MCP_SERVERS_JSON='{
-  "mcpServers": {
-    "manta": {
-      "command": "/path/to/node",
-      "args": ["/path/to/scripts/mcp/server.ts"],
-      "env": {
-        "MANTA_API_KEY": "...",
-        "MANTA_API_URL": "http://localhost:3000"
-      }
-    }
-  }
-}'
-```
-
-- The worker injects flags like:
-  - `--config mcp_servers.manta.command="/path/to/node"`
-  - `--config mcp_servers.manta.args=["/path/to/scripts/mcp/server.ts"]`
-  - `--config mcp_servers.manta.env={ MANTA_API_KEY = "...", MANTA_API_URL = "http://localhost:3000" }`
-
-- This applies to any job with `cmd: "codex"` (including the build-nodes jobs).
+- The Codex provider automatically injects MCP config pointing to `scripts/mcp/server.ts` and forwards `MANTA_API_URL` and `MANTA_API_KEY` from the CLI config/env.
 
 ## Add a Provider
 
