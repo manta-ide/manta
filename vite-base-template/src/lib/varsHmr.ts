@@ -5,10 +5,6 @@ export type Vars = Record<string, any>;
 let supabase: SupabaseClient | null = null;
 let currentVars: Vars = {};
 
-function getVarRaw(vars: Vars, key: string): string | undefined {
-  const root = (vars["root-styles"] as Record<string, any>) || {};
-  return (root[key] as string) ?? (vars[key] as string) ?? undefined;
-}
 
 function ensureGoogleFontLoaded(family: string | undefined) {
   if (!family) return;
@@ -33,6 +29,7 @@ function ensureGoogleFontLoaded(family: string | undefined) {
 function applyCssVarsFrom(vars: Vars) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+  
   const set = (name: string, value: string | undefined) => {
     if (value === undefined || value === null || value === "") {
       root.style.removeProperty(name);
@@ -40,27 +37,42 @@ function applyCssVarsFrom(vars: Vars) {
       root.style.setProperty(name, value);
     }
   };
-  // Always apply if a var value is present; otherwise remove it
-  set("--background-color", getVarRaw(vars, "background-color"));
-  set("--text-color", getVarRaw(vars, "text-color"));
-  set("--accent-color", getVarRaw(vars, "accent-color"));
-  set("--muted-color", getVarRaw(vars, "muted-color"));
-  set("--border-color", getVarRaw(vars, "border-color"));
-  set("--font-family", getVarRaw(vars, "font-family"));
-  set("--base-font-size", getVarRaw(vars, "base-font-size"));
-  set("--max-content-width", getVarRaw(vars, "max-content-width"));
-  set("--section-padding-y", getVarRaw(vars, "section-padding-y"));
-  set("--section-padding-x", getVarRaw(vars, "section-padding-x"));
-  set("--border-radius-global", getVarRaw(vars, "border-radius-global"));
 
-  // Load font if a dedicated font property exists (no flags)
-  const fontObj = (vars["root-font"] || vars["font"]) as any;
-  if (fontObj && typeof fontObj === 'object') {
-    const family = fontObj.family as string | undefined;
-    // If a font property is present, it governs the CSS var
-    if (family) root.style.setProperty('--font-family', family);
-    ensureGoogleFontLoaded(family);
-  }
+  // Recursively process variables and apply CSS custom properties
+  const processValue = (key: string, value: any, prefix: string = '--') => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    // Handle simple CSS values (strings, numbers, booleans)
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      set(`${prefix}${key}`, value.toString());
+      return;
+    }
+
+    // Handle font objects specially - extract family and load Google font
+    if (key.includes('font') && typeof value === 'object' && !Array.isArray(value) && value.family) {
+      const family = value.family as string;
+      set(`${prefix}font-family`, family);
+      ensureGoogleFontLoaded(family);
+      return;
+    }
+
+    // Handle nested objects - flatten them directly without parent key prefix
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+        processValue(nestedKey, nestedValue, prefix);
+      });
+      return;
+    }
+
+    // Skip arrays and other complex structures as they're not CSS values
+  };
+
+  // Process all top-level variables
+  Object.entries(vars).forEach(([key, value]) => {
+    processValue(key, value);
+  });
 }
 
 function resolveEnv(name: string): string | undefined {
@@ -108,6 +120,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
   // Emit initial vars (async fetch), then listen to broadcasts for updates
   fetchInitialVars().then((vars) => {
     currentVars = vars || {};
+    console.log("currentVars", JSON.stringify(currentVars));
     applyCssVarsFrom(currentVars);
     onUpdate(currentVars);
   });
@@ -122,6 +135,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
       const prop = data.property || {};
       if (prop?.id !== undefined) {
         currentVars = { ...currentVars, [prop.id]: prop.value };
+        console.log("currentVars", JSON.stringify(currentVars));
         applyCssVarsFrom(currentVars);
         onUpdate(currentVars);
       }
@@ -131,6 +145,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
       const data = (payload as any)?.payload || {};
       if (data?.propertyId !== undefined) {
         currentVars = { ...currentVars, [data.propertyId]: data.value };
+        console.log("currentVars", JSON.stringify(currentVars));
         applyCssVarsFrom(currentVars);
         onUpdate(currentVars);
       }
@@ -139,6 +154,7 @@ export function subscribeVars(onUpdate: (vars: Vars) => void) {
     .on("broadcast", { event: "graph_reload" }, async () => {
       const next = await fetchInitialVars();
       currentVars = { ...next };
+      console.log("currentVars", JSON.stringify(currentVars));
       applyCssVarsFrom(currentVars);
       onUpdate(currentVars);
     })

@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:app": "cd base-template && npm run dev -- --port 3001",
+    "dev:app": "cd vite-base-template && npm run dev -- --port 3001",
     "build:app": "cd base-template && npm run build",
     "start:app": "cd base-template && npm run start -- --port 3001",
     "dev:both": "concurrently \"npm run dev\" \"npm run dev:app\"",

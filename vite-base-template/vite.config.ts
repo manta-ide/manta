@@ -2,17 +2,7 @@ import { defineConfig, Plugin, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
-// --- Compile-time injection like webpack.DefinePlugin(__GRAPH_VARS__) ---
-function loadGraphVars(): Record<string, string | number | boolean> {
-  try {
-    // Use native Vite JSON import for dev-time freshness without manual watcher
-    // Note: this path is relative to project root at build time
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('./_graph/vars.json');
-  } catch {
-    return {};
-  }
-}
+// (no compile-time vars injection; vars are sourced from Supabase at runtime)
 
 /** Dev+Preview: set frame-ancestors so you can embed in the parent iframe */
 function frameHeaders(): Plugin {
@@ -69,9 +59,7 @@ export default defineConfig(({ mode }) => {
      */
     base: '/',
 
-    define: {
-      __GRAPH_VARS__: JSON.stringify(loadGraphVars()),
-    },
+    // No compile-time vars; app pulls from Supabase
 
     // Dev server
     server: {
