@@ -1,0 +1,26 @@
+{
+  "name": "cli-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mproxy": "dist/bin.js"
+  },
+  "oclif": {
+    "bin": "mproxy",
+    "commands": "./src/commands"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "tsx src/bin.ts",
+    "start": "node dist/bin.js",
+    "lint": "echo 'no lint configured'"
+  },
+  "dependencies": {
+    "@oclif/core": "^3.26.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsx": "^4.19.2"
+  }
+}
