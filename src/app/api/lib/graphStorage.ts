@@ -347,10 +347,6 @@ export function getGraphSession(): Graph | null {
   return currentGraph;
 }
 
-/**
- * Store a graph and save to file
- * Saves to both Blaxel sandbox and local file system
- */
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   // Store in memory (normalized to keep IDs consistent with DB)
   const normalized = normalizeGraphForSupabase(graph);
@@ -435,9 +431,6 @@ function nodesEqual(a: Graph['nodes'][number], b: Graph['nodes'][number]): boole
   return true;
 }
 
-/**
- * Load graph from Blaxel sandbox and store in memory
- */
 export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
   try {
     const graph = await loadGraphFromSupabase(userId);

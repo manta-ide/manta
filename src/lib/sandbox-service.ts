@@ -18,9 +18,16 @@ export interface SandboxProcessManager {
   wait(name: string, opts: { maxWait: number; interval: number }): Promise<void>;
 }
 
+export interface SandboxFsLsResult {
+  files: any[];
+  subdirectories: any[];
+}
+
 export interface SandboxFs {
   write(filePath: string, content: string): Promise<void>;
   writeTree(files: { path: string; content: string }[], dest: string): Promise<void>;
+  ls(dir: string): Promise<SandboxFsLsResult>;
+  read(filePath: string): Promise<string>;
 }
 
 export interface SandboxHandle {
@@ -201,6 +208,10 @@ export class SandboxService {
    */
   static async getUserPreviewUrl(userId: string): Promise<string | null> {
     return this.getProvider().getUserPreviewUrl(userId);
+  }
+
+  static getAppRoot(): string {
+    return this.getProvider().getAppRoot();
   }
 
   /**

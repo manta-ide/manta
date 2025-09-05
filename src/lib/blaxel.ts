@@ -234,6 +234,12 @@ class BlaxelSandboxFs implements SandboxFs {
   async writeTree(files: { path: string; content: string }[], dest: string): Promise<void> {
     await this.inst.fs.writeTree(files, dest);
   }
+  async ls(dir: string): Promise<{ files: any[]; subdirectories: any[] }> {
+    return await this.inst.fs.ls(dir);
+  }
+  async read(filePath: string): Promise<string> {
+    return await this.inst.fs.read(filePath);
+  }
 }
 
 class BlaxelSandboxProcess implements SandboxProcessManager {

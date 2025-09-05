@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
-import { registerBlaxelProvider } from '@/lib/blaxel';
-
-// Ensure Blaxel provider is registered
-registerBlaxelProvider();
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest, { params }: { params: { path?: string[] } }) {

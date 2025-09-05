@@ -342,7 +342,6 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Update DB and only write vars.json to Blaxel (no full app reload)
     await updatePropertyAndWriteVars(nodeId, propertyId, value, user.id);
     
     console.log(`✅ Property updated successfully`);

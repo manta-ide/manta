@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
-import { BlaxelService, registerBlaxelProvider } from '@/lib/blaxel';
-
-// Ensure Blaxel provider is registered
-registerBlaxelProvider();
 
 export async function POST(request: NextRequest) {
   const requestId = Math.random().toString(36).substr(2, 9);
@@ -36,23 +33,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the actual sandbox name from BlaxelService
-    const finalSandboxName = BlaxelService.generateSandboxName(user.id);
-    
-    console.log(`[${requestId}] Exporting project files from sandbox`, {
-      userId: user.id,
-      sandboxName: finalSandboxName
-    });
+    console.log(`[${requestId}] Exporting project files from sandbox`, { userId: user.id });
 
     try {
-      const sandbox = await BlaxelService.getUserSandbox(user.id);
+      const sandbox = await SandboxService.getActiveSandbox(user.id);
       if (!sandbox) {
         throw new Error('User sandbox not found');
       }
       console.log(`[${requestId}] User sandbox retrieved, collecting all files...`);
       
       // First verify that we can access the sandbox filesystem
-      const appDir = '/blaxel/app';
+      const appDir = SandboxService.getAppRoot();
       try {
         const appLs = await sandbox.fs.ls(appDir);
         console.log(`[${requestId}] App directory listing:`, appLs);
@@ -223,8 +214,9 @@ async function getAllFilesRecursive(sandbox: any, directory: string): Promise<Re
         // Remove leading slash for consistency in the output
         let normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
         
-        // Remove blaxel/app prefix if present for cleaner file structure
-        const cleanPath = normalizedPath.replace(/^blaxel\/app\//, '');
+        // Remove app root prefix if present for cleaner file structure
+        const appRoot = SandboxService.getAppRoot().replace(/^\//, '');
+        const cleanPath = normalizedPath.replace(new RegExp('^' + appRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\/'), '');
         
         files[cleanPath] = content;
         console.log(`Successfully read file: ${normalizedPath}`);
