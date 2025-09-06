@@ -36,15 +36,6 @@
             "value": true
           },
           {
-            "id": "root-font",
-            "title": "Root Font",
-            "type": "font",
-            "options": [
-              "Inter", "Lato", "Lora", "Montserrat", "Noto Sans", "Open Sans", "Oswald", "Playfair Display", "Poppins", "PT Sans", "Raleway", "Roboto", "Source Sans Pro"
-            ],
-            "value": { "family": "Poppins" }
-          },
-          {
             "id": "root-styles",
             "title": "Root Styles",
             "type": "object",
@@ -842,5 +833,4 @@
         ]
       }
     ]
-
   }
