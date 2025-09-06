@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { getInitialVars, subscribeVars } from "./lib/varsHmr.ts";
+import { getInitialVars, subscribeVars, enableParentVarBridge } from "./lib/varsHmr.ts";
 
 function AppWrapper() {
   const [vars, setVars] = useState(getInitialVars());
 
   useEffect(() => {
+    // Enable bridge first so subscribeVars can disable polling and avoid duplicate inits
+    enableParentVarBridge();
     subscribeVars((next) => setVars(next));
   }, []);
 

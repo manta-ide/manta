@@ -1,6 +1,6 @@
 {
   "name": "manta-cli",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Manta CLI: provider proxy + job worker with Codex and MCP integration",
   "type": "module",
   "bin": {
@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc -p .",
+    "pack:editor": "node ./scripts/pack-editor.mjs",
     "dev": "npm run build && node dist/bin.js",
     "start": "node dist/bin.js",
     "prepublishOnly": "npm run build"

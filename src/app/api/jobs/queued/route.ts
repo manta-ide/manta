@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
+const jobsPath = () => path.join(projectDir(), '_graph', 'jobs.json');
+const readJobs = (): any[] => {
+  try { const p = jobsPath(); if (!fs.existsSync(p)) return []; return JSON.parse(fs.readFileSync(p, 'utf8')) as any[]; } catch { return []; }
+};
 
 function withBearerToCookie(headersIn: Headers): Headers {
   const headers = new Headers(headersIn);
@@ -16,6 +25,10 @@ function withBearerToCookie(headersIn: Headers): Headers {
 
 export async function GET(req: NextRequest) {
   try {
+    if (LOCAL_MODE) {
+      const jobs = readJobs().filter(j => j.status === 'queued');
+      return NextResponse.json({ jobs });
+    }
     const session = await auth.api.getSession({ headers: withBearerToCookie(req.headers) });
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;

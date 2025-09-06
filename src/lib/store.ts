@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { Selection, FileNode } from '@/app/api/lib/schemas';
-import supabaseRealtimeService, { GraphChangeEvent, Graph, GraphNode } from './supabase-realtime';
+import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
 
 interface ProjectStore {
   // File system state
@@ -48,10 +47,11 @@ interface ProjectStore {
   setGraphLoading: (loading: boolean) => void;
   setGraphError: (error: string | null) => void;
   
-  // Supabase graph operations (priority)
+  // Graph mutations (local)
   saveNodeToSupabase: (node: GraphNode) => Promise<void>;
   updateNodeInSupabase: (nodeId: string, updates: Partial<GraphNode>) => Promise<void>;
   updatePropertyInSupabase: (nodeId: string, propertyId: string, value: any) => Promise<void>;
+  updatePropertyLocal: (nodeId: string, propertyId: string, value: any) => void;
   deleteNodeFromSupabase: (nodeId: string) => Promise<void>;
   syncGraphToSupabase: (graph: Graph) => Promise<void>;
   
@@ -214,29 +214,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
-      
-      // Load graph from Supabase only; if not connected yet, wait for subscribe loader
-      if (!supabaseRealtimeService.connected) {
-        console.log('⏳ Supabase not connected yet; waiting for initial subscribe to load graph');
-        return;
-      }
-
-      try {
-        console.log('📊 Loading graph from Supabase...');
-        const graph = await supabaseRealtimeService.loadGraph();
-        if (graph) {
-          set({ graph, graphLoading: false });
-          console.log(`✅ Loaded graph from Supabase with ${graph.nodes?.length || 0} nodes and ${graph.edges?.length || 0} edges`);
-          if (graph.edges && graph.edges.length > 0) {
-            console.log('📊 Store: Edge details:', graph.edges);
-          }
-        } else {
-          console.log('📊 No graph data found in Supabase');
-          set({ graph: { nodes: [], edges: [] }, graphLoading: false });
-        }
-      } catch (supabaseError) {
-        console.error('❌ Supabase graph load failed:', supabaseError);
-        set({ graphLoading: false, graphError: 'Failed to load graph from Supabase' });
+      console.log('📊 Loading graph from local API...');
+      const res = await fetch('/api/graph-api', { method: 'GET' });
+      if (!res.ok) throw new Error('Graph not found');
+      const data = await res.json();
+      if (data?.graph) {
+        set({ graph: data.graph, graphLoading: false, graphError: null });
+        console.log(`✅ Loaded graph with ${data.graph.nodes?.length || 0} nodes`);
+      } else {
+        set({ graph: { nodes: [], edges: [] } as any, graphLoading: false });
       }
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });
@@ -248,16 +234,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await get().loadGraph();
   },
   
-  updateGraph: (graph) => {
-    set({ graph });
-    
-    // Sync to Supabase if connected and graph has nodes (async, don't block UI)
-    if (supabaseRealtimeService.connected && graph?.nodes && graph.nodes.length > 0) {
-      get().syncGraphToSupabase(graph).catch(error => {
-        console.warn('⚠️ Background sync to Supabase failed:', error);
-      });
-    }
-  },
+  updateGraph: (graph) => { set({ graph }); },
   
   setGraphLoading: (loading) => set({ graphLoading: loading }),
   
@@ -265,315 +242,88 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   // Supabase graph operations (priority)
   saveNodeToSupabase: async (node: GraphNode) => {
-    try {
-      if (!supabaseRealtimeService.connected) {
-        throw new Error('Supabase not connected');
-      }
-      await supabaseRealtimeService.saveNode(node);
-      console.log(`✅ Node saved to Supabase: ${node.id}`);
-    } catch (error) {
-      console.error('❌ Failed to save node to Supabase:', error);
-      throw error;
-    }
+    const state = get();
+    const next = state.graph ? { ...state.graph } : ({ nodes: [] } as Graph);
+    const i = next.nodes.findIndex(n => n.id === node.id);
+    if (i === -1) next.nodes.push(node); else next.nodes[i] = { ...(next.nodes[i] as any), ...node } as any;
+    set({ graph: next });
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
   },
 
   updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
-    try {
-      if (!supabaseRealtimeService.connected) {
-        throw new Error('Supabase not connected');
-      }
-      await supabaseRealtimeService.updateNode(nodeId, updates);
-      console.log(`✅ Node updated in Supabase: ${nodeId}`);
-    } catch (error) {
-      console.error('❌ Failed to update node in Supabase:', error);
-      throw error;
-    }
+    const state = get();
+    if (!state.graph) return;
+    const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
+    set({ graph: next });
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
   },
 
   updatePropertyInSupabase: async (nodeId: string, propertyId: string, value: any) => {
-    try {
-      if (!supabaseRealtimeService.connected) {
-        throw new Error('Supabase not connected');
-      }
-      // Optimistic local update: update selectedNode and graph immediately
-      const state = get();
-      const currentSelected = state.selectedNodeId === nodeId ? state.selectedNode : null;
-      const nextSelected = currentSelected ? {
-        ...currentSelected,
-        properties: (currentSelected.properties || []).map((p: any) =>
-          p.id === propertyId ? { ...p, value } : p
-        ).sort((a: any, b: any) => a.id.localeCompare(b.id))
-      } as any : null;
-
-      if (nextSelected) {
-        set({ selectedNode: nextSelected });
-      }
-
-      if (state.graph) {
-        const updatedGraph = {
-          ...state.graph,
-          nodes: state.graph.nodes.map((n: any) =>
-            n.id === nodeId
-              ? ({
-                  ...n,
-                  properties: (n.properties || []).map((p: any) =>
-                    p.id === propertyId ? { ...p, value } : p
-                  ).sort((a: any, b: any) => a.id.localeCompare(b.id))
-                })
-              : n
-          )
-        } as any;
-        set({ graph: updatedGraph });
-      }
-
-      await supabaseRealtimeService.updateProperty(nodeId, propertyId, value);
-      console.log(`✅ Property updated in Supabase: ${propertyId}`);
-    } catch (error) {
-      console.error('❌ Failed to update property in Supabase:', error);
-      throw error;
+    const state = get();
+    if (state.graph) {
+      const updatedGraph = {
+        ...state.graph,
+        nodes: state.graph.nodes.map((n: any) => n.id === nodeId ? ({
+          ...n,
+          properties: (n.properties || []).map((p: any) => p.id === propertyId ? { ...p, value } : p).sort((a: any, b: any) => a.id.localeCompare(b.id))
+        }) : n)
+      } as any;
+      set({ graph: updatedGraph });
     }
+    await fetch('/api/graph-api', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodeId, propertyId, value }) });
+  },
+
+  updatePropertyLocal: (nodeId: string, propertyId: string, value: any) => {
+    const state = get();
+    if (!state.graph) return;
+    const updatedGraph = {
+      ...state.graph,
+      nodes: state.graph.nodes.map((n: any) =>
+        n.id === nodeId
+          ? ({
+              ...n,
+              properties: (n.properties || []).map((p: any) =>
+                p.id === propertyId ? { ...p, value } : p
+              ).sort((a: any, b: any) => a.id.localeCompare(b.id))
+            })
+          : n
+      )
+    } as any;
+    set({ graph: updatedGraph });
   },
 
   deleteNodeFromSupabase: async (nodeId: string) => {
-    try {
-      if (!supabaseRealtimeService.connected) {
-        throw new Error('Supabase not connected');
-      }
-      await supabaseRealtimeService.deleteNode(nodeId);
-      console.log(`✅ Node deleted from Supabase: ${nodeId}`);
-    } catch (error) {
-      console.error('❌ Failed to delete node from Supabase:', error);
-      throw error;
-    }
+    const state = get();
+    if (!state.graph) return;
+    const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
+    set({ graph: next });
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
   },
 
   syncGraphToSupabase: async (graph: Graph) => {
-    try {
-      if (!supabaseRealtimeService.connected) {
-        throw new Error('Supabase not connected');
-      }
-      
-      // Save all nodes and edges to Supabase
-      for (const node of graph.nodes) {
-        await supabaseRealtimeService.saveNode(node);
-      }
-      // Ensure edges without parents are also persisted (in case children array misses some)
-      if ((graph as any).edges && Array.isArray((graph as any).edges)) {
-        // Upsert edges directly
-        const client: any = (supabaseRealtimeService as any).serviceRoleClient || (supabaseRealtimeService as any).supabase;
-        if (client) {
-          await client
-            .from('graph_edges')
-            .upsert(
-              (graph as any).edges.map((e: any) => ({
-                id: e.id,
-                source_id: e.source || e.source_id,
-                target_id: e.target || e.target_id,
-                user_id: (supabaseRealtimeService as any).currentUserId
-              }))
-            );
-        }
-      }
-      
-      console.log(`✅ Synced ${graph.nodes.length} nodes to Supabase`);
-    } catch (error) {
-      console.error('❌ Failed to sync graph to Supabase:', error);
-      throw error;
-    }
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph }) });
   },
   
   // Graph event handling
-  connectToGraphEvents: async (userId?: string) => {
+  connectToGraphEvents: async (_userId?: string) => {
     try {
-      console.log('🔗 Store: connectToGraphEvents called with userId:', userId);
-      
-      // Try to connect to Supabase first
-      if (userId) {
-        console.log('🔗 Store: Attempting Supabase connection...');
+      // Local mode: connect to SSE endpoint for periodic graph updates
+      if (graphEventSource) { graphEventSource.close(); graphEventSource = null; }
+      const es = new EventSource('/api/graph-api?sse=true');
+      graphEventSource = es;
+      es.onmessage = (ev) => {
         try {
-          await supabaseRealtimeService.connect(userId);
-          
-          // Set up Supabase event handler
-          if (supabaseUnsubscribe) {
-            supabaseUnsubscribe();
+          const data = JSON.parse(ev.data);
+          if (data?.type === 'graph-update' && data.graph) {
+            set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
           }
-          
-          supabaseUnsubscribe = supabaseRealtimeService.onGraphChange((event: GraphChangeEvent) => {
-            const state = get();
-            
-            switch (event.type) {
-              case 'node_created':
-                // Add new node to graph
-                if (state.graph) {
-                  const updatedGraph = {
-                    ...state.graph,
-                    nodes: [...state.graph.nodes, event.node]
-                  };
-                  set({ graph: updatedGraph });
-                }
-                break;
-                
-              case 'node_updated':
-                // Update existing node
-                if (state.graph) {
-                  const updatedGraph = {
-                    ...state.graph,
-                    nodes: state.graph.nodes.map(n => n.id === event.node.id ? event.node : n)
-                  };
-                  set({ graph: updatedGraph });
-                  
-                  // Update selected node if it's the one being updated
-                  if (state.selectedNodeId === event.node.id) {
-                    set({ selectedNode: event.node });
-                  }
-                }
-                break;
-                
-              case 'node_deleted':
-                // Remove node from graph
-                if (state.graph) {
-                  const updatedGraph = {
-                    ...state.graph,
-                    nodes: state.graph.nodes.filter(n => n.id !== event.nodeId)
-                  };
-                  set({ graph: updatedGraph });
-                  
-                  // Clear selection if deleted node was selected
-                  if (state.selectedNodeId === event.nodeId) {
-                    set({ selectedNodeId: null, selectedNode: null });
-                  }
-                }
-                break;
-                
-              case 'property_updated': {
-                // Update both selectedNode and graph.nodes to ensure persistence across node switches
-                if (state.selectedNodeId === event.nodeId && state.selectedNode && state.graph) {
-                  const updatedProps = (state.selectedNode.properties || [])
-                    .map(p => p.id === event.property.id ? { ...p, ...event.property } : p)
-                    .sort((a, b) => a.id.localeCompare(b.id));
-
-                  const updatedSelectedNode = { ...state.selectedNode, properties: updatedProps } as any;
-
-                  // Also update the node in the graph.nodes array
-                  const updatedGraph = {
-                    ...state.graph,
-                    nodes: state.graph.nodes.map(n =>
-                      n.id === event.nodeId ? updatedSelectedNode : n
-                    )
-                  };
-
-                  set({
-                    selectedNode: updatedSelectedNode,
-                    graph: updatedGraph
-                  });
-                }
-                break;
-              }
-                
-              case 'graph_loaded': {
-                // Update graph snapshot; also refresh selectedNode from latest graph to reflect server-side changes
-                const nextGraph = event.graph;
-                const currentSelectedId = state.selectedNodeId;
-                if (currentSelectedId) {
-                  const updatedSelected = nextGraph.nodes.find(n => n.id === currentSelectedId) || null;
-                  set({ graph: nextGraph, graphLoading: false, selectedNode: updatedSelected });
-                } else {
-                  set({ graph: nextGraph, graphLoading: false });
-                }
-                break;
-              }
-                break;
-                
-              case 'node_position_updated':
-                // Update node position from broadcast (real-time collaborative editing)
-                if (state.graph && event.fromBroadcast) {
-                  const existingNode = state.graph.nodes.find(n => n.id === event.nodeId);
-                  const same = existingNode && existingNode.position && existingNode.position.x === event.position.x && existingNode.position.y === event.position.y;
-                  if (!existingNode || same) break;
-                  const updatedGraph = {
-                    ...state.graph,
-                    nodes: state.graph.nodes.map(n => 
-                      n.id === event.nodeId 
-                        ? { ...n, position: event.position }
-                        : n
-                    )
-                  };
-                  set({ graph: updatedGraph });
-                  
-                  // Update selected node if it's the one being updated
-                  if (state.selectedNodeId === event.nodeId) {
-                    const updatedNode = updatedGraph.nodes.find(n => n.id === event.nodeId);
-                    if (updatedNode) {
-                      set({ selectedNode: updatedNode });
-                    }
-                  }
-                }
-                break;
-                
-              case 'property_updated_broadcast':
-                // Minimize churn: update only selectedNode for broadcasts; graph refresh comes from DB changes
-                if (state.selectedNodeId === event.nodeId && state.selectedNode) {
-                  const existingVal = state.selectedNode.properties?.find(p => p.id === event.propertyId)?.value;
-                  if (existingVal === event.value) break;
-                  const updatedProps = (state.selectedNode.properties || []).map(p =>
-                    p.id === event.propertyId ? { ...p, value: event.value } : p
-                  ).sort((a, b) => a.id.localeCompare(b.id));
-                  set({ selectedNode: { ...state.selectedNode, properties: updatedProps } as any });
-                }
-                break;
-            }
-          });
-          
-          // Don't mark connected until channel reports SUBSCRIBED
-          set({ graphError: null });
-
-          // Poll connection; if disconnected for >10s, attempt reconnect
-          let disconnectedSince: number | null = null;
-          let attempts = 0;
-          const connectionCheck = setInterval(async () => {
-            const isConnected = supabaseRealtimeService.connected;
-            const prev = get().supabaseConnected;
-            if (prev !== isConnected) {
-              set({ supabaseConnected: isConnected });
-            }
-            if (!isConnected) {
-              if (disconnectedSince === null) disconnectedSince = Date.now();
-              const elapsed = Date.now() - disconnectedSince;
-              // Also treat a missing graph as a trigger to retry
-              const graphMissing = !get().graph || (get().graph?.nodes?.length || 0) === 0;
-              if ((elapsed > 3000 || graphMissing) && userId) {
-                try {
-                  console.log('🔄 Store: Reconnecting to Supabase after prolonged disconnect...');
-                  await supabaseRealtimeService.connect(userId);
-                  disconnectedSince = null;
-                  // Reload graph after reconnect
-                  set({ graphLoading: true });
-                  await get().loadGraph();
-                  attempts = 0;
-                } catch {}
-              }
-              // Backoff: if repeatedly failing, also try a fresh loadGraph with service client
-              attempts += 1;
-              if (attempts % 3 === 0) {
-                try { await get().loadGraph(); } catch {}
-              }
-            } else {
-              disconnectedSince = null;
-              attempts = 0;
-            }
-          }, 1500);
-
-          // Return early - we're using only Supabase for realtime now
-          return;
-          
-        } catch (supabaseError) {
-          console.warn('⚠️ Supabase connection failed, falling back to EventSource:', supabaseError);
-          set({ supabaseConnected: false });
-        }
-      }
-      
-      // No backend fallback - using only Supabase
-      console.log('ℹ️ No user ID provided, skipping graph events connection');
+        } catch {}
+      };
+      es.onerror = () => {
+        set({ graphConnected: false });
+      };
+      // Kick initial load
+      await get().loadGraph();
     } catch (error) {
       console.error('❌ Error connecting to graph events:', error);
       set({ graphError: 'Failed to connect to graph events' });
@@ -581,14 +331,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   disconnectFromGraphEvents: () => {
-    // Disconnect Supabase
-    if (supabaseUnsubscribe) {
-      supabaseUnsubscribe();
-      supabaseUnsubscribe = null;
-    }
-    
-    supabaseRealtimeService.disconnect();
-    
     // Clear any pending reconnection timeout
     if (reconnectTimeout) {
       clearTimeout(reconnectTimeout);
@@ -599,7 +341,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (graphEventSource) {
       graphEventSource.close();
       graphEventSource = null;
-      console.log('🔌 Disconnected from backend graph events');
+      console.log('🔌 Disconnected from local graph events');
     }
     
     set({ graphConnected: false, supabaseConnected: false });

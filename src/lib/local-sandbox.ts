@@ -8,16 +8,14 @@ import {
   SandboxService as GenericSandboxService,
 } from './sandbox-service';
 
-const PREVIEW_URL = 'http://localhost:3001';
-const APP_ROOT = '/vite-base-template';
-const BASE_DIR = path.join(process.cwd(), 'vite-base-template');
+const PREVIEW_URL = `http://localhost:${process.env.MANTA_CHILD_PORT || '3001'}`;
+const APP_ROOT = '/';
+const BASE_DIR = process.env.MANTA_PROJECT_DIR ? path.resolve(process.env.MANTA_PROJECT_DIR) : process.cwd();
 
 class LocalFs implements SandboxFs {
   private toDiskPath(p: string): string {
     const rel = p.replace(/^\//, '');
-    // Ensure paths under vite-base-template
-    const cleaned = rel.startsWith('vite-base-template') ? rel.slice('vite-base-template'.length) : rel;
-    return path.join(BASE_DIR, cleaned.replace(/^\//, ''));
+    return path.join(BASE_DIR, rel);
   }
 
   async write(filePath: string, content: string): Promise<void> {
@@ -105,4 +103,3 @@ export class LocalSandboxProvider implements SandboxProvider {
 export function registerLocalProvider() {
   GenericSandboxService.setProvider(new LocalSandboxProvider());
 }
-

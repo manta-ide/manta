@@ -1,74 +1,99 @@
 import {Command, Flags} from '@oclif/core';
-import readline from 'node:readline';
-import {writeConfig, readConfig} from '../config/store.js';
+import path from 'node:path';
+import fs from 'node:fs';
 import {spawn} from 'node:child_process';
+import JSZip from 'jszip';
 
 export default class Init extends Command {
-  static description = 'Initialize Manta CLI: sign in and store API key + user id';
+  static description = 'Initialize a local project by downloading a template into the current directory';
+
+  static aliases = ['i'];
 
   static flags = {
-    url: Flags.string({ description: 'Base URL of the Manta app', default: process.env.MANTA_API_URL || 'http://localhost:3000' }),
-    open: Flags.boolean({ description: 'Open sign-in page in your browser', default: true }),
+    repo: Flags.string({ description: 'GitHub repo in owner/repo format', default: 'makosst/manta-template' }),
+    ref: Flags.string({ description: 'Git ref (branch or tag)', default: 'main' }),
+    zipUrl: Flags.string({ description: 'Override full ZIP URL (for custom refs/archive)' }),
+    token: Flags.string({ description: 'GitHub token (for private repos); defaults to GITHUB_TOKEN env' }),
+    force: Flags.boolean({ description: 'Overwrite existing files', default: false }),
+    subdir: Flags.string({ description: 'Subdirectory within the repo to extract', default: '' }),
   } as const;
 
   async run(): Promise<void> {
     const {flags} = await this.parse(Init);
-    const baseUrl = flags.url.replace(/\/$/, '');
-    this.log(`Manta URL: ${baseUrl}`);
-    const signinUrl = `${baseUrl}/signin`;
-    const tokenUrl = `${baseUrl}/api/mcp/access-token`;
-    this.log('1) Sign in to your account:');
-    this.log(`   ${signinUrl}`);
-    this.log('2) After signing in, open this URL to get your session token:');
-    this.log(`   ${tokenUrl}`);
-    if (flags.open) {
-      try {
-        const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-        await new Promise<void>((resolve) => {
-          const child = spawn(opener, [signinUrl], {stdio: 'ignore', shell: process.platform === 'win32'});
-          child.on('error', () => resolve());
-          child.on('close', () => resolve());
-        });
-      } catch {}
+    const cwd = process.cwd();
+    const repoSpec = (flags.repo || 'makosst/manta-template').trim();
+    const ref = (flags.ref || 'main').trim();
+    const token = (flags.token || process.env.GITHUB_TOKEN || process.env.GITHUB_PERSONAL_ACCESS_TOKEN || '').trim();
+    const subdir = (flags.subdir || '').replace(/^\/+|\/+$/g, '');
+
+    const zipUrl = flags.zipUrl?.trim() || `https://codeload.github.com/${repoSpec}/zip/refs/heads/${encodeURIComponent(ref)}`;
+    this.log(`[manta] downloading ${repoSpec}@${ref}`);
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(zipUrl, { headers });
+    if (!resp.ok) return this.error(`Failed to download ZIP: ${resp.status} ${resp.statusText}`);
+    const ab = await resp.arrayBuffer();
+    const zip = await JSZip.loadAsync(ab);
+
+    // Detect top-level folder prefix (e.g., repo-ref/)
+    let rootPrefix = '';
+    zip.forEach((relPath) => {
+      const parts = relPath.split('/');
+      if (parts.length > 1 && !rootPrefix) rootPrefix = parts[0] + '/';
+    });
+
+    const isUnderSubdir = (p: string) => {
+      const rel = rootPrefix && p.startsWith(rootPrefix) ? p.slice(rootPrefix.length) : p;
+      if (!subdir) return rel && !rel.endsWith('/');
+      const norm = rel.replace(/^\/+/, '');
+      return norm.startsWith(subdir + '/') && !norm.endsWith('/');
+    };
+    const toCwdRel = (p: string) => {
+      const rel = rootPrefix && p.startsWith(rootPrefix) ? p.slice(rootPrefix.length) : p;
+      return subdir ? rel.replace(new RegExp('^' + subdir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/'), '') : rel;
+    };
+
+    // Write entries
+    const entries = Object.values(zip.files);
+    let written = 0;
+    for (const entry of entries) {
+      if (entry.dir) continue;
+      if (!isUnderSubdir(entry.name)) continue;
+      const rel = toCwdRel(entry.name);
+      if (!rel) continue;
+      const abs = path.join(cwd, rel);
+      const dir = path.dirname(abs);
+      fs.mkdirSync(dir, { recursive: true });
+      if (fs.existsSync(abs) && !flags.force) {
+        this.log(`[skip] ${rel} (exists)`);
+        continue;
+      }
+      const content = await entry.async('nodebuffer');
+      fs.writeFileSync(abs, content);
+      written++;
     }
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const ask = (q: string) => new Promise<string>((res) => rl.question(q, (a) => res(a)));
-    const token = (await ask('\nPaste session token from /api/mcp/access-token: ')).trim();
-    rl.close();
-    if (!token) return this.error('No token provided.');
-    let userId: string | undefined;
-    try {
-      const who = await fetch(`${baseUrl}/api/mcp/access-token`, { method: 'GET', headers: { authorization: `Bearer ${token}` } });
-      if (who.ok) { const data: any = await who.json(); if (data?.userId) userId = data.userId; }
-    } catch {}
-    writeConfig({ mantaApiUrl: baseUrl, mantaApiKey: token, userId });
-    const cfg = readConfig();
-    this.log('\nSaved credentials:');
-    this.log(`- url: ${cfg.mantaApiUrl}`);
-    this.log(`- userId: ${cfg.userId ?? '(unknown)'}`);
-    this.log(`- apiKey: ${cfg.mantaApiKey ? 'stored' : 'missing'}`);
-    this.log('\nEnsuring manta-mcp is installed...');
-    await this.ensureMantaMcpInstalled();
-    this.log('\nRun your worker with: manta run');
+    this.log(`[manta] wrote ${written} files to ${cwd}`);
+
+    // Post-install: npm install and build at project root (best-effort)
+    await this.runIfExists(cwd, 'npm', ['i']);
+    await this.runIfExists(cwd, 'npm', ['run', 'build']);
+
+    // Post-install for child template if present
+    const childDir = path.join(cwd, 'vite-base-template');
+    if (fs.existsSync(path.join(childDir, 'package.json'))) {
+      await this.runIfExists(childDir, 'npm', ['i']);
+      await this.runIfExists(childDir, 'npm', ['run', 'build']);
+    }
   }
 
-  private async ensureMantaMcpInstalled(): Promise<void> {
-    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-    const found = await new Promise<boolean>((resolve) => {
-      const ps = spawn(whichCmd, ['manta-mcp']);
-      ps.on('close', (code) => resolve(code === 0));
-      ps.on('error', () => resolve(false));
+  private async runIfExists(cwd: string, cmd: string, args: string[]) {
+    return await new Promise<void>((resolve) => {
+      try {
+        const ps = spawn(cmd, args, {cwd, stdio: 'inherit', shell: process.platform === 'win32'});
+        ps.on('close', () => resolve());
+        ps.on('error', () => resolve());
+      } catch { resolve(); }
     });
-    if (found) { this.log('manta-mcp is on PATH'); return; }
-    const tryInstall = (cmd: string, args: string[], cwd?: string) => new Promise<boolean>((resolve) => {
-      this.log(`Installing manta-mcp: ${cmd} ${args.join(' ')}`);
-      const ps = spawn(cmd, args, {stdio: 'inherit', cwd});
-      ps.on('close', (code) => resolve(code === 0));
-      ps.on('error', () => resolve(false));
-    });
-    if (await tryInstall('npm', ['i', '-g', 'manta-mcp'])) return;
-    this.log('Global install failed, falling back to local install');
-    await tryInstall('npm', ['i', 'manta-mcp'], process.cwd());
   }
 }
-

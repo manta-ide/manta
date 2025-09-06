@@ -44,7 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userObject: user ? { id: user.id, email: user.email } : null
     });
     
-    if (user?.id && isClient) {
+    if ((process.env.NEXT_PUBLIC_LOCAL_MODE === '1') && isClient) {
+      // Local mode: no auth, connect and show app
+      setGraphLoading(true);
+      connectToGraphEvents('local');
+      router.replace('/');
+    } else if (user?.id && isClient) {
       console.log('🔗 AuthProvider: User authenticated, connecting to Supabase:', user.id);
       // Set loading first, then connect
       setGraphLoading(true);
@@ -69,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Ensure sandbox exists for the authenticated user; create if missing
   useEffect(() => {
+    if ((process.env.NEXT_PUBLIC_LOCAL_MODE === '1')) return; // skip sandbox init in local mode
     if (!user?.id || !isClient) return;
     let cancelled = false;
     (async () => {
@@ -90,6 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
+      if (process.env.NEXT_PUBLIC_LOCAL_MODE === '1') {
+        setUser({ id: 'local', email: 'local@example.com' } as any);
+        setSession(null);
+        setLoading(false);
+        return;
+      }
       // Use Better Auth client to get current session
       const { data } = await authClient.getSession();
       
@@ -132,7 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await authClient.signOut();
+      if (process.env.NEXT_PUBLIC_LOCAL_MODE !== '1') {
+        await authClient.signOut();
+      }
       setUser(null);
       setSession(null);
       resetStore();

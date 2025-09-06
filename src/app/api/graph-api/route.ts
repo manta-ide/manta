@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../lib/graph-service';
 import { auth } from '@/lib/auth';
 
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+
 // Map Authorization: Bearer <session_token> to Better Auth cookie for compatibility with MCP
 async function getSessionFromRequest(req: NextRequest) {
   const headers = new Headers(req.headers);
@@ -12,6 +14,9 @@ async function getSessionFromRequest(req: NextRequest) {
     const sessionCookie = `better-auth.session_token=${token}`;
     headers.set('cookie', existingCookie ? `${existingCookie}; ${sessionCookie}` : sessionCookie);
   }
+  if (LOCAL_MODE) {
+    return { user: { id: 'local' } } as any;
+  }
   return auth.api.getSession({ headers });
 }
 
@@ -20,14 +25,13 @@ export async function GET(req: NextRequest) {
     // Get current user session for all GET requests
     const session = await getSessionFromRequest(req);
     
-    if (!session || !session.user) {
+    if (!LOCAL_MODE && (!session || !session.user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in to access your sandbox' },
         { status: 401 }
       );
     }
-
-    const { user } = session;
+    const user = session?.user || { id: 'local' };
     
     // Check if this is an SSE request
     const url = new URL(req.url);
@@ -159,14 +163,13 @@ export async function POST(req: NextRequest) {
     // Get current user session
     const session = await getSessionFromRequest(req);
     
-    if (!session || !session.user) {
+    if (!LOCAL_MODE && (!session || !session.user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in to access your sandbox' },
         { status: 401 }
       );
     }
-
-    const { user } = session;
+    const user = session?.user || { id: 'local' };
     
     const body = await req.json();
     const { nodeId, action } = body;
@@ -243,14 +246,13 @@ export async function PUT(req: NextRequest) {
     // Get current user session
     const session = await getSessionFromRequest(req);
     
-    if (!session || !session.user) {
+    if (!LOCAL_MODE && (!session || !session.user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in to access your sandbox' },
         { status: 401 }
       );
     }
-
-    const { user } = session;
+    const user = session?.user || { id: 'local' };
     
     const body = await req.json();
     const { graph } = body;
@@ -306,8 +308,6 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log(`🔄 Updating property ${propertyId} for node ${nodeId} to:`, value);
     
     // Get current graph
     let graph = getGraphSession();

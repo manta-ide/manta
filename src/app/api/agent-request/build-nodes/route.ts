@@ -6,6 +6,16 @@ import { createClient } from '@supabase/supabase-js';
 import path from 'node:path';
 import fs from 'node:fs';
 
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
+const jobsPath = () => path.join(projectDir(), '_graph', 'jobs.json');
+const readJobs = (): any[] => { try { const p = jobsPath(); if (!fs.existsSync(p)) return []; return JSON.parse(fs.readFileSync(p, 'utf8')) as any[]; } catch { return []; } };
+const writeJobs = (jobs: any[]) => { try { fs.mkdirSync(path.dirname(jobsPath()), { recursive: true }); fs.writeFileSync(jobsPath(), JSON.stringify(jobs, null, 2), 'utf8'); } catch {} };
+const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  const r = Math.random() * 16 | 0; const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return v.toString(16);
+});
+
 const RequestSchema = z.object({
   userMessage: MessageSchema,
   nodeId: z.string().optional(),
@@ -14,12 +24,12 @@ const RequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate to associate the job with a user
+    // Authenticate to associate the job with a user (skip in local mode)
     const session = await auth.api.getSession({ headers: req.headers });
-    if (!session || !session.user) {
+    const userId = (LOCAL_MODE ? 'local' : (session?.user?.id as string));
+    if (!LOCAL_MODE && !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const userId = session.user.id as string;
 
     const body = await req.json();
     const { userMessage, nodeId, rebuildAll } = RequestSchema.parse(body);
@@ -30,7 +40,29 @@ export async function POST(req: NextRequest) {
 
     console.log('🔄 Build nodes request received');
 
-    // Read Supabase env
+    if (LOCAL_MODE) {
+      const now = new Date().toISOString();
+      const job = {
+        id: uuid(),
+        user_id: userId,
+        job_name: 'run',
+        status: 'queued',
+        priority: rebuildAll ? 10 : 5,
+        payload: {
+          provider: 'codex',
+          prompt,
+          interactive: false,
+          meta: { kind: 'build-nodes', nodeId: nodeId ?? null, rebuildAll: Boolean(rebuildAll), message: userMessage, requestedAt: now }
+        },
+        created_at: now,
+        updated_at: now,
+      };
+      const jobs = readJobs();
+      jobs.push(job);
+      writeJobs(jobs);
+      return NextResponse.json({ success: true, jobId: job.id });
+    }
+    // Supabase path
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceKey) {

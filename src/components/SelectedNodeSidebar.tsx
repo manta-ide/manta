@@ -8,7 +8,7 @@ import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/lib/auth-context';
-import supabaseRealtimeService from '@/lib/supabase-realtime';
+import { postVarsUpdate } from '@/lib/child-bridge';
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
@@ -22,6 +22,7 @@ export default function SelectedNodeSidebar() {
 		refreshGraph,
 		updateNodeInSupabase,
 		updatePropertyInSupabase,
+		updatePropertyLocal,
 		supabaseConnected,
 		connectToGraphEvents
 	} = useProjectStore();
@@ -37,6 +38,15 @@ export default function SelectedNodeSidebar() {
 	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastPropertyUpdate = useRef<{ [propertyId: string]: number }>({});
 	const PROPERTY_UPDATE_THROTTLE = 60; // Update every 60ms for smoother live updates
+
+		const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
+			// Lightweight preview: update local state and in-memory graph without saving
+			setPropertyValues(prev => ({ ...prev, [propertyId]: value }));
+			if (selectedNodeId) {
+				updatePropertyLocal(selectedNodeId, propertyId, value);
+				postVarsUpdate({ [propertyId]: value });
+			}
+		}, [selectedNodeId, updatePropertyLocal]);
 
 	// Just monitor connection status - let AuthProvider handle the actual connection
 	useEffect(() => {
@@ -92,8 +102,8 @@ export default function SelectedNodeSidebar() {
 
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
-		const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
-		const isHighFrequency = propMeta?.type === 'color';
+    const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
+    const isHighFrequency = ['color','object','object-list'].includes((propMeta?.type as any) || '');
 
 		// For high-frequency properties, avoid re-rendering the sidebar on every tick
 		if (isHighFrequency) {
@@ -111,21 +121,33 @@ export default function SelectedNodeSidebar() {
 
 		// Skip heavy tracking to avoid lag
 
-		// Use broadcast for immediate real-time property updates (non-blocking, synchronous)
-		if (supabaseConnected && selectedNodeId) {
-			const now = Date.now();
-			const lastUpdate = lastPropertyUpdate.current[propertyId] || 0;
-			
-			if (now - lastUpdate >= PROPERTY_UPDATE_THROTTLE) {
-				lastPropertyUpdate.current[propertyId] = now;
-				
-				// Use broadcast for real-time updates (synchronous, non-blocking)
-				supabaseRealtimeService.broadcastProperty(selectedNodeId, propertyId, value);
-				console.debug(`📡 Property ${propertyId} broadcasted for real-time sync`);
+		// Immediately update in-memory graph so UI/preview can reflect changes
+			if (selectedNodeId) {
+				updatePropertyLocal(selectedNodeId, propertyId, value);
+				postVarsUpdate({ [propertyId]: value });
 			}
-		}
 
-		// Handle Supabase database updates (debounced for performance)
+    // For high-frequency props (e.g., color), opportunistically persist faster (throttled)
+    if (isHighFrequency && selectedNodeId) {
+      const now = Date.now();
+      const last = lastPropertyUpdate.current[propertyId] || 0;
+      if (now - last >= 120) {
+        lastPropertyUpdate.current[propertyId] = now;
+        updatePropertyInSupabase(selectedNodeId, propertyId, value).catch(() => {});
+      }
+    }
+
+    // Debounced file save via backend API (writes _graph/vars.json)
+		const nextValues = isHighFrequency ? { ...stagedPropertyValuesRef.current, [propertyId]: value } : { ...propertyValues, [propertyId]: value };
+		if (DEBOUNCE_PROPERTY_CHANGES) {
+			if (propertyChangeTimeoutRef.current) clearTimeout(propertyChangeTimeoutRef.current);
+			propertyChangeTimeoutRef.current = setTimeout(() => {
+				// Persist the latest staged values for all changed properties
+				applyPropertyChangesToSupabase(nextValues);
+			}, 250);
+		} else {
+			if (selectedNodeId) updatePropertyInSupabase(selectedNodeId, propertyId, value);
+		}
 		if (!DEBOUNCE_PROPERTY_CHANGES) {
 			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
 			applyPropertyChangesToSupabase(payloadValues).catch(() => {});
@@ -144,13 +166,7 @@ export default function SelectedNodeSidebar() {
 		}, 250); // slightly faster debounce for smoother UX
 	}, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, supabaseConnected, updatePropertyInSupabase]);
 
-	// Preview handler: update UI and broadcast without persisting
-	const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
-		setPropertyValues(prev => ({ ...prev, [propertyId]: value }));
-		if (supabaseConnected && selectedNodeId) {
-			supabaseRealtimeService.broadcastProperty(selectedNodeId, propertyId, value);
-		}
-	}, [supabaseConnected, selectedNodeId]);
+		// (preview handler defined above)
 
 	// Helper function to apply property changes to Supabase database only
 	const applyPropertyChangesToSupabase = useCallback(async (newPropertyValues: Record<string, any>) => {

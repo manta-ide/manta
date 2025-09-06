@@ -123,6 +123,12 @@ class SupabaseRealtimeService {
   }
 
   private initialize() {
+    const LOCAL_MODE = process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+    if (LOCAL_MODE) {
+      // Disable Supabase in local mode; the app uses filesystem + polling
+      this.isConnected = false;
+      return;
+    }
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -199,6 +205,12 @@ class SupabaseRealtimeService {
   }
 
   async connect(userId: string) {
+    if (process.env.NEXT_PUBLIC_LOCAL_MODE === '1') {
+      // No-op in local mode
+      this.isConnected = false;
+      this.userId = userId;
+      return;
+    }
     console.log('🔗 Attempting to connect to Supabase Realtime for user:', userId);
     
     if (!this.supabase) {

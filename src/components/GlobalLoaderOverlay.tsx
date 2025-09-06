@@ -7,19 +7,24 @@ import { useAuth } from '@/lib/auth-context';
 export default function GlobalLoaderOverlay() {
   const { graphLoading, supabaseConnected, iframeReady, resetting } = useProjectStore();
   const { user } = useAuth();
+  const localMode = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 
   const show = useMemo(() => {
     // Always show when resetting
     if (resetting) return true;
     // Show while graph is loading
     if (graphLoading) return true;
-    // If user is authenticated, require Supabase and iframe
+    // In local mode, only wait for iframe to be ready
+    if (localMode) {
+      return !iframeReady;
+    }
+    // If user is authenticated (hosted mode), require Supabase and iframe
     if (user) {
       return !supabaseConnected || !iframeReady;
     }
     // If not authenticated, only wait for iframe (editor preview)
     return !iframeReady;
-  }, [resetting, graphLoading, supabaseConnected, iframeReady, user]);
+  }, [resetting, graphLoading, supabaseConnected, iframeReady, user, localMode]);
 
   // Prevent body scroll when overlay visible
   useEffect(() => {
@@ -33,9 +38,11 @@ export default function GlobalLoaderOverlay() {
 
   const message = resetting
     ? 'Resetting project…'
-    : user
-      ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')
-      : 'Starting preview…';
+    : localMode
+      ? (!iframeReady ? 'Starting preview…' : 'Loading project…')
+      : user
+        ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')
+        : 'Starting preview…';
 
   return (
     <div
@@ -50,4 +57,3 @@ export default function GlobalLoaderOverlay() {
     </div>
   );
 }
-

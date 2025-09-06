@@ -1,6 +1,6 @@
 # Manta CLI
 
-Provider proxy + Supabase-backed job worker with Codex + MCP integration.
+Provider proxy + job worker with Codex + MCP integration.
 
 ## Install
 
@@ -14,13 +14,30 @@ Provider proxy + Supabase-backed job worker with Codex + MCP integration.
 
 ## Commands
 
-- `manta init` — open sign-in, prompt for token, store API key + user id, ensure `manta-mcp` is installed.
-- `manta run` — start the worker (uses saved user id by default). Requires Supabase env (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).
+- `manta init` — download a project template into the current directory (no auth required).
+- `manta run` — launch the local editor in your browser and start a local job worker. Uses filesystem-backed storage in `./_graph`.
 - `manta providers` — list available providers.
 
 ## Notes
 
 - The Codex provider runs `codex exec "<prompt>"` and injects MCP config. It uses `manta-mcp` if available, falling back to the local script.
-- Credentials are stored in `~/.manta/config.json`.
-- The worker processes `cli_jobs` serially. Jobs can target a provider (`{ provider: 'codex', prompt: '...' }`).
+- The worker processes jobs serially. Jobs can target a provider (`{ provider: 'codex', prompt: '...' }`).
+- Storage: `./_graph/graph.json` for the graph, `./_graph/vars.json` for variables, `./_graph/jobs.json` for the local job queue.
 
+## Usage (local)
+
+- Initialize a project folder with a template:
+  - `manta init` (run inside your target directory)
+- Run the editor + worker against the current folder:
+  - `manta run` (opens `http://localhost:3000`)
+  - Flags: `--project <dir>`, `--port 3000`, `--open`, `--dev` (dev vs start), `--editorDir <path>`
+
+## Packaging the Editor Into the CLI
+
+- Build the Next.js app in standalone mode at the repo root:
+  - Ensure `next.config.ts` has `output: 'standalone'` (already set).
+  - Run: `npm run build` (requires network for fonts; or self-host fonts).
+- Copy the build artifacts into the CLI package:
+  - `npm --prefix packages/manta run build`
+  - `npm --prefix packages/manta run pack:editor`
+- After publishing the CLI (`npm publish`), `manta run` will launch the embedded editor without needing the repo.

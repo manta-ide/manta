@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema, Property } from './schemas';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { publishVarsUpdate } from './vars-bus';
 import fs from 'fs';
 import path from 'path';
 
@@ -8,6 +9,47 @@ export type Graph = z.infer<typeof GraphSchema>;
 
 // In-memory cache of the current graph for this process
 let currentGraph: Graph | null = null;
+
+// Local mode toggle and helpers
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+function getProjectDir(): string {
+  const envDir = process.env.MANTA_PROJECT_DIR;
+  if (envDir && fs.existsSync(envDir)) return envDir;
+  // Fallback: try current working directory if it contains _graph
+  try {
+    const cwd = process.cwd();
+    if (fs.existsSync(path.join(cwd, '_graph'))) return cwd;
+    return cwd;
+  } catch {
+    return process.cwd();
+  }
+}
+function getGraphDir(): string { return path.join(getProjectDir(), '_graph'); }
+function getGraphPath(): string { return path.join(getGraphDir(), 'graph.json'); }
+function getVarsPath(): string { return path.join(getGraphDir(), 'vars.json'); }
+function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
+function readGraphFromFs(): Graph | null {
+  try {
+    const p = getGraphPath();
+    if (!fs.existsSync(p)) return null;
+    const raw = fs.readFileSync(p, 'utf8');
+    const data = JSON.parse(raw);
+    const parsed = GraphSchema.safeParse(data);
+    if (!parsed.success) return data as Graph; // be lenient in local mode
+    return parsed.data as Graph;
+  } catch {
+    return null;
+  }
+}
+function writeGraphToFs(graph: Graph) {
+  ensureGraphDir();
+  fs.writeFileSync(getGraphPath(), JSON.stringify(graph, null, 2), 'utf8');
+}
+function writeVarsToFs(graph: Graph) {
+  const vars = extractVariablesFromGraph(graph);
+  ensureGraphDir();
+  fs.writeFileSync(getVarsPath(), JSON.stringify(vars, null, 2), 'utf8');
+}
 
 // --- Supabase client helpers ---
 function getSupabaseServiceClient(): SupabaseClient {
@@ -21,6 +63,7 @@ function getSupabaseServiceClient(): SupabaseClient {
 
 // --- Realtime broadcast to notify clients to reload graph ---
 async function broadcastGraphReload(userId: string): Promise<void> {
+  if (LOCAL_MODE) return; // SSE polling handles updates in local mode
   try {
     const client = getSupabaseServiceClient();
     // Prefer sandbox-based room to match client behavior
@@ -191,7 +234,7 @@ function extractVariablesFromGraph(graph: Graph): Record<string, any> {
   return vars;
 }
 
-function normalizeGraphForSupabase(original: Graph): Graph {
+function normalizeGraph(original: Graph): Graph {
   const seenNodeIds = new Set<string>();
   const normalizedNodes = [] as any[];
   const globalPropOwner: Record<string, string> = {};
@@ -253,7 +296,7 @@ function normalizeGraphForSupabase(original: Graph): Graph {
 }
 
 async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> {
-  const normalized = normalizeGraphForSupabase(graph);
+  const normalized = normalizeGraph(graph);
   const client = getSupabaseServiceClient();
   const nodeRows = (normalized.nodes || []).map((n) => ({
     id: n.id,
@@ -326,8 +369,13 @@ async function saveGraphToSupabase(graph: Graph, userId: string): Promise<void> 
 export function getGraphSession(): Graph | null { return currentGraph; }
 
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
-  const normalized = normalizeGraphForSupabase(graph);
+  const normalized = normalizeGraph(graph);
   currentGraph = normalized;
+  if (LOCAL_MODE) {
+    writeGraphToFs(normalized);
+    writeVarsToFs(normalized);
+    return;
+  }
   await saveGraphToSupabase(normalized, userId);
   await broadcastGraphReload(userId);
 }
@@ -343,10 +391,24 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
       }
     }
   }
+  // Always publish a realtime vars update for subscribers (iframe bridge)
+  try { publishVarsUpdate({ [propertyId]: value }); } catch {}
+  if (LOCAL_MODE) {
+    // Only write vars.json to avoid triggering Vite full page reload from graph.json changes
+    if (currentGraph) {
+      writeVarsToFs(currentGraph);
+    }
+    return;
+  }
   await updatePropertyInSupabase(userId, nodeId, propertyId, value);
 }
 
 export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
+  if (LOCAL_MODE) {
+    const graph = readGraphFromFs();
+    currentGraph = graph;
+    return graph;
+  }
   try {
     const graph = await loadGraphFromSupabase(userId);
     currentGraph = graph;
@@ -374,6 +436,7 @@ export async function markNodesBuilt(nodeIds: string[], userId: string): Promise
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
+  if (LOCAL_MODE) { if (currentGraph) writeGraphToFs(currentGraph); return; }
   const client = getSupabaseServiceClient();
   await client.from('graph_nodes').update({ state: 'built' }).in('id', nodeIds).eq('user_id', userId);
 }
@@ -382,11 +445,16 @@ export async function markNodesUnbuilt(nodeIds: string[], userId: string): Promi
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
+  if (LOCAL_MODE) { if (currentGraph) writeGraphToFs(currentGraph); return; }
   const client = getSupabaseServiceClient();
   await client.from('graph_nodes').update({ state: 'unbuilt' }).in('id', nodeIds).eq('user_id', userId);
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
+  if (LOCAL_MODE) {
+    // Nothing to do; graph is read lazily from _graph/graph.json
+    return;
+  }
   console.log('🔄 Graph initialization now uses Supabase per-user - skipping global initialization');
 }
 
@@ -498,4 +566,3 @@ export class SupabaseGraphService {
     }
   }
 }
-
