@@ -6,15 +6,13 @@ import { clearGraphSession } from '@/app/api/lib/graph-service';
 import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
 
-// Single shared pool, similar to /api/chat
-const pool = new Pool({
-  ssl: true,
-  connectionString: process.env.DATABASE_URL,
-});
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+// Single shared pool, similar to /api/chat (disabled in local mode)
+const pool = !LOCAL_MODE ? new Pool({ ssl: true, connectionString: process.env.DATABASE_URL }) : null;
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const session = await auth.api.getSession({ headers: await headers() } as any);
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -36,11 +34,15 @@ export async function POST(req: NextRequest) {
 
     // 2) Clear user chat history in DB (so client loads empty after reload)
     try {
-      const client = await pool.connect();
+      if (LOCAL_MODE || !pool) {
+        // No-op in local mode
+      } else {
+        const client = await pool.connect();
       try {
-        await client.query('UPDATE "user" SET chat_history = NULL WHERE id = $1', [userId]);
-      } finally {
-        client.release();
+          await client.query('UPDATE "user" SET chat_history = NULL WHERE id = $1', [userId]);
+        } finally {
+          client.release();
+        }
       }
     } catch (e) {
       console.warn('[reset] Failed to clear chat_history in DB:', e);

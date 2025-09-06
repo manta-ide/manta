@@ -311,13 +311,13 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
             ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                                     <Button variant="ghost" className="flex items-center gap-1.5 px-1.5 h-7">
+                                 {/*    <Button variant="ghost" className="flex items-center gap-1.5 px-1.5 h-7">
                      <Avatar className="h-5 w-5">
                        <AvatarImage src={user.avatar || undefined} />
                        <AvatarFallback className="text-xs">{user.name?.[0] || '?'}</AvatarFallback>
                      </Avatar>
                      <span className="hidden sm:inline text-white text-xs">{user.name || user.email}</span>
-                   </Button>
+                   </Button>*/}
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">

@@ -29,6 +29,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setGraphLoading = useProjectStore(state => state.setGraphLoading);
   const router = useRouter();
 
+  const isLocalMode = () => {
+    if (typeof window !== 'undefined') {
+      const { hostname, port } = window.location;
+      if ((hostname === 'localhost' || hostname === '127.0.0.1') && (port === '' || port === '3000')) return true;
+    }
+    return process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+  };
+
   useEffect(() => {
     // Mark as client-side and initialize auth
     setIsClient(true);
@@ -44,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userObject: user ? { id: user.id, email: user.email } : null
     });
     
-    if ((process.env.NEXT_PUBLIC_LOCAL_MODE === '1') && isClient) {
+    if (isLocalMode() && isClient) {
       // Local mode: no auth, connect and show app
       setGraphLoading(true);
       connectToGraphEvents('local');
@@ -59,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔌 AuthProvider: User logged out, disconnecting from Supabase');
       disconnectFromGraphEvents();
       resetStore();
-      router.replace('/signin');
+      // Do not redirect to /signin in local or hosted mode
     } else {
       console.log('⏳ AuthProvider: Waiting for user authentication or client initialization');
     }
@@ -96,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      if (process.env.NEXT_PUBLIC_LOCAL_MODE === '1') {
+      if (isLocalMode()) {
         setUser({ id: 'local', email: 'local@example.com' } as any);
         setSession(null);
         setLoading(false);
@@ -150,14 +158,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
       resetStore();
-      router.replace('/signin');
+      // No redirect to /signin
     } catch (error) {
       console.error('Error signing out:', error);
       // Clear state even if signout fails
       setUser(null);
       setSession(null);
       resetStore();
-      router.replace('/signin');
+      // No redirect to /signin
     }
   };
 

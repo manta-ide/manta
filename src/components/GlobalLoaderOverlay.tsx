@@ -7,7 +7,19 @@ import { useAuth } from '@/lib/auth-context';
 export default function GlobalLoaderOverlay() {
   const { graphLoading, supabaseConnected, iframeReady, resetting } = useProjectStore();
   const { user } = useAuth();
-  const localMode = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+  const localMode = useMemo(() => {
+    try {
+      if (user?.id === 'local') return true;
+      if (typeof window !== 'undefined') {
+        const { hostname, port } = window.location;
+        if ((hostname === 'localhost' || hostname === '127.0.0.1') && (port === '' || port === '3000')) return true;
+      }
+      // Fallback to compile-time flag if present
+      return typeof process !== 'undefined' && process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+    } catch {
+      return false;
+    }
+  }, [user?.id]);
 
   const show = useMemo(() => {
     // Always show when resetting
@@ -18,8 +30,11 @@ export default function GlobalLoaderOverlay() {
     if (localMode) {
       return !iframeReady;
     }
-    // If user is authenticated (hosted mode), require Supabase and iframe
+    // If user is authenticated
     if (user) {
+      // In local mode (or local stub user), only wait for iframe
+      if (localMode || user.id === 'local') return !iframeReady;
+      // Hosted mode: require DB and iframe
       return !supabaseConnected || !iframeReady;
     }
     // If not authenticated, only wait for iframe (editor preview)
@@ -38,7 +53,7 @@ export default function GlobalLoaderOverlay() {
 
   const message = resetting
     ? 'Resetting project…'
-    : localMode
+    : localMode || user?.id === 'local'
       ? (!iframeReady ? 'Starting preview…' : 'Loading project…')
       : user
         ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')

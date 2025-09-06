@@ -3,18 +3,17 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { Pool } from 'pg';
 
-// Create database connection with same config as Better Auth
-const pool = new Pool({
-  ssl: true,
-  connectionString: process.env.DATABASE_URL,
-});
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+
+// Create database connection with same config as Better Auth (disabled in local mode)
+const pool = !LOCAL_MODE
+  ? new Pool({ ssl: true, connectionString: process.env.DATABASE_URL })
+  : null;
 
 // GET - Load user's chat history
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await auth.api.getSession({ headers: await headers() } as any);
 
     if (!session?.user) {
       return NextResponse.json(
@@ -23,10 +22,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Load chat history from database
-    let chatHistory = [];
+    // Load chat history from database (or stub in local mode)
+    let chatHistory: any[] = [];
     
     try {
+      if (LOCAL_MODE || !pool) {
+        return NextResponse.json({ success: true, chatHistory: [] });
+      }
       const client = await pool.connect();
       try {
         const result = await client.query(
@@ -63,9 +65,7 @@ export async function GET(req: NextRequest) {
 // POST - Save user's chat history
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await auth.api.getSession({ headers: await headers() } as any);
 
     if (!session?.user) {
       return NextResponse.json(
@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
 
     // Update chat history in database
     try {
+      if (LOCAL_MODE || !pool) {
+        return NextResponse.json({ success: true, message: 'Chat history saved (local noop)' });
+      }
       const client = await pool.connect();
       try {
         await client.query(
@@ -111,9 +114,7 @@ export async function POST(req: NextRequest) {
 // DELETE - Clear user's chat history
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await auth.api.getSession({ headers: await headers() } as any);
 
     if (!session?.user) {
       return NextResponse.json(
@@ -124,6 +125,9 @@ export async function DELETE(req: NextRequest) {
 
     // Clear chat history in database
     try {
+      if (LOCAL_MODE || !pool) {
+        return NextResponse.json({ success: true, message: 'Chat history cleared (local noop)' });
+      }
       const client = await pool.connect();
       try {
         await client.query(

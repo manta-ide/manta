@@ -13,9 +13,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/signin');
-    }
+    // No redirect to /signin; allow rendering without auth
   }, [user, loading, router]);
 
   if (loading) {
@@ -29,9 +27,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
-    return null; // Will redirect to signin
-  }
+  // If unauthenticated, still render children (no redirect)
 
   return <>{children}</>;
-} 
+}

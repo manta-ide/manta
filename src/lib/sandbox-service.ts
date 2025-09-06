@@ -44,11 +44,15 @@ export interface SandboxProvider {
   getAppRoot(): string; // Root path inside sandbox where project lives
 }
 
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+
 export class SandboxService {
-  private static pool = new Pool({
-    ssl: true,
-    connectionString: process.env.DATABASE_URL,
-  });
+  private static pool: Pool | null = LOCAL_MODE
+    ? null
+    : new Pool({
+        ssl: true,
+        connectionString: process.env.DATABASE_URL,
+      });
 
   private static provider: SandboxProvider | null = null;
 
@@ -122,6 +126,27 @@ export class SandboxService {
       return cached.data;
     }
 
+    if (LOCAL_MODE || !this.pool) {
+      // Return a lightweight stub in local mode without touching DB
+      try {
+        const previewUrl = await provider.getUserPreviewUrl(userId);
+        const sandboxInfo: UserSandboxInfo = {
+          sandboxId: provider.generateSandboxId ? provider.generateSandboxId(userId) : `local-${userId}`,
+          sandboxUrl: provider.getSandboxUrl(userId),
+          previewUrl,
+          mcpServerUrl: provider.getMCPServerUrl(userId),
+          createdAt: new Date(),
+          status: 'active',
+        };
+        this.sandboxInfoCache.set(userId, { data: sandboxInfo, timestamp: Date.now() });
+        return sandboxInfo;
+      } catch (e) {
+        // On error deriving preview, just cache null
+        this.sandboxInfoCache.set(userId, { data: null, timestamp: Date.now() });
+        return null;
+      }
+    }
+
     try {
       const client = await this.pool.connect();
       try {
@@ -166,6 +191,7 @@ export class SandboxService {
    * Update user record with sandbox information
    */
   private static async updateUserSandboxInfo(userId: string, sandboxId: string): Promise<void> {
+    if (LOCAL_MODE || !this.pool) return; // No-op in local mode
     try {
       const client = await this.pool.connect();
       try {

@@ -132,10 +132,11 @@ export default class Run extends Command {
       const distCmdDir = path.dirname(here);
       const pkgRoot = path.resolve(distCmdDir, '..');
       const embeddedRoot = path.join(pkgRoot, 'editor');
-      const server = path.join(embeddedRoot, 'standalone', 'server.js');
+      const standaloneServer = path.join(embeddedRoot, 'standalone', 'server.js');
+      const wrapperServer = path.join(embeddedRoot, 'server.mjs');
       const staticDir = path.join(embeddedRoot, 'static');
       const pubDir = path.join(embeddedRoot, 'public');
-      if (fs.existsSync(server)) {
+      if (fs.existsSync(standaloneServer) || fs.existsSync(wrapperServer)) {
         // Ensure static + public co-located (Next standalone expects these paths relative)
         if (!fs.existsSync(staticDir) || !fs.existsSync(pubDir)) {
           // Warn but still attempt to run server.js
