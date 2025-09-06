@@ -40,7 +40,7 @@ export default function FontPropertyEditor({ property, onChange, onPreview }: Fo
                 <SelectValue placeholder="Select font family..." />
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
-                {families.map((f) => (
+                {families.map((f: string) => (
                   <SelectItem key={f} value={f} className="text-white hover:bg-zinc-700" onMouseEnter={() => update({ family: f }, true)}>
                     {f}
                   </SelectItem>

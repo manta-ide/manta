@@ -1,7 +1,15 @@
 {
   "name": "mantaeditor",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "type": "module",
+  "bin": {
+    "manta": "packages/manta/dist/bin.js"
+  },
+  "oclif": {
+    "bin": "manta",
+    "commands": "./packages/manta/dist/commands"
+  },
   "scripts": {
     "mcp:inspect": "npx @modelcontextprotocol/inspector node scripts/mcp/server.ts",
     "mcp": "npx node scripts/mcp/server.ts",
@@ -13,7 +21,11 @@
     "build:app": "cd base-template && npm run build",
     "start:app": "cd base-template && npm run start -- --port 3001",
     "dev:both": "concurrently \"npm run dev\" \"npm run dev:app\"",
-    "start:both": "concurrently \"npm run start\" \"npm run start:app\""
+    "start:both": "concurrently \"npm run start\" \"npm run start:app\"",
+    "build:cli": "npm --prefix packages/manta run build",
+    "pack:editor": "npm --prefix packages/manta run pack:editor",
+    "build:all": "npm run build && npm run build:cli && npm run pack:editor",
+    "prepublishOnly": "npm run build:all"
   },
   "dependencies": {
     "@ai-sdk/azure": "^1.3.24",
@@ -24,11 +36,11 @@
     "@internationalized/date": "^3.8.2",
     "@modelcontextprotocol/sdk": "^1.17.5",
     "@monaco-editor/react": "^4.7.0",
+    "@oclif/core": "^3.26.6",
     "@origin-space/image-cropper": "^0.1.9",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-slot": "^1.2.3",
     "@remixicon/react": "^4.6.0",
-    "@supabase/supabase-js": "^2.56.1",
     "@types/diff-match-patch": "^1.0.36",
     "@types/jszip": "^3.4.0",
     "@types/pg": "^8.15.5",
@@ -80,5 +92,12 @@
     "tailwindcss": "^4.1.11",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
-  }
+  },
+  "optionalDependencies": {
+    "manta-mcp": "^0.1.2"
+  },
+  "files": [
+    "packages/manta/dist",
+    "README.md"
+  ]
 }

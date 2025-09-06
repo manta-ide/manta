@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -24,31 +23,17 @@ function withBearerToCookie(headersIn: Headers): Headers {
 
 export async function POST(req: NextRequest) {
   try {
-    if (LOCAL_MODE) {
-      const { id, status, errorMessage } = await req.json();
-      if (!id || !status) return NextResponse.json({ error: 'id and status required' }, { status: 400 });
-      const jobs = readJobs();
-      const idx = jobs.findIndex(j => j.id === id);
-      if (idx === -1) return NextResponse.json({ ok: false }, { status: 404 });
-      const now = new Date().toISOString();
-      jobs[idx] = { ...jobs[idx], status, finished_at: now, updated_at: now, error_message: errorMessage ?? null };
-      writeJobs(jobs);
-      return NextResponse.json({ ok: true });
-    }
     const session = await auth.api.getSession({ headers: withBearerToCookie(req.headers) });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!LOCAL_MODE && !session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { id, status, errorMessage } = await req.json();
     if (!id || !status) return NextResponse.json({ error: 'id and status required' }, { status: 400 });
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
-    const supabase = createClient(supabaseUrl, serviceKey);
-    const { error } = await supabase
-      .from('cli_jobs')
-      .update({ status, finished_at: new Date().toISOString(), error_message: errorMessage ?? null })
-      .eq('id', id)
-      .eq('user_id', session.user.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const userId = session?.user?.id as string | undefined;
+    const jobs = readJobs();
+    const idx = jobs.findIndex(j => j.id === id && (!userId || j.user_id === userId));
+    if (idx === -1) return NextResponse.json({ ok: false }, { status: 404 });
+    const now = new Date().toISOString();
+    jobs[idx] = { ...jobs[idx], status, finished_at: now, updated_at: now, error_message: errorMessage ?? null };
+    writeJobs(jobs);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

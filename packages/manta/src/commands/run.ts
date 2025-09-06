@@ -20,11 +20,12 @@ export default class Run extends Command {
   async run(): Promise<void> {
     const {flags} = await this.parse(Run);
     const projectDir = path.resolve(flags.project || process.cwd());
-    const editorDir = await this.resolveEditorDir(flags.editorDir);
+    const embedded = this.findEmbeddedEditor();
+    const editorDir = embedded ? null : await this.resolveEditorDir(flags.editorDir);
     const port = Number(flags.port) || 3000;
     const childPort = Number(flags.childPort) || 3001;
     this.log(`[manta] project: ${projectDir}`);
-    this.log(`[manta] editor: ${editorDir}`);
+    this.log(`[manta] editor: ${embedded ? '(embedded)' : editorDir}`);
 
     const env = {
       ...process.env,
@@ -38,17 +39,40 @@ export default class Run extends Command {
     } as NodeJS.ProcessEnv;
 
     // Prefer embedded standalone editor if present in the CLI package
-    const embedded = this.findEmbeddedEditor();
     let child: ReturnType<typeof spawn>;
     if (embedded) {
       this.log('[manta] launching embedded editor');
-      const serverDir = path.join(embedded, 'standalone');
-      child = spawn(process.execPath, ['server.js'], { cwd: serverDir, env, stdio: 'inherit' });
+      const standaloneServer = path.join(embedded, 'standalone', 'server.js');
+      const wrapperServer = path.join(embedded, 'server.mjs');
+      if (fs.existsSync(standaloneServer)) {
+        const serverDir = path.join(embedded, 'standalone');
+        child = spawn(process.execPath, ['server.js'], { cwd: serverDir, env, stdio: 'inherit' });
+      } else if (fs.existsSync(wrapperServer)) {
+        // Fallback server for Next 15+ without standalone folder
+        child = spawn(process.execPath, ['server.mjs'], { cwd: embedded, env, stdio: 'inherit' });
+      } else {
+        this.logToStderr('[manta] Embedded editor found but no server entry. Try rebuilding: npm run build:all');
+        this.exit(1);
+        return;
+      }
     } else {
-      this.log('[manta] launching workspace editor via npm');
+      // Validate the resolved editor directory really contains a Next.js app
+      const pkgPath = path.join(editorDir!, 'package.json');
+      let hasNext = false;
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')) as any;
+        hasNext = !!(pkg?.dependencies?.next || pkg?.devDependencies?.next || String(pkg?.scripts?.dev || '').includes('next'));
+      } catch {}
+      if (!hasNext) {
+        this.logToStderr('[manta] No embedded editor found and current directory is not a Next.js app.');
+        this.logToStderr('[manta] Build the CLI with the embedded editor first: "npm run build:all" (from repo root), then reinstall.');
+        this.exit(1);
+        return;
+      }
+      this.log('[manta] launching workspace editor via npm (Next.js)');
       const cmd = 'npm';
       const args = ['run', flags.dev ? 'dev' : 'start'];
-      child = spawn(cmd, args, { cwd: editorDir, env, stdio: 'inherit', shell: process.platform === 'win32' });
+      child = spawn(cmd, args, { cwd: editorDir!, env, stdio: 'inherit', shell: process.platform === 'win32' });
     }
     child.on('error', (e) => this.logToStderr(`[editor:error] ${e?.message ?? e}`));
 

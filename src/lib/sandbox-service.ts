@@ -1,7 +1,6 @@
 import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { SupabaseGraphService } from '@/app/api/lib/graph-service';
 
 export interface UserSandboxInfo {
   sandboxId: string;
@@ -495,15 +494,7 @@ export class SandboxService {
 
       console.log(`[SandboxService] ✅ Base template setup completed for user ${userId}`);
 
-      // Sync base template graph to Supabase
-      console.log(`[SandboxService] Syncing base template graph to Supabase...`);
-      try {
-        await SupabaseGraphService.syncTemplateGraphToSupabase(userId);
-        console.log(`[SandboxService] ✅ Graph sync completed for user ${userId}`);
-      } catch (graphError) {
-        console.error(`[SandboxService] Graph sync failed for user ${userId}:`, graphError);
-        // Don't throw here - the sandbox setup was successful, graph sync is secondary
-      }
+      // Graph will be read from local _graph/graph.json; no remote sync needed
     } catch (error) {
       console.error(`[SandboxService] Failed to setup base template for user ${userId}:`, error);
       throw error;

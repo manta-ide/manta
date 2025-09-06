@@ -22,7 +22,7 @@ export default function RadioPropertyEditor({ property, onChange }: RadioPropert
         onValueChange={onChange}
         className="w-full space-y-1"
       >
-        {property.options.map((option, index) => (
+        {property.options.map((option: string, index: number) => (
           <div key={option} className="flex items-center gap-2">
             <RadioGroupItem
               value={option}

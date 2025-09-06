@@ -43,7 +43,7 @@ export default function ObjectPropertyEditor({ property, onChange }: ObjectPrope
           {fields.length === 0 && (
             <div className="text-xs text-zinc-500">No fields defined for this group.</div>
           )}
-          {fields.map((field, idx) => (
+          {fields.map((field: Property, idx: number) => (
             <div key={field.id || idx} className={idx < fields.length - 1 ? 'border-b border-zinc-700/20 pb-1.5' : ''}>
               <PropertyEditor
                 property={{

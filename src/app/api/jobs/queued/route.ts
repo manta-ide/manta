@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -25,25 +24,14 @@ function withBearerToCookie(headersIn: Headers): Headers {
 
 export async function GET(req: NextRequest) {
   try {
-    if (LOCAL_MODE) {
-      const jobs = readJobs().filter(j => j.status === 'queued');
-      return NextResponse.json({ jobs });
-    }
     const session = await auth.api.getSession({ headers: withBearerToCookie(req.headers) });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceKey) return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
-    const supabase = createClient(supabaseUrl, serviceKey);
-    const { data, error } = await supabase
-      .from('cli_jobs')
-      .select('*')
-      .eq('status', 'queued')
-      .eq('user_id', session.user.id)
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: true });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ jobs: data ?? [] });
+    if (!LOCAL_MODE && !session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const userId = session?.user?.id as string | undefined;
+    let jobs = readJobs().filter(j => j.status === 'queued');
+    if (userId) jobs = jobs.filter(j => j.user_id === userId);
+    jobs.sort((a, b) => (b.priority - a.priority) || ((a.created_at ?? '').localeCompare(b.created_at ?? '')));
+    return NextResponse.json({ jobs });
   } catch (e) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

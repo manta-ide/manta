@@ -64,8 +64,6 @@ interface ProjectStore {
 let graphEventSource: EventSource | null = null;
 let reconnectTimeout: NodeJS.Timeout | null = null;
 
-// Private variable to track Supabase subscription
-let supabaseUnsubscribe: (() => void) | null = null;
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   // File system state

@@ -1,4 +1,3 @@
-import {createClient, SupabaseClient} from '@supabase/supabase-js';
 import {spawn} from 'node:child_process';
 import {EventEmitter} from 'node:events';
 import type {JobRecord, JobStatus, RunJobPayload, TerminateJobPayload} from './types.js';
@@ -6,13 +5,10 @@ import {readConfig} from '../config/store.js';
 import {getProvider} from '../providers/index.js';
 
 type WorkerOptions = {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
   userId?: string;
 };
 
 export class JobWorker extends EventEmitter {
-  private realtimeClient: SupabaseClient | null = null;
   private currentJob: JobRecord | null = null;
   private currentChild: ReturnType<typeof spawn> | null = null;
   private queue: JobRecord[] = [];
@@ -28,41 +24,12 @@ export class JobWorker extends EventEmitter {
   }
 
   async start(): Promise<void> {
-    if (this.realtimeClient) return;
-    console.log('[manta] worker starting with config:', {
-      url: this.opts.supabaseUrl,
-      hasAnonKey: Boolean(this.opts.supabaseAnonKey),
+    console.log('[manta] worker starting (polling mode only):', {
       userScope: this.opts.userId ?? null,
     });
-    this.realtimeClient = createClient(this.opts.supabaseUrl, this.opts.supabaseAnonKey);
-
     await this.loadQueuedJobs();
-    // Start polling as a reliable fallback (Realtime may be restricted by RLS)
+    // Start polling for jobs
     this.startPolling();
-
-    console.log('[manta] subscribing to realtime changes for cli_jobs...');
-    const channel = this.realtimeClient
-      .channel('cli-jobs-worker')
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'cli_jobs',
-        filter: this.opts.userId ? `user_id=eq.${this.opts.userId}` : undefined,
-      }, (payload) => {
-        const rec = payload.new as JobRecord | undefined;
-        if (!rec) return;
-        console.log('[manta] realtime INSERT:', { id: rec.id, user_id: rec.user_id, status: rec.status, job_name: rec.job_name });
-        if (rec.status === 'queued' && (!this.opts.userId || rec.user_id === this.opts.userId)) this.enqueue(rec);
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'cli_jobs',
-        filter: this.opts.userId ? `user_id=eq.${this.opts.userId}` : undefined,
-      }, (payload) => {
-        const rec = payload.new as JobRecord | undefined;
-        if (!rec) return;
-        console.log('[manta] realtime UPDATE:', { id: rec.id, user_id: rec.user_id, status: rec.status, job_name: rec.job_name });
-        if (rec.status === 'queued' && (!this.opts.userId || rec.user_id === this.opts.userId)) this.enqueue(rec);
-      })
-      .subscribe((status) => console.log('[manta] realtime channel status:', status));
-
     void this.processNext();
   }
 

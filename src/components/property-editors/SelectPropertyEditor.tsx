@@ -20,7 +20,7 @@ export default function SelectPropertyEditor({ property, onChange, onPreview }: 
             <SelectValue placeholder="Select option..." />
           </SelectTrigger>
           <SelectContent className="bg-zinc-800 border-zinc-700">
-            {Array.isArray(property.options) ? property.options.map((option) => (
+            {Array.isArray(property.options) ? property.options.map((option: string) => (
               <SelectItem
                 key={option}
                 value={option}

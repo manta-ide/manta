@@ -27,7 +27,6 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { supabaseRealtimeService } from '@/lib/supabase-realtime';
 
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -359,7 +358,6 @@ function GraphCanvas() {
     refreshGraph, 
     connectToGraphEvents, 
     disconnectFromGraphEvents,
-    supabaseConnected,
     updateNodeInSupabase,
     deleteNodeFromSupabase
   } = useProjectStore();
@@ -367,22 +365,10 @@ function GraphCanvas() {
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
 
-  // Monitor Supabase connection status
+  // Log connection status to local graph events
   useEffect(() => {
-    console.log('📊 GraphView: Connection status check:', {
-      user: user ? { id: user.id, email: user.email } : null,
-      supabaseConnected,
-      hasUserId: !!user?.id
-    });
-    
-    if (!user?.id) {
-      console.log('⚠️ GraphView: No user ID available');
-    } else if (supabaseConnected) {
-      console.log('✅ GraphView: Supabase connected');
-    } else {
-      console.log('🔄 GraphView: Waiting for Supabase connection (handled by AuthProvider)');
-    }
-  }, [user?.id, supabaseConnected]);
+    console.log('📊 GraphView: Ready. User:', user ? { id: user.id, email: user.email } : null);
+  }, [user?.id]);
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
   const latestNodesRef = useRef<Node[]>([]);
@@ -414,44 +400,19 @@ function GraphCanvas() {
     }
 
     try {
-      // Try Supabase first if connected
-      if (supabaseConnected && graph?.nodes) {
-        console.log('🗑️ Deleting graph via Supabase...');
-        
-        // Delete all nodes (this will cascade delete properties and edges)
-        for (const node of graph.nodes) {
-          try {
-            await deleteNodeFromSupabase(node.id);
-            console.log(`✅ Node ${node.id} deleted from Supabase`);
-          } catch (nodeError) {
-            console.warn(`⚠️ Failed to delete node ${node.id} from Supabase:`, nodeError);
-          }
-        }
-        
-        console.log('✅ Graph deleted successfully via Supabase');
+      const response = await fetch('/api/graph-api', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        console.log('✅ Graph deleted successfully');
       } else {
-        throw new Error('Supabase not connected, using backend API');
+        console.error('❌ Failed to delete graph');
       }
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase delete failed, using backend API:', supabaseError);
-      
-      // Fallback to backend API
-      try {
-        const response = await fetch('/api/graph-api', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        if (response.ok) {
-          console.log('✅ Graph deleted successfully via backend API');
-        } else {
-          console.error('❌ Failed to delete graph via backend API');
-        }
-      } catch (backendError) {
-        console.error('❌ Error deleting graph via backend API:', backendError);
-      }
+    } catch (backendError) {
+      console.error('❌ Error deleting graph:', backendError);
     }
-  }, [supabaseConnected, graph, deleteNodeFromSupabase]);
+  }, [deleteNodeFromSupabase, graph]);
 
   // Function to rebuild the full graph
   const rebuildFullGraph = useCallback(async () => {
@@ -513,31 +474,8 @@ function GraphCanvas() {
         }
       } catch {}
 
-      // Update node state to "building" - try Supabase first
-      try {
-        if (supabaseConnected) {
-          await updateNodeInSupabase(selectedNode.id, { state: 'building' });
-          console.log('✅ Node state updated to building via Supabase');
-        } else {
-          throw new Error('Supabase not connected');
-        }
-      } catch (supabaseError) {
-        console.warn('⚠️ Supabase update failed, using backend API:', supabaseError);
-        
-        // Fallback to backend API for state update
-        const updateStateRes = await fetch('/api/graph-api', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            nodeId: selectedNode.id, 
-            state: 'building' 
-          })
-        });
-        
-        if (!updateStateRes.ok) {
-          console.error('Failed to update node state to building');
-        }
-      }
+      // Update node state to "building"
+      await updateNodeInSupabase(selectedNode.id, { state: 'building' });
 
       const response = await fetch('/api/agent-request/build-nodes', {
         method: 'POST',
@@ -557,31 +495,17 @@ function GraphCanvas() {
         // Do not set node to built here; worker/agent will update state via MCP later.
       } else {
         console.error('❌ Failed to build selected node');
-        
         // Revert node state on failure
-        try {
-          if (supabaseConnected) {
-            await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' });
-          }
-        } catch (revertError) {
-          console.warn('Failed to revert node state:', revertError);
-        }
+        try { await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' }); } catch {}
       }
     } catch (error) {
       console.error('❌ Error building selected node:', error);
-      
       // Revert node state on error
-      try {
-        if (supabaseConnected) {
-          await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' });
-        }
-      } catch (revertError) {
-        console.warn('Failed to revert node state:', revertError);
-      }
+      try { await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' }); } catch {}
     } finally {
       setIsBuildingSelected(false);
     }
-  }, [selectedNode, supabaseConnected, updateNodeInSupabase]);
+  }, [selectedNode, updateNodeInSupabase]);
 
   // Connection is managed centrally by AuthProvider; avoid duplicate connections here
 
@@ -790,17 +714,7 @@ function GraphCanvas() {
     );
   }, [selectedNodeId, setNodes]);
 
-  // Apply incoming broadcasted position updates directly to ReactFlow nodes
-  useEffect(() => {
-    const unsubscribe = supabaseRealtimeService.onGraphChange((event) => {
-      if (event.type === 'node_position_updated' && event.fromBroadcast && event.position) {
-        setNodes((existing) => existing.map((n) => (
-          n.id === event.nodeId ? { ...n, position: event.position } : n
-        )));
-      }
-    });
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, [setNodes]);
+  // No realtime broadcast integration; positions update via API/SSE refresh
 
   const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
@@ -816,27 +730,17 @@ function GraphCanvas() {
   }, []);
 
   const onNodeDrag = useCallback((event: any, node: Node) => {
+    // No-op for realtime broadcast; final position persisted on drag stop
     try {
       const graphNode = node.data?.node as GraphNode;
       if (!graphNode) return;
-
-      // Throttle broadcasts to prevent spam but keep UI smooth
       const now = Date.now();
       const lastBroadcast = lastPositionBroadcast.current[graphNode.id] || 0;
-      
-      if (now - lastBroadcast >= POSITION_BROADCAST_THROTTLE && supabaseConnected) {
+      if (now - lastBroadcast >= POSITION_BROADCAST_THROTTLE) {
         lastPositionBroadcast.current[graphNode.id] = now;
-        
-        // Use broadcast for real-time position updates (non-blocking)
-        supabaseRealtimeService.broadcastPosition(graphNode.id, {
-          x: node.position.x,
-          y: node.position.y
-        });
       }
-    } catch (error) {
-      console.debug('Error during position broadcast:', error);
-    }
-  }, [supabaseConnected]);
+    } catch {}
+  }, []);
 
   // Handle final node position changes (drag stop) - ensure final Supabase update
   const onNodeDragStop = useCallback(async (event: any, node: Node) => {
@@ -846,16 +750,14 @@ function GraphCanvas() {
 
       console.log(`📍 Node ${graphNode.id} final position:`, node.position);
 
-      // Ensure final position is saved to Supabase (bypass throttle)
-      if (supabaseConnected) {
-        try {
-          await updateNodeInSupabase(graphNode.id, { 
-            position: { x: node.position.x, y: node.position.y }
-          });
-          console.log(`✅ Node ${graphNode.id} final position updated in Supabase`);
-        } catch (supabaseError) {
-          console.warn(`⚠️ Final Supabase position update failed for ${graphNode.id}:`, supabaseError);
-        }
+      // Persist final position via graph API
+      try {
+        await updateNodeInSupabase(graphNode.id, { 
+          position: { x: node.position.x, y: node.position.y }
+        });
+        console.log(`✅ Node ${graphNode.id} final position saved`);
+      } catch (e) {
+        console.warn(`⚠️ Final position update failed for ${graphNode.id}:`, e);
       }
     } catch (error) {
       console.error('Error saving final node position:', error);
@@ -863,7 +765,7 @@ function GraphCanvas() {
     // Release drag lock after persistence
     const graphNode = node.data?.node as GraphNode;
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
-  }, [supabaseConnected, updateNodeInSupabase]);
+  }, [updateNodeInSupabase]);
 
   // Node types for ReactFlow
   const nodeTypes = {

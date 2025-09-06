@@ -3,6 +3,7 @@
   "version": "0.2.7",
   "description": "Manta CLI: provider proxy + job worker with Codex and MCP integration",
   "type": "module",
+  "private": true,
   "bin": {
     "manta": "dist/bin.js"
   },
@@ -24,7 +25,6 @@
   "license": "MIT",
   "dependencies": {
     "@oclif/core": "^3.26.6",
-    "@supabase/supabase-js": "^2.45.3",
     "jszip": "^3.10.1"
   },
   "devDependencies": {

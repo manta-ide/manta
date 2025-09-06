@@ -90,7 +90,7 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
             </div>
             {open[idx] && (
               <div className="p-2 space-y-1.5">
-                {fields.map((f, i) => (
+                {fields.map((f: Property, i: number) => (
                   <div key={f.id || i} className={i < fields.length - 1 ? 'border-b border-zinc-700/20 pb-1.5' : ''}>
                     <PropertyEditor
                       property={{ ...f, value: item[f.id] ?? f.value } as Property}
