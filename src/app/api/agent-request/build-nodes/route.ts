@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import path from 'node:path';
 import fs from 'node:fs';
+import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
+import '@/app/api/lib/prompts/registry';
+import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
@@ -16,8 +19,13 @@ const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) =
 });
 
 const RequestSchema = z.object({
-  userMessage: MessageSchema,
+  // Kept for backward compatibility but ignored for prompt construction
+  userMessage: MessageSchema.optional(),
+  // Single node selection (legacy)
   nodeId: z.string().optional(),
+  // New: explicit array of selected node IDs
+  selectedNodeIds: z.array(z.string()).optional(),
+  // Rebuild all nodes in the graph
   rebuildAll: z.boolean().optional().default(false)
 });
 
@@ -31,16 +39,34 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userMessage, nodeId, rebuildAll } = RequestSchema.parse(body);
-
-    if (!userMessage) {
-      return NextResponse.json({ error: 'userMessage is required' }, { status: 400 });
-    }
+    const { userMessage, nodeId, selectedNodeIds, rebuildAll } = RequestSchema.parse(body);
 
     console.log('🔄 Build nodes request received');
 
+    // Determine target node IDs
+    let targetNodeIds: string[] = [];
+    if (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) {
+      targetNodeIds = selectedNodeIds;
+    } else if (nodeId) {
+      targetNodeIds = [nodeId];
+    } else if (rebuildAll) {
+      // Fetch graph to derive all node IDs
+      const graph = await fetchGraphFromApi(req);
+      if (graph?.nodes?.length) targetNodeIds = graph.nodes.map((n: any) => n.id);
+    }
+
+    // Build prompt from template (ignore any user-provided message content)
+    const template = await getTemplate('build-nodes-template');
+    const graph = await fetchGraphFromApi(req);
+    const variables = {
+      SELECTED_NODE_IDS: JSON.stringify(targetNodeIds),
+      GRAPH_DATA: graph ? JSON.stringify(graph, null, 2) : '',
+      REBUILD_ALL: rebuildAll ? '1' : '',
+    } as Record<string, any>;
+    const parsedPrompt = parseMessageWithTemplate(template, variables);
+
     // Compose provider-driven job payload
-    const prompt = process.env.CLI_CODEX_PROMPT || (userMessage?.content || 'explain this codebase to me');
+    const prompt = process.env.CLI_CODEX_PROMPT || parsedPrompt;
     const payload = {
       provider: 'codex',
       prompt,
@@ -48,8 +74,8 @@ export async function POST(req: NextRequest) {
       meta: {
         kind: 'build-nodes',
         nodeId: nodeId ?? null,
+        selectedNodeIds: targetNodeIds,
         rebuildAll: Boolean(rebuildAll),
-        message: userMessage,
         requestedAt: new Date().toISOString(),
       },
     };

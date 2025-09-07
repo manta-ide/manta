@@ -4,18 +4,28 @@
  * Backend utilities for loading and parsing prompt templates with variable substitution.
  * Handles conditional sections and variable replacement for system/user/assistant prompts.
  * 
- * This is a backend-only utility that operates on file system and string processing.
+ * Packaged-only: templates must be pre-registered into memory. No FS fallbacks.
  */
 
-import { promises as fs } from 'fs';
-import path from 'path';
+// Simple in-memory registry to allow bundling/registration at build time
+const inMemoryTemplates: Record<string, string> = {};
+
+/**
+ * Optionally register a template at runtime/build-time so it doesn't need FS access.
+ */
+export function registerTemplate(name: string, content: string) {
+  inMemoryTemplates[name] = content;
+}
 
 /**
  * Loads a prompt template file from the prompts directory
  */
 export async function getTemplate(templateName: string): Promise<string> {
-  const filePath = path.join(process.cwd(), 'src', 'app', 'api', 'lib', 'prompts', `${templateName}.txt`);
-  return fs.readFile(filePath, 'utf-8');
+  const content = inMemoryTemplates[templateName];
+  if (!content) {
+    throw new Error(`Prompt template not registered: ${templateName}`);
+  }
+  return content;
 }
 
 /**

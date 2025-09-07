@@ -5,11 +5,17 @@ import { z } from "zod";
 
 // Utility to resolve base URL for API calls
 function resolveBaseUrl(): string {
-  const url = process.env.MANTA_API_URL;
-  if (!url) {
-    throw new Error("MANTA_API_URL is required (set it in your MCP environment)");
+  const url = process.env.MANTA_API_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+  // Normalize and validate
+  const trimmed = url.replace(/\/$/, '');
+  try {
+    // eslint-disable-next-line no-new
+    new URL(trimmed);
+  } catch {
+    // Fallback to localhost if invalid
+    return 'http://localhost:3000';
   }
-  return url;
+  return trimmed;
 }
 
 // Resolve access token from env

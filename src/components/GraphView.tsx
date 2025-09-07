@@ -483,7 +483,7 @@ function GraphCanvas() {
         body: JSON.stringify({
           userMessage: {
             role: 'user',
-            content: `Set this node to built: ${selectedNode.title}`,//`Build and generate code for the node: ${selectedNode.title}`,
+            content: `Implement this node: ${selectedNode.title}`,//`Build and generate code for the node: ${selectedNode.title}`,
             variables: {}
           },
           nodeId: selectedNode.id

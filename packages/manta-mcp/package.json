@@ -10,16 +10,16 @@
     "README.md",
     "LICENSE"
   ],
-  "prepublishOnly": "npm run build",
   "scripts": {
     "build": "tsc -p .",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.4.0"
+    "@modelcontextprotocol/sdk": "^1.4.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "manta-mcp": "^0.1.2",
     "tsx": "^4.19.2",
     "typescript": "^5.5.4"
   }

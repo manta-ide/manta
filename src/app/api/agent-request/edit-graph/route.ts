@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
+import '@/app/api/lib/prompts/registry';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { getGraphSession } from '@/app/api/lib/graph-service';
 import { storeGraph } from '@/app/api/lib/graph-service';
