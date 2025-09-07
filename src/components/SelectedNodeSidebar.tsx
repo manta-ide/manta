@@ -103,21 +103,22 @@ export default function SelectedNodeSidebar() {
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
     const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
-    const isHighFrequency = ['color','object','object-list'].includes((propMeta?.type as any) || '');
+    // Only treat truly high-frequency primitives as high-frequency; complex objects should re-render immediately
+    const isHighFrequency = ['color','number','slider'].includes((propMeta?.type as any) || '');
 
 		// For high-frequency properties, avoid re-rendering the sidebar on every tick
-		if (isHighFrequency) {
-			stagedPropertyValuesRef.current = {
-				...stagedPropertyValuesRef.current,
-				[propertyId]: value
-			};
-		} else {
-			const newPropertyValues = {
-				...propertyValues,
-				[propertyId]: value
-			};
-			setPropertyValues(newPropertyValues);
-		}
+    if (isHighFrequency) {
+      stagedPropertyValuesRef.current = {
+        ...stagedPropertyValuesRef.current,
+        [propertyId]: value
+      };
+    } else {
+      const newPropertyValues = {
+        ...propertyValues,
+        [propertyId]: value
+      };
+      setPropertyValues(newPropertyValues);
+    }
 
 		// Skip heavy tracking to avoid lag
 
