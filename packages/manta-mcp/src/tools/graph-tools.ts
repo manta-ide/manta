@@ -233,7 +233,50 @@ export function registerGraphTools(server: McpServer) {
       collect(nodeId);
       graph.nodes = graph.nodes.filter((n: any) => !toDelete.has(n.id));
       await httpPut(url, { graph }, token);
-      return { content: [{ type: 'text', text: `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}` }] };
-    }
+    return { content: [{ type: 'text', text: `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}` }] };
+  }
+  );
+
+  // set node state (allowed for both graph-editor and build-nodes jobs)
+  const setStateHandler = async ({ nodeId, state }: { nodeId: string; state: 'built'|'unbuilt'|'building' }) => {
+    const origin = resolveBaseUrl();
+    const token = resolveAccessToken();
+    const url = `${origin}/api/graph-api`;
+    const data = await httpGet(url, token);
+    const parsed = GraphSchema.safeParse((data as any).graph ?? data);
+    if (!parsed.success) throw new Error('Graph schema validation failed');
+    const graph = parsed.data as any;
+    const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
+    if (idx === -1) throw new Error(`Node ${nodeId} not found`);
+    graph.nodes[idx] = { ...graph.nodes[idx], state };
+    await httpPut(url, { graph }, token);
+    return { content: [{ type: 'text', text: `Updated node ${nodeId} state -> ${state}` }] };
+  };
+
+  server.registerTool(
+    'graph_set_node_state',
+    {
+      title: 'Set Node State',
+      description: 'Update a node\'s state (built/unbuilt/building). Available to all jobs.',
+      inputSchema: {
+        nodeId: z.string().min(1),
+        state: z.enum(['built','unbuilt','building']),
+      },
+    },
+    setStateHandler as any
+  );
+
+  // Alias for convenience
+  server.registerTool(
+    'set_node_state',
+    {
+      title: 'Set Node State',
+      description: 'Update a node\'s state (built/unbuilt/building).',
+      inputSchema: {
+        nodeId: z.string().min(1),
+        state: z.enum(['built','unbuilt','building']),
+      },
+    },
+    setStateHandler as any
   );
 }

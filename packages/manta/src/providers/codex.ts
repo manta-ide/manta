@@ -25,13 +25,13 @@ export class CodexProvider implements Provider {
 
     // Determine model based on job kind
     const jobKind = (opts.jobKind || '').toLowerCase();
-    const model = jobKind === 'build-nodes' ? 'gpt-5 medium' : 'gpt-5 minimal';
+    const model_reasoning_effort = jobKind === 'build-nodes' ? 'medium' : 'low';
 
     // Remove any pre-existing model config to avoid duplicates
     const cleanedArgs: string[] = [];
     for (let i = 0; i < args.length; i++) {
       const a = args[i];
-      if (a === '--config' && typeof args[i + 1] === 'string' && /(^|\b)model\s*=/.test(String(args[i + 1]))) {
+      if (a === '--config' && typeof args[i + 1] === 'string' && /(^|\b)model_reasoning_effort\s*=/.test(String(args[i + 1]))) {
         i++; // skip value as well
         continue;
       }
@@ -40,13 +40,13 @@ export class CodexProvider implements Provider {
     args = cleanedArgs;
 
     // Inject model config just before the prompt if possible; otherwise append
-    // const promptIndex = args.findIndex((a) => typeof a === 'string' && !a.startsWith('-'));
-    // const modelCfg = ['--config', `model="${model}"`];
-    // if (promptIndex > -1) {
-    //   args = [...args.slice(0, promptIndex), ...modelCfg, ...args.slice(promptIndex)];
-    // } else {
-    //   args = [...args, ...modelCfg];
-    // }
+    const promptIndex = args.findIndex((a) => typeof a === 'string' && !a.startsWith('-'));
+    const modelCfg = ['--config', `model_reasoning_effort="${model_reasoning_effort}"`];
+    if (promptIndex > -1) {
+      args = [...args.slice(0, promptIndex), ...modelCfg, ...args.slice(promptIndex)];
+    } else {
+      args = [...args, ...modelCfg];
+    }
 
     const mcpFlags: string[] = [];
     try {
@@ -113,7 +113,7 @@ export class CodexProvider implements Provider {
 
     const finalArgs = [...mcpFlags, ...args];
     // eslint-disable-next-line no-console
-    console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model=${model}`);
+    console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     return await spawnCommand(this.bin, finalArgs, {
       env,
       cwd: opts.cwd,
