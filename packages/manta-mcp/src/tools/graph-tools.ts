@@ -50,25 +50,13 @@ async function httpPut(url: string, body: any, token?: string) {
   return res.json() as any;
 }
 
-type Toolset = 'graph-editor' | 'read-only' | 'write' | 'rw' | 'read-write';
-function readPerms(): Toolset | null {
-  try {
-    const p = path.join(process.cwd(), '_graph', 'mcp-perms.json');
-    if (!fs.existsSync(p)) return null;
-    const data = JSON.parse(fs.readFileSync(p, 'utf8')) as { toolset?: string };
-    return (data.toolset as Toolset) || null;
-  } catch {
-    return null;
-  }
-}
-function canWrite(): boolean {
-  const t = (readPerms() || 'read-only').toLowerCase();
-  return t === 'graph-editor' || t === 'write' || t === 'rw' || t === 'read-write';
-}
+// Toolset is chosen at startup by the MCP based on env
 
-export function registerGraphTools(server: McpServer) {
+export type Toolset = 'graph-editor' | 'read-only';
+
+export function registerGraphTools(server: McpServer, toolset: Toolset) {
   // eslint-disable-next-line no-console
-  console.error('[manta-mcp] registering graph tools');
+  console.error(`[manta-mcp] registering graph tools, toolset=${toolset}`);
   // read_graph (rich read)
   server.registerTool(
     'read_graph',
@@ -98,8 +86,8 @@ export function registerGraphTools(server: McpServer) {
     }
   );
 
-  // add_node
-  server.registerTool(
+  // add_node (graph-editor only)
+  if (toolset === 'graph-editor') server.registerTool(
     'add_node',
     {
       title: 'Add Node',
@@ -115,7 +103,6 @@ export function registerGraphTools(server: McpServer) {
       },
     },
     async ({ parentId, nodeId, title, prompt, properties, children, state }) => {
-      if (!canWrite()) throw new Error('Write operations are disabled for this job (read-only toolset).');
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
@@ -136,7 +123,7 @@ export function registerGraphTools(server: McpServer) {
   );
 
   // edit_node
-  server.registerTool(
+  if (toolset === 'graph-editor') server.registerTool(
     'edit_node',
     {
       title: 'Edit Node',
@@ -151,7 +138,6 @@ export function registerGraphTools(server: McpServer) {
       },
     },
     async ({ nodeId, title, prompt, properties, children, state }) => {
-      if (!canWrite()) throw new Error('Write operations are disabled for this job (read-only toolset).');
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
@@ -169,7 +155,7 @@ export function registerGraphTools(server: McpServer) {
   );
 
   // update_properties (merge by id)
-  server.registerTool(
+  if (toolset === 'graph-editor') server.registerTool(
     'update_properties',
     {
       title: 'Update Properties',
@@ -183,7 +169,6 @@ export function registerGraphTools(server: McpServer) {
       },
     },
     async ({ nodeId, properties, title, prompt, state }) => {
-      if (!canWrite()) throw new Error('Write operations are disabled for this job (read-only toolset).');
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
@@ -206,7 +191,7 @@ export function registerGraphTools(server: McpServer) {
   );
 
   // delete_node
-  server.registerTool(
+  if (toolset === 'graph-editor') server.registerTool(
     'delete_node',
     {
       title: 'Delete Node',
@@ -214,7 +199,6 @@ export function registerGraphTools(server: McpServer) {
       inputSchema: { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true) },
     },
     async ({ nodeId, recursive }) => {
-      if (!canWrite()) throw new Error('Write operations are disabled for this job (read-only toolset).');
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
@@ -252,19 +236,6 @@ export function registerGraphTools(server: McpServer) {
     await httpPut(url, { graph }, token);
     return { content: [{ type: 'text', text: `Updated node ${nodeId} state -> ${state}` }] };
   };
-
-  server.registerTool(
-    'graph_set_node_state',
-    {
-      title: 'Set Node State',
-      description: 'Update a node\'s state (built/unbuilt/building). Available to all jobs.',
-      inputSchema: {
-        nodeId: z.string().min(1),
-        state: z.enum(['built','unbuilt','building']),
-      },
-    },
-    setStateHandler as any
-  );
 
   // Alias for convenience
   server.registerTool(

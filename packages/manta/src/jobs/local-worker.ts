@@ -87,13 +87,7 @@ export class LocalJobWorker extends EventEmitter {
   private async handleRun(job: JobRecord) {
     const payload = (job.payload ?? {}) as any;
     if (payload.provider) {
-      try {
-        // Set per-job MCP permissions for the MCP server to read at call time
-        const toolset = (payload?.meta?.kind === 'graph-editor') ? 'graph-editor' : 'read-only';
-        const permsPath = path.join(this.opts.projectDir, '_graph', 'mcp-perms.json');
-        fs.mkdirSync(path.dirname(permsPath), { recursive: true });
-        fs.writeFileSync(permsPath, JSON.stringify({ toolset }, null, 2), 'utf8');
-      } catch {}
+      // No longer writing mcp-perms.json; toolset is passed via env from provider
       const provider = getProvider(payload.provider);
       if (!provider) throw new Error(`unknown provider: ${payload.provider}`);
       const args = payload.args?.length ? payload.args : (payload.prompt ? [payload.prompt] : []);

@@ -56,6 +56,8 @@ export class CodexProvider implements Provider {
       // Ensure MCP gets a base URL even if user didn't set one.
       const defaultBase = process.env.MANTA_API_URL || process.env.BACKEND_URL || 'http://localhost:3000';
       const envMap: Record<string, string> = { MANTA_API_URL: defaultBase };
+      // Select MCP toolset based on job kind (graph-editor vs read-only)
+      envMap.MANTA_MCP_TOOLSET = jobKind === 'graph-editor' ? 'graph-editor' : 'read-only';
       if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;
       const tomlMap = (obj: Record<string, string>) => `{ ${Object.entries(obj).map(([k, v]) => `${k} = ${quote(v)}`).join(', ')} }`;
       // Prefer bundled MCP in the CLI package, then local bin, then global

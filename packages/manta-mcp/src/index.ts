@@ -12,7 +12,7 @@ try {
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { registerGraphTools } from './tools/graph-tools.js';
+import { registerGraphTools, type Toolset } from './tools/graph-tools.js';
 
 // Utility to resolve base URL for API calls
 function resolveBaseUrl(): string {
@@ -82,30 +82,15 @@ try {
   fs.appendFileSync(logPath, `[server_created] ${new Date().toISOString()}\n`);
 } catch {}
 
-// Dynamic permissions:
-// The CLI writes a perms file per job at CWD/_graph/mcp-perms.json, e.g., { "toolset": "graph-editor" | "read-only" }
-// We consult it at call time so different jobs can change capabilities without process restarts.
-// (fs/path already imported above)
-
-type Toolset = 'graph-editor' | 'read-only' | 'write' | 'rw' | 'read-write';
-function readPerms(): Toolset | null {
-  try {
-    const p = path.join(process.cwd(), '_graph', 'mcp-perms.json');
-    if (!fs.existsSync(p)) return null;
-    const data = JSON.parse(fs.readFileSync(p, 'utf8')) as { toolset?: string };
-    return (data.toolset as Toolset) || null;
-  } catch {
-    return null;
-  }
-}
-function canWrite(): boolean {
-  const t = (readPerms() || 'read-only').toLowerCase();
-  return t === 'graph-editor' || t === 'write' || t === 'rw' || t === 'read-write';
+// Toolset selection is decided at startup based on env (provided by the CLI per job)
+function resolveToolset(): Toolset {
+  const raw = (process.env.MANTA_MCP_TOOLSET || '').toLowerCase();
+  return raw === 'graph-editor' ? 'graph-editor' : 'read-only';
 }
 
 // Register graph tools (includes resource and state updates)
 try {
-  registerGraphTools(server);
+  registerGraphTools(server, resolveToolset());
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] graph tools registered');
   try {
