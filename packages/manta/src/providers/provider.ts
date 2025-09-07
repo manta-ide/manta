@@ -3,6 +3,7 @@ export type RunOptions = {
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   interactive?: boolean;
+  jobKind?: 'graph-editor' | 'build-nodes' | string;
 };
 
 export interface Provider {
@@ -11,4 +12,3 @@ export interface Provider {
   ensureAvailable(): Promise<void>;
   run(opts: RunOptions): Promise<number>;
 }
-

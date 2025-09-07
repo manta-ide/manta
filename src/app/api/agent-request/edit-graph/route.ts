@@ -8,6 +8,8 @@ import { getGraphSession } from '@/app/api/lib/graph-service';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
+import path from 'node:path';
+import fs from 'node:fs';
 
 // Multi-step agent configuration for graph editing
 const GRAPH_EDITOR_CONFIG = {
@@ -97,20 +99,13 @@ async function createSystemMessage(options?: { files?: string[] }): Promise<Mess
   };
 }
 
-async function callAgent(request: NextRequest, body: unknown): Promise<Response> {
-  const origin = request.nextUrl.origin;
-  const url = process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/api/llm-agent/run` : `${origin}/api/llm-agent/run`;
-  return fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(request.headers.get('cookie') ? { cookie: request.headers.get('cookie') as string } : {}),
-      ...(request.headers.get('authorization') ? { authorization: request.headers.get('authorization') as string } : {}),
-    },
-    body: JSON.stringify(body),
-    signal: request.signal,
-  });
-}
+// Local job queue utilities (shared pattern with build-nodes route)
+const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
+const jobsPath = () => path.join(projectDir(), '_graph', 'jobs.json');
+const readJobs = (): any[] => { try { const p = jobsPath(); if (!fs.existsSync(p)) return []; return JSON.parse(fs.readFileSync(p, 'utf8')) as any[]; } catch { return []; } };
+const writeJobs = (jobs: any[]) => { try { fs.mkdirSync(path.dirname(jobsPath()), { recursive: true }); fs.writeFileSync(jobsPath(), JSON.stringify(jobs, null, 2), 'utf8'); } catch {} };
+const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; const v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
 
 export async function POST(req: NextRequest) {
   try {
@@ -183,61 +178,53 @@ export async function POST(req: NextRequest) {
       variables
     );
 
-    const response = await callAgent(req, {
-      sessionId: 'graph-editor',
-      parsedMessages,
-      config: GRAPH_EDITOR_CONFIG,
-      operationName: 'graph-editor',
-      metadata: {
-        originalGraphId: graph.nodes.length > 0 ? graph.nodes[0].id : '',
-        graphNodeCount: graph.nodes.length,
-      }
-    });
+    // Build a single prompt from template for the CLI provider
+    const template = await getTemplate('graph-editor-template');
+    const templateVariables = {
+      ...variables,
+      USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
+    } as Record<string, any>;
+    const prompt = process.env.CLI_CODEX_PROMPT || parseMessageWithTemplate(template, templateVariables);
 
-    // If streaming is enabled, forward the stream directly
+    // Queue a local job for the Codex provider (with MCP graph-editor tools)
+    const now = new Date().toISOString();
+    const job = {
+      id: uuid(),
+      user_id: userId,
+      job_name: 'run',
+      status: 'queued',
+      priority: 5,
+      payload: {
+        provider: 'codex',
+        prompt,
+        interactive: false,
+        meta: {
+          kind: 'graph-editor',
+          requestedAt: now,
+          selectedNodeId: variables.SELECTED_NODE_ID || null,
+        }
+      },
+      created_at: now,
+      updated_at: now,
+    };
+    const jobs = readJobs();
+    jobs.push(job);
+    writeJobs(jobs);
+
+    // Mock streaming output for now. The UI treats text/plain and event-stream similarly.
     if (GRAPH_EDITOR_CONFIG.streaming) {
-      if (!response.ok) {
-        return new Response(
-          `Graph editor failed: ${response.statusText}`,
-          { status: 500, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
-        );
-      }
-      // Best-effort: forward streaming body as-is
-      return new Response(response.body, {
-        status: 200,
-        headers: {
-          'Content-Type': response.headers.get('Content-Type') || 'text/plain; charset=utf-8',
-        },
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const enc = new TextEncoder();
+          controller.enqueue(enc.encode('Thinking'));
+          controller.close();
+        }
       });
+      return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
 
-    // Non-streaming fallback
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({ error: `Graph editor failed: ${response.statusText}` }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const result = await response.json();
-
-    // Check if the agent applied changes and saved the graph
-    const finalGraph = await fetchGraphFromApi(req);
-    const graphWasModified = finalGraph && JSON.stringify(finalGraph) !== JSON.stringify(graph);
-
-    // Reset pending changes after the operation
-    resetPendingChanges();
-
-    return new Response(JSON.stringify({
-      success: true,
-      result: result.result,
-      graphModified: graphWasModified,
-      finalGraph: graphWasModified ? finalGraph : null,
-      originalGraph: graph,
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Non-streaming JSON ack
+    return new Response(JSON.stringify({ success: true, message: 'Thinking', jobId: job.id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     console.error(err);
     // Reset pending changes on error

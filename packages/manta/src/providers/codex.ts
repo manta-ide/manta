@@ -2,6 +2,7 @@ import {Provider, RunOptions} from './provider.js';
 import {spawnCommand, which} from './spawn.js';
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {readConfig} from '../config/store.js';
 
 export class CodexProvider implements Provider {
@@ -22,6 +23,31 @@ export class CodexProvider implements Provider {
       if (!known.has(firstLower)) args = ['exec','--full-auto', '--skip-git-repo-check', ...args];
     }
 
+    // Determine model based on job kind
+    const jobKind = (opts.jobKind || '').toLowerCase();
+    const model = jobKind === 'build-nodes' ? 'gpt-5 medium' : 'gpt-5 minimal';
+
+    // Remove any pre-existing model config to avoid duplicates
+    const cleanedArgs: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      if (a === '--config' && typeof args[i + 1] === 'string' && /(^|\b)model\s*=/.test(String(args[i + 1]))) {
+        i++; // skip value as well
+        continue;
+      }
+      cleanedArgs.push(a);
+    }
+    args = cleanedArgs;
+
+    // Inject model config just before the prompt if possible; otherwise append
+    // const promptIndex = args.findIndex((a) => typeof a === 'string' && !a.startsWith('-'));
+    // const modelCfg = ['--config', `model="${model}"`];
+    // if (promptIndex > -1) {
+    //   args = [...args.slice(0, promptIndex), ...modelCfg, ...args.slice(promptIndex)];
+    // } else {
+    //   args = [...args, ...modelCfg];
+    // }
+
     const mcpFlags: string[] = [];
     try {
       const base = 'mcp_servers.manta';
@@ -32,28 +58,40 @@ export class CodexProvider implements Provider {
       const envMap: Record<string, string> = { MANTA_API_URL: defaultBase };
       if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;
       const tomlMap = (obj: Record<string, string>) => `{ ${Object.entries(obj).map(([k, v]) => `${k} = ${quote(v)}`).join(', ')} }`;
-      // Prefer in-repo script first to guarantee compatibility with editor
-      const candidates = [
-        path.resolve(process.cwd(), 'scripts/mcp/server.ts'),
-        path.resolve(process.cwd(), '..', 'scripts/mcp/server.ts'),
-      ];
-      const serverPath = candidates.find((p) => fs.existsSync(p));
-      if (serverPath) {
+      // Prefer bundled MCP in the CLI package, then local bin, then global
+      const cwd = opts.cwd || process.cwd();
+      const here = path.dirname(fileURLToPath(import.meta.url));
+      const bundledMcp = [
+        // when running from built CLI: packages/manta/dist/providers/codex.js -> ../../../manta-mcp/dist/index.js
+        path.resolve(here, '../../../manta-mcp/dist/index.js'),
+        // alternative monorepo layout guard
+        path.resolve(here, '../../../../packages/manta-mcp/dist/index.js'),
+      ].find((p) => fs.existsSync(p));
+
+      if (bundledMcp) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-cli] Using bundled MCP: ${bundledMcp}`);
         mcpFlags.push('--config', `${base}.command=${quote(process.execPath)}`);
-        mcpFlags.push('--config', `${base}.args=${tomlArray([serverPath])}`);
+        mcpFlags.push('--config', `${base}.args=${tomlArray([bundledMcp])}`);
         if (Object.keys(envMap).length > 0) mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
       } else {
         // Then prefer local project binary if installed
-        const localBin = path.resolve(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'manta-mcp.cmd' : 'manta-mcp');
+        const localBin = path.resolve(cwd, 'node_modules', '.bin', process.platform === 'win32' ? 'manta-mcp.cmd' : 'manta-mcp');
         if (fs.existsSync(localBin)) {
+          // eslint-disable-next-line no-console
+          console.error(`[manta-cli] Using local MCP bin: ${localBin}`);
           mcpFlags.push('--config', `${base}.command=${quote(localBin)}`);
           if (Object.keys(envMap).length > 0) mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
         } else {
           // Finally, fall back to global if available
           const mantaBin = await which('manta-mcp');
           if (mantaBin) {
+            // eslint-disable-next-line no-console
+            console.error(`[manta-cli] Using global MCP: manta-mcp`);
             mcpFlags.push('--config', `${base}.command=${quote('manta-mcp')}`);
             if (Object.keys(envMap).length > 0) mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+          } else {
+            throw new Error('No MCP server found. Build the bundled MCP: npm --prefix packages/manta-mcp run build (or npm run build:cli)');
           }
         }
       }
@@ -62,10 +100,10 @@ export class CodexProvider implements Provider {
     const cfg = readConfig();
     const env = { ...process.env, ...(opts.env ?? {}) } as NodeJS.ProcessEnv;
     if (!env.MANTA_API_URL) env.MANTA_API_URL = env.BACKEND_URL || 'http://localhost:3000';
-    if (cfg.mantaApiUrl && !env.MANTA_API_URL) env.MANTA_API_URL = cfg.mantaApiUrl;
-    if (cfg.mantaApiKey && !env.MANTA_API_KEY) env.MANTA_API_KEY = cfg.mantaApiKey;
+    if ((cfg as any).mantaApiUrl && !env.MANTA_API_URL) env.MANTA_API_URL = (cfg as any).mantaApiUrl;
+    if ((cfg as any).mantaApiKey && !env.MANTA_API_KEY) env.MANTA_API_KEY = (cfg as any).mantaApiKey;
     try {
-      const localBin = path.resolve(process.cwd(), 'node_modules', '.bin');
+      const localBin = path.resolve(opts.cwd || process.cwd(), 'node_modules', '.bin');
       if (fs.existsSync(localBin)) {
         const sep = process.platform === 'win32' ? ';' : ':';
         const pathVar = env.PATH || process.env.PATH || '';
@@ -74,6 +112,8 @@ export class CodexProvider implements Provider {
     } catch {}
 
     const finalArgs = [...mcpFlags, ...args];
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model=${model}`);
     return await spawnCommand(this.bin, finalArgs, {
       env,
       cwd: opts.cwd,

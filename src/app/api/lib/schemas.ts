@@ -6,6 +6,17 @@
  */
 
 import { z } from 'zod';
+// Use shared schemas for graph + properties to keep UI, backend, and CLI in sync
+import {
+  PropertyTypeEnum as SharedPropertyTypeEnum,
+  PropertySchema as SharedPropertySchema,
+  GraphNodeSchema as SharedGraphNodeSchema,
+  GraphEdgeSchema as SharedGraphEdgeSchema,
+  GraphSchema as SharedGraphSchema,
+  type Property as SharedProperty,
+  type GraphNode as SharedGraphNode,
+  type Graph as SharedGraph,
+} from '@manta/shared-schemas';
 
 // Message context for providing file and selection information
 export const MessageContextSchema = z.object({
@@ -113,88 +124,17 @@ export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
 // Property schemas for graph node properties
 
 // Property type enum - defines the available property types for graph nodes
-export const PropertyTypeEnum = z.enum([
-  'color',
-  'text',
-  'textarea',
-  'number',
-  'select',
-  'boolean',
-  'checkbox',
-  'radio',
-  'slider',
-  'font',
-  // New complex property types
-  'object',        // grouped fields as a single object value
-  'object-list'    // list of objects with the same field schema
-]);
+export const PropertyTypeEnum = SharedPropertyTypeEnum;
 export type PropertyType = z.infer<typeof PropertyTypeEnum>;
-
-// Property definition - represents a configurable property of a graph node
-export const PropertySchema: z.ZodType<any> = z.lazy(() => z.object({
-  id: z.string().describe('Unique identifier for the property (should follow pattern: property-name)'),
-  title: z.string().describe('Human-readable title/name for the property'),
-  // For 'font', the value should be an object: { family: string }
-  type: PropertyTypeEnum.describe('The type of property (color, text, number, select, boolean, checkbox, radio, slider, font, object, object-list)'),
-  // Value supports primitives, arrays, objects, and arrays of objects
-  value: z
-    .union([
-      z.string(),
-      z.number(),
-      z.boolean(),
-      z.array(z.any()),
-      z.record(z.any())
-    ])
-    .optional()
-    .describe('The current/default value for the property'),
-  options: z.array(z.string()).nullable().optional().describe('Array of available options (required for select type)'),
-  maxLength: z.number().optional().describe('Maximum length constraint for text properties'),
-  min: z.number().optional().describe('Minimum value constraint for number properties'),
-  max: z.number().optional().describe('Maximum value constraint for number properties'),
-  step: z.number().optional().describe('Step increment for number properties'),
-  // For complex types: nested field schemas
-  fields: z.array(PropertySchema).optional().describe('Nested fields for object type'),
-  itemFields: z.array(PropertySchema).optional().describe('Nested fields for object-list type'),
-  itemTitle: z.string().optional().describe('Singular label for items in object-list editor'),
-  addLabel: z.string().optional().describe('Label for "+" button in list editors'),
-}));
-
-export type Property = z.infer<typeof PropertySchema>;
+export const PropertySchema = SharedPropertySchema;
+export type Property = SharedProperty;
 
 // Updated GraphNodeSchema to include properties and parentId
-export const GraphNodeSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  prompt: z.string(),
-  children: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-  })),
-  // Parent ID for bidirectional relationship tracking
-  parentId: z.string().optional(),
-  // Tracks the build state of this node
-  state: z.enum(["built", "unbuilt", "building"]).default("unbuilt").optional(),
-  // Properties for the node
-  properties: z.array(PropertySchema).optional(),
-  // Optional layout and build flags used by runtime
-  position: z.object({ x: z.number(), y: z.number() }).optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
-});
-
-export const GraphEdgeSchema = z.object({
-  id: z.string(),
-  source: z.string(),
-  target: z.string(),
-});
-
-export const GraphSchema = z.object({
-  nodes: z.array(GraphNodeSchema),
-  edges: z.array(GraphEdgeSchema).optional(),
-});
-
-export type Graph = z.infer<typeof GraphSchema>;
-export type GraphNode = z.infer<typeof GraphNodeSchema>;
+export const GraphNodeSchema = SharedGraphNodeSchema;
+export const GraphEdgeSchema = SharedGraphEdgeSchema;
+export const GraphSchema = SharedGraphSchema;
+export type Graph = SharedGraph;
+export type GraphNode = SharedGraphNode;
 
 // Evaluation schemas
 export const TestCaseSchema = z.object({

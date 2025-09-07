@@ -11,8 +11,8 @@
     "commands": "./packages/manta/dist/commands"
   },
   "scripts": {
-    "mcp:inspect": "npx @modelcontextprotocol/inspector node scripts/mcp/server.ts",
-    "mcp": "npx node scripts/mcp/server.ts",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector node packages/manta-mcp/dist/index.js",
+    "mcp": "node packages/manta-mcp/dist/index.js",
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
@@ -22,7 +22,7 @@
     "start:app": "cd base-template && npm run start -- --port 3001",
     "dev:both": "concurrently \"npm run dev\" \"npm run dev:app\"",
     "start:both": "concurrently \"npm run start\" \"npm run start:app\"",
-    "build:cli": "npm --prefix packages/manta run build",
+    "build:cli": "npm --prefix packages/shared-schemas run build && npm --prefix packages/manta-mcp run build && npm --prefix packages/manta run build",
     "pack:editor": "npm --prefix packages/manta run pack:editor",
     "build:all": "npm run build && npm run build:cli && npm run pack:editor",
     "prepublishOnly": "npm run build:all"

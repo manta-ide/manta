@@ -1,7 +1,18 @@
 #!/usr/bin/env node
+// MCP bootstrap logging
+// eslint-disable-next-line no-console
+console.error(`[manta-mcp] starting at ${new Date().toISOString()}`);
+import fs from 'node:fs';
+import path from 'node:path';
+try {
+  const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  fs.appendFileSync(logPath, `[start] ${new Date().toISOString()}\n`);
+} catch {}
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { registerGraphTools } from './tools/graph-tools.js';
 
 // Utility to resolve base URL for API calls
 function resolveBaseUrl(): string {
@@ -64,124 +75,69 @@ async function httpPut(url: string, body: any, token?: string) {
 
 // Create an MCP server focused on graph reads
 const server = new McpServer({ name: "manta-mcp", version: "0.1.0" });
+// eslint-disable-next-line no-console
+console.error('[manta-mcp] server created');
+try {
+  const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
+  fs.appendFileSync(logPath, `[server_created] ${new Date().toISOString()}\n`);
+} catch {}
 
-// Tool: read full graph (authenticated)
-server.registerTool(
-  "graph_read",
-  {
-    title: "Read Graph",
-    description: "Fetch the full graph via the authenticated backend API. Sends Bearer on every request.",
-    inputSchema: {
-      // userId is not used by the backend endpoint; access is determined by the token's subject.
-      userId: z.string().optional(),
-      includeEdges: z.boolean().optional().default(true),
-    },
-  },
-  async ({ includeEdges }) => {
-    const origin = resolveBaseUrl();
-    const token = resolveAccessToken();
-    const url = `${origin}/api/graph-api`;
-    const data: any = await httpGet(url, token);
-    if (data?.graph && includeEdges === false) {
-      const { graph } = data;
-      if (graph.edges) delete graph.edges;
-      return { content: [{ type: 'text', text: JSON.stringify(graph, null, 2) }] };
-    }
-    return { content: [{ type: 'text', text: JSON.stringify(data.graph ?? data, null, 2) }] };
+// Dynamic permissions:
+// The CLI writes a perms file per job at CWD/_graph/mcp-perms.json, e.g., { "toolset": "graph-editor" | "read-only" }
+// We consult it at call time so different jobs can change capabilities without process restarts.
+// (fs/path already imported above)
+
+type Toolset = 'graph-editor' | 'read-only' | 'write' | 'rw' | 'read-write';
+function readPerms(): Toolset | null {
+  try {
+    const p = path.join(process.cwd(), '_graph', 'mcp-perms.json');
+    if (!fs.existsSync(p)) return null;
+    const data = JSON.parse(fs.readFileSync(p, 'utf8')) as { toolset?: string };
+    return (data.toolset as Toolset) || null;
+  } catch {
+    return null;
   }
-);
+}
+function canWrite(): boolean {
+  const t = (readPerms() || 'read-only').toLowerCase();
+  return t === 'graph-editor' || t === 'write' || t === 'rw' || t === 'read-write';
+}
 
-// Tool: read unbuilt node ids (authenticated)
-server.registerTool(
-  "graph_unbuilt",
-  {
-    title: "Unbuilt Node IDs",
-    description: "Fetch IDs of nodes that are not built via authenticated backend API.",
-    inputSchema: {
-      userId: z.string().optional(),
-    },
-  },
-  async () => {
-    const origin = resolveBaseUrl();
-    const token = resolveAccessToken();
-    const url = `${origin}/api/graph-api?unbuilt=true`;
-    const data: any = await httpGet(url, token);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-  }
-);
+// Register graph tools (includes resource and state updates)
+try {
+  registerGraphTools(server);
+  // eslint-disable-next-line no-console
+  console.error('[manta-mcp] graph tools registered');
+  try {
+    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
+    fs.appendFileSync(logPath, `[tools_registered] ${new Date().toISOString()}\n`);
+  } catch {}
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.error('[manta-mcp] ERROR registering tools:', (e as any)?.message || e);
+  try {
+    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
+    fs.appendFileSync(logPath, `[tools_error] ${(e as any)?.message || String(e)}\n`);
+  } catch {}
+}
 
-// Tool: read a specific node (authenticated)
-server.registerTool(
-  "graph_node",
-  {
-    title: "Read Graph Node",
-    description: "Fetch a specific node by id via authenticated backend API.",
-    inputSchema: {
-      nodeId: z.string().min(1, "nodeId is required"),
-    },
-  },
-  async ({ nodeId }) => {
-    const origin = resolveBaseUrl();
-    const token = resolveAccessToken();
-    const url = `${origin}/api/graph-api`;
-    const data: any = await httpPost(url, { nodeId }, token);
-    return { content: [{ type: 'text', text: JSON.stringify(data.node ?? data, null, 2) }] };
-  }
-);
-
-// Tool: set a node's state (authenticated)
-server.registerTool(
-  "graph_set_node_state",
-  {
-    title: "Set Node State",
-    description: "Update a node's state and persist the graph.",
-    inputSchema: {
-      nodeId: z.string().min(1, "nodeId is required"),
-      state: z.string().min(1, "state is required"),
-    },
-  },
-  async ({ nodeId, state }) => {
-    const origin = resolveBaseUrl();
-    const token = resolveAccessToken();
-    const url = `${origin}/api/graph-api`;
-
-    const data: any = await httpGet(url, token);
-    const graph = data.graph ?? data;
-    if (!graph || !Array.isArray(graph.nodes)) throw new Error('Graph not available or malformed');
-
-    const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
-    if (idx === -1) throw new Error(`Node ${nodeId} not found`);
-    graph.nodes[idx] = { ...graph.nodes[idx], state };
-
-    const putRes: any = await httpPut(url, { graph }, token);
-    const updated = putRes?.graph?.nodes?.find((n: any) => n.id === nodeId) ?? graph.nodes[idx];
-    return { content: [{ type: 'text', text: `Updated node ${nodeId} state -> ${state}\n${JSON.stringify(updated, null, 2)}` }] };
-  }
-);
-
-// Resource: full graph
-server.registerResource(
-  "manta-graph",
-  "manta://graph",
-  {
-    title: "Manta Graph",
-    description: "Current graph for the authenticated user",
-    mimeType: "application/json",
-  },
-  async (uri) => {
-    const origin = resolveBaseUrl();
-    const token = resolveAccessToken();
-    const url = `${origin}/api/graph-api`;
-    const data: any = await httpGet(url, token);
-    const graph = data.graph ?? data;
-    return { contents: [{ uri: uri.href, text: JSON.stringify(graph, null, 2) }] };
-  }
-);
 
 // Connect via stdio
 (async () => {
   const transport = new StdioServerTransport();
+  // eslint-disable-next-line no-console
+  console.error('[manta-mcp] connecting via stdio');
+  try {
+    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
+    fs.appendFileSync(logPath, `[connecting] ${new Date().toISOString()}\n`);
+  } catch {}
   await server.connect(transport);
+  // eslint-disable-next-line no-console
+  console.error('[manta-mcp] connected');
+  try {
+    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
+    fs.appendFileSync(logPath, `[connected] ${new Date().toISOString()}\n`);
+  } catch {}
 })().catch((err) => {
   // eslint-disable-next-line no-console
   console.error(err);

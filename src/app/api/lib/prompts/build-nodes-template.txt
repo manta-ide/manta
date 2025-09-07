@@ -9,9 +9,16 @@ Targets
 
 Guidance
 - Use available tools to read the graph and node details on demand (do not assume prior context).
+- Do not modify the graph structure or properties; treat the graph as read-only.
 - For each target node, implement or update code as needed based on its prompt and properties.
 - Keep changes minimal and focused on the node’s responsibilities.
-- Update node state appropriately when complete and summarize applied changes.
+- Set the state of the nodes you built to "built"
+ - Summarize applied changes at the end.
+
+Available Tools (read-only)
+- graph_read(includeEdges?)
+- graph_unbuilt()
+- graph_node(nodeId)
 
 Output
 - Short, step-by-step status lines during progress.
