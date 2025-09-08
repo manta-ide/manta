@@ -116,6 +116,7 @@ export class CodexProvider implements Provider {
     const finalArgs = [...mcpFlags, ...args];
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
+    console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
     return await spawnCommand(this.bin, finalArgs, {
       env,
       cwd: opts.cwd,
