@@ -16,9 +16,11 @@ export class CodexProvider implements Provider {
 
   async run(opts: RunOptions): Promise<number> {
     await this.ensureAvailable();
-    // Log resolved codex path for debugging on Windows
+    // Resolve codex path and log it
+    let resolvedCodexBin = this.bin;
     try {
       const resolved = await which(this.bin);
+      if (resolved) resolvedCodexBin = resolved;
       // eslint-disable-next-line no-console
       console.error(`[manta-cli] codex resolved: ${resolved ?? 'not found in PATH'}`);
     } catch {}
@@ -153,11 +155,12 @@ export class CodexProvider implements Provider {
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
-    return await spawnCommand(this.bin, finalArgs, {
+    return await spawnCommand(resolvedCodexBin, finalArgs, {
       env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,
-      // use default shell behavior (shell=true on Windows)
+      // Avoid Windows shell splitting of args
+      forceShell: false,
     });
   }
 }
