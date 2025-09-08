@@ -72,7 +72,7 @@ export class CodexProvider implements Provider {
 
     // Inject model config just before the prompt if possible; otherwise append
     const promptIndex = args.findIndex((a) => typeof a === 'string' && !a.startsWith('-'));
-    const modelCfg = ['--config', `model_reasoning_effort="${model_reasoning_effort}"`];
+    const modelCfg = ['--config', `model_reasoning_effort=${model_reasoning_effort}`];
     if (promptIndex > -1) {
       args = [...args.slice(0, promptIndex), ...modelCfg, ...args.slice(promptIndex)];
     } else {
@@ -161,6 +161,8 @@ export class CodexProvider implements Provider {
     if (!env.MANTA_API_URL) env.MANTA_API_URL = env.BACKEND_URL || 'http://localhost:3000';
     if ((cfg as any).mantaApiUrl && !env.MANTA_API_URL) env.MANTA_API_URL = (cfg as any).mantaApiUrl;
     if ((cfg as any).mantaApiKey && !env.MANTA_API_KEY) env.MANTA_API_KEY = (cfg as any).mantaApiKey;
+    // Optionally mirror toolset into the env we pass to Codex (informational; MCP still gets it via --config)
+    if (!env.MANTA_MCP_TOOLSET) env.MANTA_MCP_TOOLSET = (jobKind === 'graph-editor' ? 'graph-editor' : 'read-only') as any;
     try {
       const localBin = path.resolve(opts.cwd || process.cwd(), 'node_modules', '.bin');
       if (fs.existsSync(localBin)) {
@@ -176,7 +178,8 @@ export class CodexProvider implements Provider {
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
-    const needsShell = process.platform === 'win32' && !/\.[A-Za-z0-9]+$/.test(resolvedCodexBin);
+    const ext = path.extname(resolvedCodexBin).toLowerCase();
+    const needsShell = process.platform === 'win32' && (ext === '' || ext === '.cmd' || ext === '.bat');
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] codex spawn target: ${resolvedCodexBin} (shell=${needsShell})`);
     return await spawnCommand(resolvedCodexBin, finalArgs, {
