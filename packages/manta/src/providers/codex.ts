@@ -75,7 +75,15 @@ export class CodexProvider implements Provider {
         console.error(`[manta-cli] Using bundled MCP: ${bundledMcp}`);
         mcpFlags.push('--config', `${base}.command=${quote(process.execPath)}`);
         mcpFlags.push('--config', `${base}.args=${tomlArray([bundledMcp])}`);
-        if (Object.keys(envMap).length > 0) mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+        if (Object.keys(envMap).length > 0) {
+          if (process.platform === 'win32') {
+            for (const [k, v] of Object.entries(envMap)) {
+              mcpFlags.push('--config', `${base}.env.${k}=${quote(v)}`);
+            }
+          } else {
+            mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+          }
+        }
       } else {
         // Then prefer local project binary if installed
         const localBin = path.resolve(cwd, 'node_modules', '.bin', process.platform === 'win32' ? 'manta-mcp.cmd' : 'manta-mcp');
@@ -83,7 +91,15 @@ export class CodexProvider implements Provider {
           // eslint-disable-next-line no-console
           console.error(`[manta-cli] Using local MCP bin: ${localBin}`);
           mcpFlags.push('--config', `${base}.command=${quote(localBin)}`);
-          if (Object.keys(envMap).length > 0) mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+          if (Object.keys(envMap).length > 0) {
+            if (process.platform === 'win32') {
+              for (const [k, v] of Object.entries(envMap)) {
+                mcpFlags.push('--config', `${base}.env.${k}=${quote(v)}`);
+              }
+            } else {
+              mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+            }
+          }
         } else {
           // Finally, fall back to global if available
           const mantaBin = await which('manta-mcp');
@@ -91,7 +107,15 @@ export class CodexProvider implements Provider {
             // eslint-disable-next-line no-console
             console.error(`[manta-cli] Using global MCP: manta-mcp`);
             mcpFlags.push('--config', `${base}.command=${quote('manta-mcp')}`);
-            if (Object.keys(envMap).length > 0) mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+            if (Object.keys(envMap).length > 0) {
+              if (process.platform === 'win32') {
+                for (const [k, v] of Object.entries(envMap)) {
+                  mcpFlags.push('--config', `${base}.env.${k}=${quote(v)}`);
+                }
+              } else {
+                mcpFlags.push('--config', `${base}.env=${tomlMap(envMap)}`);
+              }
+            }
           } else {
             throw new Error('No MCP server found. Build the bundled MCP: npm --prefix packages/manta-mcp run build (or npm run build:cli)');
           }
@@ -120,6 +144,8 @@ export class CodexProvider implements Provider {
       env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,
+      // Avoid Windows shell mangling of --config arguments
+      forceShell: false,
     });
   }
 }
