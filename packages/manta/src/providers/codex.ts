@@ -24,6 +24,27 @@ export class CodexProvider implements Provider {
       // eslint-disable-next-line no-console
       console.error(`[manta-cli] codex resolved: ${resolved ?? 'not found in PATH'}`);
     } catch {}
+    // On Windows, if a bare path is returned (no extension), try common executable extensions
+    if (process.platform === 'win32') {
+      try {
+        const isPath = /[:\\/]/.test(resolvedCodexBin);
+        const hasExt = /\.[A-Za-z0-9]+$/.test(resolvedCodexBin);
+        if (isPath && !hasExt) {
+          const candidates = [
+            `${resolvedCodexBin}.exe`,
+            `${resolvedCodexBin}.cmd`,
+            `${resolvedCodexBin}.bat`,
+            `${resolvedCodexBin}.ps1`,
+          ];
+          const found = candidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+          if (found) {
+            // eslint-disable-next-line no-console
+            console.error(`[manta-cli] codex win candidate: ${found}`);
+            resolvedCodexBin = found;
+          }
+        }
+      } catch {}
+    }
     let args = opts.args;
     if (args.length === 1) {
       const firstLower = String(args[0]).toLowerCase();
@@ -155,12 +176,15 @@ export class CodexProvider implements Provider {
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
+    const needsShell = process.platform === 'win32' && !/\.[A-Za-z0-9]+$/.test(resolvedCodexBin);
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] codex spawn target: ${resolvedCodexBin} (shell=${needsShell})`);
     return await spawnCommand(resolvedCodexBin, finalArgs, {
       env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,
-      // Avoid Windows shell splitting of args
-      forceShell: false,
+      // Use shell on Windows only when no executable extension is present
+      forceShell: needsShell,
     });
   }
 }
