@@ -16,6 +16,12 @@ export class CodexProvider implements Provider {
 
   async run(opts: RunOptions): Promise<number> {
     await this.ensureAvailable();
+    // Log resolved codex path for debugging on Windows
+    try {
+      const resolved = await which(this.bin);
+      // eslint-disable-next-line no-console
+      console.error(`[manta-cli] codex resolved: ${resolved ?? 'not found in PATH'}`);
+    } catch {}
     let args = opts.args;
     if (args.length === 1) {
       const firstLower = String(args[0]).toLowerCase();
@@ -151,8 +157,7 @@ export class CodexProvider implements Provider {
       env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,
-      // Avoid Windows shell mangling of --config arguments
-      forceShell: false,
+      // use default shell behavior (shell=true on Windows)
     });
   }
 }
