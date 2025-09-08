@@ -32,6 +32,32 @@ export async function spawnCommand(
   const interactive = opts?.interactive ?? true;
   const useShell = opts?.forceShell ?? (process.platform === 'win32');
 
+  // Pretty-format arguments for logging
+  const fmtArg = (a: string) => {
+    if (a === undefined || a === null) return '';
+    const s = String(a);
+    return /[\s\"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s;
+  };
+
+  // Prepare a concise env summary without leaking secrets
+  const envForLog = sanitizeEnv(opts?.env);
+  const envKeys = Object.keys(envForLog);
+  const has = (k: string) => (envForLog[k] ? 'present' : 'unset');
+  const hasSecret = (k: string) => (envForLog[k] ? '[set]' : '[unset]');
+  const envSummary = [
+    `MANTA_API_URL=${envForLog.MANTA_API_URL ?? 'unset'}`,
+    `MANTA_MCP_TOOLSET=${envForLog.MANTA_MCP_TOOLSET ?? 'unset'}`,
+    `MANTA_API_KEY=${hasSecret('MANTA_API_KEY')}`,
+    `PATH=${has('PATH')}`,
+  ].join(', ');
+
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn: ${bin} ${args.map(fmtArg).join(' ')}`);
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn opts: cwd=${opts?.cwd ?? process.cwd()}, shell=${useShell}, interactive=${interactive}`);
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn env: ${envSummary} (total_keys=${envKeys.length})`);
+
   return await new Promise<number>((resolve, reject) => {
     const child = _spawn(bin, args, {
       cwd: opts?.cwd ?? process.cwd(),
@@ -44,8 +70,16 @@ export async function spawnCommand(
     if (!interactive && child.stdout) child.stdout.pipe(process.stdout);
     if (!interactive && child.stderr) child.stderr.pipe(process.stderr);
 
-    child.on('error', reject);
-    child.on('close', (code, signal) => resolve(signal ? 128 : (code ?? 0)));
+    child.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-cli] spawn error: ${err?.message ?? String(err)}`);
+      reject(err);
+    });
+    child.on('close', (code, signal) => {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-cli] spawn exit: code=${code ?? 0}, signal=${signal ?? 'none'}`);
+      resolve(signal ? 128 : (code ?? 0));
+    });
   });
 }
 

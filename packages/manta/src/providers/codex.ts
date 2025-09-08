@@ -26,6 +26,8 @@ export class CodexProvider implements Provider {
     // Determine model based on job kind
     const jobKind = (opts.jobKind || '').toLowerCase();
     const model_reasoning_effort = jobKind === 'build-nodes' ? 'medium' : 'low';
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
 
     // Remove any pre-existing model config to avoid duplicates
     const cleanedArgs: string[] = [];
@@ -59,6 +61,8 @@ export class CodexProvider implements Provider {
       // Select MCP toolset based on job kind (graph-editor vs read-only)
       envMap.MANTA_MCP_TOOLSET = jobKind === 'graph-editor' ? 'graph-editor' : 'read-only';
       if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;
+      // eslint-disable-next-line no-console
+      console.error(`[manta-cli] MCP env plan: MANTA_API_URL=${envMap.MANTA_API_URL}, MANTA_MCP_TOOLSET=${envMap.MANTA_MCP_TOOLSET}, MANTA_API_KEY=${envMap.MANTA_API_KEY ? '[set]' : '[unset]'}`);
       const tomlMap = (obj: Record<string, string>) => `{ ${Object.entries(obj).map(([k, v]) => `${k} = ${quote(v)}`).join(', ')} }`;
       // Prefer bundled MCP in the CLI package, then local bin, then global
       const cwd = opts.cwd || process.cwd();
@@ -138,6 +142,8 @@ export class CodexProvider implements Provider {
     } catch {}
 
     const finalArgs = [...mcpFlags, ...args];
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] MCP flags: ${mcpFlags.join(' ')}`);
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
