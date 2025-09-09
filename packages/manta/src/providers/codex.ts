@@ -172,16 +172,19 @@ export class CodexProvider implements Provider {
       }
     } catch {}
 
-    // Ensure the main prompt is a single argument when using `exec`.
-    // Join all trailing positional tokens (after flags) into one string.
+    // Ensure codex receives the full prompt reliably on Windows.
+    // Prefer piping prompt via stdin when using `exec` to avoid .cmd newline parsing issues.
+    let stdinInput: string | undefined;
     const execIndex = args.findIndex((a) => String(a).toLowerCase() === 'exec');
     if (execIndex !== -1) {
       let i = execIndex + 1;
-      // Skip flag-like tokens (we only add boolean flags here)
+      // Skip any flags following `exec`
       while (i < args.length && String(args[i]).startsWith('-')) i++;
       if (i < args.length) {
         const promptJoined = args.slice(i).join(' ');
-        args = [...args.slice(0, i), promptJoined];
+        // Send prompt via stdin and remove it from argv
+        stdinInput = promptJoined;
+        args = args.slice(0, i);
       }
     }
 
@@ -192,16 +195,17 @@ export class CodexProvider implements Provider {
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
     const ext = path.extname(resolvedCodexBin).toLowerCase();
-    // Avoid shell for .cmd/.bat to preserve argument quoting; only use shell if no extension
-    const needsShell = process.platform === 'win32' && (ext === '');
+    // Avoid shell; even for .cmd, prefer direct exec to keep argv intact
+    const needsShell = false;
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] codex spawn target: ${resolvedCodexBin} (shell=${needsShell})`);
     return await spawnCommand(resolvedCodexBin, finalArgs, {
       env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,
-      // Use shell on Windows only when no executable extension is present
+      // Avoid shell to keep argv + stdin intact on Windows
       forceShell: needsShell,
+      input: stdinInput,
     });
   }
 }

@@ -27,6 +27,7 @@ export async function spawnCommand(
     cwd?: string;
     interactive?: boolean;
     forceShell?: boolean;
+    input?: string | Buffer;
   },
 ): Promise<number> {
   const interactive = opts?.interactive ?? true;
@@ -67,6 +68,7 @@ export async function spawnCommand(
     windowsHide: false,
     reject: false,
     preferLocal: true,
+    input: opts?.input,
   });
 
   if (!interactive) {

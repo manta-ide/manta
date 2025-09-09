@@ -34,20 +34,64 @@ function buildAuthHeaders(token?: string): Record<string, string> {
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
+function withLocalhostFallback(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'localhost') { u.hostname = '127.0.0.1'; return u.toString(); }
+    if (u.hostname === '127.0.0.1') { u.hostname = 'localhost'; return u.toString(); }
+  } catch {}
+  return null;
+}
 async function httpGet(url: string, token?: string) {
-  const res = await fetch(url, { method: 'GET', headers: buildAuthHeaders(token) });
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-  return res.json() as any;
+  try {
+    const res = await fetch(url, { method: 'GET', headers: buildAuthHeaders(token) });
+    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+    return res.json() as any;
+  } catch (e) {
+    const alt = withLocalhostFallback(url);
+    if (alt) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] GET fallback: ${url} -> ${alt}`);
+      const res = await fetch(alt, { method: 'GET', headers: buildAuthHeaders(token) });
+      if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
+      return res.json() as any;
+    }
+    throw e;
+  }
 }
 async function httpPost(url: string, body: any, token?: string) {
-  const res = await fetch(url, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`POST ${url} failed: ${res.status}`);
-  return res.json() as any;
+  try {
+    const res = await fetch(url, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`POST ${url} failed: ${res.status}`);
+    return res.json() as any;
+  } catch (e) {
+    const alt = withLocalhostFallback(url);
+    if (alt) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] POST fallback: ${url} -> ${alt}`);
+      const res = await fetch(alt, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
+      return res.json() as any;
+    }
+      throw e;
+  }
 }
 async function httpPut(url: string, body: any, token?: string) {
-  const res = await fetch(url, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`PUT ${url} failed: ${res.status}`);
-  return res.json() as any;
+  try {
+    const res = await fetch(url, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`PUT ${url} failed: ${res.status}`);
+    return res.json() as any;
+  } catch (e) {
+    const alt = withLocalhostFallback(url);
+    if (alt) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] PUT fallback: ${url} -> ${alt}`);
+      const res = await fetch(alt, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
+      return res.json() as any;
+    }
+    throw e;
+  }
 }
 
 // Toolset is chosen at startup by the MCP based on env
