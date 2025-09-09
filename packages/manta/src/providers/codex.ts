@@ -87,6 +87,9 @@ export class CodexProvider implements Provider {
       // Ensure MCP gets a base URL even if user didn't set one.
       const defaultBase = process.env.MANTA_API_URL || process.env.BACKEND_URL || 'http://localhost:3000';
       const envMap: Record<string, string> = { MANTA_API_URL: defaultBase };
+      // Ensure MCP can find the project directory for local fallbacks
+      const projectDir = opts.cwd || process.cwd();
+      envMap.MANTA_PROJECT_DIR = String(process.env.MANTA_PROJECT_DIR || projectDir);
       // Select MCP toolset based on job kind (graph-editor vs read-only)
       envMap.MANTA_MCP_TOOLSET = jobKind === 'graph-editor' ? 'graph-editor' : 'read-only';
       if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;

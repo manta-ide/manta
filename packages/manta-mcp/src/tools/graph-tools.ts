@@ -52,9 +52,14 @@ async function httpGet(url: string, token?: string) {
     if (alt) {
       // eslint-disable-next-line no-console
       console.error(`[manta-mcp] GET fallback: ${url} -> ${alt}`);
-      const res = await fetch(alt, { method: 'GET', headers: buildAuthHeaders(token) });
-      if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
-      return res.json() as any;
+      try {
+        const res = await fetch(alt, { method: 'GET', headers: buildAuthHeaders(token) });
+        if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
+        return res.json() as any;
+      } catch (e2) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] GET alt fetch failed: ${(e2 as any)?.message || e2}`);
+      }
     }
     // Final fallback: read local graph from filesystem if available
     const local = readLocalGraph();
@@ -76,9 +81,14 @@ async function httpPost(url: string, body: any, token?: string) {
     if (alt) {
       // eslint-disable-next-line no-console
       console.error(`[manta-mcp] POST fallback: ${url} -> ${alt}`);
-      const res = await fetch(alt, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
-      if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
-      return res.json() as any;
+      try {
+        const res = await fetch(alt, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
+        return res.json() as any;
+      } catch (e2) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] POST alt fetch failed: ${(e2 as any)?.message || e2}`);
+      }
     }
     // Local mode write: treat POST as PUT for local graph update if a graph is present
     if (body && body.graph) {
@@ -102,9 +112,14 @@ async function httpPut(url: string, body: any, token?: string) {
     if (alt) {
       // eslint-disable-next-line no-console
       console.error(`[manta-mcp] PUT fallback: ${url} -> ${alt}`);
-      const res = await fetch(alt, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
-      if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
-      return res.json() as any;
+      try {
+        const res = await fetch(alt, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
+        return res.json() as any;
+      } catch (e2) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] PUT alt fetch failed: ${(e2 as any)?.message || e2}`);
+      }
     }
     if (body && body.graph) {
       try {

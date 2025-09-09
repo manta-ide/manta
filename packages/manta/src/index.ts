@@ -1,16 +1,13 @@
 import {run} from '@oclif/core';
-import {spawn} from 'node:child_process';
+import { execa } from 'execa';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 async function ensureMantaMcpInstalled() {
   const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-  const existsOnPath: boolean = await new Promise((resolve) => {
-    const ps = spawn(whichCmd, ['manta-mcp']);
-    ps.on('close', (code) => resolve(code === 0));
-    ps.on('error', () => resolve(false));
-  });
+  const { exitCode } = await execa(whichCmd, ['manta-mcp'], { reject: false, windowsHide: true });
+  const existsOnPath = exitCode === 0;
   if (existsOnPath) return;
 
   try {
@@ -24,11 +21,7 @@ async function ensureMantaMcpInstalled() {
     if (fs.existsSync(localBinAtManta) || fs.existsSync(localBinAtRoot)) return;
 
     // Install from registry into local package dir
-    await new Promise<void>((resolve) => {
-      const inst = spawn('npm', ['i', 'manta-mcp'], {stdio: 'ignore', cwd: packageRoot});
-      inst.on('close', () => resolve());
-      inst.on('error', () => resolve());
-    });
+    await execa('npm', ['i', 'manta-mcp'], { stdio: 'ignore', cwd: packageRoot, reject: false, preferLocal: true, windowsHide: true });
   } catch {
     // best effort
   }
