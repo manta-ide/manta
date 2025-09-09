@@ -56,6 +56,13 @@ async function httpGet(url: string, token?: string) {
       if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
       return res.json() as any;
     }
+    // Final fallback: read local graph from filesystem if available
+    const local = readLocalGraph();
+    if (local) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] GET local fallback: using _graph/graph.json`);
+      return { graph: local } as any;
+    }
     throw e;
   }
 }
@@ -73,7 +80,16 @@ async function httpPost(url: string, body: any, token?: string) {
       if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
       return res.json() as any;
     }
-      throw e;
+    // Local mode write: treat POST as PUT for local graph update if a graph is present
+    if (body && body.graph) {
+      try {
+        writeLocalGraph(body.graph);
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] POST local fallback: wrote _graph/graph.json`);
+        return { success: true } as any;
+      } catch {}
+    }
+    throw e;
   }
 }
 async function httpPut(url: string, body: any, token?: string) {
@@ -90,8 +106,44 @@ async function httpPut(url: string, body: any, token?: string) {
       if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
       return res.json() as any;
     }
+    if (body && body.graph) {
+      try {
+        writeLocalGraph(body.graph);
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] PUT local fallback: wrote _graph/graph.json`);
+        return { success: true } as any;
+      } catch {}
+    }
     throw e;
   }
+}
+
+// Local filesystem fallback helpers
+function projectDir(): string {
+  const envDir = process.env.MANTA_PROJECT_DIR;
+  if (envDir && fs.existsSync(envDir)) return envDir;
+  try {
+    const cwd = process.cwd();
+    return cwd;
+  } catch { return process.cwd(); }
+}
+function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.json'); }
+function readLocalGraph(): any | null {
+  try {
+    const p = graphPath();
+    if (!fs.existsSync(p)) return null;
+    const raw = fs.readFileSync(p, 'utf8');
+    const data = JSON.parse(raw);
+    const parsed = GraphSchema.safeParse(data);
+    return parsed.success ? parsed.data : data;
+  } catch { return null; }
+}
+function writeLocalGraph(graph: any) {
+  try {
+    const p = graphPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(graph, null, 2), 'utf8');
+  } catch {}
 }
 
 // Toolset is chosen at startup by the MCP based on env
