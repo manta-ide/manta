@@ -1,4 +1,4 @@
-import { spawn as _spawn } from 'node:child_process';
+import { execa } from 'execa';
 
 function sanitizeEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   // Start from process.env so required augmented keys are present structurally
@@ -58,48 +58,31 @@ export async function spawnCommand(
   // eslint-disable-next-line no-console
   console.error(`[manta-cli] spawn env: ${envSummary} (total_keys=${envKeys.length})`);
 
-  return await new Promise<number>((resolve, reject) => {
-    const child = _spawn(bin, args, {
-      cwd: opts?.cwd ?? process.cwd(),
-      env: sanitizeEnv(opts?.env),
-      stdio: interactive ? 'inherit' : 'pipe',
-      shell: useShell,
-      windowsHide: false,
-    });
-
-    if (!interactive && child.stdout) child.stdout.pipe(process.stdout);
-    if (!interactive && child.stderr) child.stderr.pipe(process.stderr);
-
-    child.on('error', (err) => {
-      // eslint-disable-next-line no-console
-      console.error(`[manta-cli] spawn error: ${err?.message ?? String(err)}`);
-      reject(err);
-    });
-    child.on('close', (code, signal) => {
-      // eslint-disable-next-line no-console
-      console.error(`[manta-cli] spawn exit: code=${code ?? 0}, signal=${signal ?? 'none'}`);
-      resolve(signal ? 128 : (code ?? 0));
-    });
+  const subprocess = execa(bin, args, {
+    cwd: opts?.cwd ?? process.cwd(),
+    env: sanitizeEnv(opts?.env),
+    stdio: interactive ? 'inherit' : 'pipe',
+    shell: useShell,
+    windowsHide: false,
+    reject: false,
+    preferLocal: true,
   });
+
+  if (!interactive) {
+    subprocess.stdout?.pipe(process.stdout);
+    subprocess.stderr?.pipe(process.stderr);
+  }
+
+  const result = await subprocess;
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn exit: code=${result.exitCode ?? 0}, signal=${result.signal ?? 'none'}`);
+  return result.signal ? 128 : (result.exitCode ?? 0);
 }
 
 export async function which(bin: string): Promise<string | null> {
-  const { spawn } = await import('node:child_process');
-  const who = process.platform === 'win32' ? 'where.exe' : 'which';
-  return await new Promise((resolve) => {
-    const child = spawn(who, [bin], { shell: process.platform === 'win32' });
-   let out = '';
-    let err = '';
-    child.stdout?.on('data', (d) => (out += String(d)));
-    child.stderr?.on('data', (d) => (err += String(d)));
-    child.on('close', (code) => {
-      if (code === 0) {
-        // Take the first non-empty line
-        const first = out.split(/\r?\n/).map(s => s.trim()).find(Boolean);
-        resolve(first ?? bin);
-      } else {
-        resolve(null);
-      }
-    });
-  });
+  const cmd = process.platform === 'win32' ? 'where' : 'which';
+  const { exitCode, stdout } = await execa(cmd, [bin], { reject: false, shell: false, windowsHide: true });
+  if (exitCode !== 0) return null;
+  const first = stdout.split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+  return first ?? bin;
 }
