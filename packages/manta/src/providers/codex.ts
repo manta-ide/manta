@@ -172,6 +172,19 @@ export class CodexProvider implements Provider {
       }
     } catch {}
 
+    // Ensure the main prompt is a single argument when using `exec`.
+    // Join all trailing positional tokens (after flags) into one string.
+    const execIndex = args.findIndex((a) => String(a).toLowerCase() === 'exec');
+    if (execIndex !== -1) {
+      let i = execIndex + 1;
+      // Skip flag-like tokens (we only add boolean flags here)
+      while (i < args.length && String(args[i]).startsWith('-')) i++;
+      if (i < args.length) {
+        const promptJoined = args.slice(i).join(' ');
+        args = [...args.slice(0, i), promptJoined];
+      }
+    }
+
     const finalArgs = [...mcpFlags, ...args];
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] MCP flags: ${mcpFlags.join(' ')}`);
@@ -179,7 +192,8 @@ export class CodexProvider implements Provider {
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
     const ext = path.extname(resolvedCodexBin).toLowerCase();
-    const needsShell = process.platform === 'win32' && (ext === '' || ext === '.cmd' || ext === '.bat');
+    // Avoid shell for .cmd/.bat to preserve argument quoting; only use shell if no extension
+    const needsShell = process.platform === 'win32' && (ext === '');
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] codex spawn target: ${resolvedCodexBin} (shell=${needsShell})`);
     return await spawnCommand(resolvedCodexBin, finalArgs, {

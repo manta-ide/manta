@@ -30,7 +30,8 @@ export async function spawnCommand(
   },
 ): Promise<number> {
   const interactive = opts?.interactive ?? true;
-  const useShell = opts?.forceShell ?? (process.platform === 'win32');
+  // Default to no shell for safer cross-platform argument passing
+  const useShell = opts?.forceShell ?? false;
 
   // Pretty-format arguments for logging
   const fmtArg = (a: string) => {
