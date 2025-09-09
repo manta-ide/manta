@@ -1,4 +1,4 @@
-import { spawn as _spawn } from 'node:child_process';
+import { execa } from 'execa';
 
 function sanitizeEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   // Start from process.env so required augmented keys are present structurally
@@ -27,45 +27,65 @@ export async function spawnCommand(
     cwd?: string;
     interactive?: boolean;
     forceShell?: boolean;
+    input?: string | Buffer;
   },
 ): Promise<number> {
   const interactive = opts?.interactive ?? true;
-  const useShell = opts?.forceShell ?? (process.platform === 'win32');
+  // Default to no shell for safer cross-platform argument passing
+  const useShell = opts?.forceShell ?? false;
 
-  return await new Promise<number>((resolve, reject) => {
-    const child = _spawn(bin, args, {
-      cwd: opts?.cwd ?? process.cwd(),
-      env: sanitizeEnv(opts?.env),
-      stdio: interactive ? 'inherit' : 'pipe',
-      shell: useShell,
-      windowsHide: false,
-    });
+  // Pretty-format arguments for logging
+  const fmtArg = (a: string) => {
+    if (a === undefined || a === null) return '';
+    const s = String(a);
+    return /[\s\"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s;
+  };
 
-    if (!interactive && child.stdout) child.stdout.pipe(process.stdout);
-    if (!interactive && child.stderr) child.stderr.pipe(process.stderr);
+  // Prepare a concise env summary without leaking secrets
+  const envForLog = sanitizeEnv(opts?.env);
+  const envKeys = Object.keys(envForLog);
+  const has = (k: string) => (envForLog[k] ? 'present' : 'unset');
+  const hasSecret = (k: string) => (envForLog[k] ? '[set]' : '[unset]');
+  const envSummary = [
+    `MANTA_API_URL=${envForLog.MANTA_API_URL ?? 'unset'}`,
+    `MANTA_MCP_TOOLSET=${envForLog.MANTA_MCP_TOOLSET ?? 'unset'}`,
+    `MANTA_API_KEY=${hasSecret('MANTA_API_KEY')}`,
+    `PATH=${has('PATH')}`,
+  ].join(', ');
 
-    child.on('error', reject);
-    child.on('close', (code, signal) => resolve(signal ? 128 : (code ?? 0)));
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn: ${bin} ${args.map(fmtArg).join(' ')}`);
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn opts: cwd=${opts?.cwd ?? process.cwd()}, shell=${useShell}, interactive=${interactive}`);
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn env: ${envSummary} (total_keys=${envKeys.length})`);
+
+  const subprocess = execa(bin, args, {
+    cwd: opts?.cwd ?? process.cwd(),
+    env: sanitizeEnv(opts?.env),
+    stdio: interactive ? 'inherit' : 'pipe',
+    shell: useShell,
+    windowsHide: false,
+    reject: false,
+    preferLocal: true,
+    input: opts?.input,
   });
+
+  if (!interactive) {
+    subprocess.stdout?.pipe(process.stdout);
+    subprocess.stderr?.pipe(process.stderr);
+  }
+
+  const result = await subprocess;
+  // eslint-disable-next-line no-console
+  console.error(`[manta-cli] spawn exit: code=${result.exitCode ?? 0}, signal=${result.signal ?? 'none'}`);
+  return result.signal ? 128 : (result.exitCode ?? 0);
 }
 
 export async function which(bin: string): Promise<string | null> {
-  const { spawn } = await import('node:child_process');
-  const who = process.platform === 'win32' ? 'where.exe' : 'which';
-  return await new Promise((resolve) => {
-    const child = spawn(who, [bin], { shell: process.platform === 'win32' });
-   let out = '';
-    let err = '';
-    child.stdout?.on('data', (d) => (out += String(d)));
-    child.stderr?.on('data', (d) => (err += String(d)));
-    child.on('close', (code) => {
-      if (code === 0) {
-        // Take the first non-empty line
-        const first = out.split(/\r?\n/).map(s => s.trim()).find(Boolean);
-        resolve(first ?? bin);
-      } else {
-        resolve(null);
-      }
-    });
-  });
+  const cmd = process.platform === 'win32' ? 'where' : 'which';
+  const { exitCode, stdout } = await execa(cmd, [bin], { reject: false, shell: false, windowsHide: true });
+  if (exitCode !== 0) return null;
+  const first = stdout.split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+  return first ?? bin;
 }

@@ -25,7 +25,8 @@
   "license": "MIT",
   "dependencies": {
     "@oclif/core": "^3.26.6",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "execa": "^9.6.0"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

@@ -16,6 +16,35 @@ export class CodexProvider implements Provider {
 
   async run(opts: RunOptions): Promise<number> {
     await this.ensureAvailable();
+    // Resolve codex path and log it
+    let resolvedCodexBin = this.bin;
+    try {
+      const resolved = await which(this.bin);
+      if (resolved) resolvedCodexBin = resolved;
+      // eslint-disable-next-line no-console
+      console.error(`[manta-cli] codex resolved: ${resolved ?? 'not found in PATH'}`);
+    } catch {}
+    // On Windows, if a bare path is returned (no extension), try common executable extensions
+    if (process.platform === 'win32') {
+      try {
+        const isPath = /[:\\/]/.test(resolvedCodexBin);
+        const hasExt = /\.[A-Za-z0-9]+$/.test(resolvedCodexBin);
+        if (isPath && !hasExt) {
+          const candidates = [
+            `${resolvedCodexBin}.exe`,
+            `${resolvedCodexBin}.cmd`,
+            `${resolvedCodexBin}.bat`,
+            `${resolvedCodexBin}.ps1`,
+          ];
+          const found = candidates.find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+          if (found) {
+            // eslint-disable-next-line no-console
+            console.error(`[manta-cli] codex win candidate: ${found}`);
+            resolvedCodexBin = found;
+          }
+        }
+      } catch {}
+    }
     let args = opts.args;
     if (args.length === 1) {
       const firstLower = String(args[0]).toLowerCase();
@@ -26,6 +55,8 @@ export class CodexProvider implements Provider {
     // Determine model based on job kind
     const jobKind = (opts.jobKind || '').toLowerCase();
     const model_reasoning_effort = jobKind === 'build-nodes' ? 'medium' : 'low';
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
 
     // Remove any pre-existing model config to avoid duplicates
     const cleanedArgs: string[] = [];
@@ -41,7 +72,7 @@ export class CodexProvider implements Provider {
 
     // Inject model config just before the prompt if possible; otherwise append
     const promptIndex = args.findIndex((a) => typeof a === 'string' && !a.startsWith('-'));
-    const modelCfg = ['--config', `model_reasoning_effort="${model_reasoning_effort}"`];
+    const modelCfg = ['--config', `model_reasoning_effort=${model_reasoning_effort}`];
     if (promptIndex > -1) {
       args = [...args.slice(0, promptIndex), ...modelCfg, ...args.slice(promptIndex)];
     } else {
@@ -56,9 +87,14 @@ export class CodexProvider implements Provider {
       // Ensure MCP gets a base URL even if user didn't set one.
       const defaultBase = process.env.MANTA_API_URL || process.env.BACKEND_URL || 'http://localhost:3000';
       const envMap: Record<string, string> = { MANTA_API_URL: defaultBase };
+      // Ensure MCP can find the project directory for local fallbacks
+      const projectDir = opts.cwd || process.cwd();
+      envMap.MANTA_PROJECT_DIR = String(process.env.MANTA_PROJECT_DIR || projectDir);
       // Select MCP toolset based on job kind (graph-editor vs read-only)
       envMap.MANTA_MCP_TOOLSET = jobKind === 'graph-editor' ? 'graph-editor' : 'read-only';
       if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;
+      // eslint-disable-next-line no-console
+      console.error(`[manta-cli] MCP env plan: MANTA_API_URL=${envMap.MANTA_API_URL}, MANTA_MCP_TOOLSET=${envMap.MANTA_MCP_TOOLSET}, MANTA_API_KEY=${envMap.MANTA_API_KEY ? '[set]' : '[unset]'}`);
       const tomlMap = (obj: Record<string, string>) => `{ ${Object.entries(obj).map(([k, v]) => `${k} = ${quote(v)}`).join(', ')} }`;
       // Prefer bundled MCP in the CLI package, then local bin, then global
       const cwd = opts.cwd || process.cwd();
@@ -128,6 +164,8 @@ export class CodexProvider implements Provider {
     if (!env.MANTA_API_URL) env.MANTA_API_URL = env.BACKEND_URL || 'http://localhost:3000';
     if ((cfg as any).mantaApiUrl && !env.MANTA_API_URL) env.MANTA_API_URL = (cfg as any).mantaApiUrl;
     if ((cfg as any).mantaApiKey && !env.MANTA_API_KEY) env.MANTA_API_KEY = (cfg as any).mantaApiKey;
+    // Optionally mirror toolset into the env we pass to Codex (informational; MCP still gets it via --config)
+    if (!env.MANTA_MCP_TOOLSET) env.MANTA_MCP_TOOLSET = (jobKind === 'graph-editor' ? 'graph-editor' : 'read-only') as any;
     try {
       const localBin = path.resolve(opts.cwd || process.cwd(), 'node_modules', '.bin');
       if (fs.existsSync(localBin)) {
@@ -137,16 +175,40 @@ export class CodexProvider implements Provider {
       }
     } catch {}
 
+    // Ensure codex receives the full prompt reliably on Windows.
+    // Prefer piping prompt via stdin when using `exec` to avoid .cmd newline parsing issues.
+    let stdinInput: string | undefined;
+    const execIndex = args.findIndex((a) => String(a).toLowerCase() === 'exec');
+    if (execIndex !== -1) {
+      let i = execIndex + 1;
+      // Skip any flags following `exec`
+      while (i < args.length && String(args[i]).startsWith('-')) i++;
+      if (i < args.length) {
+        const promptJoined = args.slice(i).join(' ');
+        // Send prompt via stdin and remove it from argv
+        stdinInput = promptJoined;
+        args = args.slice(0, i);
+      }
+    }
+
     const finalArgs = [...mcpFlags, ...args];
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] MCP flags: ${mcpFlags.join(' ')}`);
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
-    return await spawnCommand(this.bin, finalArgs, {
+    const ext = path.extname(resolvedCodexBin).toLowerCase();
+    // Avoid shell; even for .cmd, prefer direct exec to keep argv intact
+    const needsShell = false;
+    // eslint-disable-next-line no-console
+    console.error(`[manta-cli] codex spawn target: ${resolvedCodexBin} (shell=${needsShell})`);
+    return await spawnCommand(resolvedCodexBin, finalArgs, {
       env,
       cwd: opts.cwd,
       interactive: opts.interactive ?? true,
-      // Avoid Windows shell mangling of --config arguments
-      forceShell: false,
+      // Avoid shell to keep argv + stdin intact on Windows
+      forceShell: needsShell,
+      input: stdinInput,
     });
   }
 }

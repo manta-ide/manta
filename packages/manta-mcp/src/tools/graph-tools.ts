@@ -34,20 +34,131 @@ function buildAuthHeaders(token?: string): Record<string, string> {
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
+function withLocalhostFallback(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'localhost') { u.hostname = '127.0.0.1'; return u.toString(); }
+    if (u.hostname === '127.0.0.1') { u.hostname = 'localhost'; return u.toString(); }
+  } catch {}
+  return null;
+}
 async function httpGet(url: string, token?: string) {
-  const res = await fetch(url, { method: 'GET', headers: buildAuthHeaders(token) });
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-  return res.json() as any;
+  try {
+    const res = await fetch(url, { method: 'GET', headers: buildAuthHeaders(token) });
+    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+    return res.json() as any;
+  } catch (e) {
+    const alt = withLocalhostFallback(url);
+    if (alt) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] GET fallback: ${url} -> ${alt}`);
+      try {
+        const res = await fetch(alt, { method: 'GET', headers: buildAuthHeaders(token) });
+        if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
+        return res.json() as any;
+      } catch (e2) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] GET alt fetch failed: ${(e2 as any)?.message || e2}`);
+      }
+    }
+    // Final fallback: read local graph from filesystem if available
+    const local = readLocalGraph();
+    if (local) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] GET local fallback: using _graph/graph.json`);
+      return { graph: local } as any;
+    }
+    throw e;
+  }
 }
 async function httpPost(url: string, body: any, token?: string) {
-  const res = await fetch(url, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`POST ${url} failed: ${res.status}`);
-  return res.json() as any;
+  try {
+    const res = await fetch(url, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`POST ${url} failed: ${res.status}`);
+    return res.json() as any;
+  } catch (e) {
+    const alt = withLocalhostFallback(url);
+    if (alt) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] POST fallback: ${url} -> ${alt}`);
+      try {
+        const res = await fetch(alt, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
+        return res.json() as any;
+      } catch (e2) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] POST alt fetch failed: ${(e2 as any)?.message || e2}`);
+      }
+    }
+    // Local mode write: treat POST as PUT for local graph update if a graph is present
+    if (body && body.graph) {
+      try {
+        writeLocalGraph(body.graph);
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] POST local fallback: wrote _graph/graph.json`);
+        return { success: true } as any;
+      } catch {}
+    }
+    throw e;
+  }
 }
 async function httpPut(url: string, body: any, token?: string) {
-  const res = await fetch(url, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`PUT ${url} failed: ${res.status}`);
-  return res.json() as any;
+  try {
+    const res = await fetch(url, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`PUT ${url} failed: ${res.status}`);
+    return res.json() as any;
+  } catch (e) {
+    const alt = withLocalhostFallback(url);
+    if (alt) {
+      // eslint-disable-next-line no-console
+      console.error(`[manta-mcp] PUT fallback: ${url} -> ${alt}`);
+      try {
+        const res = await fetch(alt, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
+        return res.json() as any;
+      } catch (e2) {
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] PUT alt fetch failed: ${(e2 as any)?.message || e2}`);
+      }
+    }
+    if (body && body.graph) {
+      try {
+        writeLocalGraph(body.graph);
+        // eslint-disable-next-line no-console
+        console.error(`[manta-mcp] PUT local fallback: wrote _graph/graph.json`);
+        return { success: true } as any;
+      } catch {}
+    }
+    throw e;
+  }
+}
+
+// Local filesystem fallback helpers
+function projectDir(): string {
+  const envDir = process.env.MANTA_PROJECT_DIR;
+  if (envDir && fs.existsSync(envDir)) return envDir;
+  try {
+    const cwd = process.cwd();
+    return cwd;
+  } catch { return process.cwd(); }
+}
+function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.json'); }
+function readLocalGraph(): any | null {
+  try {
+    const p = graphPath();
+    if (!fs.existsSync(p)) return null;
+    const raw = fs.readFileSync(p, 'utf8');
+    const data = JSON.parse(raw);
+    const parsed = GraphSchema.safeParse(data);
+    return parsed.success ? parsed.data : data;
+  } catch { return null; }
+}
+function writeLocalGraph(graph: any) {
+  try {
+    const p = graphPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(graph, null, 2), 'utf8');
+  } catch {}
 }
 
 // Toolset is chosen at startup by the MCP based on env
