@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import {
   GraphSchema,
   GraphNodeSchema,
@@ -60,7 +61,7 @@ async function fetchGraphFromAPI(): Promise<Graph | null> {
     const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/graph-api`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json', ...(defaultAuthHeaders || {}) },
+      headers: { Accept: 'application/xml', ...(defaultAuthHeaders || {}) },
     });
 
     if (!response.ok) {
@@ -68,16 +69,10 @@ async function fetchGraphFromAPI(): Promise<Graph | null> {
       throw new Error(`Failed to fetch graph: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-
-    // Validate for both runtime safety + strong typing
-    if (data?.success) {
-      const parsed = GraphSchema.safeParse(data.graph);
-      if (parsed.success) return normalizeGraph(parsed.data);
-      console.warn('Graph validation failed, attempting to normalize server payload:', parsed.error);
-      return normalizeGraph(data.graph);
-    }
-    return null;
+    const xml = await response.text();
+    const graph = xmlToGraph(xml);
+    const parsed = GraphSchema.safeParse(graph);
+    return parsed.success ? normalizeGraph(parsed.data) : normalizeGraph(graph as any);
   } catch (error) {
     console.error('Error fetching graph from API:', error);
     return null;
@@ -92,16 +87,16 @@ async function saveGraphThroughAPI(graph: Graph): Promise<boolean> {
     const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/graph-api`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...(defaultAuthHeaders || {}) },
-      body: JSON.stringify({ graph }),
+      headers: { 'Content-Type': 'application/xml', ...(defaultAuthHeaders || {}) },
+      body: graphToXml(graph),
     });
 
     if (!response.ok) {
       throw new Error(`Failed to save graph: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return !!data.success;
+    // No JSON body required; treat 2xx as success
+    return true;
   } catch (error) {
     console.error('Error saving graph through API:', error);
     return false;

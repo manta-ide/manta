@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeGraph, getGraphSession } from '../lib/graph-service';
+import { xmlToGraph } from '@/lib/graph-xml';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
 
@@ -21,11 +22,12 @@ export async function GET(req: NextRequest) {
       // If not found in memory, try to load from graph-api
       if (!node) {
         try {
-          const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`);
+          const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`, { headers: { Accept: 'application/xml' } });
           if (graphRes.ok) {
-            const graphData = await graphRes.json();
-            if (graphData.success && graphData.graph) {
-              // Graph is now loaded in memory, try to get the node again
+            const xml = await graphRes.text();
+            if (xml && xml.includes('<graph')) {
+              try { xmlToGraph(xml); /* side-effect: graph loaded via other routes later */ } catch {}
+              // after fetching, try again to get node from in-memory session
               node = getGraphNode(nodeId);
             }
           }
@@ -47,12 +49,10 @@ export async function GET(req: NextRequest) {
       let graph = getGraphSession();
       if (!graph) {
         try {
-          const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`);
+          const graphRes = await fetch(`${req.nextUrl.origin}/api/graph-api`, { headers: { Accept: 'application/xml' } });
           if (graphRes.ok) {
-            const graphData = await graphRes.json();
-            if (graphData.success && graphData.graph) {
-              graph = graphData.graph;
-            }
+            const xml = await graphRes.text();
+            graph = xmlToGraph(xml) as any;
           }
         } catch (error) {
           console.log('ℹ️ No graph found when loading graph (error: ', error, ')');

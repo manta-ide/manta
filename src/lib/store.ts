@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
+import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 
 interface ProjectStore {
   // File system state
@@ -213,15 +214,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       set({ graphLoading: true, graphError: null });
       console.log('📊 Loading graph from local API...');
-      const res = await fetch('/api/graph-api', { method: 'GET' });
+      const res = await fetch('/api/graph-api', { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
-      const data = await res.json();
-      if (data?.graph) {
-        set({ graph: data.graph, graphLoading: false, graphError: null });
-        console.log(`✅ Loaded graph with ${data.graph.nodes?.length || 0} nodes`);
-      } else {
-        set({ graph: { nodes: [], edges: [] } as any, graphLoading: false });
-      }
+      const xml = await res.text();
+      const graph = xmlToGraph(xml);
+      set({ graph, graphLoading: false, graphError: null });
+      console.log(`✅ Loaded graph with ${graph.nodes?.length || 0} nodes`);
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });
       console.error('❌ Error loading graph:', error);
@@ -245,7 +243,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const i = next.nodes.findIndex(n => n.id === node.id);
     if (i === -1) next.nodes.push(node); else next.nodes[i] = { ...(next.nodes[i] as any), ...node } as any;
     set({ graph: next });
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
+    const xml = graphToXml(next);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
@@ -253,7 +252,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
+    const xml = graphToXml(next);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   updatePropertyInSupabase: async (nodeId: string, propertyId: string, value: any) => {
@@ -295,11 +295,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
     set({ graph: next });
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
+    const xml = graphToXml(next);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   syncGraphToSupabase: async (graph: Graph) => {
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph }) });
+    const xml = graphToXml(graph);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
   
   // Graph event handling
@@ -311,9 +313,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       graphEventSource = es;
       es.onmessage = (ev) => {
         try {
-          const data = JSON.parse(ev.data);
-          if (data?.type === 'graph-update' && data.graph) {
-            set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
+          const raw = ev.data || '';
+          if (raw.trim().startsWith('<')) {
+            const graph = xmlToGraph(raw);
+            set({ graph, graphLoading: false, graphError: null, graphConnected: true });
+          } else {
+            const data = JSON.parse(raw);
+            if (data?.type === 'graph-update' && data.graph) {
+              set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
+            }
           }
         } catch {}
       };

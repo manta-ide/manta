@@ -400,10 +400,7 @@ function GraphCanvas() {
     }
 
     try {
-      const response = await fetch('/api/graph-api', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await fetch('/api/graph-api', { method: 'DELETE' });
       if (response.ok) {
         console.log('✅ Graph deleted successfully');
       } else {

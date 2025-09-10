@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
+import { graphToXml } from '@/lib/graph-xml';
 import '@/app/api/lib/prompts/registry';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
 import { getGraphSession } from '@/app/api/lib/graph-service';
@@ -138,15 +139,16 @@ export async function POST(req: NextRequest) {
       const res = await fetch(`${req.nextUrl.origin}/api/graph-api`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/xml',
           ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
           ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
         },
-        body: JSON.stringify({ graph })
+        body: graphToXml(graph)
       });
       if (!res.ok) return false;
-      const data = await res.json();
-      return !!data.success;
+      let ok = true;
+      try { const data = await res.json(); ok = !!data.success; } catch { ok = true; }
+      return ok;
     });
     let graph = await fetchGraphFromApi(req);
     

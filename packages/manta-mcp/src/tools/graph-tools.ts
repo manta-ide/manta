@@ -2,6 +2,51 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import fs from 'node:fs';
 import path from 'node:path';
+// Lightweight XML converter duplicated for MCP context (no TS path aliases here)
+function escapeXml(text: string): string {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');
+}
+function unescapeXml(text: string): string {
+  return String(text).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+}
+function parseAttrBlock(attrs: string): Record<string, string> {
+  const out: Record<string, string> = {}; const re = /(\w[\w:-]*)\s*=\s*"([^"]*)"/g; let m: RegExpExecArray | null; while ((m = re.exec(attrs)) !== null) out[m[1]] = m[2]; return out;
+}
+function extractTagContent(xml: string, tag: string): string | null {
+  const m = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(xml); return m ? m[1] : null;
+}
+function collectTags(xml: string, tag: string): Array<{ attrs: Record<string,string>; inner: string }>{
+  const out: Array<{ attrs: Record<string,string>; inner: string }> = []; const re = new RegExp(`<${tag}([^>]*)>([\\s\\S]*?)<\\/${tag}>`, 'gi'); const self = new RegExp(`<${tag}([^>]*)\\/>`, 'gi'); let m: RegExpExecArray | null; while ((m = re.exec(xml)) !== null) out.push({ attrs: parseAttrBlock(m[1] || ''), inner: m[2] || '' }); while ((m = self.exec(xml)) !== null) out.push({ attrs: parseAttrBlock(m[1] || ''), inner: '' }); return out;
+}
+function graphToXml(graph: any): string {
+  const header = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>`; const ns = `xmlns=\"urn:app:graph\"`; const directed = `directed=\"true\"`; const version = `version=\"1.0\"`;
+  const childrenSet = new Set<string>(); for (const n of graph.nodes || []) for (const c of (n.children || [])) childrenSet.add(`${n.id}→${c.id}`);
+  const nodes = (graph.nodes || []).map((n: any) => {
+    const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const buildStatus = n.state || 'unbuilt';
+    const state = `\n      <state status=\"active\">\n        <build status=\"${escapeXml(String(buildStatus))}\"/>\n      </state>`;
+    const props = Array.isArray(n.properties) && n.properties.length > 0 ? `\n      <props>\n${n.properties.map((p: any) => `        <prop name=\"${escapeXml(String(p.id || ''))}\" type=\"${escapeXml(String((p.type === 'object' || p.type === 'object-list') ? 'json' : p.type || 'string'))}\">${escapeXml(typeof p.value === 'string' ? p.value : (p.value === undefined || p.value === null ? '' : JSON.stringify(p.value)))}</prop>`).join("\n")}\n      </props>` : '';
+    return `    <node id=\"${escapeXml(n.id)}\" title=\"${escapeXml(n.title)}\">${desc}${state}${props}\n    </node>`;
+  }).join('\n\n');
+  const allEdges = (graph.edges || []) as Array<{ id?: string; source: string; target: string; role?: string }>;
+  const edges = allEdges.map((e) => { const role = childrenSet.has(`${e.source}→${e.target}`) ? 'contains' : (e as any).role || 'links-to'; const id = e.id || `${e.source}-${e.target}`; return `    <edge id=\"${escapeXml(id)}\" source=\"${escapeXml(e.source)}\" target=\"${escapeXml(e.target)}\" role=\"${escapeXml(role)}\"/>`; }).join('\n');
+  return `${header}\n<graph ${ns} ${version} ${directed}>\n  <nodes>\n${nodes}\n  </nodes>\n\n  <edges>\n${edges}\n  </edges>\n</graph>\n`;
+}
+function xmlToGraph(xml: string): any {
+  const nodesXml = extractTagContent(xml, 'nodes') || ''; const edgesXml = extractTagContent(xml, 'edges') || '';
+  const nodeTags = collectTags(nodesXml, 'node');
+  const nodes = nodeTags.map(({ attrs, inner }) => {
+    const id = attrs['id'] || ''; const title = attrs['title'] || ''; const description = (extractTagContent(inner, 'description') || '').trim(); const stateBlock = extractTagContent(inner, 'state') || '';
+    let buildStatus: string | undefined; const buildTags = collectTags(stateBlock, 'build'); if (buildTags.length > 0) buildStatus = (buildTags[0].attrs['status'] || '').trim(); else { const m = /<build\s+([^>]*)\/>/i.exec(stateBlock); if (m) buildStatus = (parseAttrBlock(m[1] || '')['status'] || '').trim(); }
+    const propsBlock = extractTagContent(inner, 'props') || ''; const propTags = collectTags(propsBlock, 'prop'); const properties = propTags.map(({ attrs: pa, inner: pi }) => { const name = pa['name'] || ''; const type = (pa['type'] || 'string'); const raw = (pi || '').trim(); let value: any = raw; if (type === 'number') { const n = Number(raw); value = Number.isFinite(n) ? n : raw; } else if (type === 'boolean') { if (raw.toLowerCase() === 'true') value = true; else if (raw.toLowerCase() === 'false') value = false; } else if (type === 'json' || raw.startsWith('{') || raw.startsWith('[')) { try { value = JSON.parse(raw); } catch { value = raw; } } return { id: name, title: name, type, value }; });
+    return { id, title, prompt: unescapeXml(description), children: [], state: buildStatus || 'unbuilt', properties };
+  });
+  const edges: Array<{ id: string; source: string; target: string; role?: string }> = []; let m: RegExpExecArray | null; const edgeSelf = new RegExp(`<edge([^>]*)\\/>`, 'gi'); const edgeOpen = new RegExp(`<edge([^>]*)>([\\s\\S]*?)<\\/edge>`, 'gi');
+  while ((m = edgeSelf.exec(edgesXml)) !== null) { const a = parseAttrBlock(m[1] || ''); const id = a['id'] || `${a['source']}-${a['target']}`; edges.push({ id, source: a['source'] || '', target: a['target'] || '', role: a['role'] }); }
+  while ((m = edgeOpen.exec(edgesXml)) !== null) { const a = parseAttrBlock(m[1] || ''); const id = a['id'] || `${a['source']}-${a['target']}`; edges.push({ id, source: a['source'] || '', target: a['target'] || '', role: a['role'] }); }
+  const byId = new Map(nodes.map((n: any) => [n.id, n])); for (const e of edges) { const parent = byId.get(e.source); const child = byId.get(e.target); if (parent && child) { parent.children = parent.children || []; if (!parent.children.find((c: any) => c.id === child.id)) parent.children.push({ id: child.id, title: child.title }); } }
+  return { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })) };
+}
 // Load shared schemas synchronously to avoid delaying MCP handshake
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -44,8 +89,16 @@ function withLocalhostFallback(url: string): string | null {
 }
 async function httpGet(url: string, token?: string) {
   try {
-    const res = await fetch(url, { method: 'GET', headers: buildAuthHeaders(token) });
+    const headers = buildAuthHeaders(token);
+    headers['Accept'] = 'application/xml,application/json;q=0.5';
+    const res = await fetch(url, { method: 'GET', headers });
     if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (ct.includes('xml')) {
+      const xml = await res.text();
+      const parsed = xmlToGraph(xml);
+      return { graph: parsed } as any;
+    }
     return res.json() as any;
   } catch (e) {
     const alt = withLocalhostFallback(url);
@@ -65,7 +118,7 @@ async function httpGet(url: string, token?: string) {
     const local = readLocalGraph();
     if (local) {
       // eslint-disable-next-line no-console
-      console.error(`[manta-mcp] GET local fallback: using _graph/graph.json`);
+      console.error(`[manta-mcp] GET local fallback: using _graph/graph.xml`);
       return { graph: local } as any;
     }
     throw e;
@@ -95,7 +148,7 @@ async function httpPost(url: string, body: any, token?: string) {
       try {
         writeLocalGraph(body.graph);
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] POST local fallback: wrote _graph/graph.json`);
+        console.error(`[manta-mcp] POST local fallback: wrote _graph/graph.xml`);
         return { success: true } as any;
       } catch {}
     }
@@ -104,7 +157,16 @@ async function httpPost(url: string, body: any, token?: string) {
 }
 async function httpPut(url: string, body: any, token?: string) {
   try {
-    const res = await fetch(url, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+    let headers = buildAuthHeaders(token);
+    let payload: any;
+    if (body && body.graph) {
+      const xml = graphToXml(body.graph);
+      headers = { ...headers, 'Content-Type': 'application/xml' };
+      payload = xml;
+    } else {
+      payload = JSON.stringify(body);
+    }
+    const res = await fetch(url, { method: 'PUT', headers, body: payload });
     if (!res.ok) throw new Error(`PUT ${url} failed: ${res.status}`);
     return res.json() as any;
   } catch (e) {
@@ -125,7 +187,7 @@ async function httpPut(url: string, body: any, token?: string) {
       try {
         writeLocalGraph(body.graph);
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] PUT local fallback: wrote _graph/graph.json`);
+        console.error(`[manta-mcp] PUT local fallback: wrote _graph/graph.xml`);
         return { success: true } as any;
       } catch {}
     }
@@ -142,22 +204,22 @@ function projectDir(): string {
     return cwd;
   } catch { return process.cwd(); }
 }
-function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.json'); }
+function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.xml'); }
 function readLocalGraph(): any | null {
   try {
     const p = graphPath();
     if (!fs.existsSync(p)) return null;
     const raw = fs.readFileSync(p, 'utf8');
-    const data = JSON.parse(raw);
-    const parsed = GraphSchema.safeParse(data);
-    return parsed.success ? parsed.data : data;
+    const g = xmlToGraph(raw);
+    const parsed = GraphSchema.safeParse(g);
+    return parsed.success ? parsed.data : g;
   } catch { return null; }
 }
 function writeLocalGraph(graph: any) {
   try {
     const p = graphPath();
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, JSON.stringify(graph, null, 2), 'utf8');
+    fs.writeFileSync(p, graphToXml(graph), 'utf8');
   } catch {}
 }
 

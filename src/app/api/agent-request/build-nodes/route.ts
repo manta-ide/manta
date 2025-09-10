@@ -6,7 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import '@/app/api/lib/prompts/registry';
-import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
+import { fetchGraphFromApi, fetchGraphXmlFromApi } from '@/app/api/lib/graphApiUtils';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
@@ -57,10 +57,11 @@ export async function POST(req: NextRequest) {
 
     // Build prompt from template (ignore any user-provided message content)
     const template = await getTemplate('build-nodes-template');
-    const graph = await fetchGraphFromApi(req);
+    const graphXml = await fetchGraphXmlFromApi(req);
+    const graph = graphXml ? null : await fetchGraphFromApi(req); // prefer XML; JSON fallback
     const variables = {
       SELECTED_NODE_IDS: JSON.stringify(targetNodeIds),
-      GRAPH_DATA: graph ? JSON.stringify(graph, null, 2) : '',
+      GRAPH_DATA: graphXml ? graphXml : (graph ? JSON.stringify(graph, null, 2) : ''),
       REBUILD_ALL: rebuildAll ? '1' : '',
     } as Record<string, any>;
     const parsedPrompt = parseMessageWithTemplate(template, variables);
