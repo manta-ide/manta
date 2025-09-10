@@ -1,38 +1,24 @@
 // next.config.ts
 import type { NextConfig } from 'next';
 
+function childBase() {
+  const port = process.env.NEXT_PUBLIC_CHILD_PORT || process.env.MANTA_CHILD_PORT || '3001';
+  const url = (process.env.NEXT_PUBLIC_CHILD_URL || '').replace(/\/$/, '');
+  return url && /^https?:\/\//.test(url) ? url : `http://localhost:${port}`;
+}
+
 const nextConfig: NextConfig = {
-  output: 'standalone',
-  // Dynamic iframe proxying is now handled by /api/iframe/[[...path]]/route.ts
-  // This allows user-specific sandbox preview URLs instead of static environment variables
-  
-  async rewrites() { return []; }
+  //output: 'standalone',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  async rewrites() {
+    const base = childBase();
+    return [
+      { source: '/iframe', destination: `${base}/iframe/` },
+      { source: '/iframe/:path*', destination: `${base}/iframe/:path*` },
+    ];
+  },
 };
 
 export default nextConfig;
-
-// // next.config.ts
-// import type { NextConfig } from 'next';
-
-// const REMOTE_ORIGIN = 'http://localhost:3001';
-
-// const nextConfig: NextConfig = {
-
-module.exports = {
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
-  },
-}
-// async rewrites() {
-//   return [
-//     // HTML & API under /iframe/…
-//     { source: '/iframe', destination: 'http://localhost:3001/iframe' },
-//     { source: '/iframe/:path*', destination: 'http://localhost:3001/iframe/:path*' },
-//   ];
-// }
-
-// };
-
-// export default nextConfig;

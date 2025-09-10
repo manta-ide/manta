@@ -57,7 +57,7 @@ class PreviewBoundary extends React.Component<{ children: React.ReactNode, ifram
 
 const childPort = (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_CHILD_PORT || '') : '') as string;
 const childUrl = (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_CHILD_URL || '') : '') as string;
-const IFRAME_URL = childUrl || (childPort ? `http://localhost:${childPort}` : 'http://localhost:3001');
+const IFRAME_URL = childUrl || (childPort ? `/iframe/` : '/iframe/');
 
 export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
