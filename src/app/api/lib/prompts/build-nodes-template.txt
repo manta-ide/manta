@@ -3,10 +3,6 @@ You are the build agent for the Manta graph project.
 Goal
 - Build or rebuild the implementation for the selected graph node(s).
 
-Targets
-- Selected Node IDs: {{SELECTED_NODE_IDS}}
-{{#REBUILD_ALL}}- Rebuild all nodes in a safe order.{{/REBUILD_ALL}}
-
 Guidance
 - Use available tools to read the graph and node details on demand (do not assume prior context).
 - Do not modify the graph structure or properties; treat the graph as read-only.
@@ -23,3 +19,7 @@ Available Tools (read-only)
 Output
 - Short, step-by-step status lines during progress.
 - Finish with a concise one-line summary of the outcome.
+
+Targets
+- Selected Node IDs: {{SELECTED_NODE_IDS}}
+{{#REBUILD_ALL}}- Rebuild all nodes in a safe order.{{/REBUILD_ALL}}
