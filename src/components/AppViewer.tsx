@@ -84,7 +84,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
         // Expose child window globally for message bridge
         if (typeof window !== 'undefined') {
           (window as any).__mantaChildWindow = iframeRef.current?.contentWindow || null;
-          (window as any).__mantaChildOrigin = IFRAME_URL;
+          (window as any).__mantaChildOrigin = window.location.origin;
         }
       } catch {}
       if (!doc) return;
@@ -167,6 +167,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   // Reload iframe when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger > 0) {
+      console.log('refreshing iframe');
       setIframeKey(prevKey => prevKey + 1);
     }
   }, [refreshTrigger, setIframeReady]);
