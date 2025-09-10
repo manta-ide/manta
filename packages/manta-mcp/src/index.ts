@@ -2,16 +2,8 @@
 // MCP bootstrap logging
 // eslint-disable-next-line no-console
 console.error(`[manta-mcp] starting at ${new Date().toISOString()}`);
-import fs from 'node:fs';
-import path from 'node:path';
-try {
-  const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
-  fs.mkdirSync(path.dirname(logPath), { recursive: true });
-  fs.appendFileSync(logPath, `[start] ${new Date().toISOString()}\n`);
-} catch {}
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import { registerGraphTools, type Toolset } from './tools/graph-tools.js';
 
 // Utility to resolve base URL for API calls
@@ -77,10 +69,6 @@ async function httpPut(url: string, body: any, token?: string) {
 const server = new McpServer({ name: "manta-mcp", version: "0.1.0" });
 // eslint-disable-next-line no-console
 console.error('[manta-mcp] server created');
-try {
-  const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
-  fs.appendFileSync(logPath, `[server_created] ${new Date().toISOString()}\n`);
-} catch {}
 
 // Toolset selection is decided at startup based on env (provided by the CLI per job)
 function resolveToolset(): Toolset {
@@ -93,17 +81,9 @@ try {
   registerGraphTools(server, resolveToolset());
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] graph tools registered');
-  try {
-    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
-    fs.appendFileSync(logPath, `[tools_registered] ${new Date().toISOString()}\n`);
-  } catch {}
 } catch (e) {
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] ERROR registering tools:', (e as any)?.message || e);
-  try {
-    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
-    fs.appendFileSync(logPath, `[tools_error] ${(e as any)?.message || String(e)}\n`);
-  } catch {}
 }
 
 
@@ -112,17 +92,9 @@ try {
   const transport = new StdioServerTransport();
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] connecting via stdio');
-  try {
-    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
-    fs.appendFileSync(logPath, `[connecting] ${new Date().toISOString()}\n`);
-  } catch {}
   await server.connect(transport);
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] connected');
-  try {
-    const logPath = path.join(process.cwd(), '_graph', 'mcp.log');
-    fs.appendFileSync(logPath, `[connected] ${new Date().toISOString()}\n`);
-  } catch {}
 })().catch((err) => {
   // eslint-disable-next-line no-console
   console.error(err);
