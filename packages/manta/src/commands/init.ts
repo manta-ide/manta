@@ -10,7 +10,7 @@ export default class Init extends Command {
   static aliases = ['i'];
 
   static flags = {
-    repo: Flags.string({ description: 'GitHub repo in owner/repo format', default: 'makosst/manta-template' }),
+    repo: Flags.string({ description: 'GitHub repo in owner/repo format', default: 'manta-ide/manta-template' }),
     ref: Flags.string({ description: 'Git ref (branch or tag)', default: 'main' }),
     zipUrl: Flags.string({ description: 'Override full ZIP URL (for custom refs/archive)' }),
     token: Flags.string({ description: 'GitHub token (for private repos); defaults to GITHUB_TOKEN env' }),
@@ -21,7 +21,7 @@ export default class Init extends Command {
   async run(): Promise<void> {
     const {flags} = await this.parse(Init);
     const cwd = process.cwd();
-    const repoSpec = (flags.repo || 'makosst/manta-template').trim();
+    const repoSpec = (flags.repo || 'manta-ide/manta-template').trim();
     const ref = (flags.ref || 'main').trim();
     const token = (flags.token || process.env.GITHUB_TOKEN || process.env.GITHUB_PERSONAL_ACCESS_TOKEN || '').trim();
     const subdir = (flags.subdir || '').replace(/^\/+|\/+$/g, '');
