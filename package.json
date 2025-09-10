@@ -11,6 +11,7 @@
     "commands": "./packages/manta/dist/commands"
   },
   "scripts": {
+    "i:all": "npm install && cd packages/manta-mcp && npm install && cd ../manta && npm install",
     "mcp:inspect": "npx @modelcontextprotocol/inspector node packages/manta-mcp/dist/index.js",
     "mcp": "node packages/manta-mcp/dist/index.js",
     "dev": "next dev --turbopack",
