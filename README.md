@@ -1,57 +1,48 @@
-<p align="center">
-  <img src="assets/logo.png" width="120" alt="Manta Logo"/>
-</p>
+# Manta IDE
 
-<h1 align="center">Manta IDE</h1>
-<p align="center">A fast and powerful integrated development environment for modern web development.</p>
+Manta IDE is a fast and powerful integrated development environment designed for modern web development. It provides a seamless, lightweight, and intuitive platform for developers to build web applications efficiently.
 
-<p align="center">
-  <a href="https://github.com/MantaOrg/MantaIDE/issues">Issues</a> •
-  <a href="https://github.com/MantaOrg/MantaIDE/pulls">Pull Requests</a> •
-  <a href="https://manta.org/docs">Docs</a>
-</p>
+---
+
+## Table of Contents
+
+1. [Demo](#demo)
+2. [Features](#features)
+3. [Installation](#installation)
+4. [Quick Start](#quick-start)
+5. [Contributing](#contributing)
+6. [License](#license)
+
+---
 
 ## Demo
+
 ![demo](assets/demo.gif)
 
+---
+
 ## Features
-- **Fast and Lightweight**: Manta IDE is optimized for speed, providing a seamless development experience.
-- **Modern UI**: Intuitive and user-friendly interface designed for web development.
+
+- **Fast and Lightweight**: Optimized for speed and a seamless development experience.
+- **Modern UI**: Intuitive, user-friendly interface designed for web development.
 - **Customizable**: Tailor your development environment to your needs.
+- **Real-time Preview**: See the changes in real time as you code.
+- **Multi-language Support**: Supports various languages such as JavaScript, HTML, CSS, and more.
 
-## Quick Start
+---
 
-To get started quickly with Manta IDE, follow these simple steps:
+## Installation
 
-### 1. Install Dependencies
-First, clone the repository to your local machine, then install the project dependencies:
+To install Manta IDE, follow the instructions below.
 
-```bash
-# Clone the repository
-git clone https://github.com/manta-ide/manta.git
+### Prerequisites
 
-# Navigate into the project folder
-cd MantaIDE
+- **Node.js**: Make sure you have Node.js installed. You can download it from [here](https://nodejs.org/).
+- **Git**: You will need Git to clone the repository.
 
-# Install dependencies
-npm install
+### Install Dependencies
 
-### 2. Build the Project
+1. Clone the repository:
 
-# Build the project
-npm run build:all
-
-# Run Manta IDE initialization (if necessary)
-manta i
-
-# Start the Manta IDE
-manta run
-
-
-#### Key Changes
-- **Step 1**: Clear instructions for cloning the repo and installing dependencies with `npm install`.
-- **Step 2**: Building the project using `npm run build:all`.
-- **Step 3**: Added commands (`manta i` and `manta run`) for running the IDE after setting up in a local directory.
-  
-This should be enough to guide a user through setting up and running your IDE locally. The instructions are now both clear and step-by-step, making it easy for others to follow!
-
+   ```bash
+   git clone https://github.com/manta-ide/manta.git
