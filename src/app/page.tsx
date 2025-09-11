@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import FloatingChat from "@/components/FloatingChat";
-import FileTree from "@/components/FileTree";
 import AppViewer from "@/components/AppViewer";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
@@ -122,16 +121,7 @@ export default function Home() {
         direction="horizontal"
         className="flex-1"
       >
-        {panels.files && (
-          <>
-            <ResizablePanel defaultSize={15} minSize={8.7}>
-              <div className="h-full border-r border-zinc-700">
-                <FileTree />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
-          </>
-        )}
+        {panels.files && null}
 
 
         {hasSelected && (
