@@ -47,7 +47,24 @@ To install Manta IDE, follow the instructions below.
    ```bash
    git clone https://github.com/manta-ide/manta.git
 
-2. Clone the repository:
+2. Navigate to the project folder:
 
    ```bash
-   git clone https://github.com/manta-ide/manta.git
+   cd MantaIDE
+   
+3. Install dependencies:
+
+   ```bash
+   npm install
+
+### Build the Project
+
+1. Build the project:
+
+   ```bash
+   npm run build:all
+
+2. Run Manta IDE initialization:
+
+   ```bash
+   manta i
