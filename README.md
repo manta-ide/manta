@@ -46,3 +46,8 @@ To install Manta IDE, follow the instructions below.
 
    ```bash
    git clone https://github.com/manta-ide/manta.git
+
+2. Clone the repository:
+
+   ```bash
+   git clone https://github.com/manta-ide/manta.git
