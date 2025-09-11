@@ -28,7 +28,7 @@ First, clone the repository to your local machine, then install the project depe
 
 ```bash
 # Clone the repository
-git clone https://github.com/MantaOrg/MantaIDE.git
+git clone https://github.com/manta-ide/manta.git
 
 # Navigate into the project folder
 cd MantaIDE
@@ -46,7 +46,7 @@ manta i
 manta run
 
 
-### Key Changes
+#### Key Changes
 - **Step 1**: Clear instructions for cloning the repo and installing dependencies with `npm install`.
 - **Step 2**: Building the project using `npm run build:all`.
 - **Step 3**: Added commands (`manta i` and `manta run`) for running the IDE after setting up in a local directory.
