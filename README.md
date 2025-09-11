@@ -36,6 +36,8 @@ cd MantaIDE
 # Install dependencies
 npm install
 
+### 2. Build the Project
+
 # Build the project
 npm run build:all
 
