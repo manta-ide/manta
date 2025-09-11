@@ -324,7 +324,6 @@ function xmlToGraph(xml: string): any {
         id,
         title,
         prompt: unescapeXml(description),
-        children: [],
         state: (buildStatus as any) || 'unbuilt',
         properties
       } as GraphNode;
@@ -355,17 +354,6 @@ function xmlToGraph(xml: string): any {
       }
     });
 
-    // Infer children from edges
-    const byId = new Map(nodes.map(n => [n.id, n]));
-    for (const e of edges) {
-      const parent = byId.get(e.source);
-      const child = byId.get(e.target);
-      if (parent && child) {
-        parent.children = parent.children || [];
-        if (!parent.children.find(c => c.id === child.id)) parent.children.push({ id: child.id, title: child.title });
-      }
-    }
-
     const g: Graph = { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })) as any } as Graph;
     return g;
   } catch (error) {
@@ -387,7 +375,6 @@ interface GraphNode {
   id: string;
   title: string;
   prompt?: string;
-  children: Array<{ id: string; title: string }>;
   state?: string;
   properties: Property[];
 }
@@ -407,7 +394,7 @@ try {
   PropertySchema = loaded.PropertySchema;
   GraphSchema = loaded.GraphSchema;
   // eslint-disable-next-line no-console
-  console.error('[manta-mcp] loaded shared schemas');
+  // Shared schemas loaded
 } catch (e) {
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] WARN: shared schemas not built, falling back to minimal validators:', (e as any)?.message || e);
@@ -454,7 +441,7 @@ async function httpGet(url: string, token?: string) {
     const alt = withLocalhostFallback(url);
     if (alt) {
       // eslint-disable-next-line no-console
-      console.error(`[manta-mcp] GET fallback: ${url} -> ${alt}`);
+      // GET fallback attempted
       try {
         const headers = buildAuthHeaders(token);
         headers['Accept'] = 'application/xml,application/json;q=0.5';
@@ -469,14 +456,14 @@ async function httpGet(url: string, token?: string) {
         return res.json() as any;
       } catch (e2) {
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] GET alt fetch failed: ${(e2 as any)?.message || e2}`);
+        // GET alt fetch failed
       }
     }
     // Final fallback: read local graph from filesystem if available
     const local = readLocalGraph();
     if (local) {
       // eslint-disable-next-line no-console
-      console.error(`[manta-mcp] GET local fallback: using _graph/graph.xml`);
+      // GET local fallback: using _graph/graph.xml
       return { graph: local.graph, rawXml: local.rawXml } as any;
     }
     throw e;
@@ -491,14 +478,14 @@ async function httpPost(url: string, body: any, token?: string) {
     const alt = withLocalhostFallback(url);
     if (alt) {
       // eslint-disable-next-line no-console
-      console.error(`[manta-mcp] POST fallback: ${url} -> ${alt}`);
+      // POST fallback attempted
       try {
         const res = await fetch(alt, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
         if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
         return res.json() as any;
       } catch (e2) {
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] POST alt fetch failed: ${(e2 as any)?.message || e2}`);
+        // POST alt fetch failed
       }
     }
     // Local mode write: treat POST as PUT for local graph update if a graph is present
@@ -506,7 +493,7 @@ async function httpPost(url: string, body: any, token?: string) {
       try {
         writeLocalGraph(body.graph);
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] POST local fallback: wrote _graph/graph.xml`);
+        // POST local fallback: wrote _graph/graph.xml
         return { success: true } as any;
       } catch {}
     }
@@ -531,7 +518,7 @@ async function httpPut(url: string, body: any, token?: string) {
     const alt = withLocalhostFallback(url);
     if (alt) {
       // eslint-disable-next-line no-console
-      console.error(`[manta-mcp] PUT fallback: ${url} -> ${alt}`);
+      // PUT fallback attempted
       try {
         let headers = buildAuthHeaders(token);
         let payload: any;
@@ -547,14 +534,14 @@ async function httpPut(url: string, body: any, token?: string) {
         return res.json() as any;
       } catch (e2) {
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] PUT alt fetch failed: ${(e2 as any)?.message || e2}`);
+        // PUT alt fetch failed
       }
     }
     if (body && body.graph) {
       try {
         writeLocalGraph(body.graph);
         // eslint-disable-next-line no-console
-        console.error(`[manta-mcp] PUT local fallback: wrote _graph/graph.xml`);
+        // PUT local fallback: wrote _graph/graph.xml
         return { success: true } as any;
       } catch {}
     }
@@ -665,7 +652,7 @@ export type Toolset = 'graph-editor' | 'read-only';
 
 export function registerGraphTools(server: McpServer, toolset: Toolset) {
   // eslint-disable-next-line no-console
-  console.error(`[manta-mcp] registering graph tools, toolset=${toolset}`);
+  // Registering graph tools
   // read_graph (rich read)
   server.registerTool(
     'read_graph',
@@ -762,16 +749,15 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         title: z.string().min(1),
         prompt: z.string().min(1),
         properties: z.array(PropertySchema).optional(),
-        children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
         state: z.enum(['built','unbuilt','building']).optional(),
       },
     },
-    async ({ nodeId, title, prompt, properties, children, state }) => {
+    async ({ nodeId, title, prompt, properties, state }) => {
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
       if (graph.nodes.find((n: any) => n.id === nodeId)) throw new Error(`Node ${nodeId} already exists`);
-      const node: any = { id: nodeId, title, prompt, children: Array.isArray(children) ? children : [], properties: Array.isArray(properties) ? properties : [], state: state ?? 'unbuilt' };
+      const node: any = { id: nodeId, title, prompt, properties: Array.isArray(properties) ? properties : [], state: state ?? 'unbuilt' };
       graph.nodes.push(node);
       await httpPut(url, { graph }, token);
       return { content: [{ type: 'text', text: `Added node ${nodeId}` }] };

@@ -32,6 +32,16 @@ import { useAuth } from '@/lib/auth-context';
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
   const { zoom } = useViewport();
+
+  // Helper function to get children from edges
+  const getNodeChildren = (nodeId: string) => {
+    const graph = data.graph;
+    if (!graph?.edges) return [];
+    return graph.edges
+      .filter((edge: any) => edge.source === nodeId)
+      .map((edge: any) => graph.nodes.find((n: any) => n.id === edge.target))
+      .filter(Boolean);
+  };
   
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
@@ -155,12 +165,15 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           fontWeight: '500',
           alignItems: 'center'
         }}>
-          {node.children && node.children.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Folder size={14} />
-              <span>{node.children.length}</span>
-            </div>
-          )}
+          {(() => {
+            const children = getNodeChildren(node.id);
+            return children.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Folder size={14} />
+                <span>{children.length}</span>
+              </div>
+            );
+          })()}
           {node.properties && node.properties.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Settings size={14} />
@@ -284,21 +297,24 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         marginTop: '12px'
       }}>
         {/* Children count */}
-        {node.children && node.children.length > 0 && (
-          <div
-            style={{
-              fontSize: '12px',
-              color: '#9ca3af',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '6px',
-            }}
-          >
-            <Folder size={12} />
-            {node.children.length} child{node.children.length !== 1 ? 'ren' : ''}
-          </div>
-        )}
+        {(() => {
+          const children = getNodeChildren(node.id);
+          return children.length > 0 && (
+            <div
+              style={{
+                fontSize: '12px',
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+              }}
+            >
+              <Folder size={12} />
+              {children.length} child{children.length !== 1 ? 'ren' : ''}
+            </div>
+          );
+        })()}
         
         {/* Properties count */}
         {node.properties && node.properties.length > 0 && (
@@ -488,7 +504,7 @@ function GraphCanvas() {
       });
 
       if (response.ok) {
-        console.log('✅ Selected node build queued successfully');
+        // Selected node build queued successfully
         // Do not set node to built here; worker/agent will update state via MCP later.
       } else {
         console.error('❌ Failed to build selected node');
@@ -559,16 +575,6 @@ function GraphCanvas() {
               }
             });
           }
-          // From children relationships
-          graph.nodes.forEach(n => {
-            (n.children || []).forEach((c: any) => {
-              const id = `${n.id}-${c.id}`;
-              if (!seen.has(id)) {
-                elkEdges.push({ id: `c-${id}`, sources: [n.id], targets: [c.id] });
-                seen.add(id);
-              }
-            });
-          });
 
           const elkGraph = {
             id: 'root',
@@ -655,24 +661,7 @@ function GraphCanvas() {
         });
       }
 
-      graph.nodes.forEach(node => {
-        if (node.children && node.children.length > 0) {
-          node.children.forEach(child => {
-            const edgeId = `${node.id}-${child.id}`;
-            if (!addedEdges.has(edgeId)) {
-              reactFlowEdges.push({
-                id: `${node.id}-${child.id}`,
-                source: node.id,
-                target: child.id,
-                type: 'smoothstep',
-                style: { stroke: '#9ca3af', strokeWidth: 2 },
-                animated: false,
-              });
-              addedEdges.add(edgeId);
-            }
-          });
-        }
-      });
+      // All edges are now handled by the graph.edges array above
 
       // Create visual edges from graph data
 
@@ -732,14 +721,12 @@ function GraphCanvas() {
       const graphNode = node.data?.node as GraphNode;
       if (!graphNode) return;
 
-      console.log(`📍 Node ${graphNode.id} final position:`, node.position);
-
       // Persist final position via graph API
       try {
-        await updateNodeInSupabase(graphNode.id, { 
+        await updateNodeInSupabase(graphNode.id, {
           position: { x: node.position.x, y: node.position.y }
         });
-        console.log(`✅ Node ${graphNode.id} final position saved`);
+        // Node position saved
       } catch (e) {
         console.warn(`⚠️ Final position update failed for ${graphNode.id}:`, e);
       }

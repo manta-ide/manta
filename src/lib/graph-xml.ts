@@ -168,12 +168,31 @@ function generateNestedXml(p: Property): string {
     if (!itemFields && items.length > 0) {
       const firstItem = items[0];
       if (firstItem && typeof firstItem === 'object') {
-        itemFields = Object.keys(firstItem).map(key => ({
-          id: key,
-          title: key,
-          type: typeof firstItem[key] === 'string' ? 'string' : 'text',
-          value: ''
-        })) as Property[];
+        itemFields = Object.keys(firstItem).map(key => {
+          const value = firstItem[key];
+          let type = 'string';
+
+          if (typeof value === 'string') {
+            type = 'string';
+          } else if (typeof value === 'number') {
+            type = 'number';
+          } else if (typeof value === 'boolean') {
+            type = 'boolean';
+          } else if (Array.isArray(value)) {
+            type = 'object-list';
+          } else if (value && typeof value === 'object') {
+            type = 'object';
+          } else {
+            type = 'text'; // fallback
+          }
+
+          return {
+            id: key,
+            title: key,
+            type: type,
+            // Don't set a default value for inferred fields
+          } as Property;
+        });
       }
     }
 
@@ -208,12 +227,7 @@ export function graphToXml(graph: Graph): string {
   const directed = `directed="true"`;
   const version = `version="1.0"`;
 
-  const childrenSet = new Set<string>();
-  for (const n of graph.nodes || []) {
-    for (const c of (n.children || [])) {
-      childrenSet.add(`${n.id}→${c.id}`);
-    }
-  }
+  // No longer tracking children since we use edges exclusively
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
@@ -248,7 +262,7 @@ ${optionsXml}
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string }>;
   const edges = allEdges.map((e: { id?: string; source: string; target: string; role?: string }) => {
-    const role = childrenSet.has(`${e.source}→${e.target}`) ? 'contains' : (e as any).role || 'links-to';
+    const role = (e as any).role || 'links-to';
     const id = e.id || `${e.source}-${e.target}`;
     return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"/>`;
   }).join('\n');
@@ -503,7 +517,6 @@ export function xmlToGraph(xml: string): Graph {
         id,
         title,
         prompt: unescapeXml(description),
-        children: [],
         state: (buildStatus as any) || 'unbuilt',
         properties
       } as GraphNode;
@@ -533,17 +546,6 @@ export function xmlToGraph(xml: string): Graph {
         throw new Error(`Invalid edge: missing source or target: ${JSON.stringify(edge)}`);
       }
     });
-
-    // Infer children from edges
-    const byId = new Map(nodes.map(n => [n.id, n]));
-    for (const e of edges) {
-      const parent = byId.get(e.source);
-      const child = byId.get(e.target);
-      if (parent && child) {
-        parent.children = parent.children || [];
-        if (!parent.children.find(c => c.id === child.id)) parent.children.push({ id: child.id, title: child.title });
-      }
-    }
 
     const g: Graph = { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })) as any } as Graph;
     return g;

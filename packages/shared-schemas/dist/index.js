@@ -32,8 +32,6 @@ export const GraphNodeSchema = z.object({
     id: z.string(),
     title: z.string(),
     prompt: z.string(),
-    children: z.array(z.object({ id: z.string(), title: z.string() })),
-    parentId: z.string().optional(),
     state: z.enum(["built", "unbuilt", "building"]).default("unbuilt").optional(),
     properties: z.array(PropertySchema).optional(),
     position: z.object({ x: z.number(), y: z.number() }).optional(),

@@ -160,13 +160,10 @@ async function saveGraphToFs(graph: Graph): Promise<void> {
 export function getGraphSession(): Graph | null { return currentGraph; }
 
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
-  console.log(`💾 GraphService: storeGraph called for user ${userId}, nodes: ${graph.nodes?.length || 0}`);
   const normalized = normalizeGraph(graph);
   currentGraph = normalized;
-  console.log(`💾 GraphService: currentGraph updated with ${currentGraph?.nodes?.length || 0} nodes`);
   await saveGraphToFs(normalized);
   await broadcastGraphReload(userId);
-  console.log(`💾 GraphService: storeGraph completed`);
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {

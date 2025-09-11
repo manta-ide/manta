@@ -15,8 +15,8 @@ import {
    Local types
    ========= */
 
-// Derive the child link type from your GraphNode
-type ChildLink = GraphNode['children'][number];
+// Child link type for backward compatibility (now using edges)
+type ChildLink = { id: string; title: string };
 
 // ---- simple async mutex
 let graphOp = Promise.resolve();
@@ -114,25 +114,31 @@ let originalGraph: Graph | null = null;
    Normalization helpers
    ========================= */
 
-function ensureChildrenArray(n: Partial<GraphNode> | undefined): ChildLink[] {
-  if (!n || !Array.isArray(n.children)) return [];
-  return n.children.filter((c): c is ChildLink => !!c && typeof c.id === 'string' && typeof c.title === 'string');
+function ensureChildrenArray(n: Partial<GraphNode> | undefined, graph?: Graph): ChildLink[] {
+  if (!n || !graph?.edges) return [];
+
+  // Get children from edges instead of children property
+  return graph.edges
+    .filter(edge => edge.source === n.id)
+    .map(edge => {
+      const childNode = graph.nodes.find(node => node.id === edge.target);
+      return childNode ? { id: childNode.id, title: childNode.title } : null;
+    })
+    .filter((c): c is ChildLink => !!c && typeof c.id === 'string' && typeof c.title === 'string');
 }
 
 function normalizeNode(raw: unknown): GraphNode {
   // Trust Zod to coerce here if you want; otherwise do minimal normalization:
   const parsed = GraphNodeSchema.safeParse(raw);
   if (parsed.success) {
-    // Ensure children exists as array (schema already guarantees), just return
-    return { ...parsed.data, children: [...parsed.data.children] };
+    // Return parsed data as-is (children property no longer exists)
+    return parsed.data;
   }
   const r = raw as any;
   return {
     id: String(r?.id ?? ''),
     title: String(r?.title ?? ''),
     prompt: typeof r?.prompt === 'string' ? r.prompt : '',
-    children: ensureChildrenArray(r),
-    parentId: typeof r?.parentId === 'string' ? r.parentId : undefined,
     state: r?.state || "unbuilt",
     properties: Array.isArray(r?.properties) ? (r.properties as GraphNode['properties']) : undefined,
   };
@@ -164,34 +170,19 @@ function getNodePositionOrDefault(n?: GraphNode): { x: number; y: number } {
   return { x, y };
 }
 
-function calculatePositionForNewNode(graph: Graph, opts: { parentId?: string; newNodeId: string }): { x: number; y: number } {
-  const { parentId, newNodeId } = opts;
+function calculatePositionForNewNode(graph: Graph, opts: { newNodeId: string }): { x: number; y: number } {
+  const { newNodeId } = opts;
 
-  // If we have a parent, place the new node below it and to the right of existing siblings
-  if (parentId) {
-    const parent = graph.nodes.find(n => n.id === parentId);
-    const parentPos = getNodePositionOrDefault(parent);
-    // Count existing siblings (exclude the new node if already inserted)
-    const siblings = graph.nodes.filter(n => n.parentId === parentId && n.id !== newNodeId);
-    const index = siblings.length; // place after last sibling
-
-    // Optionally center siblings around parent: startX = parentX - (index * H_SPACING)/2
-    // Simpler: place to the right of parent by index * spacing
-    const x = parentPos.x - Math.floor(Math.max(index - 1, 0) * H_SPACING / 2) + index * H_SPACING;
-    const y = parentPos.y + V_SPACING;
-    return { x, y };
-  }
-
-  // No parent: place to the right of existing top-level nodes
-  const roots = graph.nodes.filter(n => !n.parentId);
-  if (roots.length === 0) {
+  // Place to the right of existing nodes
+  if (graph.nodes.length === 0) {
     return { x: DEFAULT_ROOT_X, y: DEFAULT_ROOT_Y };
   }
-  // Use the maximum X among root nodes that have positions
+
+  // Use the maximum X among all nodes that have positions
   let maxX = -Infinity;
   let baseY = DEFAULT_ROOT_Y;
-  for (const r of roots) {
-    const pos = getNodePositionOrDefault(r);
+  for (const node of graph.nodes) {
+    const pos = getNodePositionOrDefault(node);
     if (pos.x > maxX) maxX = pos.x;
     // try to keep the same row as the majority; default to first seen
     baseY = pos.y || baseY;
@@ -217,13 +208,11 @@ function isOccupied(graph: Graph, candidate: { x: number; y: number }, excludeId
   return false;
 }
 
-function findFirstFreeSpot(graph: Graph, desired: { x: number; y: number }, context?: { parentId?: string; newNodeId?: string }): { x: number; y: number } {
+function findFirstFreeSpot(graph: Graph, desired: { x: number; y: number }, context?: { newNodeId?: string }): { x: number; y: number } {
   // If nothing is occupied, use desired directly
   if (!isOccupied(graph, desired, context?.newNodeId)) return desired;
 
   // Try stepping to the right until free; if too many tries, go to next row
-  const parent = context?.parentId ? graph.nodes.find(n => n.id === context.parentId) : undefined;
-  const parentPos = getNodePositionOrDefault(parent);
   let x = desired.x;
   let y = desired.y;
   let tries = 0;
@@ -232,10 +221,10 @@ function findFirstFreeSpot(graph: Graph, desired: { x: number; y: number }, cont
     x += H_SPACING;
     if (!isOccupied(graph, { x, y }, context?.newNodeId)) return { x, y };
     tries++;
-    // Every 10 collisions, drop to next row and reset near parent X
+    // Every 10 collisions, drop to next row and reset to left
     if (tries % 10 === 0) {
       y += V_SPACING;
-      x = parent ? parentPos.x : (x - 10 * H_SPACING); // reset towards parent or earlier column
+      x = desired.x; // reset to original x position
       if (!isOccupied(graph, { x, y }, context?.newNodeId)) return { x, y };
     }
   }
@@ -316,110 +305,19 @@ function buildIndex(graph: Graph): Map<string, GraphNode> {
  */
 function ensureGraphConsistency(graph: Graph): Graph {
   if (!Array.isArray(graph.nodes)) graph.nodes = [];
+  if (!Array.isArray(graph.edges)) graph.edges = [];
 
-  const byId = buildIndex(graph);
-
-  // Normalize children arrays
-  graph.nodes.forEach((n) => {
-    n.children = ensureChildrenArray(n);
-  });
-
-  // Pass 1: parent -> child sync (do NOT remove unknown children)
-  graph.nodes.forEach((parent) => {
-    const next: ChildLink[] = [];
-    const seen = new Set<string>();
-
-    parent.children.forEach((childRef) => {
-      if (!childRef?.id) return;
-      if (seen.has(childRef.id)) return;
-      seen.add(childRef.id);
-
-      const childNode = byId.get(childRef.id);
-
-      if (childNode) {
-        // keep ref title in sync with real child title
-        if (childNode.title && childRef.title !== childNode.title) {
-          childRef.title = childNode.title;
-        }
-
-        // If the child has no parent, adopt this parent
-        if (!childNode.parentId) {
-          childNode.parentId = parent.id;
-          next.push(childRef);
-        } else if (childNode.parentId === parent.id) {
-          // Already consistent
-          next.push(childRef);
-        } else {
-          // Conflict: child's parentId points elsewhere. Prefer child's parentId → drop stray ref.
-        }
-      } else {
-        // Child not created yet — keep the placeholder reference
-        next.push(childRef);
-      }
-    });
-
-    parent.children = next;
-  });
-
-  // Pass 2: child -> parent sync (for any child with parentId, ensure parent contains the ref)
-  graph.nodes.forEach((child) => {
-    if (!child.parentId) return;
-    const parent = byId.get(child.parentId);
-    if (!parent) return; // parent not created yet
-
-    const hasRef = parent.children.some((c) => c.id === child.id);
-    if (!hasRef) {
-      parent.children.push({ id: child.id, title: child.title });
-    }
-  });
-
-  // Pass 3: global dedupe of children arrays
-  graph.nodes.forEach((n) => {
-    const seen = new Set<string>();
-    n.children = n.children.filter((c) => {
-      if (!c?.id) return false;
-      if (seen.has(c.id)) return false;
-      seen.add(c.id);
-      return true;
-    });
-  });
-
+  // In edges-only architecture, we don't need to maintain children arrays
+  // All relationships are handled through edges
   return graph;
 }
 
 /**
- * When a new node is added, this:
- *  - adopts a parent if some existing node already lists it as a child (and it has no parent yet)
- *  - removes stray refs to this child from other parents (enforce single parent)
- *  - sets parentId for any existing children of this new node
+ * When a new node is added, this function is now a no-op since
+ * we use edges for relationships instead of children/parentId.
  */
 function syncDeferredRelationsForNewNode(newNode: GraphNode, graph: Graph): void {
-  const byId = buildIndex(graph);
-
-  // 1) If any parent already references this node, adopt the first as parent if not set
-  if (!newNode.parentId) {
-    const candidate = graph.nodes.find(
-      (p) => p.children.some((c) => c.id === newNode.id)
-    );
-    if (candidate) {
-      newNode.parentId = candidate.id;
-    }
-  }
-
-  // 2) Enforce single parent: remove this child from other parents
-  graph.nodes.forEach((p) => {
-    if (p.id !== newNode.parentId) {
-      p.children = p.children.filter((c) => c.id !== newNode.id);
-    }
-  });
-
-  // 3) If the new node already lists children, set their parentId (when they exist)
-  newNode.children.forEach((c) => {
-    const cn = byId.get(c.id);
-    if (cn && !cn.parentId) {
-      cn.parentId = newNode.id;
-    }
-  });
+  // No-op: relationships are now handled by edges
 }
 
 /* =========================
@@ -468,18 +366,16 @@ const PropertyInputSchema = z.object({
 }).strict();
 
 const AddNodeParamsSchema = z.object({
-  parentId: z.string().describe('ID of the parent node to add the new node as a child'),
   nodeId: z.string().describe('Unique ID for the new node'),
   title: z.string().describe('Display title for the new node'),
   prompt: z.string().describe('Description/prompt for the new node'),
   properties: z.array(PropertyInputSchema).optional().describe('Array of property objects'),
-  children: z.array(ChildLinkSchema).optional().describe('Array of child node references'),
   state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
 
 const DeleteNodeParamsSchema = z.object({
   nodeId: z.string().describe('ID of the node to delete'),
-  recursive: z.boolean().optional().describe('If true, delete all children and descendants recursively. If false or not provided, only delete the node itself'),
+  recursive: z.boolean().optional().describe('If true, delete all descendants recursively using edges. If false or not provided, only delete the node itself'),
 }).strict();
 
 const EditNodeParamsSchema = z.object({
@@ -487,7 +383,6 @@ const EditNodeParamsSchema = z.object({
   title: z.string().optional().describe('New title for the node'),
   prompt: z.string().optional().describe('New prompt/description for the node'),
   properties: z.array(PropertyInputSchema).describe('Array of property objects (required to set/delete properties)'),
-  children: z.array(ChildLinkSchema).optional(),
   state: z.enum(["built", "unbuilt", "building"]).optional().describe('The build state of the node'),
 }).strict();
 
@@ -500,9 +395,9 @@ const UpdatePropertiesParamsSchema = z.object({
 
 const ReadGraphParamsSchema = z.object({
   nodeId: z.string().optional().describe('Specific node ID to read. If not provided, reads the entire graph'),
-  recursive: z.boolean().optional().describe('If true and nodeId is provided, includes all descendants recursively. If false or not provided, only returns the specified node'),
+  recursive: z.boolean().optional().describe('If true and nodeId is provided, includes all descendants recursively using edges. If false or not provided, only returns the specified node'),
   includeProperties: z.boolean().optional().describe('Whether to include node properties in the response. Defaults to true'),
-  includeChildren: z.boolean().optional().describe('Whether to include child references in the response. Defaults to true'),
+  includeChildren: z.boolean().optional().describe('Whether to include descendant relationships in the response. Defaults to true'),
 }).strict();
 
 /* =========================
@@ -573,7 +468,7 @@ export const graphEditorTools = {
   add_node: tool({
     description: 'Add a new node to the graph with specified properties',
     parameters: AddNodeParamsSchema,
-    execute: async ({ parentId, nodeId, title, prompt, properties = [], children = []}) =>  withGraphLock(async () => {
+    execute: async ({ nodeId, title, prompt, properties = []}) =>  withGraphLock(async () => {
       try {
         if (!pendingGraph) await setCurrentGraph();
 
@@ -581,7 +476,6 @@ export const graphEditorTools = {
         const modifiedGraph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
 
         const byId = buildIndex(modifiedGraph);
-        const parentNode = byId.get(parentId);
         const existingNode = byId.get(nodeId);
 
         if (existingNode) {
@@ -589,23 +483,6 @@ export const graphEditorTools = {
           existingNode.title = title ?? existingNode.title;
           existingNode.prompt = prompt ?? existingNode.prompt;
           if (properties?.length) existingNode.properties = properties;
-          if (children?.length) {
-            const merged = [...existingNode.children, ...children];
-            const seen = new Set<string>();
-            existingNode.children = merged.filter((c) => {
-              if (!c?.id) return false;
-              if (seen.has(c.id)) return false;
-              seen.add(c.id);
-              return true;
-            });
-          }
-
-          if (parentId) existingNode.parentId = parentId;
-
-          if (parentNode) {
-            const childExists = parentNode.children.some((c) => c.id === nodeId);
-            if (!childExists) parentNode.children.push({ id: nodeId, title: existingNode.title });
-          }
 
           ensureGraphConsistency(modifiedGraph);
 
@@ -622,13 +499,10 @@ export const graphEditorTools = {
           pendingGraph = null;
           originalGraph = null;
 
-          const parentInfo = parentNode
-            ? ` and synced as child of "${parentNode.title}"`
-            : ' (parent not found yet; will link automatically when created)';
           return {
             success: true,
-            message: `Successfully updated existing node "${existingNode.title}" (${nodeId})${parentInfo}`,
-            operation: { type: 'add_node', nodeId, title: existingNode.title, parentId, synced: !!parentNode }
+            message: `Successfully updated existing node "${existingNode.title}" (${nodeId})`,
+            operation: { type: 'add_node', nodeId, title: existingNode.title }
           };
         }
 
@@ -637,33 +511,19 @@ export const graphEditorTools = {
           id: nodeId,
           title,
           prompt,
-          children: children ?? [],
-          parentId: parentId || undefined,
           state: "unbuilt",
           properties,
         };
         modifiedGraph.nodes.push(newNode);
 
-        if (parentNode) {
-          const childExists = parentNode.children.some((c) => c.id === nodeId);
-          if (!childExists) parentNode.children.push({ id: nodeId, title });
-        }
-
-        // Snap this node into any already-declared relationships
-        syncDeferredRelationsForNewNode(newNode, modifiedGraph);
-
-        // Calculate and set a sensible initial position based on parent/siblings
+        // Calculate and set a sensible initial position
         try {
-          const finalParentId = newNode.parentId || parentId;
-          const desired = calculatePositionForNewNode(modifiedGraph, { parentId: finalParentId, newNodeId: newNode.id });
-          const pos = findFirstFreeSpot(modifiedGraph, desired, { parentId: finalParentId, newNodeId: newNode.id });
+          const desired = calculatePositionForNewNode(modifiedGraph, { newNodeId: newNode.id });
+          const pos = findFirstFreeSpot(modifiedGraph, desired, { newNodeId: newNode.id });
           newNode.position = pos;
         } catch (e) {
           // Fallback silently if positioning fails; backend will default to 0,0
         }
-
-        // Ensure consistency
-        ensureGraphConsistency(modifiedGraph);
 
         // Validate & save
         const validationResult = GraphSchema.safeParse(modifiedGraph);
@@ -679,8 +539,7 @@ export const graphEditorTools = {
         pendingGraph = null;
         originalGraph = null;
 
-        const parentInfo = parentNode ? ` as child of "${parentNode.title}"` : ' (parent not found, will be linked when parent is created)';
-        return { success: true, message: `Successfully added node "${title}" (${nodeId})${parentInfo}`, operation: { type: 'add_node', nodeId, title, parentId } };
+        return { success: true, message: `Successfully added node "${title}" (${nodeId})`, operation: { type: 'add_node', nodeId, title } };
       } catch (error: any) {
         return { success: false, message: error.message, operation: { type: 'add_node', nodeId, title } };
       }
@@ -704,35 +563,34 @@ export const graphEditorTools = {
           return { success: false, message: 'Cannot delete the root node (first node)', operation: { type: 'delete_node', nodeId } };
         }
 
-        // Collect descendant IDs
-        const collectDescendantIds = (id: string, nodes: GraphNode[]): string[] => {
+        // Collect descendant IDs using edges
+        const collectDescendantIds = (id: string, nodes: GraphNode[], edges: Array<{ source: string; target: string }>): string[] => {
           const descendants: string[] = [];
-          const node = nodes.find((n) => n.id === id);
-          if (node) {
-            node.children.forEach((child) => {
-              descendants.push(child.id);
-              descendants.push(...collectDescendantIds(child.id, nodes));
-            });
-          }
+          const childIds = edges.filter(edge => edge.source === id).map(edge => edge.target);
+
+          childIds.forEach((childId) => {
+            descendants.push(childId);
+            descendants.push(...collectDescendantIds(childId, nodes, edges));
+          });
+
           return descendants;
         };
 
         let nodesToDelete = [nodeId];
         if (recursive) {
-          const descendantIds = collectDescendantIds(nodeId, modifiedGraph.nodes);
+          const descendantIds = collectDescendantIds(nodeId, modifiedGraph.nodes, modifiedGraph.edges || []);
           nodesToDelete = [...nodesToDelete, ...descendantIds];
         }
 
         // Remove nodes
         modifiedGraph.nodes = modifiedGraph.nodes.filter((n) => !nodesToDelete.includes(n.id));
 
-        // Remove references
-        modifiedGraph.nodes.forEach((n) => {
-          n.children = n.children.filter((c) => !nodesToDelete.includes(c.id));
-          if (n.parentId && nodesToDelete.includes(n.parentId)) {
-            n.parentId = undefined;
-          }
-        });
+        // Remove edges that reference deleted nodes
+        if (modifiedGraph.edges) {
+          modifiedGraph.edges = modifiedGraph.edges.filter(edge =>
+            !nodesToDelete.includes(edge.source) && !nodesToDelete.includes(edge.target)
+          );
+        }
 
         ensureGraphConsistency(modifiedGraph);
 
@@ -768,7 +626,7 @@ export const graphEditorTools = {
   edit_node: tool({
     description: "Edit an existing node's properties",
     parameters: EditNodeParamsSchema,
-    execute: async ({ nodeId, title, prompt, properties, children }) => withGraphLock(async () => {
+    execute: async ({ nodeId, title, prompt, properties }) => withGraphLock(async () => {
       try {
         if (!pendingGraph) await setCurrentGraph();
 
@@ -785,35 +643,11 @@ export const graphEditorTools = {
 
         if (title !== undefined) {
           nodeToEdit.title = title;
-          modifiedGraph.nodes.forEach((n) => {
-            n.children.forEach((c) => {
-              if (c.id === nodeId) c.title = title;
-            });
-          });
         }
         if (prompt !== undefined) nodeToEdit.prompt = prompt;
         if (properties !== undefined) nodeToEdit.properties = properties;
 
-        if (children !== undefined) {
-          nodeToEdit.children = Array.isArray(children) ? children : [];
-
-          // Sync parent-child for children that exist now
-          const byId = buildIndex(modifiedGraph);
-          nodeToEdit.children.forEach((c) => {
-            const childNode = byId.get(c.id);
-            if (childNode && (!childNode.parentId || childNode.parentId === nodeId)) {
-              childNode.parentId = nodeId;
-            }
-          });
-
-          // Clear parentId for nodes no longer children
-          const currentChildIds = new Set(nodeToEdit.children.map((c) => c.id));
-          modifiedGraph.nodes.forEach((n) => {
-            if (n.parentId === nodeId && !currentChildIds.has(n.id)) {
-              n.parentId = undefined;
-            }
-          });
-        }
+        // Children management is now handled by edges, not direct children property
 
         ensureGraphConsistency(modifiedGraph);
 
@@ -889,11 +723,6 @@ export const graphEditorTools = {
         // Update optional fields
         if (title !== undefined) {
           nodeToEdit.title = title;
-          modifiedGraph.nodes.forEach((n) => {
-            n.children.forEach((c) => {
-              if (c.id === nodeId) c.title = title;
-            });
-          });
         }
         if (prompt !== undefined) nodeToEdit.prompt = prompt;
         // Graph editor is not allowed to set nodes to built; building is handled by a separate agent.
@@ -937,19 +766,19 @@ export const graphEditorTools = {
 
         const graph: Graph = JSON.parse(JSON.stringify(pendingGraph)) as Graph;
 
-        // Helper: collect descendant nodes recursively
-        const collectDescendants = (id: string, nodes: GraphNode[]): GraphNode[] => {
+        // Helper: collect descendant nodes recursively using edges
+        const collectDescendants = (id: string, nodes: GraphNode[], edges: Array<{ source: string; target: string }>): GraphNode[] => {
           const descendants: GraphNode[] = [];
-          const node = nodes.find((n) => n.id === id);
-          if (node) {
-            node.children.forEach((c) => {
-              const childNode = nodes.find((n) => n.id === c.id);
-              if (childNode) {
-                descendants.push(childNode);
-                descendants.push(...collectDescendants(childNode.id, nodes));
-              }
-            });
-          }
+          const childIds = edges.filter(edge => edge.source === id).map(edge => edge.target);
+
+          childIds.forEach((childId) => {
+            const childNode = nodes.find((n) => n.id === childId);
+            if (childNode) {
+              descendants.push(childNode);
+              descendants.push(...collectDescendants(childNode.id, nodes, edges));
+            }
+          });
+
           return descendants;
         };
 
@@ -962,7 +791,7 @@ export const graphEditorTools = {
             state: node.state,
           };
           if (includeProperties) out.properties = node.properties;
-          if (includeChildren) out.children = node.children;
+          // Note: children are now represented by edges, so we don't include them in the node data
           return out;
         };
 
@@ -975,7 +804,7 @@ export const graphEditorTools = {
           }
 
           if (recursive) {
-            const descendants = collectDescendants(nodeId, graph.nodes);
+            const descendants = collectDescendants(nodeId, graph.nodes, graph.edges || []);
             result = {
               targetNode: filterNodeData(targetNode),
               descendants: descendants.map(filterNodeData),

@@ -24,13 +24,23 @@ export default function SelectedNodeSidebar() {
 		updatePropertyInSupabase,
 		updatePropertyLocal,
 		supabaseConnected,
-		connectToGraphEvents
+		connectToGraphEvents,
+		graph
 	} = useProjectStore();
 	const { actions } = useChatService();
 	const { user } = useAuth();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
+
+	// Helper function to get children from edges
+	const getNodeChildren = (nodeId: string) => {
+		if (!graph?.edges) return [];
+		return graph.edges
+			.filter(edge => edge.source === nodeId)
+			.map(edge => graph.nodes.find(n => n.id === edge.target))
+			.filter(Boolean);
+	};
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const stagedPropertyValuesRef = useRef<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
@@ -303,18 +313,21 @@ export default function SelectedNodeSidebar() {
 							</div>
 						)}
 
-						{selectedNode.children?.length > 0 && (
-							<div className="border-t border-zinc-700/30 pt-3">
-								<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({selectedNode.children.length})</div>
-								<ul className="space-y-0.5">
-									{selectedNode.children.map((child: any) => (
-										<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
-											{child.title}
-										</li>
-									))}
-								</ul>
-							</div>
-						)}
+						{(() => {
+							const children = getNodeChildren(selectedNode.id);
+							return children.length > 0 && (
+								<div className="border-t border-zinc-700/30 pt-3">
+									<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({children.length})</div>
+									<ul className="space-y-0.5">
+										{children.map((child: any) => (
+											<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
+												{child.title}
+											</li>
+										))}
+									</ul>
+								</div>
+							);
+						})()}
 					</>
 				)}
 				</div>
