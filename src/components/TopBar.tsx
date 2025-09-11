@@ -4,11 +4,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Folder, Code, Edit3, Eye, Monitor, User, LogOut, Network, Download, RotateCcw, Key, Copy, Check } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
-import AuthModal from '@/components/auth/AuthModal';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Folder, Edit3, Eye, Monitor, Network, Download, RotateCcw, Key, Copy, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 // Remove SandboxService import - using direct API calls now
@@ -17,7 +13,6 @@ import { useProjectStore } from '@/lib/store';
 interface TopBarProps {
   panels: {
     files: boolean;
-    editor: boolean;
     viewer: boolean;
     graph: boolean;
     sandbox: boolean;
@@ -29,8 +24,6 @@ interface TopBarProps {
 
 export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMode}: TopBarProps) {
   const switchId = useId();
-  const { user, signOut, loading } = useAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { loadProject, setGraphLoading, resetStore, setResetting } = useProjectStore();
@@ -40,18 +33,13 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
   const openApiKeyDialog = async () => {
     setIsApiKeyOpen(true);
-    if (!user) return;
     setApiKey('');
     setApiKeyError(null);
     setApiKeyLoading(true);
     try {
-      const res = await fetch('/api/mcp/access-token', { method: 'GET', credentials: 'include' });
+      const res = await fetch('/api/mcp/access-token', { method: 'GET' });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to fetch API key');
       setApiKey(data?.token || '');
@@ -222,17 +210,6 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
                             <Folder className="w-3.5 h-3.5" />
             </Button>
 
-            <Button
-              variant={panels.editor ? "default" : "outline"}
-              size="sm"
-              onClick={() => onTogglePanel('editor')}
-              className={panels.editor
-                                 ? "bg-zinc-700 text-white border-0 h-6 w-6 p-0 rounded-sm"
-                : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
-              }
-            >
-                            <Code className="w-3.5 h-3.5" />
-             </Button>
 
              <Button
                variant={panels.viewer ? "default" : "outline"}
@@ -291,54 +268,20 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
           </Button>
 
           {/* API Key Dialog Button */}
-          {user && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openApiKeyDialog}
-              className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
-              title="Show API key for MCP"
-            >
-              <Key className="w-3.5 h-3.5" />
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openApiKeyDialog}
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
+            title="Show API key for MCP"
+          >
+            <Key className="w-3.5 h-3.5" />
+          </Button>
           </div>
 
-          {/* Authentication Section */}
-          <div className="flex items-center gap-2">
-            {loading ? (
-              <div className="w-6 h-6 rounded-full border-2 border-zinc-600 border-t-white animate-spin"></div>
-            ) : user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                                 {/*    <Button variant="ghost" className="flex items-center gap-1.5 px-1.5 h-7">
-                     <Avatar className="h-5 w-5">
-                       <AvatarImage src={user.avatar || undefined} />
-                       <AvatarFallback className="text-xs">{user.name?.[0] || '?'}</AvatarFallback>
-                     </Avatar>
-                     <span className="hidden sm:inline text-white text-xs">{user.name || user.email}</span>
-                   </Button>*/}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
-                    <LogOut size={16} /> Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setIsAuthModalOpen(true)}>
-                <User className="mr-1 h-3 w-3" /> Sign In
-              </Button>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-      />
 
       {/* API Key Dialog */}
       <Dialog open={isApiKeyOpen} onOpenChange={setIsApiKeyOpen}>

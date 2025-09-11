@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -24,10 +23,7 @@ function withBearerToCookie(headersIn: Headers): Headers {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: withBearerToCookie(req.headers) });
-    if (!LOCAL_MODE && !session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const userId = session?.user?.id as string | undefined;
+    const userId = 'default-user';
     let jobs = readJobs().filter(j => j.status === 'queued');
     if (userId) jobs = jobs.filter(j => j.user_id === userId);
     jobs.sort((a, b) => (b.priority - a.priority) || ((a.created_at ?? '').localeCompare(b.created_at ?? '')));

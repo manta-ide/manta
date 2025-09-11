@@ -1,32 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current user session
-    const session = await auth.api.getSession({ headers: request.headers });
-    
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const { user } = session;
-    console.log('Initializing sandbox for user:', user.id);
+    // Use default user for sandbox initialization
+    const userId = 'default-user';
+    const userEmail = 'user@manta.local';
+    console.log('Initializing sandbox for user:', userId);
     
     // Initialize sandbox for the user
     const sandboxInfo = await SandboxService.initializeUserSandbox(
-      user.id,
-      user.email
+      userId,
+      userEmail
     );
 
     // Setup base template project in the sandbox (async, don't wait for it)
-    console.log('Setting up base template project for user:', user.id);
-    SandboxService.setupBaseTemplate(user.id).catch(error => {
+    console.log('Setting up base template project for user:', userId);
+    SandboxService.setupBaseTemplate(userId).catch(error => {
       console.error('Failed to setup base template (non-blocking):', error);
     });
 
@@ -50,25 +41,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get current user session
-    const session = await auth.api.getSession({ headers: request.headers });
-    
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const { user } = session;
+    // Use default user for sandbox info
+    const userId = 'default-user';
+    const userEmail = 'user@manta.local';
 
     // Try to get sandbox, and auto-create if missing (backup path)
-    let sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);
+    let sandboxInfo = await SandboxService.getUserSandboxInfo(userId);
     if (!sandboxInfo || !sandboxInfo.previewUrl) {
       try {
-        sandboxInfo = await SandboxService.initializeUserSandbox(user.id, user.email);
+        sandboxInfo = await SandboxService.initializeUserSandbox(userId, userEmail);
         // Fire-and-forget template setup
-        SandboxService.setupBaseTemplate(user.id).catch(err => {
+        SandboxService.setupBaseTemplate(userId).catch(err => {
           console.error('Failed to setup base template (non-blocking GET):', err);
         });
       } catch (e) {

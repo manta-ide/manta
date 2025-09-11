@@ -8,7 +8,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { isValidSelection } from '@/app/api/lib/selectionUtils';
-import { useAuth } from '@/lib/auth-context';
 import { 
   Message, 
   MessageContext
@@ -20,23 +19,19 @@ import {
  */
 export function useChatService() {
   const { currentFile, selection, setSelection, selectedNodeId, selectedNode } = useProjectStore();
-  const { user } = useAuth();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Load chat history when user becomes available
-  useEffect(() => {
-    if (user?.id) {
-      loadChatHistory();
-    }
-  }, [user?.id]);
+  // Load chat history (no user check anymore)
+useEffect(() => {
+  loadChatHistory();
+}, []);
+
 
   // Function to load chat history from database
   const loadChatHistory = useCallback(async () => {
-    if (!user?.id) return;
-
     setLoadingHistory(true);
     try {
       const response = await fetch('/api/chat', {
@@ -48,11 +43,11 @@ export function useChatService() {
         const { chatHistory } = await response.json();
         setMessages(chatHistory || []);
       } else {
-        // Only log error if it's not a 404 (user has no chat history yet)
+        // Only log error if it's not a 404 (no chat history yet)
         if (response.status !== 404) {
           console.error('Failed to load chat history:', response.status, response.statusText);
         }
-        // Set empty array for new users
+        // Set empty array for new sessions
         setMessages([]);
       }
     } catch (error) {
@@ -60,12 +55,10 @@ export function useChatService() {
     } finally {
       setLoadingHistory(false);
     }
-  }, [user?.id]);
+  }, []);
 
   // Function to save chat history to database
   const saveChatHistory = useCallback(async (newMessages: Message[]) => {
-    if (!user?.id) return;
-
     try {
       await fetch('/api/chat', {
         method: 'POST',
@@ -76,7 +69,7 @@ export function useChatService() {
     } catch (error) {
       console.error('Error saving chat history:', error);
     }
-  }, [user?.id]);
+  }, []);
 
   const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNode?: boolean }) => {
     if (!input.trim()) return;
@@ -355,28 +348,26 @@ export function useChatService() {
     }
   }, [currentFile, selection, selectedNodeId, selectedNode, setSelection, messages, saveChatHistory]);
 
+  // Function to clear chat history
   const clearMessages = useCallback(async () => {
     try {
       // Clear frontend state immediately
       setMessages([]);
       setLoading(false);
       
-      // Clear user's chat history from database
-      if (user?.id) {
-        const response = await fetch('/api/chat', {
-          method: 'DELETE',
-          credentials: 'include',
-        });
-        
-        if (!response.ok) {
-          console.error('Failed to clear chat history from database');
-        }
-      }
+      // Clear chat history from database
+      const response = await fetch('/api/chat', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       
+      if (!response.ok) {
+        console.error('Failed to clear chat history from database');
+      }
     } catch (error) {
       console.error('Error clearing conversation:', error);
     }
-  }, [user?.id]);
+  }, []);
 
   return {
     state: { messages, loading, loadingHistory },

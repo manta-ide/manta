@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import '@/app/api/lib/prompts/registry';
@@ -109,12 +108,8 @@ const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) =
 
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate request to associate graph with user
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session || !session.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-    }
-    const userId = session.user.id;
+    // Use default user for all requests
+    const userId = 'default-user';
 
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {

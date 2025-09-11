@@ -26,7 +26,6 @@ import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
 
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -348,7 +347,6 @@ function GraphCanvas() {
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
   const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
-  const { user } = useAuth();
   
   // Use the store for graph data with Supabase integration
   const { 
@@ -364,6 +362,8 @@ function GraphCanvas() {
 
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
+  // Auth removed; define placeholder to avoid TS errors
+  const user: any = null;
 
   // Log connection status to local graph events
   useEffect(() => {
@@ -507,7 +507,7 @@ function GraphCanvas() {
     }
   }, [selectedNode, updateNodeInSupabase]);
 
-  // Connection is managed centrally by AuthProvider; avoid duplicate connections here
+  // Connection is managed by the store
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {

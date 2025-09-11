@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../lib/graph-service';
-import { auth } from '@/lib/auth';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 
-// Map Authorization: Bearer <session_token> to Better Auth cookie for compatibility with MCP
+// Get default user for all requests
 async function getSessionFromRequest(req: NextRequest) {
-  const headers = new Headers(req.headers);
-  const authz = headers.get('authorization');
-  if (authz && authz.toLowerCase().startsWith('bearer ')) {
-    const token = authz.slice(7).trim();
-    const existingCookie = headers.get('cookie') || '';
-    const sessionCookie = `better-auth.session_token=${token}`;
-    headers.set('cookie', existingCookie ? `${existingCookie}; ${sessionCookie}` : sessionCookie);
-  }
-  if (LOCAL_MODE) {
-    return { user: { id: 'local' } } as any;
-  }
-  return auth.api.getSession({ headers });
+  return { user: { id: 'default-user' } } as any;
 }
 
 export async function GET(req: NextRequest) {
@@ -25,13 +13,7 @@ export async function GET(req: NextRequest) {
     // Get current user session for all GET requests
     const session = await getSessionFromRequest(req);
     
-    if (!LOCAL_MODE && (!session || !session.user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in to access your sandbox' },
-        { status: 401 }
-      );
-    }
-    const user = session?.user || { id: 'local' };
+    const user = session?.user || { id: 'default-user' };
     
     // Check if this is an SSE request
     const url = new URL(req.url);
@@ -163,13 +145,7 @@ export async function POST(req: NextRequest) {
     // Get current user session
     const session = await getSessionFromRequest(req);
     
-    if (!LOCAL_MODE && (!session || !session.user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in to access your sandbox' },
-        { status: 401 }
-      );
-    }
-    const user = session?.user || { id: 'local' };
+    const user = session?.user || { id: 'default-user' };
     
     const body = await req.json();
     const { nodeId, action } = body;
@@ -246,13 +222,7 @@ export async function PUT(req: NextRequest) {
     // Get current user session
     const session = await getSessionFromRequest(req);
     
-    if (!LOCAL_MODE && (!session || !session.user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in to access your sandbox' },
-        { status: 401 }
-      );
-    }
-    const user = session?.user || { id: 'local' };
+    const user = session?.user || { id: 'default-user' };
     
     const body = await req.json();
     const { graph } = body;
@@ -290,14 +260,7 @@ export async function PATCH(req: NextRequest) {
     // Get current user session
     const session = await getSessionFromRequest(req);
     
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in to access your sandbox' },
-        { status: 401 }
-      );
-    }
-
-    const { user } = session;
+    const user = { id: 'default-user' };
     
     const body = await req.json();
     const { nodeId, propertyId, value } = body;
