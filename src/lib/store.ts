@@ -213,16 +213,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
-      console.log('📊 Loading graph from local API...');
       const res = await fetch('/api/graph-api', { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
       const xml = await res.text();
       const graph = xmlToGraph(xml);
       set({ graph, graphLoading: false, graphError: null });
-      console.log(`✅ Loaded graph with ${graph.nodes?.length || 0} nodes`);
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });
-      console.error('❌ Error loading graph:', error);
+      console.error('Error loading graph:', error);
     }
   },
   
@@ -311,19 +309,35 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (graphEventSource) { graphEventSource.close(); graphEventSource = null; }
       const es = new EventSource('/api/graph-api?sse=true');
       graphEventSource = es;
+
+      es.onopen = () => {
+        set({ graphConnected: true });
+      };
+
       es.onmessage = (ev) => {
         try {
           const raw = ev.data || '';
           if (raw.trim().startsWith('<')) {
             const graph = xmlToGraph(raw);
             set({ graph, graphLoading: false, graphError: null, graphConnected: true });
+          } else if (raw.length > 100 && !raw.includes(' ') && /^[A-Za-z0-9+/=]+$/.test(raw)) {
+            // Likely base64 encoded XML (contains only base64 characters)
+            try {
+              const decodedXml = atob(raw);
+              const graph = xmlToGraph(decodedXml);
+              set({ graph, graphLoading: false, graphError: null, graphConnected: true });
+            } catch (decodeError) {
+              console.error('Failed to decode base64 XML:', decodeError);
+            }
           } else {
             const data = JSON.parse(raw);
             if (data?.type === 'graph-update' && data.graph) {
               set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
             }
           }
-        } catch {}
+        } catch (error) {
+          console.error('Error processing SSE message:', error);
+        }
       };
       es.onerror = () => {
         set({ graphConnected: false });
@@ -331,7 +345,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Kick initial load
       await get().loadGraph();
     } catch (error) {
-      console.error('❌ Error connecting to graph events:', error);
+      console.error('Error connecting to graph events:', error);
       set({ graphError: 'Failed to connect to graph events' });
     }
   },

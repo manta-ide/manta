@@ -159,18 +159,37 @@ function generateNestedXml(p: Property): string {
       return generateFieldXml(field, fieldValue);
     }).join('\n        ');
     return `\n        ${fieldXml}\n      `;
-  } else if (type === 'object-list' && (p as any)?.itemFields) {
+  } else if (type === 'object-list') {
     // Generate nested array structure
     const items = Array.isArray((p as any)?.value) ? (p as any).value : [];
-    const itemFields = (p as any).itemFields as Property[];
-    const itemXml = items.map((item: any, index: number) => {
-      const itemFieldXml = itemFields.map(field => {
-        const fieldValue = item[field.id];
-        return generateFieldXml(field, fieldValue);
-      }).join('\n          ');
-      return `        <item index="${index}">\n          ${itemFieldXml}\n        </item>`;
-    }).join('\n');
-    return `\n${itemXml}\n      `;
+    let itemFields = (p as any).itemFields as Property[];
+
+    // If itemFields is not defined but we have items, infer from the first item
+    if (!itemFields && items.length > 0) {
+      const firstItem = items[0];
+      if (firstItem && typeof firstItem === 'object') {
+        itemFields = Object.keys(firstItem).map(key => ({
+          id: key,
+          title: key,
+          type: typeof firstItem[key] === 'string' ? 'string' : 'text',
+          value: ''
+        })) as Property[];
+      }
+    }
+
+    if (itemFields && itemFields.length > 0) {
+      const itemXml = items.map((item: any, index: number) => {
+        const itemFieldXml = itemFields!.map(field => {
+          const fieldValue = item[field.id];
+          return generateFieldXml(field, fieldValue);
+        }).join('\n          ');
+        return `        <item index="${index}">\n          ${itemFieldXml}\n        </item>`;
+      }).join('\n');
+      return `\n${itemXml}\n      `;
+    } else {
+      // Fallback: just serialize the array as JSON if we can't infer structure
+      return escapeXml(valueToText(p));
+    }
   } else {
     // Simple value
     return escapeXml(valueToText(p));

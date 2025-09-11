@@ -367,7 +367,7 @@ function GraphCanvas() {
 
   // Log connection status to local graph events
   useEffect(() => {
-    console.log('📊 GraphView: Ready. User:', user ? { id: user.id, email: user.email } : null);
+    // Component ready
   }, [user?.id]);
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
@@ -402,7 +402,7 @@ function GraphCanvas() {
     try {
       const response = await fetch('/api/graph-api', { method: 'DELETE' });
       if (response.ok) {
-        console.log('✅ Graph deleted successfully');
+        // Graph deleted successfully
       } else {
         console.error('❌ Failed to delete graph');
       }
@@ -433,7 +433,7 @@ function GraphCanvas() {
       });
       
       if (response.ok) {
-        console.log('✅ Full graph rebuild started successfully');
+        // Full graph rebuild started successfully
         // The graph will be automatically updated via SSE
         // Also refresh the preview iframe since code changed
         try {
@@ -512,16 +512,9 @@ function GraphCanvas() {
     const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
     const reactFlowNode = node.data?.node as GraphNode;
 
-    console.log('🎯 onNodeClick:', node.id);
+    // Handle node click - sync properties between fresh graph data and ReactFlow
     const bgColorFresh = freshGraphNode?.properties?.find(p => p.id === 'background-color')?.value;
     const bgColorReactFlow = reactFlowNode?.properties?.find(p => p.id === 'background-color')?.value;
-    console.log('🎯 background-color comparison:', {
-      fresh: bgColorFresh,
-      reactFlow: bgColorReactFlow,
-      match: bgColorFresh === bgColorReactFlow
-    });
-    console.log('🎯 freshGraphNode properties:', freshGraphNode?.properties?.map(p => ({ id: p.id, value: p.value })));
-    console.log('🎯 reactFlowNode properties:', reactFlowNode?.properties?.map(p => ({ id: p.id, value: p.value })));
 
     if (freshGraphNode) {
       setSelectedNode(node.id, freshGraphNode);
@@ -531,16 +524,13 @@ function GraphCanvas() {
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
-      console.log('🔄 GraphView: Rebuilding ReactFlow nodes from graph');
       if (!graph || !graph.nodes) {
-        console.log('🔄 GraphView: No graph data, clearing nodes');
         setNodes([]);
         setEdges([]);
         return;
       }
 
       // Collect positions from database if present
-      console.log('📊 GraphView: Using stored positions from database where available');
       let nodePositions = new Map<string, { x: number; y: number }>();
       const nodesMissingPos: string[] = [];
 
@@ -628,7 +618,7 @@ function GraphCanvas() {
           : (nodePositions.get(node.id) || { x: 0, y: 0 });
 
         const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
-        console.log(`🔄 GraphView: Creating ReactFlow node ${node.id} with background-color: ${backgroundColor}`);
+        // Create ReactFlow node with styling
 
         return {
           id: node.id,
@@ -684,10 +674,7 @@ function GraphCanvas() {
         }
       });
 
-      console.log(`📊 GraphView: Created ${reactFlowEdges.length} visual edges from graph data`);
-      if ((graph as any).edges) {
-        console.log(`📊 GraphView: Graph has ${(graph as any).edges.length} edges in data`);
-      }
+      // Create visual edges from graph data
 
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
