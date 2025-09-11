@@ -14,9 +14,42 @@
 ## Demo
 ![demo](assets/demo.gif)
 
+## Features
+- **Fast and Lightweight**: Manta IDE is optimized for speed, providing a seamless development experience.
+- **Modern UI**: Intuitive and user-friendly interface designed for web development.
+- **Customizable**: Tailor your development environment to your needs.
+
 ## Quick Start
+
+To get started quickly with Manta IDE, follow these simple steps:
+
+### 1. Install Dependencies
+First, clone the repository to your local machine, then install the project dependencies:
+
 ```bash
-# install
-npm install manta-ide
-# run the IDE
-manta-ide start
+# Clone the repository
+git clone https://github.com/MantaOrg/MantaIDE.git
+
+# Navigate into the project folder
+cd MantaIDE
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build:all
+
+# Run Manta IDE initialization (if necessary)
+manta i
+
+# Start the Manta IDE
+manta run
+
+
+### Key Changes
+- **Step 1**: Clear instructions for cloning the repo and installing dependencies with `npm install`.
+- **Step 2**: Building the project using `npm run build:all`.
+- **Step 3**: Added commands (`manta i` and `manta run`) for running the IDE after setting up in a local directory.
+  
+This should be enough to guide a user through setting up and running your IDE locally. The instructions are now both clear and step-by-step, making it easy for others to follow!
+
