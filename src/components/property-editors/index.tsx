@@ -84,6 +84,13 @@ export default function PropertyEditor({ property, onChange, onPreview }: Proper
           onChange={handleChange}
         />
       );
+    case 'string':
+      return (
+        <TextPropertyEditor
+          property={property as Property & { type: 'text' }}
+          onChange={handleChange}
+        />
+      );
     case 'number':
       return (
         <NumberPropertyEditor

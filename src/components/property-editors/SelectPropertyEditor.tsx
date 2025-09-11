@@ -15,12 +15,12 @@ export default function SelectPropertyEditor({ property, onChange, onPreview }: 
   return (
     <BasePropertyEditor title={property.title}>
       <div className="flex items-center border border-zinc-700 rounded bg-zinc-800">
-        <Select value={property.value as string || ''} onValueChange={onChange}>
+        <Select value={property.value as string || ''} onValueChange={onChange} disabled={!Array.isArray(property.options) || property.options.length === 0}>
           <SelectTrigger className="flex-1 bg-zinc-800 border-none text-white hover:bg-zinc-700 focus:ring-1 focus:ring-blue-500 focus:border-transparent rounded text-xs h-7">
-            <SelectValue placeholder="Select option..." />
+            <SelectValue placeholder={Array.isArray(property.options) && property.options.length > 0 ? "Select option..." : "Loading options..."} />
           </SelectTrigger>
           <SelectContent className="bg-zinc-800 border-zinc-700">
-            {Array.isArray(property.options) ? property.options.map((option: string) => (
+            {Array.isArray(property.options) && property.options.length > 0 ? property.options.map((option: string) => (
               <SelectItem
                 key={option}
                 value={option}
@@ -31,9 +31,9 @@ export default function SelectPropertyEditor({ property, onChange, onPreview }: 
                 {option}
               </SelectItem>
             )) : (
-              <SelectItem value="" className="text-white hover:bg-zinc-700 focus:bg-zinc-700">
-                No options available
-              </SelectItem>
+              <div className="px-2 py-1 text-xs text-zinc-400">
+                {Array.isArray(property.options) ? 'No options available' : 'Loading options...'}
+              </div>
             )}
           </SelectContent>
         </Select>

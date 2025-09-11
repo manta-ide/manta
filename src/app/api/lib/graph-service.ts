@@ -33,10 +33,15 @@ function readGraphFromFs(): Graph | null {
   try {
     const pXml = getGraphPath();
     const pJson = getLegacyGraphJsonPath();
+    console.log('pXml', pXml);
+    console.log('pJson', pJson);
     if (fs.existsSync(pXml)) {
       const raw = fs.readFileSync(pXml, 'utf8');
+      console.log('raw', raw);
       const graph = xmlToGraph(raw);
+      console.log('xmlgraph', graph);
       const parsed = GraphSchema.safeParse(graph);
+      console.log('parsed', parsed);
       return parsed.success ? parsed.data : (graph as Graph);
     }
     if (fs.existsSync(pJson)) {
@@ -47,6 +52,7 @@ function readGraphFromFs(): Graph | null {
         const parsed = GraphSchema.safeParse(data);
         const graph = parsed.success ? parsed.data : (data as Graph);
         try { writeGraphToFs(graph); } catch {}
+        console.log('graph', graph);
         return graph;
       }
     }

@@ -17,7 +17,18 @@ export default function ObjectPropertyEditor({ property, onChange }: ObjectPrope
     ? (property.value as Record<string, any>)
     : {};
 
-  const fields = Array.isArray(property.fields) ? property.fields : [];
+  const explicitFields = Array.isArray(property.fields) ? property.fields : [];
+
+  // If no explicit fields defined, create them dynamically from the object keys
+  const fields = explicitFields.length > 0 ? explicitFields : Object.keys(value).map(key => ({
+    id: key,
+    title: key.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Convert to title case
+    type: typeof value[key] === 'string' ? 'string' :
+          typeof value[key] === 'number' ? 'number' :
+          typeof value[key] === 'boolean' ? 'boolean' :
+          'string', // fallback to string for complex types
+    value: value[key]
+  }));
 
   const handleChildChange = (childId: string, childValue: any) => {
     const next = { ...value, [childId]: childValue };

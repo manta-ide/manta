@@ -2,6 +2,28 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import fs from 'node:fs';
 import path from 'node:path';
+import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+
+// Configure XML parser for MCP context
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  textNodeName: '#text',
+  allowBooleanAttributes: true,
+  parseAttributeValue: true,
+  trimValues: true,
+  parseTagValue: true,
+  processEntities: true,
+  stopNodes: ['*.#text', '*.@_value', '*.@_options']
+});
+
+const xmlBuilder = new XMLBuilder({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  format: true,
+  suppressBooleanAttributes: false
+});
+
 // Lightweight XML converter duplicated for MCP context (no TS path aliases here)
 function escapeXml(text: string): string {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');
@@ -19,34 +41,362 @@ function collectTags(xml: string, tag: string): Array<{ attrs: Record<string,str
   const out: Array<{ attrs: Record<string,string>; inner: string }> = []; const re = new RegExp(`<${tag}([^>]*)>([\\s\\S]*?)<\\/${tag}>`, 'gi'); const self = new RegExp(`<${tag}([^>]*)\\/>`, 'gi'); let m: RegExpExecArray | null; while ((m = re.exec(xml)) !== null) out.push({ attrs: parseAttrBlock(m[1] || ''), inner: m[2] || '' }); while ((m = self.exec(xml)) !== null) out.push({ attrs: parseAttrBlock(m[1] || ''), inner: '' }); return out;
 }
 function graphToXml(graph: any): string {
-  const header = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>`; const ns = `xmlns=\"urn:app:graph\"`; const directed = `directed=\"true\"`; const version = `version=\"1.0\"`;
-  const childrenSet = new Set<string>(); for (const n of graph.nodes || []) for (const c of (n.children || [])) childrenSet.add(`${n.id}→${c.id}`);
+  const header = `<?xml version="1.0" encoding="UTF-8"?>`;
+  const ns = `xmlns="urn:app:graph"`;
+  const directed = `directed="true"`;
+  const version = `version="1.0"`;
+
+  const childrenSet = new Set<string>();
+  for (const n of graph.nodes || []) {
+    for (const c of (n.children || [])) {
+      childrenSet.add(`${n.id}→${c.id}`);
+    }
+  }
+
   const nodes = (graph.nodes || []).map((n: any) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
     const buildStatus = n.state || 'unbuilt';
-    const state = `\n      <state status=\"active\">\n        <build status=\"${escapeXml(String(buildStatus))}\"/>\n      </state>`;
-    const props = Array.isArray(n.properties) && n.properties.length > 0 ? `\n      <props>\n${n.properties.map((p: any) => `        <prop name=\"${escapeXml(String(p.id || ''))}\" type=\"${escapeXml(String((p.type === 'object' || p.type === 'object-list') ? 'json' : p.type || 'string'))}\">${escapeXml(typeof p.value === 'string' ? p.value : (p.value === undefined || p.value === null ? '' : JSON.stringify(p.value)))}</prop>`).join("\n")}\n      </props>` : '';
-    return `    <node id=\"${escapeXml(n.id)}\" title=\"${escapeXml(n.title)}\">${desc}${state}${props}\n    </node>`;
+    const state = `\n      <state status="active">\n        <build status="${escapeXml(String(buildStatus))}"/>\n      </state>`;
+
+    // Generate properties with proper XML structure
+    let props = '';
+    if (Array.isArray(n.properties) && n.properties.length > 0) {
+      const propXmls = n.properties.map((p: any) => {
+        const propType = (p as any)?.type;
+        const options = (p as any)?.options;
+
+        if (propType === 'object' || propType === 'object-list') {
+          // Use nested XML structure for objects and arrays
+          const nestedContent = generateNestedXml(p);
+          return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(propType)}">${nestedContent}</prop>`;
+        } else if (Array.isArray(options) && options.length > 0) {
+          // Property with options - use XML format
+          const optionsXml = options.map(option => `          <option>${escapeXml(String(option))}</option>`).join('\n');
+          return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}">
+          <value>${escapeXml(valueToText(p))}</value>
+          <options>
+${optionsXml}
+          </options>
+        </prop>`;
+        } else {
+          // Simple property without options
+          return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}">${escapeXml(valueToText(p))}</prop>`;
+        }
+      });
+      props = `\n      <props>\n${propXmls.join("\n")}\n      </props>`;
+    }
+
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}">${desc}${state}${props}\n    </node>`;
   }).join('\n\n');
+
   const allEdges = (graph.edges || []) as Array<{ id?: string; source: string; target: string; role?: string }>;
-  const edges = allEdges.map((e) => { const role = childrenSet.has(`${e.source}→${e.target}`) ? 'contains' : (e as any).role || 'links-to'; const id = e.id || `${e.source}-${e.target}`; return `    <edge id=\"${escapeXml(id)}\" source=\"${escapeXml(e.source)}\" target=\"${escapeXml(e.target)}\" role=\"${escapeXml(role)}\"/>`; }).join('\n');
+  const edges = allEdges.map((e) => {
+    const role = childrenSet.has(`${e.source}→${e.target}`) ? 'contains' : (e as any).role || 'links-to';
+    const id = e.id || `${e.source}-${e.target}`;
+    return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"/>`;
+  }).join('\n');
+
   return `${header}\n<graph ${ns} ${version} ${directed}>\n  <nodes>\n${nodes}\n  </nodes>\n\n  <edges>\n${edges}\n  </edges>\n</graph>\n`;
 }
 function xmlToGraph(xml: string): any {
-  const nodesXml = extractTagContent(xml, 'nodes') || ''; const edgesXml = extractTagContent(xml, 'edges') || '';
-  const nodeTags = collectTags(nodesXml, 'node');
-  const nodes = nodeTags.map(({ attrs, inner }) => {
-    const id = attrs['id'] || ''; const title = attrs['title'] || ''; const description = (extractTagContent(inner, 'description') || '').trim(); const stateBlock = extractTagContent(inner, 'state') || '';
-    let buildStatus: string | undefined; const buildTags = collectTags(stateBlock, 'build'); if (buildTags.length > 0) buildStatus = (buildTags[0].attrs['status'] || '').trim(); else { const m = /<build\s+([^>]*)\/>/i.exec(stateBlock); if (m) buildStatus = (parseAttrBlock(m[1] || '')['status'] || '').trim(); }
-    const propsBlock = extractTagContent(inner, 'props') || ''; const propTags = collectTags(propsBlock, 'prop'); const properties = propTags.map(({ attrs: pa, inner: pi }) => { const name = pa['name'] || ''; const type = (pa['type'] || 'string'); const raw = (pi || '').trim(); let value: any = raw; if (type === 'number') { const n = Number(raw); value = Number.isFinite(n) ? n : raw; } else if (type === 'boolean') { if (raw.toLowerCase() === 'true') value = true; else if (raw.toLowerCase() === 'false') value = false; } else if (type === 'json' || raw.startsWith('{') || raw.startsWith('[')) { try { value = JSON.parse(raw); } catch { value = raw; } } return { id: name, title: name, type, value }; });
-    return { id, title, prompt: unescapeXml(description), children: [], state: buildStatus || 'unbuilt', properties };
-  });
-  const edges: Array<{ id: string; source: string; target: string; role?: string }> = []; let m: RegExpExecArray | null; const edgeSelf = new RegExp(`<edge([^>]*)\\/>`, 'gi'); const edgeOpen = new RegExp(`<edge([^>]*)>([\\s\\S]*?)<\\/edge>`, 'gi');
-  while ((m = edgeSelf.exec(edgesXml)) !== null) { const a = parseAttrBlock(m[1] || ''); const id = a['id'] || `${a['source']}-${a['target']}`; edges.push({ id, source: a['source'] || '', target: a['target'] || '', role: a['role'] }); }
-  while ((m = edgeOpen.exec(edgesXml)) !== null) { const a = parseAttrBlock(m[1] || ''); const id = a['id'] || `${a['source']}-${a['target']}`; edges.push({ id, source: a['source'] || '', target: a['target'] || '', role: a['role'] }); }
-  const byId = new Map(nodes.map((n: any) => [n.id, n])); for (const e of edges) { const parent = byId.get(e.source); const child = byId.get(e.target); if (parent && child) { parent.children = parent.children || []; if (!parent.children.find((c: any) => c.id === child.id)) parent.children.push({ id: child.id, title: child.title }); } }
-  return { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })) };
+  try {
+    // Parse XML using fast-xml-parser
+    const parsedXml = xmlParser.parse(xml);
+
+    // Extract graph data from parsed XML
+    const graphData = parsedXml.graph;
+    if (!graphData) {
+      throw new Error('Invalid graph XML: missing <graph> root');
+    }
+
+    const nodesData = graphData.nodes;
+    const edgesData = graphData.edges;
+
+    if (!nodesData) {
+      throw new Error('Invalid graph XML: missing <nodes> section');
+    }
+
+    // Handle both single node and array of nodes
+    const nodeList = Array.isArray(nodesData.node) ? nodesData.node : [nodesData.node];
+    const nodes: GraphNode[] = nodeList.filter(Boolean).map((nodeData: any) => {
+      const id = nodeData['@_id'] || '';
+      const title = nodeData['@_title'] || '';
+
+      if (!id) {
+        throw new Error(`Node missing required id attribute: ${JSON.stringify(nodeData)}`);
+      }
+
+      const description = (nodeData.description?.['#text'] || nodeData.description || '').trim();
+      const stateData = nodeData.state;
+      let buildStatus: string | undefined;
+
+      // Extract build status from parsed state data
+      if (stateData?.build) {
+        buildStatus = stateData.build['@_status'] || stateData.build['#text'] || 'built';
+      }
+
+      // Default to 'built' if status is missing but state block exists
+      if (!buildStatus && stateData) {
+        buildStatus = 'built';
+      }
+
+      // Parse properties using fast-xml-parser
+      const propsData = nodeData.props;
+      let properties: Property[] = [];
+
+      if (propsData?.prop) {
+        const propList = Array.isArray(propsData.prop) ? propsData.prop : [propsData.prop];
+        const parsedProperties: Property[] = [];
+        const propertyMap = new Map<string, Property>();
+
+        propList.filter(Boolean).forEach((propData: any) => {
+          const name = propData['@_name'] || '';
+          const xmlTitle = propData['@_title'] || name;
+          const xmlType = propData['@_type'] || 'string';
+          const xmlOptions = propData['@_options'] || '';
+
+          let value: any;
+          let finalType: any = xmlType;
+          let fields: Property[] = [];
+          let itemFields: Property[] = [];
+          let options: any[] = [];
+
+          // Check if property has XML options structure
+          if (propData.value && propData.options) {
+            // Property with XML options structure
+            value = propData.value['#text'] || propData.value;
+            const optionList = Array.isArray(propData.options.option) ? propData.options.option : [propData.options.option];
+            options = optionList.filter(Boolean).map((opt: any) => opt['#text'] || opt);
+          } else if (xmlOptions) {
+            // Fallback to old JSON format
+            try {
+              const unescapedOptions = unescapeXml(xmlOptions);
+              options = JSON.parse(unescapedOptions);
+            } catch (e) {
+              console.warn(`Failed to parse options for property ${name}:`, e);
+            }
+            value = propData['#text'] || '';
+          } else {
+            // Simple property
+            value = propData['#text'] || '';
+          }
+
+          if (xmlType === 'object') {
+            // Parse nested object structure using fast-xml-parser
+            const parsedObject: any = {};
+
+            if (propData.field) {
+              const fieldList = Array.isArray(propData.field) ? propData.field : [propData.field];
+
+              fieldList.filter(Boolean).forEach((fieldData: any) => {
+                const fieldName = fieldData['@_name'] || '';
+                const fieldTitle = fieldData['@_title'] || fieldName;
+                const fieldType = fieldData['@_type'] || 'string';
+
+                let fieldValue: any;
+                let fieldOptionsArray: any[] = [];
+
+                if (fieldType === 'select') {
+                  // Parse select field with XML options structure
+                  if (fieldData.value && fieldData.options) {
+                    fieldValue = fieldData.value['#text'] || fieldData.value;
+                    const optionList = Array.isArray(fieldData.options.option) ? fieldData.options.option : [fieldData.options.option];
+                    fieldOptionsArray = optionList.filter(Boolean).map((opt: any) => opt['#text'] || opt);
+                  } else {
+                    fieldValue = fieldData['#text'] || '';
+                  }
+                } else {
+                  // Simple field
+                  fieldValue = fieldData['#text'] || '';
+                }
+
+                parsedObject[fieldName] = fieldValue;
+
+                const fieldDef: any = {
+                  id: fieldName,
+                  title: fieldTitle,
+                  type: fieldType,
+                  value: fieldValue
+                };
+
+                if (fieldOptionsArray.length > 0) {
+                  fieldDef.options = fieldOptionsArray;
+                }
+
+                fields.push(fieldDef as Property);
+              });
+            }
+
+            value = parsedObject;
+          } else if (xmlType === 'object-list') {
+            // Parse nested array structure using fast-xml-parser
+            const parsedArray: any[] = [];
+
+            if (propData.item) {
+              const itemList = Array.isArray(propData.item) ? propData.item : [propData.item];
+
+              // Get field definitions from first item
+              if (itemList.length > 0 && itemList[0].field) {
+                const firstItemFields = Array.isArray(itemList[0].field) ? itemList[0].field : [itemList[0].field];
+                itemFields = firstItemFields.filter(Boolean).map((fieldData: any) => {
+                  const fieldName = fieldData['@_name'] || '';
+                  const fieldTitle = fieldData['@_title'] || fieldName;
+                  const fieldType = fieldData['@_type'] || 'string';
+
+                  const fieldDef: any = {
+                    id: fieldName,
+                    title: fieldTitle,
+                    type: fieldType,
+                    value: ''
+                  };
+
+                  // Extract options if present
+                  if (fieldData.options) {
+                    const optionList = Array.isArray(fieldData.options.option) ? fieldData.options.option : [fieldData.options.option];
+                    fieldDef.options = optionList.filter(Boolean).map((opt: any) => opt['#text'] || opt);
+                  }
+
+                  return fieldDef as Property;
+                });
+              }
+
+              // Parse each item
+              itemList.filter(Boolean).forEach((itemData: any) => {
+                const itemObject: any = {};
+
+                if (itemData.field) {
+                  const fieldList = Array.isArray(itemData.field) ? itemData.field : [itemData.field];
+
+                  fieldList.filter(Boolean).forEach((fieldData: any) => {
+                    const fieldName = fieldData['@_name'] || '';
+                    const fieldType = fieldData['@_type'] || 'string';
+
+                    let fieldValue: any;
+                    if (fieldType === 'select' && fieldData.value) {
+                      fieldValue = fieldData.value['#text'] || fieldData.value;
+                    } else {
+                      fieldValue = fieldData['#text'] || '';
+                    }
+
+                    itemObject[fieldName] = fieldValue;
+                  });
+                }
+
+                parsedArray.push(itemObject);
+              });
+            }
+
+            value = parsedArray;
+          }
+
+          // Create property object
+          const property: any = {
+            id: name,
+            title: xmlTitle,
+            type: finalType,
+            value
+          };
+
+          if (options.length > 0) {
+            property.options = options;
+          }
+
+          if (fields.length > 0) {
+            property.fields = fields;
+          }
+
+          if (itemFields.length > 0) {
+            property.itemFields = itemFields;
+          }
+
+          // Add to parsed properties list
+          parsedProperties.push(property as Property);
+
+          // Add to map for de-duplication (last value wins)
+          propertyMap.set(name, property as Property);
+        });
+
+        // Use de-duplicated properties (last value wins)
+        properties = Array.from(propertyMap.values());
+      }
+
+      return {
+        id,
+        title,
+        prompt: unescapeXml(description),
+        children: [],
+        state: (buildStatus as any) || 'unbuilt',
+        properties
+      } as GraphNode;
+    });
+
+    const edges: Array<{ id: string; source: string; target: string; role?: string }> = [];
+
+    // Parse edges using fast-xml-parser
+    if (edgesData?.edge) {
+      const edgeList = Array.isArray(edgesData.edge) ? edgesData.edge : [edgesData.edge];
+
+      edgeList.filter(Boolean).forEach((edgeData: any) => {
+        const id = edgeData['@_id'] || `${edgeData['@_source']}-${edgeData['@_target']}`;
+        const source = edgeData['@_source'] || '';
+        const target = edgeData['@_target'] || '';
+        const role = edgeData['@_role'];
+
+        if (source && target) {
+          edges.push({ id, source, target, role });
+        }
+      });
+    }
+
+    // Validate edges
+    edges.forEach(edge => {
+      if (!edge.source || !edge.target) {
+        throw new Error(`Invalid edge: missing source or target: ${JSON.stringify(edge)}`);
+      }
+    });
+
+    // Infer children from edges
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    for (const e of edges) {
+      const parent = byId.get(e.source);
+      const child = byId.get(e.target);
+      if (parent && child) {
+        parent.children = parent.children || [];
+        if (!parent.children.find(c => c.id === child.id)) parent.children.push({ id: child.id, title: child.title });
+      }
+    }
+
+    const g: Graph = { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })) as any } as Graph;
+    return g;
+  } catch (error) {
+    throw new Error(`Failed to parse XML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
+// Define types for MCP
+interface Property {
+  id: string;
+  title: string;
+  type: string;
+  value?: any;
+  options?: any[];
+  fields?: Property[];
+  itemFields?: Property[];
+}
+
+interface GraphNode {
+  id: string;
+  title: string;
+  prompt?: string;
+  children: Array<{ id: string; title: string }>;
+  state?: string;
+  properties: Property[];
+}
+
+interface Graph {
+  nodes: GraphNode[];
+  edges: Array<{ id: string; source: string; target: string }>;
+}
+
 // Load shared schemas synchronously to avoid delaying MCP handshake
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -97,7 +447,7 @@ async function httpGet(url: string, token?: string) {
     if (ct.includes('xml')) {
       const xml = await res.text();
       const parsed = xmlToGraph(xml);
-      return { graph: parsed } as any;
+      return { graph: parsed, rawXml: xml } as any; // Include rawXml for API XML responses
     }
     return res.json() as any;
   } catch (e) {
@@ -106,8 +456,16 @@ async function httpGet(url: string, token?: string) {
       // eslint-disable-next-line no-console
       console.error(`[manta-mcp] GET fallback: ${url} -> ${alt}`);
       try {
-        const res = await fetch(alt, { method: 'GET', headers: buildAuthHeaders(token) });
+        const headers = buildAuthHeaders(token);
+        headers['Accept'] = 'application/xml,application/json;q=0.5';
+        const res = await fetch(alt, { method: 'GET', headers });
         if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('xml')) {
+          const xml = await res.text();
+          const parsed = xmlToGraph(xml);
+          return { graph: parsed, rawXml: xml } as any; // Include rawXml for fallback XML responses
+        }
         return res.json() as any;
       } catch (e2) {
         // eslint-disable-next-line no-console
@@ -119,7 +477,7 @@ async function httpGet(url: string, token?: string) {
     if (local) {
       // eslint-disable-next-line no-console
       console.error(`[manta-mcp] GET local fallback: using _graph/graph.xml`);
-      return { graph: local } as any;
+      return { graph: local.graph, rawXml: local.rawXml } as any;
     }
     throw e;
   }
@@ -175,7 +533,16 @@ async function httpPut(url: string, body: any, token?: string) {
       // eslint-disable-next-line no-console
       console.error(`[manta-mcp] PUT fallback: ${url} -> ${alt}`);
       try {
-        const res = await fetch(alt, { method: 'PUT', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
+        let headers = buildAuthHeaders(token);
+        let payload: any;
+        if (body && body.graph) {
+          const xml = graphToXml(body.graph);
+          headers = { ...headers, 'Content-Type': 'application/xml' };
+          payload = xml;
+        } else {
+          payload = JSON.stringify(body);
+        }
+        const res = await fetch(alt, { method: 'PUT', headers, body: payload });
         if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
         return res.json() as any;
       } catch (e2) {
@@ -209,10 +576,12 @@ function readLocalGraph(): any | null {
   try {
     const p = graphPath();
     if (!fs.existsSync(p)) return null;
-    const raw = fs.readFileSync(p, 'utf8');
-    const g = xmlToGraph(raw);
+    const rawXml = fs.readFileSync(p, 'utf8');
+    // Return both the parsed graph and the raw XML for MCP responses
+    const g = xmlToGraph(rawXml);
     const parsed = GraphSchema.safeParse(g);
-    return parsed.success ? parsed.data : g;
+    const parsedGraph = parsed.success ? parsed.data : g;
+    return { graph: parsedGraph, rawXml };
   } catch { return null; }
 }
 function writeLocalGraph(graph: any) {
@@ -221,6 +590,73 @@ function writeLocalGraph(graph: any) {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, graphToXml(graph), 'utf8');
   } catch {}
+}
+
+// Helper functions for XML generation
+function toPropTypeAttr(p: Property): string {
+  const t = (p as any)?.type;
+  if (!t) return 'string';
+  if (t === 'object' || t === 'object-list') return 'json';
+  return String(t);
+}
+
+function valueToText(p: Property): string {
+  const v = (p as any)?.value;
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+function generateNestedXml(p: Property): string {
+  const type = (p as any)?.type;
+
+  if (type === 'object' && (p as any)?.fields) {
+    // Generate nested object structure
+    const fields = (p as any).fields as Property[];
+    const fieldXml = fields.map(field => {
+      const fieldValue = (p as any)?.value?.[field.id];
+      return generateFieldXml(field, fieldValue);
+    }).join('\n        ');
+    return `\n        ${fieldXml}\n      `;
+  } else if (type === 'object-list' && (p as any)?.itemFields) {
+    // Generate nested array structure
+    const items = Array.isArray((p as any)?.value) ? (p as any).value : [];
+    const itemFields = (p as any).itemFields as Property[];
+    const itemXml = items.map((item: any, index: number) => {
+      const itemFieldXml = itemFields.map(field => {
+        const fieldValue = item[field.id];
+        return generateFieldXml(field, fieldValue);
+      }).join('\n          ');
+      return `        <item index="${index}">\n          ${itemFieldXml}\n        </item>`;
+    }).join('\n');
+    return `\n${itemXml}\n      `;
+  } else {
+    // Simple value
+    return escapeXml(valueToText(p));
+  }
+}
+
+function generateFieldXml(field: Property, fieldValue: any): string {
+  const options = (field as any)?.options;
+
+  // Handle any field type that has options
+  if (Array.isArray(options) && options.length > 0) {
+    // Field with options as XML elements
+    const optionsXml = options.map(option => `          <option>${escapeXml(String(option))}</option>`).join('\n');
+    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">
+          <value>${escapeXml(valueToText({...field, value: fieldValue}))}</value>
+          <options>
+${optionsXml}
+          </options>
+        </field>`;
+  } else if (field.type === 'object' && field.fields) {
+    // Nested object
+    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${generateNestedXml({...field, value: fieldValue})}</field>`;
+  } else {
+    // Simple field
+    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${escapeXml(valueToText({...field, value: fieldValue}))}</field>`;
+  }
 }
 
 // Toolset is chosen at startup by the MCP based on env
@@ -247,6 +683,12 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       const token = resolveAccessToken();
       const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token);
+      // Check if we have raw XML (from local fallback) - return it directly
+      if (data.rawXml) {
+        return { content: [{ type: 'text', text: data.rawXml }] };
+      }
+
+      // Otherwise, parse and return JSON (for API responses)
       const parsed = GraphSchema.safeParse(data.graph ?? data);
       if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
@@ -259,6 +701,56 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   );
 
+  // graph_edge_create
+  if (toolset === 'graph-editor') server.registerTool(
+    'graph_edge_create',
+    {
+      title: 'Create Graph Edge',
+      description: 'Create a connection (edge) between two nodes in the graph.',
+      inputSchema: {
+        sourceId: z.string().min(1, 'Source node ID is required'),
+        targetId: z.string().min(1, 'Target node ID is required'),
+        role: z.string().optional(),
+      },
+    },
+    async ({ sourceId, targetId, role }) => {
+      const origin = resolveBaseUrl();
+      const token = resolveAccessToken();
+      const url = `${origin}/api/graph-api`;
+      const data = await httpGet(url, token);
+      const parsed = GraphSchema.safeParse(data.graph ?? data);
+      if (!parsed.success) throw new Error('Graph schema validation failed');
+      const graph = parsed.data;
+
+      // Validate that both nodes exist
+      const sourceNode = graph.nodes.find((n: any) => n.id === sourceId);
+      const targetNode = graph.nodes.find((n: any) => n.id === targetId);
+
+      if (!sourceNode) throw new Error(`Source node ${sourceId} not found`);
+      if (!targetNode) throw new Error(`Target node ${targetId} not found`);
+
+      // Check if edge already exists
+      const existingEdge = graph.edges.find((e: any) => e.source === sourceId && e.target === targetId);
+      if (existingEdge) {
+        throw new Error(`Edge from ${sourceId} to ${targetId} already exists`);
+      }
+
+      // Create the edge
+      const newEdge = {
+        id: `${sourceId}-${targetId}`,
+        source: sourceId,
+        target: targetId,
+        role: role || 'links-to'
+      };
+
+      graph.edges = graph.edges || [];
+      graph.edges.push(newEdge);
+
+      await httpPut(url, { graph }, token);
+      return { content: [{ type: 'text', text: `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}` }] };
+    }
+  );
+
   // add_node (graph-editor only)
   if (toolset === 'graph-editor') server.registerTool(
     'add_node',
@@ -266,7 +758,6 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       title: 'Add Node',
       description: 'Create a new node and persist it to the graph.',
       inputSchema: {
-        parentId: z.string().optional(),
         nodeId: z.string().min(1),
         title: z.string().min(1),
         prompt: z.string().min(1),
@@ -275,21 +766,13 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         state: z.enum(['built','unbuilt','building']).optional(),
       },
     },
-    async ({ parentId, nodeId, title, prompt, properties, children, state }) => {
+    async ({ nodeId, title, prompt, properties, children, state }) => {
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
       if (graph.nodes.find((n: any) => n.id === nodeId)) throw new Error(`Node ${nodeId} already exists`);
       const node: any = { id: nodeId, title, prompt, children: Array.isArray(children) ? children : [], properties: Array.isArray(properties) ? properties : [], state: state ?? 'unbuilt' };
-      if (parentId) node.parentId = parentId;
       graph.nodes.push(node);
-      if (parentId) {
-        const parent = graph.nodes.find((n: any) => n.id === parentId);
-        if (parent) {
-          parent.children = Array.isArray(parent.children) ? parent.children : [];
-          if (!parent.children.find((c: any) => c.id === nodeId)) parent.children.push({ id: nodeId, title });
-        }
-      }
       await httpPut(url, { graph }, token);
       return { content: [{ type: 'text', text: `Added node ${nodeId}` }] };
     }

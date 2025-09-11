@@ -293,7 +293,7 @@ export default function SelectedNodeSidebar() {
 										<PropertyEditor
 											property={{
 												...property,
-												value: (propertyValues[property.id] ?? property.value)
+												value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
 											}}
 											onChange={handlePropertyChange}
 											onPreview={handlePropertyPreview}

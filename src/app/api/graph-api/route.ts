@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const isSSE = url.searchParams.get('sse') === 'true';
     const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
     const accept = (req.headers.get('accept') || '').toLowerCase();
-    const wantsJson = accept.includes('application/json');
+    const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
     if (isSSE) {
       // Set up SSE headers
@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
           // Send initial data
           sendGraphData();
 
-          // Set up periodic updates (every 2 seconds)
-          const interval = setInterval(sendGraphData, 2000);
+          // Set up periodic updates (every 500ms for more responsive updates)
+          const interval = setInterval(sendGraphData, 500);
 
           // Clean up on close
           req.signal.addEventListener('abort', () => {
@@ -141,11 +141,12 @@ export async function GET(req: NextRequest) {
         { status: 404 }
       );
     }
-
+    console.log('graph', graph);
     console.log(`✅ Returning graph with ${graph.nodes?.length || 0} nodes`);
 
     if (!wantsJson) {
       const xml = graphToXml(graph);
+      console.log(' >>>>>>>>>>>>>>>>>>xml', xml);
       return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     }
     return NextResponse.json({ success: true, graph });

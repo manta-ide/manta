@@ -14,7 +14,19 @@ interface ObjectListPropertyEditorProps {
 
 export default function ObjectListPropertyEditor({ property, onChange }: ObjectListPropertyEditorProps) {
   const items = Array.isArray(property.value) ? (property.value as Array<Record<string, any>>) : [];
-  const fields = Array.isArray(property.itemFields) ? property.itemFields : [];
+  const explicitFields = Array.isArray(property.itemFields) ? property.itemFields : [];
+
+  // If no explicit itemFields defined, create them dynamically from the first item or empty object
+  const fields = explicitFields.length > 0 ? explicitFields :
+    (items.length > 0 ? Object.keys(items[0]).map(key => ({
+      id: key,
+      title: key.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Convert to title case
+      type: typeof items[0][key] === 'string' ? 'string' :
+            typeof items[0][key] === 'number' ? 'number' :
+            typeof items[0][key] === 'boolean' ? 'boolean' :
+            'string', // fallback to string for complex types
+      value: items[0][key]
+    })) : []);
   const [open, setOpen] = useState<Record<number, boolean>>(() => {
     const initial: Record<number, boolean> = {};
     (items || []).forEach((_, i) => (initial[i] = false)); // collapsed by default
