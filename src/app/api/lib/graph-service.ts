@@ -177,10 +177,10 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
       }
     }
   }
-  // Always publish a realtime vars update for subscribers (iframe bridge)
+  // Save the updated graph to graph.xml as the primary persistence
+  if (currentGraph) writeGraphToFs(currentGraph);
+  // Always publish a realtime vars update for subscribers (iframe bridge) and update vars.json convenience file
   try { publishVarsUpdate({ [propertyId]: value }); } catch {}
-  // Only write vars.json to avoid triggering full reload from graph.json changes
-  if (currentGraph) writeVarsToFs(currentGraph);
 }
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
