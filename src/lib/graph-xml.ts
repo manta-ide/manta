@@ -114,7 +114,7 @@ function collectTags(xml: string, tag: string): Array<{ attrs: Record<string,str
 function toPropTypeAttr(p: Property): string {
   const t = (p as any)?.type;
   if (!t) return 'string';
-  if (t === 'object' || t === 'object-list') return 'json';
+  // Preserve declared type; nested types are emitted with proper nested XML
   return String(t);
 }
 
@@ -139,8 +139,8 @@ function generateFieldXml(field: Property, fieldValue: any): string {
 ${optionsXml}
           </options>
         </field>`;
-  } else if (field.type === 'object' && field.fields) {
-    // Nested object
+  } else if ((field.type === 'object' && (field as any).fields) || field.type === 'object-list') {
+    // Nested object or object-list
     return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${generateNestedXml({...field, value: fieldValue})}</field>`;
   } else {
     // Simple field
@@ -161,54 +161,66 @@ function generateNestedXml(p: Property): string {
     return `\n        ${fieldXml}\n      `;
   } else if (type === 'object-list') {
     // Generate nested array structure
-    const items = Array.isArray((p as any)?.value) ? (p as any).value : [];
-    let itemFields = (p as any).itemFields as Property[];
-
-    // If itemFields is not defined but we have items, infer from the first item
-    if (!itemFields && items.length > 0) {
-      const firstItem = items[0];
-      if (firstItem && typeof firstItem === 'object') {
-        itemFields = Object.keys(firstItem).map(key => {
-          const value = firstItem[key];
-          let type = 'string';
-
-          if (typeof value === 'string') {
-            type = 'string';
-          } else if (typeof value === 'number') {
-            type = 'number';
-          } else if (typeof value === 'boolean') {
-            type = 'boolean';
-          } else if (Array.isArray(value)) {
-            type = 'object-list';
-          } else if (value && typeof value === 'object') {
-            type = 'object';
-          } else {
-            type = 'text'; // fallback
+    let items = Array.isArray((p as any)?.value) ? (p as any).value : [];
+    let itemFields = Array.isArray((p as any)?.itemFields) ? (p as any).itemFields as Property[] : [];
+    // Support alternate schema: p.item as a map of fieldId -> fieldDef
+    if ((!itemFields || itemFields.length === 0) && (p as any)?.item && typeof (p as any).item === 'object' && !Array.isArray((p as any).item)) {
+      const itemMap = (p as any).item as Record<string, any>;
+      itemFields = Object.keys(itemMap).map((key) => {
+        const def = itemMap[key] || {};
+        const t = def.type || 'text';
+        const fld: any = { id: key, title: def.title || key, type: t };
+        if (Array.isArray(def.options)) fld.options = def.options;
+        if (def.fields) fld.fields = def.fields;
+        if (def.itemFields) fld.itemFields = def.itemFields;
+        if (def.value !== undefined) fld.value = def.value;
+        return fld as Property;
+      });
+    }
+    // Support alternate value shape: p.items is an array of objects with nested field definitions
+    if (Array.isArray((p as any)?.items) && (p as any).items.length > 0) {
+      const srcItems: any[] = (p as any).items;
+      // Build itemFields union from first occurrence of each field across items if not present
+      if (!itemFields || itemFields.length === 0) {
+        const fieldMap: Record<string, any> = {};
+        for (const it of srcItems) {
+          if (it && typeof it === 'object') {
+            for (const key of Object.keys(it)) {
+              if (!fieldMap[key]) {
+                const fd = it[key] || {};
+                fieldMap[key] = { id: key, title: fd.title || key, type: fd.type || 'text', options: Array.isArray(fd.options) ? fd.options : undefined };
+              }
+            }
           }
-
-          return {
-            id: key,
-            title: key,
-            type: type,
-            // Don't set a default value for inferred fields
-          } as Property;
-        });
+        }
+        itemFields = Object.values(fieldMap) as any;
       }
+      // Convert srcItems to plain values array aligned to itemFields
+      items = srcItems.map((it) => {
+        const obj: any = {};
+        for (const field of itemFields) {
+          const cell = it?.[field.id];
+          obj[field.id] = (cell && typeof cell === 'object' && 'value' in cell) ? cell.value : (cell ?? '');
+        }
+        return obj;
+      });
     }
-
-    if (itemFields && itemFields.length > 0) {
-      const itemXml = items.map((item: any, index: number) => {
-        const itemFieldXml = itemFields!.map(field => {
-          const fieldValue = item[field.id];
-          return generateFieldXml(field, fieldValue);
-        }).join('\n          ');
-        return `        <item index="${index}">\n          ${itemFieldXml}\n        </item>`;
-      }).join('\n');
-      return `\n${itemXml}\n      `;
-    } else {
-      // Fallback: just serialize the array as JSON if we can't infer structure
-      return escapeXml(valueToText(p));
-    }
+    // If there are no items but we do have itemFields, emit a single template item for schema
+    const effectiveItems = items.length > 0 ? items : (itemFields && itemFields.length > 0 ? [Object.fromEntries(itemFields.map((f: any) => [f.id, (f.value ?? '')]))] : []);
+    const itemXml = effectiveItems.map((item: any, index: number) => {
+      let fieldsToUse = itemFields;
+      // If schema missing, infer per item keys minimally for round-trip
+      if (!fieldsToUse || fieldsToUse.length === 0) {
+        const keys = Object.keys(item || {});
+        fieldsToUse = keys.map((k) => ({ id: k, title: k, type: typeof item[k] === 'number' ? 'number' : typeof item[k] === 'boolean' ? 'boolean' : (typeof item[k] === 'object' && item[k] !== null) ? (Array.isArray(item[k]) ? 'object-list' : 'object') : 'text' } as any));
+      }
+      const itemFieldXml = fieldsToUse.map(field => {
+        const fieldValue = item ? item[field.id] : undefined;
+        return generateFieldXml(field, fieldValue);
+      }).join('\n          ');
+      return `        <item index="${index}">\n          ${itemFieldXml}\n        </item>`;
+    }).join('\n');
+    return `\n${itemXml}\n      `;
   } else {
     // Simple value
     return escapeXml(valueToText(p));
@@ -339,10 +351,86 @@ export function xmlToGraph(xml: string): Graph {
         const parsedProperties: Property[] = [];
         const propertyMap = new Map<string, Property>();
 
-        propList.filter(Boolean).forEach((propData: any) => {
-          // Create scoped propInner for this property
-          const propInner = JSON.stringify(propData); // For now, serialize back to handle nested parsing
+        // Helper: normalize xml option entries to strings
+        const readOptions = (optContainer: any): string[] => {
+          if (!optContainer) return [];
+          const list = Array.isArray(optContainer.option) ? optContainer.option : [optContainer.option];
+          return list.filter(Boolean).map((o: any) => (typeof o === 'object' ? (o['#text'] ?? '') : o)).map((s: any) => String(s));
+        };
 
+        // Helper: coerce primitive by type
+        const coerce = (t: string | undefined, v: any) => {
+          const str = typeof v === 'string' ? v : String(v ?? '');
+          return parsePropValue(t, str);
+        };
+
+        // Recursively parse a <field> element to a pair [value, fieldDef]
+        const parseField = (fieldData: any): { value: any; def: Property } => {
+          const fieldName = fieldData['@_name'] || '';
+          const fieldTitle = fieldData['@_title'] || fieldName;
+          const fieldType = (fieldData['@_type'] || 'string') as any;
+
+          // Select with nested <value> and <options>
+          if (fieldType === 'select') {
+            const fieldValue = coerce('string', fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? '');
+            const fieldOptions = readOptions(fieldData.options);
+            const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: fieldValue };
+            if (fieldOptions.length) def.options = fieldOptions;
+            return { value: fieldValue, def };
+          }
+
+          // Nested object
+          if (fieldType === 'object') {
+            const obj: any = {};
+            const fields: Property[] = [];
+            const fieldList = fieldData.field ? (Array.isArray(fieldData.field) ? fieldData.field : [fieldData.field]) : [];
+            fieldList.filter(Boolean).forEach((fd: any) => {
+              const parsed = parseField(fd);
+              obj[parsed.def.id] = parsed.value;
+              fields.push(parsed.def);
+            });
+            const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: obj };
+            if (fields.length) def.fields = fields;
+            return { value: obj, def };
+          }
+
+          // Nested object list
+          if (fieldType === 'object-list') {
+            const items: any[] = [];
+            const itemFields: Property[] = [];
+            const itemList = fieldData.item ? (Array.isArray(fieldData.item) ? fieldData.item : [fieldData.item]) : [];
+            if (itemList.length > 0 && itemList[0]?.field) {
+              const firstItemFields = Array.isArray(itemList[0].field) ? itemList[0].field : [itemList[0].field];
+              firstItemFields.filter(Boolean).forEach((fd: any) => {
+                const parsed = parseField(fd);
+                // Field defs for itemFields should not hold item values
+                const { value: _v, def } = parsed;
+                def.value = undefined as any;
+                itemFields.push(def);
+              });
+            }
+            itemList.filter(Boolean).forEach((it: any) => {
+              const itemObj: any = {};
+              const fieldsForItem = it.field ? (Array.isArray(it.field) ? it.field : [it.field]) : [];
+              fieldsForItem.filter(Boolean).forEach((fd: any) => {
+                const parsed = parseField(fd);
+                itemObj[parsed.def.id] = parsed.value;
+              });
+              items.push(itemObj);
+            });
+            const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: items };
+            if (itemFields.length) def.itemFields = itemFields;
+            return { value: items, def };
+          }
+
+          // Simple types
+          const text = fieldData['#text'] ?? '';
+          const coerced = coerce(fieldType, text);
+          const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: coerced };
+          return { value: coerced, def };
+        };
+
+        propList.filter(Boolean).forEach((propData: any) => {
           const name = propData['@_name'] || '';
           const xmlTitle = propData['@_title'] || name;
           const xmlType = propData['@_type'] || 'string';
@@ -358,8 +446,7 @@ export function xmlToGraph(xml: string): Graph {
           if (propData.value && propData.options) {
             // Property with XML options structure
             value = propData.value['#text'] || propData.value;
-            const optionList = Array.isArray(propData.options.option) ? propData.options.option : [propData.options.option];
-            options = optionList.filter(Boolean).map((opt: any) => opt['#text'] || opt);
+            options = readOptions(propData.options);
           } else if (xmlOptions) {
             // Fallback to old JSON format
             try {
@@ -377,109 +464,47 @@ export function xmlToGraph(xml: string): Graph {
           if (xmlType === 'object') {
             // Parse nested object structure using fast-xml-parser
             const parsedObject: any = {};
-
-            if (propData.field) {
-              const fieldList = Array.isArray(propData.field) ? propData.field : [propData.field];
-
-              fieldList.filter(Boolean).forEach((fieldData: any) => {
-                const fieldName = fieldData['@_name'] || '';
-                const fieldTitle = fieldData['@_title'] || fieldName;
-                const fieldType = fieldData['@_type'] || 'string';
-
-                let fieldValue: any;
-                let fieldOptionsArray: any[] = [];
-
-                if (fieldType === 'select') {
-                  // Parse select field with XML options structure
-                  if (fieldData.value && fieldData.options) {
-                    fieldValue = fieldData.value['#text'] || fieldData.value;
-                    const optionList = Array.isArray(fieldData.options.option) ? fieldData.options.option : [fieldData.options.option];
-                    fieldOptionsArray = optionList.filter(Boolean).map((opt: any) => opt['#text'] || opt);
-                  } else {
-                    fieldValue = fieldData['#text'] || '';
-                  }
-                } else {
-                  // Simple field
-                  fieldValue = fieldData['#text'] || '';
-                }
-
-                parsedObject[fieldName] = fieldValue;
-
-                const fieldDef: any = {
-                  id: fieldName,
-                  title: fieldTitle,
-                  type: fieldType,
-                  value: fieldValue
-                };
-
-                if (fieldOptionsArray.length > 0) {
-                  fieldDef.options = fieldOptionsArray;
-                }
-
-                fields.push(fieldDef as Property);
-              });
-            }
+            const fieldList = propData.field ? (Array.isArray(propData.field) ? propData.field : [propData.field]) : [];
+            fieldList.filter(Boolean).forEach((fd: any) => {
+              const parsed = parseField(fd);
+              parsedObject[parsed.def.id] = parsed.value;
+              fields.push(parsed.def);
+            });
 
             value = parsedObject;
           } else if (xmlType === 'object-list') {
             // Parse nested array structure using fast-xml-parser
             const parsedArray: any[] = [];
+            const itemList = propData.item ? (Array.isArray(propData.item) ? propData.item : [propData.item]) : [];
 
-            if (propData.item) {
-              const itemList = Array.isArray(propData.item) ? propData.item : [propData.item];
-
-              // Get field definitions from first item
-              if (itemList.length > 0 && itemList[0].field) {
-                const firstItemFields = Array.isArray(itemList[0].field) ? itemList[0].field : [itemList[0].field];
-                itemFields = firstItemFields.filter(Boolean).map((fieldData: any) => {
-                  const fieldName = fieldData['@_name'] || '';
-                  const fieldTitle = fieldData['@_title'] || fieldName;
-                  const fieldType = fieldData['@_type'] || 'string';
-
-                  const fieldDef: any = {
-                    id: fieldName,
-                    title: fieldTitle,
-                    type: fieldType,
-                    value: ''
-                  };
-
-                  // Extract options if present
-                  if (fieldData.options) {
-                    const optionList = Array.isArray(fieldData.options.option) ? fieldData.options.option : [fieldData.options.option];
-                    fieldDef.options = optionList.filter(Boolean).map((opt: any) => opt['#text'] || opt);
-                  }
-
-                  return fieldDef as Property;
-                });
-              }
-
-              // Parse each item
-              itemList.filter(Boolean).forEach((itemData: any) => {
-                const itemObject: any = {};
-
-                if (itemData.field) {
-                  const fieldList = Array.isArray(itemData.field) ? itemData.field : [itemData.field];
-
-                  fieldList.filter(Boolean).forEach((fieldData: any) => {
-                    const fieldName = fieldData['@_name'] || '';
-                    const fieldType = fieldData['@_type'] || 'string';
-
-                    let fieldValue: any;
-                    if (fieldType === 'select' && fieldData.value) {
-                      fieldValue = fieldData.value['#text'] || fieldData.value;
-                    } else {
-                      fieldValue = fieldData['#text'] || '';
-                    }
-
-                    itemObject[fieldName] = fieldValue;
-                  });
-                }
-
-                parsedArray.push(itemObject);
+            // Build itemFields from first item
+            if (itemList.length > 0 && itemList[0]?.field) {
+              const firstItemFields = Array.isArray(itemList[0].field) ? itemList[0].field : [itemList[0].field];
+              itemFields = firstItemFields.filter(Boolean).map((fd: any) => {
+                const parsed = parseField(fd);
+                const def = parsed.def as any;
+                def.value = undefined; // definitions don't store concrete item value
+                return def as Property;
               });
             }
 
+            // Parse each item
+            itemList.filter(Boolean).forEach((it: any) => {
+              const itemObj: any = {};
+              const fieldsForItem = it.field ? (Array.isArray(it.field) ? it.field : [it.field]) : [];
+              fieldsForItem.filter(Boolean).forEach((fd: any) => {
+                const parsed = parseField(fd);
+                itemObj[parsed.def.id] = parsed.value;
+              });
+              parsedArray.push(itemObj);
+            });
+
             value = parsedArray;
+          }
+
+          // Coerce primitive property values for non-object types
+          if (finalType !== 'object' && finalType !== 'object-list') {
+            value = coerce(finalType, value);
           }
 
           // Create property object
@@ -553,4 +578,3 @@ export function xmlToGraph(xml: string): Graph {
     throw new Error(`Failed to parse XML: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
-

@@ -1,0 +1,808 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="portfolio-page" title="SWE Portfolio Page">
+      <description>Top-level SWE portfolio page for Next.js + Tailwind. Provides global theme, typography, spacing, and layout constraints. Child sections: header, hero, projects, about, and contact/footer. Uses the Dark/Professional palette only. Aim for accessible landmarks and high-contrast defaults. Sections consume these vars via CSS custom properties.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="is-dark-theme" title="Is Dark Theme" type="boolean">true</prop>
+        <prop name="root-font" title="Root Font" type="font">
+          <value>{&quot;family&quot;:&quot;Poppins&quot;}</value>
+          <options>
+          <option>Inter</option>
+          <option>Lato</option>
+          <option>Lora</option>
+          <option>Montserrat</option>
+          <option>Noto Sans</option>
+          <option>Open Sans</option>
+          <option>Oswald</option>
+          <option>Playfair Display</option>
+          <option>Poppins</option>
+          <option>PT Sans</option>
+          <option>Raleway</option>
+          <option>Roboto</option>
+          <option>Source Sans Pro</option>
+          </options>
+        </prop>
+        <prop name="root-styles" title="Root Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#000000</field>
+        <field name="text-color" title="Text Color" type="color">#dd4290</field>
+        <field name="accent-color" title="Accent Color" type="color">#7c34cd</field>
+        <field name="muted-color" title="Muted Color" type="color">#b2adac</field>
+        <field name="border-color" title="Border Color" type="color">#161a1d</field>
+        <field name="font-family" title="Font Family" type="select">
+          <value>Poppins</value>
+          <options>
+          <option>Lato</option>
+          <option>Lora</option>
+          <option>Montserrat</option>
+          <option>Noto Sans</option>
+          <option>Open Sans</option>
+          <option>Oswald</option>
+          <option>Playfair Display</option>
+          <option>Poppins</option>
+          <option>PT Sans</option>
+          <option>Raleway</option>
+          <option>Roboto</option>
+          <option>Source Sans Pro</option>
+          </options>
+        </field>
+        <field name="base-font-size" title="Base Font Size" type="select">
+          <value>1rem</value>
+          <options>
+          <option>0rem</option>
+          <option>0.25rem</option>
+          <option>0.5rem</option>
+          <option>0.75rem</option>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          <option>4rem</option>
+          <option>5rem</option>
+          <option>6rem</option>
+          </options>
+        </field>
+        <field name="max-content-width" title="Max Content Width" type="select">
+          <value>1024px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          <option>96px</option>
+          <option>128px</option>
+          <option>160px</option>
+          <option>192px</option>
+          <option>224px</option>
+          <option>256px</option>
+          <option>1024px</option>
+          </options>
+        </field>
+        <field name="section-padding-y" title="Section Padding Y" type="select">
+          <value>48px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          <option>96px</option>
+          <option>128px</option>
+          <option>160px</option>
+          <option>192px</option>
+          <option>224px</option>
+          <option>256px</option>
+          </options>
+        </field>
+        <field name="section-padding-x" title="Section Padding X" type="select">
+          <value>20px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          <option>96px</option>
+          <option>128px</option>
+          <option>160px</option>
+          <option>192px</option>
+          <option>224px</option>
+          <option>256px</option>
+          </options>
+        </field>
+        <field name="border-radius-global" title="Global Border Radius" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          <option>96px</option>
+          <option>128px</option>
+          <option>160px</option>
+          <option>192px</option>
+          <option>224px</option>
+          <option>256px</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="social-links" title="Social Links" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">GitHub</field>
+          <field name="url" title="URL" type="text">https://github.com/yourhandle</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">LinkedIn</field>
+          <field name="url" title="URL" type="text">https://www.linkedin.com/in/yourhandle/</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Twitter</field>
+          <field name="url" title="URL" type="text">https://twitter.com/yourhandle</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="header" title="Header / Navigation">
+      <description>Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic &lt;header&gt; and &lt;nav&gt;, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean. No separate element nodes — all configurable via properties.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="brand-name" title="Brand Name" type="text">Alex Johnson</prop>
+        <prop name="brand-subtitle" title="Brand Subtitle" type="text">Software Engineer</prop>
+        <prop name="nav-links" title="Nav Links" type="text">Home, Projects, About, Contact</prop>
+        <prop name="resume-link-text" title="Resume Link Text" type="text">Download Resume</prop>
+        <prop name="resume-link-url" title="Resume Link URL" type="text">/resume.pdf</prop>
+        <prop name="is-sticky" title="Is Sticky Header" type="boolean">true</prop>
+        <prop name="header-padding-y" title="Header Padding Y" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          </options>
+        </prop>
+        <prop name="header-padding-x" title="Header Padding X" type="select">
+          <value>24px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          </options>
+        </prop>
+        <prop name="brand-font-size" title="Brand Font Size" type="select">
+          <value>1.5rem</value>
+          <options>
+          <option>0rem</option>
+          <option>0.25rem</option>
+          <option>0.5rem</option>
+          <option>0.75rem</option>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          <option>4rem</option>
+          </options>
+        </prop>
+        <prop name="link-gap" title="Link Gap" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          </options>
+        </prop>
+        <prop name="resume-border-radius" title="Resume Button Radius" type="select">
+          <value>12px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          </options>
+        </prop>
+        <prop name="is-dark-variant" title="Is Dark Variant" type="boolean">true</prop>
+        <prop name="hover-underline" title="Hover Underline Links" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="hero" title="Hero Section">
+      <description>Hero section introducing the SWE with headline, subheadline, CTAs, and optional profile image. Uses accessible, keyboard navigable elements. Includes social links. All sizes use select with predefined options. Colors strictly from Dark/Professional palette.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="headline" title="Headline" type="text">Building reliable, delightful software.</prop>
+        <prop name="subheadline" title="Subheadline" type="text">Full-stack engineer specializing in TypeScript, Next.js, and cloud-native systems.</prop>
+        <prop name="primary-cta-text" title="Primary CTA Text" type="text">View Projects</prop>
+        <prop name="primary-cta-href" title="Primary CTA Href" type="text">#projects</prop>
+        <prop name="secondary-cta-text" title="Secondary CTA Text" type="text">Get in Touch</prop>
+        <prop name="secondary-cta-href" title="Secondary CTA Href" type="text">#contact</prop>
+        <prop name="profile-image-src" title="Profile Image Src" type="text">https://placehold.co/512x400/white/black?text=Alex+Johnson&amp;font=Poppins</prop>
+        <prop name="social-github" title="GitHub URL" type="text">https://github.com/yourhandle</prop>
+        <prop name="social-linkedin" title="LinkedIn URL" type="text">https://www.linkedin.com/in/yourhandle/</prop>
+        <prop name="social-twitter" title="Twitter URL" type="text">https://twitter.com/yourhandle</prop>
+        <prop name="hero-padding-y" title="Hero Padding Y" type="select">
+          <value>80px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          <option>80px</option>
+          <option>96px</option>
+          <option>128px</option>
+          <option>160px</option>
+          </options>
+        </prop>
+        <prop name="hero-gap" title="Hero Content Gap" type="select">
+          <value>24px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          </options>
+        </prop>
+        <prop name="headline-size" title="Headline Size" type="select">
+          <value>3rem</value>
+          <options>
+          <option>0rem</option>
+          <option>0.25rem</option>
+          <option>0.5rem</option>
+          <option>0.75rem</option>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          <option>4rem</option>
+          <option>5rem</option>
+          <option>6rem</option>
+          </options>
+        </prop>
+        <prop name="subheadline-size" title="Subheadline Size" type="select">
+          <value>1.25rem</value>
+          <options>
+          <option>0rem</option>
+          <option>0.25rem</option>
+          <option>0.5rem</option>
+          <option>0.75rem</option>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          </options>
+        </prop>
+        <prop name="cta-gap" title="CTA Gap" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+        <prop name="image-radius" title="Profile Image Radius" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+        <prop name="is-highlighted" title="Is Highlighted Accent Headline" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="projects-section" title="Projects Section">
+      <description>Showcase featured projects in a responsive grid with filters and tags. Includes a search input, tag badges, and project cards with image, title, description, tech stack, and links (GitHub, Live). All child element properties are flattened here.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="section-title" title="Section Title" type="text">Featured Projects</prop>
+        <prop name="section-subtitle" title="Section Subtitle" type="text">A selection of work spanning web apps, APIs, and infrastructure.</prop>
+        <prop name="search-placeholder" title="Search Placeholder" type="text">Search projects...</prop>
+        <prop name="tags" title="Available Tags (comma-separated)" type="text">Next.js, TypeScript, Node.js, React, Tailwind, AWS, Docker, PostgreSQL</prop>
+        <prop name="projects" title="Projects" type="object-list">
+        <item index="0">
+          <field name="title" title="Title" type="text">Realtime Dashboard</field>
+          <field name="description" title="Description" type="text">Operational analytics dashboard with live data and custom charts.</field>
+          <field name="image" title="Image URL" type="text">https://placehold.co/512x400/white/black?text=Realtime&amp;font=Poppins</field>
+          <field name="tech" title="Tech (comma-separated)" type="text">Next.js, TypeScript, WebSocket, Tailwind</field>
+          <field name="github" title="GitHub URL" type="text">https://github.com/yourhandle/realtime-dashboard</field>
+          <field name="live" title="Live URL" type="text">https://example.com/realtime-dashboard</field>
+        </item>
+        <item index="1">
+          <field name="title" title="Title" type="text">API Platform</field>
+          <field name="description" title="Description" type="text">Scalable REST and GraphQL APIs with robust observability.</field>
+          <field name="image" title="Image URL" type="text">https://placehold.co/512x400/white/black?text=API+Platform&amp;font=Poppins</field>
+          <field name="tech" title="Tech (comma-separated)" type="text">Node.js, TypeScript, PostgreSQL, Docker, AWS</field>
+          <field name="github" title="GitHub URL" type="text">https://github.com/yourhandle/api-platform</field>
+          <field name="live" title="Live URL" type="text">https://example.com/api-platform</field>
+        </item>
+        <item index="2">
+          <field name="title" title="Title" type="text">Design System</field>
+          <field name="description" title="Description" type="text">Reusable UI kit and tokens built with Radix and Tailwind.</field>
+          <field name="image" title="Image URL" type="text">https://placehold.co/512x400/white/black?text=Design+System&amp;font=Poppins</field>
+          <field name="tech" title="Tech (comma-separated)" type="text">React, TypeScript, Radix UI, Tailwind</field>
+          <field name="github" title="GitHub URL" type="text">https://github.com/yourhandle/design-system</field>
+          <field name="live" title="Live URL" type="text">https://example.com/design-system</field>
+        </item>
+      </prop>
+        <prop name="grid-gap" title="Grid Gap" type="select">
+          <value>24px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          </options>
+        </prop>
+        <prop name="card-radius" title="Card Border Radius" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+        <prop name="card-padding" title="Card Padding" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          </options>
+        </prop>
+        <prop name="projects-section-image-radius" title="Card Image Radius" type="select">
+          <value>12px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="about-section" title="About Section">
+      <description>About the engineer with concise bio, experience highlights, and skills list. Includes optional avatar, downloadable resume, and a simple facts grid. Accessible headings and lists. Flatten all properties here.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="about-title" title="About Title" type="text">About Me</prop>
+        <prop name="about-subtitle" title="About Subtitle" type="text">Engineer focused on quality, delivery, and impact.</prop>
+        <prop name="bio-text" title="Bio Text" type="text">I craft maintainable systems and delightful experiences. I enjoy shipping fast while keeping quality high through tests, automation, and clean design.</prop>
+        <prop name="years-experience" title="Years of Experience Text" type="text">5+ years experience</prop>
+        <prop name="location-text" title="Location Text" type="text">Based in San Francisco, CA</prop>
+        <prop name="skills-list" title="Skills List (comma-separated)" type="text">TypeScript, React, Next.js, Node.js, PostgreSQL, AWS, Docker, CI/CD, Testing, Design Systems</prop>
+        <prop name="avatar-src" title="Avatar Src" type="text">https://placehold.co/512x400/white/black?text=Alex&amp;font=Poppins</prop>
+        <prop name="resume-url" title="Resume URL" type="text">/resume.pdf</prop>
+        <prop name="facts-grid-gap" title="Facts Grid Gap" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+        <prop name="section-gap" title="Section Internal Gap" type="select">
+          <value>24px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          </options>
+        </prop>
+        <prop name="avatar-radius" title="Avatar Radius" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="contact-footer" title="Contact &amp; Footer">
+      <description>Contact section with simple form (name, email, message) posting to /api and alternate contact links, followed by a concise footer with copyright and social links. Accessibility and keyboard navigation friendly. Flatten all child properties here.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="contact-title" title="Contact Title" type="text">Get in Touch</prop>
+        <prop name="contact-subtitle" title="Contact Subtitle" type="text">Have a project in mind or just want to say hello?</prop>
+        <prop name="contact-email" title="Contact Email" type="text">hello@example.com</prop>
+        <prop name="contact-twitter" title="Contact Twitter" type="text">https://twitter.com/yourhandle</prop>
+        <prop name="contact-linkedin" title="Contact LinkedIn" type="text">https://www.linkedin.com/in/yourhandle/</prop>
+        <prop name="footer-text" title="Footer Text" type="text">© 2025 Alex. All rights reserved.</prop>
+        <prop name="form-gap" title="Form Field Gap" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+        <prop name="input-radius" title="Input Border Radius" type="select">
+          <value>12px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          </options>
+        </prop>
+        <prop name="button-radius" title="Button Border Radius" type="select">
+          <value>12px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          </options>
+        </prop>
+        <prop name="footer-padding-y" title="Footer Padding Y" type="select">
+          <value>24px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          </options>
+        </prop>
+        <prop name="is-accent-submit" title="Is Accent Submit Button" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="reviews-section" title="Reviews / Testimonials">
+      <description>Customer reviews/testimonials section showing quotes, names, roles, and optional avatars with star ratings. Responsive grid using Tailwind, accessible landmarks and semantics. All settings flattened into this node; no child element nodes. Uses the page’s dark/professional palette and spacing tokens.</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="reviews-section-title" title="Section Title" type="text">What Clients Say111111</prop>
+        <prop name="reviews-section-subtitle" title="Section Subtitle" type="text">Testimonials from collaborators and clients.1111</prop>
+        <prop name="reviews" title="Reviews" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Samantha Lee1</field>
+          <field name="role" title="Role / Company" type="text">Product Manager at Acme1</field>
+          <field name="rating" title="Rating (1-5)" type="select">
+          <value>2</value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          </options>
+        </field>
+          <field name="text" title="Quote Text" type="text">Alex delivered beyond expectations — fast, thoughtful, and reliable.123123</field>
+          <field name="avatar" title="Avatar URL" type="text">https://placehold.co/96x96/orange/black?text=SL&amp;font=Poppins</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">Marcus Chen</field>
+          <field name="role" title="Role / Company" type="text">CTO, Finlytics</field>
+          <field name="rating" title="Rating (1-5)" type="select">
+          <value>5</value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          </options>
+        </field>
+          <field name="text" title="Quote Text" type="text">Great communication and high-quality code. Would gladly work together again.</field>
+          <field name="avatar" title="Avatar URL" type="text">https://placehold.co/96x96/white/black?text=MC&amp;font=Poppins</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Priya Patel</field>
+          <field name="role" title="Role / Company" type="text">Founder, Craftly</field>
+          <field name="rating" title="Rating (1-5)" type="select">
+          <value>1</value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          </options>
+        </field>
+          <field name="text" title="Quote Text" type="text">Smooth collaboration and solid implementation across the stack.</field>
+          <field name="avatar" title="Avatar URL" type="text">https://placehold.co/96x96/white/black?text=PP&amp;font=Poppins</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text"></field>
+          <field name="role" title="Role / Company" type="text"></field>
+          <field name="rating" title="Rating (1-5)" type="select">
+          <value></value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          </options>
+        </field>
+          <field name="text" title="Quote Text" type="text"></field>
+          <field name="avatar" title="Avatar URL" type="text"></field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text"></field>
+          <field name="role" title="Role / Company" type="text"></field>
+          <field name="rating" title="Rating (1-5)" type="select">
+          <value></value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          </options>
+        </field>
+          <field name="text" title="Quote Text" type="text"></field>
+          <field name="avatar" title="Avatar URL" type="text"></field>
+        </item>
+        <item index="5">
+          <field name="name" title="Name" type="text"></field>
+          <field name="role" title="Role / Company" type="text"></field>
+          <field name="rating" title="Rating (1-5)" type="select">
+          <value></value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          <option>5</option>
+          </options>
+        </field>
+          <field name="text" title="Quote Text" type="text"></field>
+          <field name="avatar" title="Avatar URL" type="text"></field>
+        </item>
+      </prop>
+        <prop name="reviews-grid-columns" title="Grid Columns" type="select">
+          <value>3</value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          </options>
+        </prop>
+        <prop name="reviews-grid-gap" title="Grid Gap" type="select">
+          <value>24px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          </options>
+        </prop>
+        <prop name="reviews-card-radius" title="Card Border Radius" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          </options>
+        </prop>
+        <prop name="reviews-card-padding" title="Card Padding" type="select">
+          <value>16px</value>
+          <options>
+          <option>0px</option>
+          <option>4px</option>
+          <option>8px</option>
+          <option>12px</option>
+          <option>16px</option>
+          <option>20px</option>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          </options>
+        </prop>
+        <prop name="reviews-show-avatars" title="Show Avatars" type="boolean">true</prop>
+        <prop name="reviews-show-rating" title="Show Star Rating" type="boolean">true</prop>
+        <prop name="reviews-quote-size" title="Quote Font Size" type="select">
+          <value>1rem</value>
+          <options>
+          <option>0rem</option>
+          <option>0.25rem</option>
+          <option>0.5rem</option>
+          <option>0.75rem</option>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          </options>
+        </prop>
+        <prop name="reviews-avatar-size" title="Avatar Size" type="select">
+          <value>48px</value>
+          <options>
+          <option>24px</option>
+          <option>32px</option>
+          <option>40px</option>
+          <option>48px</option>
+          <option>56px</option>
+          <option>64px</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="portfolio-page-header" source="portfolio-page" target="header" role="links-to"/>
+    <edge id="portfolio-page-hero" source="portfolio-page" target="hero" role="links-to"/>
+    <edge id="portfolio-page-projects-section" source="portfolio-page" target="projects-section" role="links-to"/>
+    <edge id="portfolio-page-about-section" source="portfolio-page" target="about-section" role="links-to"/>
+    <edge id="portfolio-page-contact-footer" source="portfolio-page" target="contact-footer" role="links-to"/>
+    <edge id="portfolio-page-reviews-section" source="portfolio-page" target="reviews-section" role="links-to"/>
+  </edges>
+</graph>
