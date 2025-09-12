@@ -16,15 +16,19 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 ---
 ## Quick Start
 
-1. Initialize Manta IDE:
+1. Install Manta CLI:
+   ```bash
+   npm install -g manta-cli
+
+1. Install a template to an empty folder:
    ```bash
    manta i
 
-2. Run Manta IDE:
+2. Run Manta IDE in the same folder:
    ```bash
    manta run
 
-3. Open http://localhost:3000
+3. Open http://localhost:3000 if it did not open
 ---
 
 ## Demo
