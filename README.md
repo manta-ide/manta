@@ -17,11 +17,11 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 ## Quick Start
 
 1. Initialize Manta IDE:
-
+   ```bash
    manta i
 
 2. Run Manta IDE:
-
+   ```bash
    manta run
    
 ---
