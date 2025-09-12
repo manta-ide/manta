@@ -8,24 +8,6 @@
       </state>
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean">true</prop>
-        <prop name="root-font" title="Root Font" type="font">
-          <value>{&quot;family&quot;:&quot;Poppins&quot;}</value>
-          <options>
-          <option>Inter</option>
-          <option>Lato</option>
-          <option>Lora</option>
-          <option>Montserrat</option>
-          <option>Noto Sans</option>
-          <option>Open Sans</option>
-          <option>Oswald</option>
-          <option>Playfair Display</option>
-          <option>Poppins</option>
-          <option>PT Sans</option>
-          <option>Raleway</option>
-          <option>Roboto</option>
-          <option>Source Sans Pro</option>
-          </options>
-        </prop>
         <prop name="root-styles" title="Root Styles" type="object">
         <field name="background-color" title="Background Color" type="color">#000000</field>
         <field name="text-color" title="Text Color" type="color">#dd4290</field>
@@ -183,7 +165,7 @@
     </node>
 
     <node id="header" title="Header / Navigation">
-      <description>Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic &lt;header&gt; and &lt;nav&gt;, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean. No separate element nodes — all configurable via properties.</description>
+      <description>Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic &lt;header&gt; and &lt;nav&gt;, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean.</description>
       <state status="active">
         <build status="built"/>
       </state>
@@ -272,7 +254,7 @@
           <option>24px</option>
           </options>
         </prop>
-        <prop name="is-dark-variant" title="Is Dark Variant" type="boolean">true</prop>
+        <prop name="is-dark-variant" title="Is Dark Variant" type="boolean"></prop>
         <prop name="hover-underline" title="Hover Underline Links" type="boolean">true</prop>
       </props>
     </node>
@@ -401,7 +383,7 @@
         <prop name="section-title" title="Section Title" type="text">Featured Projects</prop>
         <prop name="section-subtitle" title="Section Subtitle" type="text">A selection of work spanning web apps, APIs, and infrastructure.</prop>
         <prop name="search-placeholder" title="Search Placeholder" type="text">Search projects...</prop>
-        <prop name="tags" title="Available Tags (comma-separated)" type="text">Next.js, TypeScript, Node.js, React, Tailwind, AWS, Docker, PostgreSQL</prop>
+        <prop name="tags" title="Available Tags (comma-separated)" type="text">Next.js, TypeScript, React, Tailwind, AWS, Docker, PostgreSQL</prop>
         <prop name="projects" title="Projects" type="object-list">
         <item index="0">
           <field name="title" title="Title" type="text">Realtime Dashboard</field>
@@ -542,7 +524,7 @@
       </props>
     </node>
 
-    <node id="contact-footer" title="Contact &amp; Footer">
+    <node id="contact-footer" title="Contact &amp;amp;amp;amp; Footer">
       <description>Contact section with simple form (name, email, message) posting to /api and alternate contact links, followed by a concise footer with copyright and social links. Accessibility and keyboard navigation friendly. Flatten all child properties here.</description>
       <state status="active">
         <build status="built"/>
@@ -608,193 +590,6 @@
         <prop name="is-accent-submit" title="Is Accent Submit Button" type="boolean">true</prop>
       </props>
     </node>
-
-    <node id="reviews-section" title="Reviews / Testimonials">
-      <description>Customer reviews/testimonials section showing quotes, names, roles, and optional avatars with star ratings. Responsive grid using Tailwind, accessible landmarks and semantics. All settings flattened into this node; no child element nodes. Uses the page’s dark/professional palette and spacing tokens.</description>
-      <state status="active">
-        <build status="built"/>
-      </state>
-      <props>
-        <prop name="reviews-section-title" title="Section Title" type="text">What Clients Say111111</prop>
-        <prop name="reviews-section-subtitle" title="Section Subtitle" type="text">Testimonials from collaborators and clients.1111</prop>
-        <prop name="reviews" title="Reviews" type="object-list">
-        <item index="0">
-          <field name="name" title="Name" type="text">Samantha Lee1</field>
-          <field name="role" title="Role / Company" type="text">Product Manager at Acme1</field>
-          <field name="rating" title="Rating (1-5)" type="select">
-          <value>2</value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          </options>
-        </field>
-          <field name="text" title="Quote Text" type="text">Alex delivered beyond expectations — fast, thoughtful, and reliable.123123</field>
-          <field name="avatar" title="Avatar URL" type="text">https://placehold.co/96x96/orange/black?text=SL&amp;font=Poppins</field>
-        </item>
-        <item index="1">
-          <field name="name" title="Name" type="text">Marcus Chen</field>
-          <field name="role" title="Role / Company" type="text">CTO, Finlytics</field>
-          <field name="rating" title="Rating (1-5)" type="select">
-          <value>5</value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          </options>
-        </field>
-          <field name="text" title="Quote Text" type="text">Great communication and high-quality code. Would gladly work together again.</field>
-          <field name="avatar" title="Avatar URL" type="text">https://placehold.co/96x96/white/black?text=MC&amp;font=Poppins</field>
-        </item>
-        <item index="2">
-          <field name="name" title="Name" type="text">Priya Patel</field>
-          <field name="role" title="Role / Company" type="text">Founder, Craftly</field>
-          <field name="rating" title="Rating (1-5)" type="select">
-          <value>1</value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          </options>
-        </field>
-          <field name="text" title="Quote Text" type="text">Smooth collaboration and solid implementation across the stack.</field>
-          <field name="avatar" title="Avatar URL" type="text">https://placehold.co/96x96/white/black?text=PP&amp;font=Poppins</field>
-        </item>
-        <item index="3">
-          <field name="name" title="Name" type="text"></field>
-          <field name="role" title="Role / Company" type="text"></field>
-          <field name="rating" title="Rating (1-5)" type="select">
-          <value></value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          </options>
-        </field>
-          <field name="text" title="Quote Text" type="text"></field>
-          <field name="avatar" title="Avatar URL" type="text"></field>
-        </item>
-        <item index="4">
-          <field name="name" title="Name" type="text"></field>
-          <field name="role" title="Role / Company" type="text"></field>
-          <field name="rating" title="Rating (1-5)" type="select">
-          <value></value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          </options>
-        </field>
-          <field name="text" title="Quote Text" type="text"></field>
-          <field name="avatar" title="Avatar URL" type="text"></field>
-        </item>
-        <item index="5">
-          <field name="name" title="Name" type="text"></field>
-          <field name="role" title="Role / Company" type="text"></field>
-          <field name="rating" title="Rating (1-5)" type="select">
-          <value></value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          </options>
-        </field>
-          <field name="text" title="Quote Text" type="text"></field>
-          <field name="avatar" title="Avatar URL" type="text"></field>
-        </item>
-      </prop>
-        <prop name="reviews-grid-columns" title="Grid Columns" type="select">
-          <value>3</value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          </options>
-        </prop>
-        <prop name="reviews-grid-gap" title="Grid Gap" type="select">
-          <value>24px</value>
-          <options>
-          <option>0px</option>
-          <option>4px</option>
-          <option>8px</option>
-          <option>12px</option>
-          <option>16px</option>
-          <option>20px</option>
-          <option>24px</option>
-          <option>32px</option>
-          <option>40px</option>
-          <option>48px</option>
-          </options>
-        </prop>
-        <prop name="reviews-card-radius" title="Card Border Radius" type="select">
-          <value>16px</value>
-          <options>
-          <option>0px</option>
-          <option>4px</option>
-          <option>8px</option>
-          <option>12px</option>
-          <option>16px</option>
-          <option>20px</option>
-          <option>24px</option>
-          <option>32px</option>
-          </options>
-        </prop>
-        <prop name="reviews-card-padding" title="Card Padding" type="select">
-          <value>16px</value>
-          <options>
-          <option>0px</option>
-          <option>4px</option>
-          <option>8px</option>
-          <option>12px</option>
-          <option>16px</option>
-          <option>20px</option>
-          <option>24px</option>
-          <option>32px</option>
-          <option>40px</option>
-          </options>
-        </prop>
-        <prop name="reviews-show-avatars" title="Show Avatars" type="boolean">true</prop>
-        <prop name="reviews-show-rating" title="Show Star Rating" type="boolean">true</prop>
-        <prop name="reviews-quote-size" title="Quote Font Size" type="select">
-          <value>1rem</value>
-          <options>
-          <option>0rem</option>
-          <option>0.25rem</option>
-          <option>0.5rem</option>
-          <option>0.75rem</option>
-          <option>1rem</option>
-          <option>1.25rem</option>
-          <option>1.5rem</option>
-          <option>2rem</option>
-          <option>2.5rem</option>
-          <option>3rem</option>
-          </options>
-        </prop>
-        <prop name="reviews-avatar-size" title="Avatar Size" type="select">
-          <value>48px</value>
-          <options>
-          <option>24px</option>
-          <option>32px</option>
-          <option>40px</option>
-          <option>48px</option>
-          <option>56px</option>
-          <option>64px</option>
-          </options>
-        </prop>
-      </props>
-    </node>
   </nodes>
 
   <edges>
@@ -803,6 +598,5 @@
     <edge id="portfolio-page-projects-section" source="portfolio-page" target="projects-section" role="links-to"/>
     <edge id="portfolio-page-about-section" source="portfolio-page" target="about-section" role="links-to"/>
     <edge id="portfolio-page-contact-footer" source="portfolio-page" target="contact-footer" role="links-to"/>
-    <edge id="portfolio-page-reviews-section" source="portfolio-page" target="reviews-section" role="links-to"/>
   </edges>
 </graph>

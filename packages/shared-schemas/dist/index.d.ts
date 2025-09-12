@@ -157,3 +157,4 @@ export declare const GraphSchema: z.ZodObject<{
     }[] | undefined;
 }>;
 export type Graph = z.infer<typeof GraphSchema>;
+export { graphToXml, xmlToGraph } from './xml-utils.js';

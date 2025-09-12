@@ -148,7 +148,6 @@ export default function SelectedNodeSidebar() {
       }
     }
 
-    // Debounced file save via backend API (writes _graph/vars.json)
 		const nextValues = isHighFrequency ? { ...stagedPropertyValuesRef.current, [propertyId]: value } : { ...propertyValues, [propertyId]: value };
 		if (DEBOUNCE_PROPERTY_CHANGES) {
 			if (propertyChangeTimeoutRef.current) clearTimeout(propertyChangeTimeoutRef.current);

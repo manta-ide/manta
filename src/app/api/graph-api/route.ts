@@ -143,12 +143,9 @@ export async function GET(req: NextRequest) {
         { status: 404 }
       );
     }
-    console.log('graph', graph);
-    console.log(`✅ Returning graph with ${graph.nodes?.length || 0} nodes`);
 
     if (!wantsJson) {
       const xml = graphToXml(graph);
-      console.log(' >>>>>>>>>>>>>>>>>>xml', xml);
       return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     }
     return NextResponse.json({ success: true, graph });
@@ -194,7 +191,7 @@ export async function POST(req: NextRequest) {
 
       console.log(`✅ Refreshed graph with ${graph.nodes?.length || 0} nodes`);
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         graph: graph
       });
@@ -272,9 +269,9 @@ export async function PUT(req: NextRequest) {
     
     // Store the graph using the storage function
     await storeGraph(graph, user.id);
-    
+
     console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes`);
-    
+
     return NextResponse.json({ success: true, message: 'Graph saved successfully' });
   } catch (error) {
     console.error('❌ Graph API PUT error:', error);
@@ -343,10 +340,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     await updatePropertyAndWriteVars(nodeId, propertyId, value, user.id);
-    
+
     console.log(`✅ Property updated successfully`);
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       message: 'Property updated successfully',
       updatedNode: getGraphSession()?.nodes.find(n => n.id === nodeId) || null

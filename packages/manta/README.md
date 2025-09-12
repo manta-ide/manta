@@ -22,7 +22,7 @@ Provider proxy + job worker with Codex + MCP integration.
 
 - The Codex provider runs `codex exec "<prompt>"` and injects MCP config. It uses `manta-mcp` if available, falling back to the local script.
 - The worker processes jobs serially. Jobs can target a provider (`{ provider: 'codex', prompt: '...' }`).
-- Storage: `./_graph/graph.xml` for the graph (XML), `./_graph/vars.json` for variables, `./_graph/jobs.json` for the local job queue.
+- Storage: `./_graph/graph.xml` for the graph (XML) including all variables, `./_graph/jobs.json` for the local job queue.
 
 ## Usage (local)
 

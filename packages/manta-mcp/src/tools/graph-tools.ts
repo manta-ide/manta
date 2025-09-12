@@ -2,402 +2,67 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import fs from 'node:fs';
 import path from 'node:path';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import { graphToXml, xmlToGraph } from '../xml-utils.js';
 
-// Configure XML parser for MCP context
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: '@_',
-  textNodeName: '#text',
-  allowBooleanAttributes: true,
-  parseAttributeValue: true,
-  trimValues: true,
-  parseTagValue: true,
-  processEntities: true,
-  stopNodes: ['*.#text', '*.@_value', '*.@_options']
-});
+// File logging setup
+const LOG_FILE = path.join(process.cwd(), 'mcp-graph-tools.log');
+let logStream: fs.WriteStream | null = null;
 
-const xmlBuilder = new XMLBuilder({
-  ignoreAttributes: false,
-  attributeNamePrefix: '@_',
-  format: true,
-  suppressBooleanAttributes: false
-});
-
-// Lightweight XML converter duplicated for MCP context (no TS path aliases here)
-function escapeXml(text: string): string {
-  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');
-}
-function unescapeXml(text: string): string {
-  return String(text).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
-}
-function parseAttrBlock(attrs: string): Record<string, string> {
-  const out: Record<string, string> = {}; const re = /(\w[\w:-]*)\s*=\s*"([^"]*)"/g; let m: RegExpExecArray | null; while ((m = re.exec(attrs)) !== null) out[m[1]] = m[2]; return out;
-}
-function extractTagContent(xml: string, tag: string): string | null {
-  const m = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(xml); return m ? m[1] : null;
-}
-function collectTags(xml: string, tag: string): Array<{ attrs: Record<string,string>; inner: string }>{
-  const out: Array<{ attrs: Record<string,string>; inner: string }> = []; const re = new RegExp(`<${tag}([^>]*)>([\\s\\S]*?)<\\/${tag}>`, 'gi'); const self = new RegExp(`<${tag}([^>]*)\\/>`, 'gi'); let m: RegExpExecArray | null; while ((m = re.exec(xml)) !== null) out.push({ attrs: parseAttrBlock(m[1] || ''), inner: m[2] || '' }); while ((m = self.exec(xml)) !== null) out.push({ attrs: parseAttrBlock(m[1] || ''), inner: '' }); return out;
-}
-function graphToXml(graph: any): string {
-  const header = `<?xml version="1.0" encoding="UTF-8"?>`;
-  const ns = `xmlns="urn:app:graph"`;
-  const directed = `directed="true"`;
-  const version = `version="1.0"`;
-
-  const childrenSet = new Set<string>();
-  for (const n of graph.nodes || []) {
-    for (const c of (n.children || [])) {
-      childrenSet.add(`${n.id}→${c.id}`);
-    }
-  }
-
-  const nodes = (graph.nodes || []).map((n: any) => {
-    const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
-    const buildStatus = n.state || 'unbuilt';
-    const state = `\n      <state status="active">\n        <build status="${escapeXml(String(buildStatus))}"/>\n      </state>`;
-
-    // Generate properties with proper XML structure
-    let props = '';
-    if (Array.isArray(n.properties) && n.properties.length > 0) {
-      const propXmls = n.properties.map((p: any) => {
-        const propType = (p as any)?.type;
-        const options = (p as any)?.options;
-
-        if (propType === 'object' || propType === 'object-list') {
-          // Use nested XML structure for objects and arrays
-          const nestedContent = generateNestedXml(p);
-          return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(propType)}">${nestedContent}</prop>`;
-        } else if (Array.isArray(options) && options.length > 0) {
-          // Property with options - use XML format
-          const optionsXml = options.map(option => `          <option>${escapeXml(String(option))}</option>`).join('\n');
-          return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}">
-          <value>${escapeXml(valueToText(p))}</value>
-          <options>
-${optionsXml}
-          </options>
-        </prop>`;
-        } else {
-          // Simple property without options
-          return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}">${escapeXml(valueToText(p))}</prop>`;
-        }
-      });
-      props = `\n      <props>\n${propXmls.join("\n")}\n      </props>`;
-    }
-
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}">${desc}${state}${props}\n    </node>`;
-  }).join('\n\n');
-
-  const allEdges = (graph.edges || []) as Array<{ id?: string; source: string; target: string; role?: string }>;
-  const edges = allEdges.map((e) => {
-    const role = childrenSet.has(`${e.source}→${e.target}`) ? 'contains' : (e as any).role || 'links-to';
-    const id = e.id || `${e.source}-${e.target}`;
-    return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"/>`;
-  }).join('\n');
-
-  return `${header}\n<graph ${ns} ${version} ${directed}>\n  <nodes>\n${nodes}\n  </nodes>\n\n  <edges>\n${edges}\n  </edges>\n</graph>\n`;
-}
-function xmlToGraph(xml: string): any {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function initLogger() {
   try {
-    // Parse XML using fast-xml-parser
-    const parsedXml = xmlParser.parse(xml);
-
-    // Extract graph data from parsed XML
-    const graphData = parsedXml.graph;
-    if (!graphData) {
-      throw new Error('Invalid graph XML: missing <graph> root');
-    }
-
-    const nodesData = graphData.nodes;
-    const edgesData = graphData.edges;
-
-    if (!nodesData) {
-      throw new Error('Invalid graph XML: missing <nodes> section');
-    }
-
-    // Handle both single node and array of nodes
-    const nodeList = Array.isArray(nodesData.node) ? nodesData.node : [nodesData.node];
-    const nodes: GraphNode[] = nodeList.filter(Boolean).map((nodeData: any) => {
-      const id = nodeData['@_id'] || '';
-      const title = nodeData['@_title'] || '';
-
-      if (!id) {
-        throw new Error(`Node missing required id attribute: ${JSON.stringify(nodeData)}`);
-      }
-
-      const description = (nodeData.description?.['#text'] || nodeData.description || '').trim();
-      const stateData = nodeData.state;
-      let buildStatus: string | undefined;
-
-      // Extract build status from parsed state data
-      if (stateData?.build) {
-        buildStatus = stateData.build['@_status'] || stateData.build['#text'] || 'built';
-      }
-
-      // Default to 'built' if status is missing but state block exists
-      if (!buildStatus && stateData) {
-        buildStatus = 'built';
-      }
-
-      // Parse properties using fast-xml-parser
-      const propsData = nodeData.props;
-      let properties: Property[] = [];
-
-      if (propsData?.prop) {
-        const propList = Array.isArray(propsData.prop) ? propsData.prop : [propsData.prop];
-        const parsedProperties: Property[] = [];
-        const propertyMap = new Map<string, Property>();
-
-        // Helpers
-        const readOptions = (optContainer: any): string[] => {
-          if (!optContainer) return [];
-          const list = Array.isArray(optContainer.option) ? optContainer.option : [optContainer.option];
-          return list.filter(Boolean).map((o: any) => (typeof o === 'object' ? (o['#text'] ?? '') : o)).map((s: any) => String(s));
-        };
-        const parsePropValue = (type: string | undefined, text: string): any => {
-          const t = (type || '').toLowerCase();
-          const raw = String(text ?? '').trim();
-          if (t === 'number') { const n = Number(raw); return Number.isFinite(n) ? n : raw; }
-          if (t === 'boolean') { if (raw.toLowerCase() === 'true') return true; if (raw.toLowerCase() === 'false') return false; return raw; }
-          if (t === 'json' || raw.startsWith('{') || raw.startsWith('[')) { try { return JSON.parse(raw); } catch { return raw; } }
-          return raw;
-        };
-        const coerce = (t: string | undefined, v: any) => parsePropValue(t, typeof v === 'string' ? v : String(v ?? ''));
-        const parseField = (fieldData: any): { value: any; def: any } => {
-          const fieldName = fieldData['@_name'] || '';
-          const fieldTitle = fieldData['@_title'] || fieldName;
-          const fieldType = fieldData['@_type'] || 'string';
-          if (fieldType === 'select') {
-            const fieldValue = coerce('string', fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? '');
-            const fieldOptions = readOptions(fieldData.options);
-            const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: fieldValue };
-            if (fieldOptions.length) def.options = fieldOptions;
-            return { value: fieldValue, def };
-          }
-          if (fieldType === 'object') {
-            const obj: any = {};
-            const fields: any[] = [];
-            const fieldList = fieldData.field ? (Array.isArray(fieldData.field) ? fieldData.field : [fieldData.field]) : [];
-            fieldList.filter(Boolean).forEach((fd: any) => {
-              const parsed = parseField(fd);
-              obj[parsed.def.id] = parsed.value;
-              fields.push(parsed.def);
-            });
-            const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: obj };
-            if (fields.length) def.fields = fields;
-            return { value: obj, def };
-          }
-          if (fieldType === 'object-list') {
-            const items: any[] = [];
-            const itemFields: any[] = [];
-            const itemList = fieldData.item ? (Array.isArray(fieldData.item) ? fieldData.item : [fieldData.item]) : [];
-            if (itemList.length > 0 && itemList[0]?.field) {
-              const firstItemFields = Array.isArray(itemList[0].field) ? itemList[0].field : [itemList[0].field];
-              firstItemFields.filter(Boolean).forEach((fd: any) => {
-                const parsed = parseField(fd);
-                const def = parsed.def; def.value = undefined;
-                itemFields.push(def);
-              });
-            }
-            itemList.filter(Boolean).forEach((it: any) => {
-              const itemObj: any = {};
-              const fieldsForItem = it.field ? (Array.isArray(it.field) ? it.field : [it.field]) : [];
-              fieldsForItem.filter(Boolean).forEach((fd: any) => {
-                const parsed = parseField(fd);
-                itemObj[parsed.def.id] = parsed.value;
-              });
-              items.push(itemObj);
-            });
-            const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: items };
-            if (itemFields.length) def.itemFields = itemFields;
-            return { value: items, def };
-          }
-          const text = fieldData['#text'] ?? '';
-          const coerced = coerce(fieldType, text);
-          const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: coerced };
-          return { value: coerced, def };
-        };
-
-        propList.filter(Boolean).forEach((propData: any) => {
-          const name = propData['@_name'] || '';
-          const xmlTitle = propData['@_title'] || name;
-          const xmlType = propData['@_type'] || 'string';
-          const xmlOptions = propData['@_options'] || '';
-
-          let value: any;
-          let finalType: any = xmlType;
-          let fields: Property[] = [];
-          let itemFields: Property[] = [];
-          let options: any[] = [];
-
-          // Check if property has XML options structure
-          if (propData.value && propData.options) {
-            // Property with XML options structure
-            value = propData.value['#text'] || propData.value;
-            options = readOptions(propData.options);
-          } else if (xmlOptions) {
-            // Fallback to old JSON format
-            try {
-              const unescapedOptions = unescapeXml(xmlOptions);
-              options = JSON.parse(unescapedOptions);
-            } catch (e) {
-              console.warn(`Failed to parse options for property ${name}:`, e);
-            }
-            value = propData['#text'] || '';
-          } else {
-            // Simple property
-            value = propData['#text'] || '';
-          }
-
-          if (xmlType === 'object') {
-            // Parse nested object structure using fast-xml-parser
-            const parsedObject: any = {};
-            const fieldList = propData.field ? (Array.isArray(propData.field) ? propData.field : [propData.field]) : [];
-            fieldList.filter(Boolean).forEach((fd: any) => {
-              const parsed = parseField(fd);
-              parsedObject[parsed.def.id] = parsed.value;
-              fields.push(parsed.def as any);
-            });
-
-            value = parsedObject;
-          } else if (xmlType === 'object-list') {
-            // Parse nested array structure using fast-xml-parser
-            const parsedArray: any[] = [];
-            const itemList = propData.item ? (Array.isArray(propData.item) ? propData.item : [propData.item]) : [];
-            if (itemList.length > 0 && itemList[0]?.field) {
-              const firstItemFields = Array.isArray(itemList[0].field) ? itemList[0].field : [itemList[0].field];
-              itemFields = firstItemFields.filter(Boolean).map((fd: any) => {
-                const parsed = parseField(fd);
-                const def = parsed.def as any; def.value = undefined; return def;
-              });
-            }
-            itemList.filter(Boolean).forEach((it: any) => {
-              const itemObj: any = {};
-              const fieldsForItem = it.field ? (Array.isArray(it.field) ? it.field : [it.field]) : [];
-              fieldsForItem.filter(Boolean).forEach((fd: any) => {
-                const parsed = parseField(fd);
-                itemObj[parsed.def.id] = parsed.value;
-              });
-              parsedArray.push(itemObj);
-            });
-            value = parsedArray;
-          }
-
-          // Coerce primitive property values for non-nested types
-          if (finalType !== 'object' && finalType !== 'object-list') {
-            value = coerce(finalType, value);
-          }
-
-          // Create property object
-          const property: any = {
-            id: name,
-            title: xmlTitle,
-            type: finalType,
-            value
-          };
-
-          if (options.length > 0) {
-            property.options = options;
-          }
-
-          if (fields.length > 0) {
-            property.fields = fields;
-          }
-
-          if (itemFields.length > 0) {
-            property.itemFields = itemFields;
-          }
-
-          // Add to parsed properties list
-          parsedProperties.push(property as Property);
-
-          // Add to map for de-duplication (last value wins)
-          propertyMap.set(name, property as Property);
-        });
-
-        // Use de-duplicated properties (last value wins)
-        properties = Array.from(propertyMap.values());
-      }
-
-      return {
-        id,
-        title,
-        prompt: unescapeXml(description),
-        state: (buildStatus as any) || 'unbuilt',
-        properties
-      } as GraphNode;
-    });
-
-    const edges: Array<{ id: string; source: string; target: string; role?: string }> = [];
-
-    // Parse edges using fast-xml-parser
-    if (edgesData?.edge) {
-      const edgeList = Array.isArray(edgesData.edge) ? edgesData.edge : [edgesData.edge];
-
-      edgeList.filter(Boolean).forEach((edgeData: any) => {
-        const id = edgeData['@_id'] || `${edgeData['@_source']}-${edgeData['@_target']}`;
-        const source = edgeData['@_source'] || '';
-        const target = edgeData['@_target'] || '';
-        const role = edgeData['@_role'];
-
-        if (source && target) {
-          edges.push({ id, source, target, role });
-        }
-      });
-    }
-
-    // Validate edges
-    edges.forEach(edge => {
-      if (!edge.source || !edge.target) {
-        throw new Error(`Invalid edge: missing source or target: ${JSON.stringify(edge)}`);
-      }
-    });
-
-    const g: Graph = { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })) as any } as Graph;
-    return g;
-  } catch (error) {
-    throw new Error(`Failed to parse XML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+  } catch (error: any) {
+    // If we can't create the log file, we'll silently fail to avoid interfering with MCP
   }
 }
-// Define types for MCP
-interface Property {
-  id: string;
-  title: string;
-  type: string;
-  value?: any;
-  options?: any[];
-  fields?: Property[];
-  itemFields?: Property[];
+
+function logToFile(message: string, level: 'INFO' | 'ERROR' | 'DEBUG' = 'INFO') {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [${level}] ${message}`;
+
+  // Also try to write to file if available
+  if (!logStream) return;
+
+  try {
+    logStream.write(logEntry + '\n');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+  }
 }
 
-interface GraphNode {
-  id: string;
-  title: string;
-  prompt?: string;
-  state?: string;
-  properties: Property[];
+function closeLogger() {
+  if (logStream) {
+    try {
+      logStream.end();
+    } catch (error) {
+      // Silently fail
+    }
+    logStream = null;
+  }
 }
 
-interface Graph {
-  nodes: GraphNode[];
-  edges: Array<{ id: string; source: string; target: string }>;
-}
+// Initialize logger when module loads
+initLogger();
 
-// Load shared schemas synchronously to avoid delaying MCP handshake
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
+// Cleanup on process exit
+process.on('exit', closeLogger);
+process.on('SIGINT', closeLogger);
+process.on('SIGTERM', closeLogger);
+
+// Toolset is chosen at startup by the MCP based on env
+
+export type Toolset = 'graph-editor' | 'read-only';
+
+// Load schemas from shared-schemas package with fallback
 let PropertySchema: any;
 let GraphSchema: any;
+
 try {
   const loaded = require('../../shared-schemas/dist/index.js');
   PropertySchema = loaded.PropertySchema;
   GraphSchema = loaded.GraphSchema;
-  // eslint-disable-next-line no-console
-  // Shared schemas loaded
 } catch (e) {
-  // eslint-disable-next-line no-console
-  console.error('[manta-mcp] WARN: shared schemas not built, falling back to minimal validators:', (e as any)?.message || e);
   PropertySchema = z.object({ id: z.string(), title: z.string(), type: z.string() }).passthrough();
   GraphSchema = z.object({ nodes: z.array(z.any()), edges: z.array(z.any()).optional() });
 }
@@ -440,8 +105,7 @@ async function httpGet(url: string, token?: string) {
   } catch (e) {
     const alt = withLocalhostFallback(url);
     if (alt) {
-      // eslint-disable-next-line no-console
-      // GET fallback attempted
+      logToFile(`GET fallback attempted: ${alt}`);
       try {
         const headers = buildAuthHeaders(token);
         headers['Accept'] = 'application/xml,application/json;q=0.5';
@@ -455,15 +119,13 @@ async function httpGet(url: string, token?: string) {
         }
         return res.json() as any;
       } catch (e2) {
-        // eslint-disable-next-line no-console
-        // GET alt fetch failed
+        logToFile(`GET alt fetch failed: ${e2}`, 'ERROR');
       }
     }
     // Final fallback: read local graph from filesystem if available
     const local = readLocalGraph();
     if (local) {
-      // eslint-disable-next-line no-console
-      // GET local fallback: using _graph/graph.xml
+      logToFile(`GET local fallback: using _graph/graph.xml`);
       return { graph: local.graph, rawXml: local.rawXml } as any;
     }
     throw e;
@@ -477,23 +139,20 @@ async function httpPost(url: string, body: any, token?: string) {
   } catch (e) {
     const alt = withLocalhostFallback(url);
     if (alt) {
-      // eslint-disable-next-line no-console
-      // POST fallback attempted
+      logToFile(`POST fallback attempted: ${alt}`);
       try {
         const res = await fetch(alt, { method: 'POST', headers: buildAuthHeaders(token), body: JSON.stringify(body) });
         if (!res.ok) throw new Error(`POST ${alt} failed: ${res.status}`);
         return res.json() as any;
       } catch (e2) {
-        // eslint-disable-next-line no-console
-        // POST alt fetch failed
+        logToFile(`POST alt fetch failed: ${e2}`, 'ERROR');
       }
     }
     // Local mode write: treat POST as PUT for local graph update if a graph is present
     if (body && body.graph) {
       try {
         writeLocalGraph(body.graph);
-        // eslint-disable-next-line no-console
-        // POST local fallback: wrote _graph/graph.xml
+        logToFile(`POST local fallback: wrote _graph/graph.xml`);
         return { success: true } as any;
       } catch {}
     }
@@ -505,20 +164,25 @@ async function httpPut(url: string, body: any, token?: string) {
     let headers = buildAuthHeaders(token);
     let payload: any;
     if (body && body.graph) {
+      logToFile(`PUT: Converting graph to XML for ${url}`, 'DEBUG');
       const xml = graphToXml(body.graph);
+      logToFile(`PUT: XML length: ${xml.length} characters`, 'DEBUG');
       headers = { ...headers, 'Content-Type': 'application/xml' };
       payload = xml;
     } else {
       payload = JSON.stringify(body);
     }
+    logToFile(`PUT: Sending request to ${url}`, 'DEBUG');
     const res = await fetch(url, { method: 'PUT', headers, body: payload });
+    logToFile(`PUT: Response status: ${res.status}`, 'DEBUG');
     if (!res.ok) throw new Error(`PUT ${url} failed: ${res.status}`);
-    return res.json() as any;
+    const result = res.json() as any;
+    logToFile(`PUT: Request completed successfully`, 'DEBUG');
+    return result;
   } catch (e) {
     const alt = withLocalhostFallback(url);
     if (alt) {
-      // eslint-disable-next-line no-console
-      // PUT fallback attempted
+      logToFile(`PUT fallback attempted: ${alt}`);
       try {
         let headers = buildAuthHeaders(token);
         let payload: any;
@@ -533,17 +197,18 @@ async function httpPut(url: string, body: any, token?: string) {
         if (!res.ok) throw new Error(`PUT ${alt} failed: ${res.status}`);
         return res.json() as any;
       } catch (e2) {
-        // eslint-disable-next-line no-console
-        // PUT alt fetch failed
+        logToFile(`PUT alt fetch failed: ${e2}`, 'ERROR');
       }
     }
     if (body && body.graph) {
       try {
+        logToFile(`PUT local fallback: Writing graph to _graph/graph.xml`, 'DEBUG');
         writeLocalGraph(body.graph);
-        // eslint-disable-next-line no-console
-        // PUT local fallback: wrote _graph/graph.xml
+        logToFile(`PUT local fallback: Successfully wrote _graph/graph.xml`);
         return { success: true } as any;
-      } catch {}
+      } catch (error) {
+        logToFile(`PUT local fallback: Failed to write graph: ${error}`, 'ERROR');
+      }
     }
     throw e;
   }
@@ -579,105 +244,35 @@ function writeLocalGraph(graph: any) {
   } catch {}
 }
 
-// Helper functions for XML generation
-function toPropTypeAttr(p: Property): string {
-  const t = (p as any)?.type;
-  if (!t) return 'string';
-  // Preserve declared type; nested structures handled explicitly
-  return String(t);
+// Define types for MCP
+interface Property {
+  id: string;
+  title: string;
+  type: string;
+  value?: any;
+  options?: any[];
+  fields?: Property[];
+  itemFields?: Property[];
 }
 
-function valueToText(p: Property): string {
-  const v = (p as any)?.value;
-  if (v === undefined || v === null) return '';
-  if (typeof v === 'string') return v;
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-  try { return JSON.stringify(v); } catch { return String(v); }
+interface GraphNode {
+  id: string;
+  title: string;
+  prompt?: string;
+  state?: string;
+  properties: Property[];
 }
 
-function generateNestedXml(p: Property): string {
-  const type = (p as any)?.type;
-
-  if (type === 'object' && (p as any)?.fields) {
-    // Generate nested object structure
-    const fields = (p as any).fields as Property[];
-    const fieldXml = fields.map(field => {
-      const fieldValue = (p as any)?.value?.[field.id];
-      return generateFieldXml(field, fieldValue);
-    }).join('\n        ');
-    return `\n        ${fieldXml}\n      `;
-  } else if (type === 'object-list') {
-    // Generate nested array structure
-    const items = Array.isArray((p as any)?.value) ? (p as any).value : [];
-    let itemFields = Array.isArray((p as any)?.itemFields) ? (p as any).itemFields as Property[] : [];
-    // Support alternate schema: p.item as a map of fieldId -> fieldDef
-    if ((!itemFields || itemFields.length === 0) && (p as any)?.item && typeof (p as any).item === 'object' && !Array.isArray((p as any).item)) {
-      const itemMap = (p as any).item as Record<string, any>;
-      itemFields = Object.keys(itemMap).map((key) => {
-        const def = itemMap[key] || {};
-        const t = def.type || 'text';
-        const fld: any = { id: key, title: def.title || key, type: t };
-        if (Array.isArray(def.options)) fld.options = def.options;
-        if (def.fields) fld.fields = def.fields;
-        if (def.itemFields) fld.itemFields = def.itemFields;
-        if (def.value !== undefined) fld.value = def.value;
-        return fld as Property;
-      });
-    }
-    // If there are no items but we do have itemFields, emit a single template item for schema
-    const effectiveItems = items.length > 0 ? items : (itemFields && itemFields.length > 0 ? [Object.fromEntries(itemFields.map((f: any) => [f.id, (f.value ?? '')]))] : []);
-    const itemXml = effectiveItems.map((item: any, index: number) => {
-      let fieldsToUse = itemFields;
-      // If schema missing, infer per item keys minimally for round-trip
-      if (!fieldsToUse || fieldsToUse.length === 0) {
-        const keys = Object.keys(item || {});
-        fieldsToUse = keys.map((k) => ({ id: k, title: k, type: typeof item[k] === 'number' ? 'number' : typeof item[k] === 'boolean' ? 'boolean' : (typeof item[k] === 'object' && item[k] !== null) ? (Array.isArray(item[k]) ? 'object-list' : 'object') : 'text' } as any));
-      }
-      const itemFieldXml = fieldsToUse.map(field => {
-        const fieldValue = item ? item[field.id] : undefined;
-        return generateFieldXml(field, fieldValue);
-      }).join('\n          ');
-      return `        <item index="${index}">\n          ${itemFieldXml}\n        </item>`;
-    }).join('\n');
-    return `\n${itemXml}\n      `;
-  } else {
-    // Simple value
-    return escapeXml(valueToText(p));
-  }
+interface Graph {
+  nodes: GraphNode[];
+  edges: Array<{ id: string; source: string; target: string }>;
 }
-
-function generateFieldXml(field: Property, fieldValue: any): string {
-  const options = (field as any)?.options;
-
-  // Handle any field type that has options
-  if (Array.isArray(options) && options.length > 0) {
-    // Field with options as XML elements
-    const optionsXml = options.map(option => `          <option>${escapeXml(String(option))}</option>`).join('\n');
-    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">
-          <value>${escapeXml(valueToText({...field, value: fieldValue}))}</value>
-          <options>
-${optionsXml}
-          </options>
-        </field>`;
-  } else if (field.type === 'object' && field.fields) {
-    // Nested object
-    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${generateNestedXml({...field, value: fieldValue})}</field>`;
-  } else {
-    // Simple field
-    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${escapeXml(valueToText({...field, value: fieldValue}))}</field>`;
-  }
-}
-
-// Toolset is chosen at startup by the MCP based on env
-
-export type Toolset = 'graph-editor' | 'read-only';
 
 export function registerGraphTools(server: McpServer, toolset: Toolset) {
-  // eslint-disable-next-line no-console
-  // Registering graph tools
+    logToFile(`Registering graph tools with toolset: ${toolset}`);
   // read_graph (rich read)
   server.registerTool(
-    'read_graph',
+    'graph_read',
     {
       title: 'Read Graph',
       description: 'Read the current graph or a specific node.',
@@ -739,7 +334,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       if (!targetNode) throw new Error(`Target node ${targetId} not found`);
 
       // Check if edge already exists
-      const existingEdge = graph.edges.find((e: any) => e.source === sourceId && e.target === targetId);
+      const existingEdge = (graph.edges || []).find((e: any) => e.source === sourceId && e.target === targetId);
       if (existingEdge) {
         throw new Error(`Edge from ${sourceId} to ${targetId} already exists`);
       }
@@ -760,9 +355,10 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   );
 
-  // add_node (graph-editor only)
-  if (toolset === 'graph-editor') server.registerTool(
-    'add_node',
+  // graph_node_add (graph-editor only)
+  if (toolset === 'graph-editor') {
+    server.registerTool(
+      'graph_node_add',
     {
       title: 'Add Node',
       description: 'Create a new node and persist it to the graph.',
@@ -774,26 +370,78 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         state: z.enum(['built','unbuilt','building']).optional(),
       },
     },
-    async ({ nodeId, title, prompt, properties, state }) => {
+  async ({ nodeId, title, prompt, properties, state }) => {
+    try {
+      logToFile(`Adding node: ${nodeId}`, 'DEBUG');
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
-      const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
+      logToFile(`Fetching graph from ${url}`, 'DEBUG');
+      const data = await httpGet(url, token);
+      const parsed = GraphSchema.safeParse(data.graph ?? data);
+      if (!parsed.success) {
+        logToFile(`Graph schema validation failed: ${parsed.error.message}`, 'ERROR');
+        logToFile(`Graph validation errors: ${JSON.stringify(parsed.error.errors, null, 2)}`, 'ERROR');
+        throw new Error('Graph schema validation failed');
+      }
       const graph = parsed.data;
-      if (graph.nodes.find((n: any) => n.id === nodeId)) throw new Error(`Node ${nodeId} already exists`);
-      const node: any = { id: nodeId, title, prompt, properties: Array.isArray(properties) ? properties : [], state: state ?? 'unbuilt' };
-      graph.nodes.push(node);
-      await httpPut(url, { graph }, token);
-      return { content: [{ type: 'text', text: `Added node ${nodeId}` }] };
-    }
-  );
+      logToFile(`Loaded graph with ${graph.nodes.length} nodes`, 'DEBUG');
 
-  // edit_node
+      const existingNode = graph.nodes.find((n: any) => n.id === nodeId);
+      if (existingNode) {
+        logToFile(`Node ${nodeId} already exists`, 'ERROR');
+        throw new Error(`Node ${nodeId} already exists`);
+      }
+
+      const node: any = {
+        id: nodeId,
+        title,
+        prompt,
+        properties: Array.isArray(properties) ? properties : [],
+        state: state ?? 'unbuilt'
+      };
+      logToFile(`Created node object with ${node.properties.length} properties`, 'DEBUG');
+
+    // Validate each property individually for debugging
+    if (Array.isArray(node.properties)) {
+      node.properties.forEach((prop: any, index: number) => {
+        const propValidation = PropertySchema.safeParse(prop);
+        if (!propValidation.success) {
+          logToFile(`Property ${index} (${prop.id || 'unknown'}) validation failed: ${JSON.stringify(propValidation.error.errors, null, 2)}`, 'ERROR');
+          logToFile(`Property ${index} data: ${JSON.stringify(prop, null, 2)}`, 'ERROR');
+        } else {
+          logToFile(`Property ${index} (${prop.id}) validated successfully`, 'DEBUG');
+        }
+      });
+    }
+
+      graph.nodes.push(node);
+      logToFile(`Added node to graph, total nodes: ${graph.nodes.length}`, 'DEBUG');
+
+      logToFile(`Saving updated graph to ${url}`, 'DEBUG');
+      await httpPut(url, { graph }, token);
+      logToFile(`Successfully added node ${nodeId}`, 'DEBUG');
+      return { content: [{ type: 'text', text: `Added node ${nodeId}` }] };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
+      logToFile(`Failed to add node ${nodeId}: ${errorMessage}`, 'ERROR');
+      if (errorStack) {
+        logToFile(`Error stack: ${errorStack}`, 'ERROR');
+      }
+      throw error;
+    }
+  }
+    );
+  }
+
+  // graph_node_edit
   if (toolset === 'graph-editor') server.registerTool(
-    'edit_node',
+    'graph_node_edit',
     {
       title: 'Edit Node',
-      description: 'Replace node fields with provided values.',
+      description: 'Edit node fields with two modes: replace (fully replaces node) or merge (merges properties with existing data).',
       inputSchema: {
         nodeId: z.string().min(1),
+        mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
         title: z.string().optional(),
         prompt: z.string().optional(),
         properties: z.array(PropertySchema).optional(),
@@ -801,11 +449,137 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         state: z.enum(['built','unbuilt','building']).optional(),
       },
     },
-    async ({ nodeId, title, prompt, properties, children, state }) => {
+    async ({ nodeId, mode = 'replace', title, prompt, properties, children, state }) => {
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
       const idx = graph.nodes.findIndex((n: any) => n.id === nodeId); if (idx === -1) throw new Error(`Node ${nodeId} not found`);
+
+      if (mode === 'merge') {
+        // Merge mode: preserve existing data and merge properties
+        const existing = graph.nodes[idx];
+        const next = { ...existing } as any;
+
+        // Merge simple fields (only update if provided)
+        if (title !== undefined) next.title = title;
+        if (prompt !== undefined) next.prompt = prompt;
+        if (children !== undefined) next.children = children;
+        if (state !== undefined) next.state = state;
+
+        // Special handling for properties: merge instead of replace
+        if (properties !== undefined) {
+          const existingProps = Array.isArray(existing.properties) ? existing.properties : [];
+          const byId = new Map<string, any>(existingProps.map((p: any) => [p.id, p]));
+
+          // Merge new properties with existing ones
+          for (const newProp of properties) {
+            if (!newProp || typeof newProp.id !== 'string') continue;
+
+            // Handle dot-notation for nested properties (e.g., "root-styles.background-color")
+            const dotIndex = newProp.id.indexOf('.');
+            if (dotIndex > 0) {
+              const parentId = newProp.id.substring(0, dotIndex);
+              const fieldName = newProp.id.substring(dotIndex + 1);
+              const existingParent = byId.get(parentId);
+
+
+              if (existingParent && existingParent.type === 'object' && existingParent.fields) {
+                // Update nested field within existing object property
+                const existingFields = Array.isArray(existingParent.fields) ? existingParent.fields : [];
+
+                const fieldMap = new Map<string, any>(existingFields.map((f: any) => [f.id || f.name, f]));
+                const existingField = fieldMap.get(fieldName);
+
+
+                // Ensure parent has a value object to store field values
+                const parentValue = existingParent.value && typeof existingParent.value === 'object' ? { ...existingParent.value } : {};
+
+                if (existingField) {
+                  // Update existing field - preserve id/name and only update specified properties
+                  fieldMap.set(fieldName, {
+                    id: existingField.id || existingField.name, // Always preserve the original id/name
+                    title: newProp.title !== undefined ? newProp.title : existingField.title,
+                    type: newProp.type !== undefined ? newProp.type : existingField.type,
+                    value: newProp.value !== undefined ? newProp.value : existingField.value,
+                    ...(existingField.options ? { options: existingField.options } : {}),
+                    ...(existingField.fields ? { fields: existingField.fields } : {})
+                  });
+                  // Also update the parent value object for XML serialization
+                  if (newProp.value !== undefined) {
+                    parentValue[fieldName] = newProp.value;
+                  }
+                } else {
+                  // Add new field to object
+                  fieldMap.set(fieldName, {
+                    id: fieldName,
+                    title: newProp.title || fieldName,
+                    type: newProp.type || 'text',
+                    value: newProp.value
+                  });
+                  // Also add to parent value object for XML serialization
+                  parentValue[fieldName] = newProp.value;
+                }
+
+                byId.set(parentId, {
+                  ...existingParent,
+                  fields: Array.from(fieldMap.values()),
+                  value: parentValue
+                });
+              } else if (existingParent) {
+                // Parent exists but is not an object, replace it with object containing the field
+                const initialValue: any = {};
+                initialValue[fieldName] = newProp.value;
+                byId.set(parentId, {
+                  id: parentId,
+                  title: existingParent.title || parentId,
+                  type: 'object',
+                  value: initialValue,
+                  fields: [{
+                    id: fieldName,
+                    title: newProp.title || fieldName,
+                    type: newProp.type || 'text',
+                    value: newProp.value
+                  }]
+                });
+              } else {
+                // Create new object property with the field
+                const initialValue: any = {};
+                initialValue[fieldName] = newProp.value;
+                byId.set(parentId, {
+                  id: parentId,
+                  title: parentId,
+                  type: 'object',
+                  value: initialValue,
+                  fields: [{
+                    id: fieldName,
+                    title: newProp.title || fieldName,
+                    type: newProp.type || 'text',
+                    value: newProp.value
+                  }]
+                });
+              }
+            } else {
+              // Regular property (no dot notation)
+              const existingProp = byId.get(newProp.id);
+              if (existingProp) {
+                // Merge with existing property
+                byId.set(newProp.id, { ...existingProp, ...newProp });
+              } else {
+                // Add new property
+                byId.set(newProp.id, newProp);
+              }
+            }
+          }
+
+          next.properties = Array.from(byId.values());
+        }
+
+        graph.nodes[idx] = next;
+        await httpPut(url, { graph }, token);
+        return { content: [{ type: 'text', text: `Merged changes into node ${nodeId}` }] };
+
+      } else {
+        // Replace mode: fully replace the node (original behavior)
       const next = { ...graph.nodes[idx] } as any;
       if (title !== undefined) next.title = title;
       if (prompt !== undefined) next.prompt = prompt;
@@ -814,49 +588,14 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       if (state !== undefined) next.state = state;
       graph.nodes[idx] = next;
       await httpPut(url, { graph }, token);
-      return { content: [{ type: 'text', text: `Edited node ${nodeId}` }] };
-    }
-  );
-
-  // update_properties (merge by id)
-  if (toolset === 'graph-editor') server.registerTool(
-    'update_properties',
-    {
-      title: 'Update Properties',
-      description: 'Merge and update node properties.',
-      inputSchema: {
-        nodeId: z.string().min(1),
-        properties: z.array(PropertySchema).min(1),
-        title: z.string().optional(),
-        prompt: z.string().optional(),
-        state: z.enum(['built','unbuilt','building']).optional(),
-      },
-    },
-    async ({ nodeId, properties, title, prompt, state }) => {
-      const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
-      const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
-      const graph = parsed.data;
-      const idx = graph.nodes.findIndex((n: any) => n.id === nodeId); if (idx === -1) throw new Error(`Node ${nodeId} not found`);
-      const node = { ...graph.nodes[idx] } as any;
-      const byId = new Map<string, any>((Array.isArray(node.properties) ? node.properties : []).map((p: any) => [p.id, p]));
-      for (const p of properties) {
-        if (!p || typeof p.id !== 'string') continue;
-        const existing = byId.get(p.id);
-        if (existing) byId.set(p.id, { ...existing, ...p }); else byId.set(p.id, p);
+        return { content: [{ type: 'text', text: `Replaced node ${nodeId}` }] };
       }
-      node.properties = Array.from(byId.values());
-      if (title !== undefined) node.title = title;
-      if (prompt !== undefined) node.prompt = prompt;
-      if (state !== undefined) node.state = state;
-      graph.nodes[idx] = node;
-      await httpPut(url, { graph }, token);
-      return { content: [{ type: 'text', text: `Updated ${properties.length} properties on ${nodeId}` }] };
     }
   );
 
-  // delete_node
+  // graph_node_delete
   if (toolset === 'graph-editor') server.registerTool(
-    'delete_node',
+    'graph_node_delete',
     {
       title: 'Delete Node',
       description: 'Delete a node by id.',
@@ -903,7 +642,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
 
   // Alias for convenience
   server.registerTool(
-    'set_node_state',
+    'graph_node_set_state',
     {
       title: 'Set Node State',
       description: 'Update a node\'s state (built/unbuilt/building).',

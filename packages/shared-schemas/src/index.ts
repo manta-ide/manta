@@ -16,21 +16,43 @@ export const PropertyTypeEnum = z.enum([
 ]);
 export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 
-export const PropertySchema: z.ZodType<any> = z.lazy(() => z.object({
+// Base schema without recursion for better control
+const BasePropertySchema = z.object({
   id: z.string().describe('Unique identifier for the property (should follow pattern: property-name)'),
   title: z.string().describe('Human-readable title/name for the property'),
   type: PropertyTypeEnum.describe('The type of property'),
-  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.any()), z.record(z.any())]).optional(),
   options: z.array(z.string()).nullable().optional(),
   maxLength: z.number().optional(),
   min: z.number().optional(),
   max: z.number().optional(),
   step: z.number().optional(),
-  fields: z.array(z.lazy(() => PropertySchema)).optional(),
-  itemFields: z.array(z.lazy(() => PropertySchema)).optional(),
   itemTitle: z.string().optional(),
   addLabel: z.string().optional(),
-}));
+});
+
+// Define value based on type for better validation
+const PropertyValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.record(z.any())), // For object-list: array of objects with field values
+  z.record(z.any()), // For object: single object with field values
+]);
+
+export const PropertySchema: z.ZodType<any> = BasePropertySchema.extend({
+  value: PropertyValueSchema.optional(),
+  fields: z.array(z.lazy(() => PropertySchema)).optional(),
+  itemFields: z.array(z.lazy(() => PropertySchema)).optional(),
+}).refine((data) => {
+  // For object-list type, ensure itemFields is defined
+  if (data.type === 'object-list' && !data.itemFields) {
+    return false;
+  }
+  return true;
+}, {
+  message: "object-list properties must have itemFields defined",
+  path: ["itemFields"]
+});
 export type Property = z.infer<typeof PropertySchema>;
 
 export const GraphNodeSchema = z.object({
@@ -48,4 +70,7 @@ export type GraphNode = z.infer<typeof GraphNodeSchema>;
 export const GraphEdgeSchema = z.object({ id: z.string(), source: z.string(), target: z.string() });
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });
 export type Graph = z.infer<typeof GraphSchema>;
+
+// Export XML conversion utilities
+export { graphToXml, xmlToGraph } from './xml-utils.js'
 
