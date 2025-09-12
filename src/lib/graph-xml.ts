@@ -294,7 +294,7 @@ function parsePropValue(type: string | undefined, text: string): any {
     if (raw.toLowerCase() === 'false') return false;
     return raw;
   }
-  if (t === 'json' || raw.startsWith('{') || raw.startsWith('[')) {
+  if (t === 'json') {
     try { return JSON.parse(raw); } catch { return raw; }
   }
   return raw;
