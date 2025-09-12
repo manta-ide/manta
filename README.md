@@ -9,10 +9,10 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 1. [Quick Start](#quick-start)
 2. [Features](#features)
 3. [Installation](#installation)
-4. [Demo](#demo)
+4. [Dvelopers](#developers)
 5. [Contributing](#contributing)
 6. [License](#license)
-
+7. [Demo](#demo)
 ---
 ## Quick Start
 
@@ -68,6 +68,25 @@ To install Manta IDE, follow the instructions below.
 
    ```bash
    npm install
+
+### Developers
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/manta-ide/manta.git
+  
+2. Install dependencies:
+
+   ```bash
+   npm run i:all
+   npm run build:all
+   npm install -g .
+
+3. Run
+   ```bash
+   manta i
+   manta run
 
 ### Build the Project
 
