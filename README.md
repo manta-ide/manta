@@ -6,13 +6,24 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 
 ## Table of Contents
 
-1. [Demo](#demo)
+1. [Quick Start](#quick-start)
 2. [Features](#features)
 3. [Installation](#installation)
-4. [Quick Start](#quick-start)
+4. [Demo](#demo)
 5. [Contributing](#contributing)
 6. [License](#license)
 
+---
+## Quick Start
+
+1. Initialize Manta IDE:
+
+   manta i
+
+2. Run Manta IDE:
+
+   manta run
+   
 ---
 
 ## Demo
