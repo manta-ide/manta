@@ -1,6 +1,6 @@
 # Manta IDE
 
-Manta IDE is a fast and powerful integrated development environment designed for modern web development. It provides a seamless, lightweight, and intuitive platform for developers to build web applications efficiently.
+Manta IDE is a graph-based development environment that lets you control Codex by creating and editing nodes on a graph. 
 
 ---
 
