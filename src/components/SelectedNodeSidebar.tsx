@@ -76,6 +76,7 @@ export default function SelectedNodeSidebar() {
 	}, [user?.id, supabaseConnected]);
 
 	useEffect(() => {
+		// Only reset prompt draft when switching to a different node, not when the prompt value changes
 		setPromptDraft(selectedNode?.prompt ?? '');
 		setRebuildError(null);
 		setRebuildSuccess(false);
@@ -95,7 +96,7 @@ export default function SelectedNodeSidebar() {
 			setPropertyValues(initialValues);
 			stagedPropertyValuesRef.current = initialValues;
 		}
-	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
+	}, [selectedNodeId]);
 
 	// Cleanup timeout on unmount
 	useEffect(() => {
@@ -280,6 +281,24 @@ export default function SelectedNodeSidebar() {
 									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
 									value={promptDraft}
 									onChange={(e) => setPromptDraft(e.target.value)}
+									onBlur={() => {
+										// Auto-save prompt when user finishes editing
+										if (selectedNode && promptDraft !== selectedNode.prompt) {
+											console.log('💾 Auto-saving prompt for node:', selectedNodeId);
+											// Update the node locally
+											const updatedNode = { ...selectedNode, prompt: promptDraft };
+											setSelectedNode(selectedNodeId, updatedNode);
+
+											// Persist to database
+											if (user?.id) {
+												updateNodeInSupabase(selectedNodeId, { prompt: promptDraft }).catch((error) => {
+													console.error('Failed to save prompt:', error);
+													setRebuildError('Failed to save prompt');
+													setTimeout(() => setRebuildError(null), 3000);
+												});
+											}
+										}
+									}}
 									placeholder="Enter prompt..."
 								/>
 								{rebuildError && (

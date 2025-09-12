@@ -28,6 +28,20 @@ import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
+// Helper function to check if a point is within a rectangle
+function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
+  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+}
+
+// Helper function to get rectangle from two points
+function getRectFromPoints(p1: { x: number; y: number }, p2: { x: number; y: number }) {
+  const x = Math.min(p1.x, p2.x);
+  const y = Math.min(p1.y, p2.y);
+  const width = Math.abs(p1.x - p2.x);
+  const height = Math.abs(p1.y - p2.y);
+  return { x, y, width, height };
+}
+
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
@@ -363,6 +377,10 @@ function GraphCanvas() {
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [isDraggingSelect, setIsDraggingSelect] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
   const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
   const { user } = useAuth();
   
@@ -496,7 +514,7 @@ function GraphCanvas() {
         body: JSON.stringify({
           userMessage: {
             role: 'user',
-            content: `Implement this node: ${selectedNode.title}`,//`Build and generate code for the node: ${selectedNode.title}`,
+            content: `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
             variables: {}
           },
           nodeId: selectedNode.id
@@ -528,14 +546,44 @@ function GraphCanvas() {
     const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
     const reactFlowNode = node.data?.node as GraphNode;
 
-    // Handle node click - sync properties between fresh graph data and ReactFlow
-    const bgColorFresh = freshGraphNode?.properties?.find(p => p.id === 'background-color')?.value;
-    const bgColorReactFlow = reactFlowNode?.properties?.find(p => p.id === 'background-color')?.value;
+    if (!freshGraphNode) return;
 
-    if (freshGraphNode) {
+    // Check if shift or ctrl/cmd is pressed for multi-selection
+    const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
+
+    if (isMultiSelect) {
+      setSelectedNodeIds(prev => {
+        const isSelected = prev.includes(node.id);
+        if (isSelected) {
+          // Remove from selection
+          const newSelection = prev.filter(id => id !== node.id);
+          // If this was the single selected node, clear the main selection
+          if (selectedNodeId === node.id && newSelection.length === 0) {
+            setSelectedNode(null, null);
+          } else if (selectedNodeId === node.id && newSelection.length > 0) {
+            // Set the first remaining node as the main selected node
+            const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+            if (firstNode) {
+              setSelectedNode(newSelection[0], firstNode);
+            }
+          }
+          return newSelection;
+        } else {
+          // Add to selection
+          const newSelection = [...prev, node.id];
+          // Set this as the main selected node if it's the first one
+          if (prev.length === 0) {
+            setSelectedNode(node.id, freshGraphNode);
+          }
+          return newSelection;
+        }
+      });
+    } else {
+      // Single selection - clear multi-selection and select only this node
+      setSelectedNodeIds([node.id]);
       setSelectedNode(node.id, freshGraphNode);
     }
-  }, [setSelectedNode, graph]);
+  }, [setSelectedNode, graph, selectedNodeId]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -738,6 +786,71 @@ function GraphCanvas() {
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
   }, [updateNodeInSupabase]);
 
+  // Handle background mouse down for drag selection
+  const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
+    if (event.target !== event.currentTarget) return; // Only start drag on background
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setIsDraggingSelect(true);
+    setDragStart({ x, y });
+    setDragEnd({ x, y });
+  }, []);
+
+  const onPaneMouseMove = useCallback((event: React.MouseEvent) => {
+    if (!isDraggingSelect || !dragStart) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setDragEnd({ x, y });
+  }, [isDraggingSelect, dragStart]);
+
+  const onPaneMouseUp = useCallback(() => {
+    if (!isDraggingSelect || !dragStart || !dragEnd) {
+      setIsDraggingSelect(false);
+      setDragStart(null);
+      setDragEnd(null);
+      return;
+    }
+
+    // Calculate selection rectangle in screen coordinates
+    const selectionRect = getRectFromPoints(dragStart, dragEnd);
+
+    // Find nodes within the selection rectangle
+    const selectedNodesInRect: string[] = [];
+    nodes.forEach(node => {
+      const nodeCenter = {
+        x: node.position.x + 130, // node width / 2
+        y: node.position.y + 80   // node height / 2
+      };
+
+      if (isPointInRect(nodeCenter, selectionRect)) {
+        selectedNodesInRect.push(node.id);
+      }
+    });
+
+    if (selectedNodesInRect.length > 0) {
+      setSelectedNodeIds(prev => {
+        // Add new nodes to selection
+        const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
+        // Set the first selected node as the main selected node
+        const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+        if (firstNode) {
+          setSelectedNode(newSelection[0], firstNode);
+        }
+        return newSelection;
+      });
+    }
+
+    setIsDraggingSelect(false);
+    setDragStart(null);
+    setDragEnd(null);
+  }, [isDraggingSelect, dragStart, dragEnd, nodes, graph]);
+
   // Node types for ReactFlow
   const nodeTypes = {
     custom: CustomNode,
@@ -856,7 +969,7 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
-        {/* Build Selected Node Button - only show when a node is selected */}
+        {/* Build/Rebuild Selected Node Button - only show when a node is selected */}
         {selectedNode && (
           <Button
             onClick={buildSelectedNode}
@@ -864,10 +977,10 @@ function GraphCanvas() {
             variant="outline"
             size="sm"
             className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title={(isBuildingSelected || selectedNode.state === 'building') ? "Building selected node..." : `Build node: ${selectedNode.title}`}
+            title={(isBuildingSelected || selectedNode.state === 'building') ? "Building selected node..." : `${selectedNode.state === 'built' ? 'Rebuild' : 'Build'} node: ${selectedNode.title}`}
           >
             <Play className="w-4 h-4" />
-            {(isBuildingSelected || selectedNode.state === 'building') ? 'Building...' : 'Build Selected'}
+            {(isBuildingSelected || selectedNode.state === 'building') ? 'Building...' : `${selectedNode.state === 'built' ? 'Rebuild' : 'Build'} Selected`}
           </Button>
         )}
         

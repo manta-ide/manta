@@ -284,7 +284,7 @@ ${optionsXml}
 
 function parsePropValue(type: string | undefined, text: string): any {
   const t = (type || '').toLowerCase();
-  const raw = unescapeXml(text || '').trim();
+  const raw = (text || '').trim();
   if (t === 'number') {
     const n = Number(raw);
     return Number.isFinite(n) ? n : raw;
@@ -541,7 +541,7 @@ export function xmlToGraph(xml: string): Graph {
       return {
         id,
         title,
-        prompt: unescapeXml(description),
+        prompt: description,
         state: (buildStatus as any) || 'unbuilt',
         properties
       } as GraphNode;

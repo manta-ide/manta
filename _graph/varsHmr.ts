@@ -95,23 +95,6 @@ async function fetchInitialVars(): Promise<Vars> {
   return {};
 }
 
-// Deep merge objects for nested structures
-function deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
-  const result = { ...target };
-
-  for (const [key, value] of Object.entries(source)) {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      // Deep merge nested objects
-      result[key] = deepMerge(result[key] || {}, value);
-    } else {
-      // Replace arrays and primitive values entirely
-      result[key] = value;
-    }
-  }
-
-  return result;
-}
-
 export function subscribeVars(onUpdate: (vars: Vars) => void) {
   listeners.add(onUpdate);
   // Emit initial vars (async fetch) only when no parent bridge yet.
