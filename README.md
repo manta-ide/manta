@@ -23,7 +23,8 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 2. Run Manta IDE:
    ```bash
    manta run
-   
+
+3. Open http://localhost:3000
 ---
 
 ## Demo
