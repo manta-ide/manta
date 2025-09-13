@@ -9,12 +9,14 @@ Guidance
 - For each target node, implement or update code as needed based on its prompt and properties.
 - Keep changes minimal and focused on the node’s responsibilities.
 - Set the state of the nodes you built to "built"
- - Summarize applied changes at the end.
+- Connect nodes using graph_edge_create() tool when logical relationships exist
+- Summarize applied changes at the end.
 
 Available Tools (read-only)
 - graph_read(includeEdges?)
 - graph_unbuilt()
 - graph_node(nodeId)
+- graph_edge_create(sourceId, targetId, role?) - Create edges between nodes
 
 Output
 - Short, step-by-step status lines during progress.

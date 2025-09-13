@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./xml-utils": "./dist/xml-utils.js"
+  },
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p ."

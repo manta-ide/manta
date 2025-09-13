@@ -7,17 +7,6 @@ export declare const GraphNodeSchema: z.ZodObject<{
     id: z.ZodString;
     title: z.ZodString;
     prompt: z.ZodString;
-    children: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        title: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        id: string;
-        title: string;
-    }, {
-        id: string;
-        title: string;
-    }>, "many">;
-    parentId: z.ZodOptional<z.ZodString>;
     state: z.ZodOptional<z.ZodDefault<z.ZodEnum<["built", "unbuilt", "building"]>>>;
     properties: z.ZodOptional<z.ZodArray<z.ZodType<any, z.ZodTypeDef, any>, "many">>;
     position: z.ZodOptional<z.ZodObject<{
@@ -36,11 +25,6 @@ export declare const GraphNodeSchema: z.ZodObject<{
     id: string;
     title: string;
     prompt: string;
-    children: {
-        id: string;
-        title: string;
-    }[];
-    parentId?: string | undefined;
     state?: "built" | "unbuilt" | "building" | undefined;
     properties?: any[] | undefined;
     position?: {
@@ -53,11 +37,6 @@ export declare const GraphNodeSchema: z.ZodObject<{
     id: string;
     title: string;
     prompt: string;
-    children: {
-        id: string;
-        title: string;
-    }[];
-    parentId?: string | undefined;
     state?: "built" | "unbuilt" | "building" | undefined;
     properties?: any[] | undefined;
     position?: {
@@ -86,17 +65,6 @@ export declare const GraphSchema: z.ZodObject<{
         id: z.ZodString;
         title: z.ZodString;
         prompt: z.ZodString;
-        children: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            title: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            id: string;
-            title: string;
-        }, {
-            id: string;
-            title: string;
-        }>, "many">;
-        parentId: z.ZodOptional<z.ZodString>;
         state: z.ZodOptional<z.ZodDefault<z.ZodEnum<["built", "unbuilt", "building"]>>>;
         properties: z.ZodOptional<z.ZodArray<z.ZodType<any, z.ZodTypeDef, any>, "many">>;
         position: z.ZodOptional<z.ZodObject<{
@@ -115,11 +83,6 @@ export declare const GraphSchema: z.ZodObject<{
         id: string;
         title: string;
         prompt: string;
-        children: {
-            id: string;
-            title: string;
-        }[];
-        parentId?: string | undefined;
         state?: "built" | "unbuilt" | "building" | undefined;
         properties?: any[] | undefined;
         position?: {
@@ -132,11 +95,6 @@ export declare const GraphSchema: z.ZodObject<{
         id: string;
         title: string;
         prompt: string;
-        children: {
-            id: string;
-            title: string;
-        }[];
-        parentId?: string | undefined;
         state?: "built" | "unbuilt" | "building" | undefined;
         properties?: any[] | undefined;
         position?: {
@@ -164,11 +122,6 @@ export declare const GraphSchema: z.ZodObject<{
         id: string;
         title: string;
         prompt: string;
-        children: {
-            id: string;
-            title: string;
-        }[];
-        parentId?: string | undefined;
         state?: "built" | "unbuilt" | "building" | undefined;
         properties?: any[] | undefined;
         position?: {
@@ -188,11 +141,6 @@ export declare const GraphSchema: z.ZodObject<{
         id: string;
         title: string;
         prompt: string;
-        children: {
-            id: string;
-            title: string;
-        }[];
-        parentId?: string | undefined;
         state?: "built" | "unbuilt" | "building" | undefined;
         properties?: any[] | undefined;
         position?: {
@@ -209,3 +157,4 @@ export declare const GraphSchema: z.ZodObject<{
     }[] | undefined;
 }>;
 export type Graph = z.infer<typeof GraphSchema>;
+export { graphToXml, xmlToGraph } from './xml-utils.js';

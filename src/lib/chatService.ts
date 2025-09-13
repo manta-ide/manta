@@ -165,135 +165,71 @@ useEffect(() => {
       const contentType = response.headers.get('Content-Type') || '';
 
       if (contentType.includes('text/plain') || contentType.includes('text/event-stream')) {
-        // Streaming mode: accumulate raw chunks without per-line trimming to avoid accidental loss.
+        // Handle streaming job status messages
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
-        let fullText = '';
-        // We want to wait a bit before revealing the first chunks
-        // so the UI can animate the whole message when generation is quick.
-        const streamStart = Date.now();
-        const revealDelayMs = 900; // small delay to favor full-animation on short responses
-        const minCharsBeforeReveal = 400; // wait until we have a decent chunk
-        let revealed = false; // whether we've started showing partial content
-        let lastPushedLen = 0; // length of last content we pushed during stream
-
-        const sanitizeAssistant = (text: string) => {
-          return text
-            .replace(/\{\{#ASSISTANT_RESPONSE\}\}/g, '')
-            .replace(/\{\{\/ASSISTANT_RESPONSE\}\}/g, '');
-        };
-
-        const normalizeMarkdownLists = (text: string) => {
-          const lines = text.split(/\r?\n/);
-          let insideOl = false;
-          let sawOlItemOnPrevNonEmptyLine = false;
-          const out: string[] = [];
-          for (let i = 0; i < lines.length; i++) {
-            const raw = lines[i];
-            const isOl = /^\s*\d+\.\s+/.test(raw);
-            const isUlTop = /^\s*[-*+]\s+/.test(raw);
-            const isEmpty = /^\s*$/.test(raw);
-
-            if (isOl) {
-              insideOl = true;
-              sawOlItemOnPrevNonEmptyLine = true;
-              out.push(raw);
-              continue;
-            }
-
-            if (isUlTop && insideOl && sawOlItemOnPrevNonEmptyLine) {
-              // Ensure nested UL is actually nested inside the preceding OL item by indenting
-              const indented = '    ' + raw.trimStart();
-              out.push(indented);
-              continue;
-            }
-
-            if (!isEmpty) {
-              // Any non-list, non-empty line breaks the OL context
-              insideOl = false;
-              sawOlItemOnPrevNonEmptyLine = false;
-            } else {
-              // Keep empty line but don't break OL context; next UL may still belong to current li
-              sawOlItemOnPrevNonEmptyLine = false;
-            }
-
-            out.push(raw);
-          }
-          return out.join('\n');
-        };
+        const accumulatedMessages: string[] = [];
+        let isProcessingComplete = false;
 
         if (reader) {
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            // Append chunk as-is to avoid losing large content due to line splitting edge cases
-            fullText += chunk;
 
-            // Decide whether to reveal streaming content yet, or keep showing Thinking...
-            const now = Date.now();
-            if (!revealed) {
-              const waitedLongEnough = now - streamStart >= revealDelayMs;
-              const hasEnoughContent = fullText.length >= minCharsBeforeReveal;
-              // Reveal only if generation is taking longer AND we have some meaningful text
-              if (waitedLongEnough && hasEnoughContent) {
-                revealed = true;
-                const nextText = normalizeMarkdownLists(sanitizeAssistant(fullText));
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.trim());
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (trimmedLine) {
+                accumulatedMessages.push(trimmedLine);
+
+                // Update the UI with the latest message
                 setMessages((prev) => {
                   const updated = [...prev];
                   const last = updated[updated.length - 1];
                   if (last && last.role === 'assistant') {
-                    lastPushedLen = nextText.length;
+                    // Show the most recent status message
                     updated[updated.length - 1] = {
                       ...last,
-                      content: nextText,
-                      // Mark that this message began streaming in the UI
-                      variables: { ...(last as any).variables, HAD_STREAMING: '1' }
+                      content: trimmedLine,
+                      variables: {
+                        ...(last as any).variables,
+                        IS_JOB_STATUS: '1',
+                        JOB_STATUS_MESSAGE: trimmedLine
+                      }
                     } as any;
                   }
                   return updated;
                 });
-              }
-            } else {
-              // Already revealing; keep updating progressively
-              const nextText = normalizeMarkdownLists(sanitizeAssistant(fullText));
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last && last.role === 'assistant') {
-                  lastPushedLen = nextText.length;
-                  updated[updated.length - 1] = { ...last, content: nextText } as any;
+
+                // Check if processing is complete
+                if (trimmedLine.includes('completed successfully') || trimmedLine.includes('failed') || trimmedLine.includes('timed out')) {
+                  isProcessingComplete = true;
                 }
-                return updated;
-              });
+              }
             }
           }
         }
 
-        const finalContentRaw = sanitizeAssistant(fullText).trim();
-        const finalContent = normalizeMarkdownLists(finalContentRaw);
+        // Final update with completion status
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && last.role === 'assistant') {
-            // Determine if we truly streamed (pushed partial content before final)
-            const hadPartialBeforeFinal = revealed && lastPushedLen > 0 && lastPushedLen < finalContent.length;
-            const nextVars = { ...(last as any).variables } as Record<string, any> | undefined;
-            if (nextVars) {
-              if (hadPartialBeforeFinal) {
-                nextVars.HAD_STREAMING = '1';
-              } else {
-                // Ensure the flag is not set if we never showed partial content
-                delete (nextVars as any).HAD_STREAMING;
-              }
-            }
+            const finalMessage = isProcessingComplete
+              ? (accumulatedMessages[accumulatedMessages.length - 1] || 'Processing completed')
+              : 'Processing completed';
+
             updated[updated.length - 1] = {
               ...last,
-              content: finalContent,
-              // Preserve or clear HAD_STREAMING depending on whether we actually streamed
-              variables: finalContent
-                ? { ...(nextVars || {}), ASSISTANT_RESPONSE: finalContent }
-                : nextVars
+              content: finalMessage,
+              variables: {
+                ...(last as any).variables,
+                IS_JOB_STATUS: '1',
+                JOB_COMPLETE: '1',
+                ASSISTANT_RESPONSE: finalMessage
+              }
             } as any;
           }
           // Persist the complete final message

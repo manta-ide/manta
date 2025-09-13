@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../lib/graph-service';
+import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 
@@ -19,6 +20,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const isSSE = url.searchParams.get('sse') === 'true';
     const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
+    const accept = (req.headers.get('accept') || '').toLowerCase();
+    const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
     if (isSSE) {
       // Set up SSE headers
@@ -47,12 +50,11 @@ export async function GET(req: NextRequest) {
                }
                
                if (graph && graph.nodes) {
-               const data = `data: ${JSON.stringify({
-                   type: 'graph-update',
-                   graph: graph
-                 })}\n\n`;
-                 
-                 controller.enqueue(new TextEncoder().encode(data));
+                 const xml = graphToXml(graph);
+                 // Base64 encode the XML using UTF-8 bytes
+                 const encodedXml = Buffer.from(xml, 'utf8').toString('base64');
+                 const payload = `data: ${encodedXml}\n\n`;
+                 controller.enqueue(new TextEncoder().encode(payload));
                }
              } catch (error) {
                console.error('Error sending SSE graph data:', error);
@@ -63,8 +65,8 @@ export async function GET(req: NextRequest) {
           // Send initial data
           sendGraphData();
 
-          // Set up periodic updates (every 2 seconds)
-          const interval = setInterval(sendGraphData, 2000);
+          // Set up periodic updates (every 500ms for more responsive updates)
+          const interval = setInterval(sendGraphData, 500);
 
           // Clean up on close
           req.signal.addEventListener('abort', () => {
@@ -124,13 +126,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log(`✅ Returning graph with ${graph.nodes?.length || 0} nodes`);
-
-    // Return graph with built status for each node
-    return NextResponse.json({ 
-      success: true,
-      graph: graph
-    });
+    if (!wantsJson) {
+      const xml = graphToXml(graph);
+      return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Accept-Charset': 'utf-8' } });
+    }
+    return NextResponse.json({ success: true, graph });
   } catch (error) {
     console.error('Error fetching graph data:', error);
     return NextResponse.json(
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
 
       console.log(`✅ Refreshed graph with ${graph.nodes?.length || 0} nodes`);
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         graph: graph
       });
@@ -224,28 +224,25 @@ export async function PUT(req: NextRequest) {
     
     const user = session?.user || { id: 'default-user' };
     
-    const body = await req.json();
-    const { graph } = body;
-    
-    if (!graph) {
-      return NextResponse.json(
-        { error: 'Graph data is required' },
-        { status: 400 }
-      );
+    const contentType = (req.headers.get('content-type') || '').toLowerCase();
+    let graph: any;
+    if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+      const text = await req.text();
+      graph = xmlToGraph(text);
+    } else {
+      const body = await req.json();
+      graph = body?.graph;
     }
+    if (!graph) return NextResponse.json({ error: 'Graph data is required' }, { status: 400 });
 
     console.log(`💾 Saving graph for user ${user.id}...`);
     
     // Store the graph using the storage function
     await storeGraph(graph, user.id);
-    
+
     console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes`);
-    
-    return NextResponse.json({ 
-      success: true,
-      message: 'Graph saved successfully',
-      graph: graph
-    });
+
+    return NextResponse.json({ success: true, message: 'Graph saved successfully' });
   } catch (error) {
     console.error('❌ Graph API PUT error:', error);
     return NextResponse.json(
@@ -306,10 +303,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     await updatePropertyAndWriteVars(nodeId, propertyId, value, user.id);
-    
+
     console.log(`✅ Property updated successfully`);
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       message: 'Property updated successfully',
       updatedNode: getGraphSession()?.nodes.find(n => n.id === nodeId) || null

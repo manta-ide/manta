@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
+import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { publishVarsUpdate } from './vars-bus';
 import fs from 'fs';
 import path from 'path';
@@ -24,25 +25,46 @@ function getProjectDir(): string {
   }
 }
 function getGraphDir(): string { return path.join(getProjectDir(), '_graph'); }
-function getGraphPath(): string { return path.join(getGraphDir(), 'graph.json'); }
+function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
+function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
 function getVarsPath(): string { return path.join(getGraphDir(), 'vars.json'); }
 function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
 function readGraphFromFs(): Graph | null {
   try {
-    const p = getGraphPath();
-    if (!fs.existsSync(p)) return null;
-    const raw = fs.readFileSync(p, 'utf8');
-    const data = JSON.parse(raw);
-    const parsed = GraphSchema.safeParse(data);
-    if (!parsed.success) return data as Graph; // be lenient in local mode
-    return parsed.data as Graph;
+    const pXml = getGraphPath();
+    const pJson = getLegacyGraphJsonPath();
+    console.log('pXml', pXml);
+    console.log('pJson', pJson);
+    if (fs.existsSync(pXml)) {
+      const raw = fs.readFileSync(pXml, 'utf8');
+      console.log('raw', raw);
+      const graph = xmlToGraph(raw);
+      console.log('xmlgraph', graph);
+      const parsed = GraphSchema.safeParse(graph);
+      console.log('parsed', parsed);
+      return parsed.success ? parsed.data : (graph as Graph);
+    }
+    if (fs.existsSync(pJson)) {
+      const raw = fs.readFileSync(pJson, 'utf8');
+      let data: any;
+      try { data = JSON.parse(raw); } catch { data = null; }
+      if (data) {
+        const parsed = GraphSchema.safeParse(data);
+        const graph = parsed.success ? parsed.data : (data as Graph);
+        try { writeGraphToFs(graph); } catch {}
+        console.log('graph', graph);
+        return graph;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
 }
 function writeGraphToFs(graph: Graph) {
   ensureGraphDir();
-  fs.writeFileSync(getGraphPath(), JSON.stringify(graph, null, 2), 'utf8');
+  const xml = graphToXml(graph);
+  fs.writeFileSync(getGraphPath(), xml, 'utf8');
 }
 function writeVarsToFs(graph: Graph) {
   const vars = extractVariablesFromGraph(graph);
@@ -155,10 +177,10 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
       }
     }
   }
-  // Always publish a realtime vars update for subscribers (iframe bridge)
+  // Save the updated graph to graph.xml as the primary persistence
+  if (currentGraph) writeGraphToFs(currentGraph);
+  // Always publish a realtime vars update for subscribers (iframe bridge) and update vars.json convenience file
   try { publishVarsUpdate({ [propertyId]: value }); } catch {}
-  // Only write vars.json to avoid triggering full reload from graph.json changes
-  if (currentGraph) writeVarsToFs(currentGraph);
 }
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {

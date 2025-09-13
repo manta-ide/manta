@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
+import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 
 interface ProjectStore {
   // File system state
@@ -13,6 +14,7 @@ interface ProjectStore {
   // Graph state
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
+  selectedNodeIds: string[];
   graph: Graph | null;
   graphLoading: boolean;
   graphError: string | null;
@@ -41,6 +43,7 @@ interface ProjectStore {
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
+  setSelectedNodeIds: (ids: string[]) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
   updateGraph: (graph: Graph) => void;
@@ -77,6 +80,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph state
   selectedNodeId: null,
   selectedNode: null,
+  selectedNodeIds: [],
   graph: null,
   graphLoading: true,
   graphError: null,
@@ -93,6 +97,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     refreshTrigger: 0,
     selectedNodeId: null,
     selectedNode: null,
+    selectedNodeIds: [],
     graph: null,
     graphLoading: true,
     graphError: null,
@@ -178,6 +183,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setSelectedFile: (path) => set({ selectedFile: path }),
   setSelection: (selection) => set({ selection }),
   setSelectedNode: (id, node = null) => set({ selectedNodeId: id, selectedNode: node ?? null }),
+  setSelectedNodeIds: (ids) => set({ selectedNodeIds: Array.isArray(ids) ? ids : [] }),
   
   getFileContent: (path) => {
     return get().files.get(path) || '';
@@ -212,19 +218,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
-      console.log('📊 Loading graph from local API...');
-      const res = await fetch('/api/graph-api', { method: 'GET' });
+      const res = await fetch('/api/graph-api', { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
-      const data = await res.json();
-      if (data?.graph) {
-        set({ graph: data.graph, graphLoading: false, graphError: null });
-        console.log(`✅ Loaded graph with ${data.graph.nodes?.length || 0} nodes`);
-      } else {
-        set({ graph: { nodes: [], edges: [] } as any, graphLoading: false });
-      }
+      const xml = await res.text();
+      const graph = xmlToGraph(xml);
+      set({ graph, graphLoading: false, graphError: null });
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });
-      console.error('❌ Error loading graph:', error);
+      console.error('Error loading graph:', error);
     }
   },
   
@@ -245,7 +246,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const i = next.nodes.findIndex(n => n.id === node.id);
     if (i === -1) next.nodes.push(node); else next.nodes[i] = { ...(next.nodes[i] as any), ...node } as any;
     set({ graph: next });
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
+    const xml = graphToXml(next);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
 
   updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
@@ -253,7 +255,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
+    const xml = graphToXml(next);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   updatePropertyInSupabase: async (nodeId: string, propertyId: string, value: any) => {
@@ -295,11 +298,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
     set({ graph: next });
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: next }) });
+    const xml = graphToXml(next);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   syncGraphToSupabase: async (graph: Graph) => {
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph }) });
+    const xml = graphToXml(graph);
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
   
   // Graph event handling
@@ -309,13 +314,38 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (graphEventSource) { graphEventSource.close(); graphEventSource = null; }
       const es = new EventSource('/api/graph-api?sse=true');
       graphEventSource = es;
+
+      es.onopen = () => {
+        set({ graphConnected: true });
+      };
+
       es.onmessage = (ev) => {
         try {
-          const data = JSON.parse(ev.data);
-          if (data?.type === 'graph-update' && data.graph) {
-            set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
+          const raw = ev.data || '';
+          if (raw.trim().startsWith('<')) {
+            const graph = xmlToGraph(raw);
+            set({ graph, graphLoading: false, graphError: null, graphConnected: true });
+          } else if (raw.length > 100 && !raw.includes(' ') && /^[A-Za-z0-9+/=]+$/.test(raw)) {
+            // Base64 encoded XML → decode to bytes, then UTF-8 string
+            try {
+              const bin = atob(raw);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              const decodedXml = new TextDecoder('utf-8').decode(bytes);
+              const graph = xmlToGraph(decodedXml);
+              set({ graph, graphLoading: false, graphError: null, graphConnected: true });
+            } catch (decodeError) {
+              console.error('Failed to decode base64 XML:', decodeError);
+            }
+          } else {
+            const data = JSON.parse(raw);
+            if (data?.type === 'graph-update' && data.graph) {
+              set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
+            }
           }
-        } catch {}
+        } catch (error) {
+          console.error('Error processing SSE message:', error);
+        }
       };
       es.onerror = () => {
         set({ graphConnected: false });
@@ -323,7 +353,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Kick initial load
       await get().loadGraph();
     } catch (error) {
-      console.error('❌ Error connecting to graph events:', error);
+      console.error('Error connecting to graph events:', error);
       set({ graphError: 'Failed to connect to graph events' });
     }
   },

@@ -78,12 +78,16 @@ function resolveToolset(): Toolset {
 
 // Register graph tools (includes resource and state updates)
 try {
-  registerGraphTools(server, resolveToolset());
+  const toolset = resolveToolset();
+  console.error(`[manta-mcp] Resolving toolset: ${toolset}`);
+  console.error(`[manta-mcp] Environment variables: MANTA_MCP_TOOLSET=${process.env.MANTA_MCP_TOOLSET}`);
+  registerGraphTools(server, toolset);
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] graph tools registered');
 } catch (e) {
   // eslint-disable-next-line no-console
   console.error('[manta-mcp] ERROR registering tools:', (e as any)?.message || e);
+  console.error('[manta-mcp] Error stack:', (e as any)?.stack);
 }
 
 

@@ -1,5 +1,5 @@
 {
-  "name": "mantaeditor",
+  "name": "manta-cli",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -52,6 +52,7 @@
     "cmdk": "^1.1.1",
     "diff-match-patch": "^1.0.5",
     "elkjs": "^0.10.0",
+    "fast-xml-parser": "^5.2.5",
     "json-schema-to-zod": "^2.6.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.525.0",

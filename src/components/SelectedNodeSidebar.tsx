@@ -17,18 +17,29 @@ export default function SelectedNodeSidebar() {
 		selectedNodeId,
 		selectedNode,
 		setSelectedNode,
+		selectedNodeIds,
 		triggerRefresh,
 		refreshGraph,
 		updateNodeInSupabase,
 		updatePropertyInSupabase,
 		updatePropertyLocal,
 		supabaseConnected,
-		connectToGraphEvents
+		connectToGraphEvents,
+		graph
 	} = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
+
+	// Helper function to get children from edges
+	const getNodeChildren = (nodeId: string) => {
+		if (!graph?.edges) return [];
+		return graph.edges
+			.filter(edge => edge.source === nodeId)
+			.map(edge => graph.nodes.find(n => n.id === edge.target))
+			.filter(Boolean);
+	};
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const stagedPropertyValuesRef = useRef<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
@@ -60,6 +71,7 @@ export default function SelectedNodeSidebar() {
 	}, [supabaseConnected]);
 
 	useEffect(() => {
+		// Only reset prompt draft when switching to a different node, not when the prompt value changes
 		setPromptDraft(selectedNode?.prompt ?? '');
 		setRebuildError(null);
 		setRebuildSuccess(false);
@@ -79,7 +91,7 @@ export default function SelectedNodeSidebar() {
 			setPropertyValues(initialValues);
 			stagedPropertyValuesRef.current = initialValues;
 		}
-	}, [selectedNodeId, selectedNode?.prompt, selectedNode?.properties]);
+	}, [selectedNodeId]);
 
 	// Cleanup timeout on unmount
 	useEffect(() => {
@@ -91,8 +103,7 @@ export default function SelectedNodeSidebar() {
 	}, []);
 
 
-
-	if (!selectedNodeId) return null;
+  // Sidebar should always render; handle empty and multi-select states below
 
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
@@ -132,7 +143,6 @@ export default function SelectedNodeSidebar() {
       }
     }
 
-    // Debounced file save via backend API (writes _graph/vars.json)
 		const nextValues = isHighFrequency ? { ...stagedPropertyValuesRef.current, [propertyId]: value } : { ...propertyValues, [propertyId]: value };
 		if (DEBOUNCE_PROPERTY_CHANGES) {
 			if (propertyChangeTimeoutRef.current) clearTimeout(propertyChangeTimeoutRef.current);
@@ -193,7 +203,7 @@ export default function SelectedNodeSidebar() {
 
 					// Save to Supabase database for persistence
 					try {
-						await updatePropertyInSupabase(selectedNodeId, propertyId, newValue);
+						await updatePropertyInSupabase(selectedNodeId!, propertyId, newValue);
 						console.log(`✅ Property ${propertyId} persisted to Supabase database`);
 
 						return {
@@ -245,13 +255,47 @@ export default function SelectedNodeSidebar() {
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
 			<div className="px-3 py-2 border-b border-zinc-700">
-				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={selectedNode?.title || selectedNodeId}>
-					{selectedNode?.title || selectedNodeId}
+				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={selectedNode?.title || selectedNodeId || 'No selection'}>
+					{selectedNode?.title || selectedNodeId || 'No node selected'}
 				</span>
 			</div>
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
 				<div className="space-y-3 pr-2">
-				{selectedNode && (
+				{/* Multi-select summary */}
+				{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
+					<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
+						<div className="text-xs font-medium text-zinc-300 mb-2">Multiple selection ({selectedNodeIds.length})</div>
+						<ul className="space-y-1">
+							{selectedNodeIds.map((id) => {
+								const n = graph?.nodes?.find(n => n.id === id);
+								return (
+									<li key={id}>
+										<button
+											onClick={() => {
+												if (n) setSelectedNode(id, n);
+											}}
+											className={`w-full text-left text-xs px-2 py-1 rounded border ${selectedNodeId === id ? 'border-blue-500/50 bg-blue-500/10 text-zinc-100' : 'border-zinc-700/30 bg-zinc-900/40 text-zinc-300'} hover:bg-zinc-700/30`}
+											title={n?.title || id}
+										>
+											{n?.title || id}
+										</button>
+									</li>
+								);
+							})}
+						</ul>
+						<div className="text-[11px] text-zinc-400 mt-2">Select a single node to edit its properties.</div>
+					</div>
+				)}
+
+				{/* No selection state - sidebar remains visible with hint */}
+				{(!selectedNodeId || !selectedNode) && (!selectedNodeIds || selectedNodeIds.length === 0) && (
+					<div className="text-xs text-zinc-400 bg-zinc-800/30 rounded p-2 border border-zinc-700/20">
+						Select a node to edit properties.
+					</div>
+				)}
+
+				{/* Single selection details */}
+				{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
 					<>
 						{/* Prompt Section */}
 						<div>
@@ -265,6 +309,24 @@ export default function SelectedNodeSidebar() {
 									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
 									value={promptDraft}
 									onChange={(e) => setPromptDraft(e.target.value)}
+									onBlur={() => {
+										// Auto-save prompt when user finishes editing
+										if (selectedNode && promptDraft !== selectedNode.prompt) {
+											console.log('💾 Auto-saving prompt for node:', selectedNodeId);
+											// Update the node locally
+											const updatedNode = { ...selectedNode, prompt: promptDraft };
+											setSelectedNode(selectedNodeId, updatedNode);
+
+											// Persist to database
+											if (user?.id) {
+												updateNodeInSupabase(selectedNodeId!, { prompt: promptDraft }).catch((error) => {
+													console.error('Failed to save prompt:', error);
+													setRebuildError('Failed to save prompt');
+													setTimeout(() => setRebuildError(null), 3000);
+												});
+											}
+										}
+									}}
 									placeholder="Enter prompt..."
 								/>
 								{rebuildError && (
@@ -282,12 +344,13 @@ export default function SelectedNodeSidebar() {
 
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
 							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
-								{[...selectedNode.properties].sort((a, b) => a.id.localeCompare(b.id)).map((property: Property, index: number) => (
+								{/* Preserve original order from graph (no sorting) */}
+								{selectedNode.properties.map((property: Property, index: number) => (
 									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
 										<PropertyEditor
 											property={{
 												...property,
-												value: (propertyValues[property.id] ?? property.value)
+												value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
 											}}
 											onChange={handlePropertyChange}
 											onPreview={handlePropertyPreview}
@@ -297,18 +360,21 @@ export default function SelectedNodeSidebar() {
 							</div>
 						)}
 
-						{selectedNode.children?.length > 0 && (
-							<div className="border-t border-zinc-700/30 pt-3">
-								<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({selectedNode.children.length})</div>
-								<ul className="space-y-0.5">
-									{selectedNode.children.map((child: any) => (
-										<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
-											{child.title}
-										</li>
-									))}
-								</ul>
-							</div>
-						)}
+						{(() => {
+							const children = getNodeChildren(selectedNode.id);
+							return children.length > 0 && (
+								<div className="border-t border-zinc-700/30 pt-3">
+									<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({children.length})</div>
+									<ul className="space-y-0.5">
+										{children.map((child: any) => (
+											<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
+												{child.title}
+											</li>
+										))}
+									</ul>
+								</div>
+							);
+						})()}
 					</>
 				)}
 				</div>
