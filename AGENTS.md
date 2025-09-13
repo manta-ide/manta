@@ -41,6 +41,6 @@
 
 ## Security & Configuration Tips
 - Environment: use `.env.local` for developer machines; do not commit secrets.
-- Key vars: `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_*` are client-exposed.
+- Key vars: `NEXT_PUBLIC_*` are client-exposed.
 - Rotate any leaked credentials promptly; prefer per-env keys.
 - Proxy/iframe: app rewrites `/iframe/*` to a dynamic API (`src/app/api/iframe`).
