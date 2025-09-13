@@ -31,12 +31,6 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 3. Open http://localhost:3000 if it did not open
 ---
 
-## Demo
-
-![demo](assets/demo.gif)
-
----
-
 ## Features
 
 - **Fast and Lightweight**: Optimized for speed and a seamless development experience.
@@ -54,8 +48,7 @@ To install Manta IDE, follow the instructions below.
 ### Prerequisites
 
 - **Node.js**: Make sure you have Node.js installed. You can download it from [here](https://nodejs.org/).
-- **Git**: You will need Git to clone the repository.
-
+  
 ### Install Dependencies
 
 1. Clone the repository:
