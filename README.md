@@ -35,7 +35,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 ---
 
-### Developers
+## Developers
 
 1. Clone the repository:
 
