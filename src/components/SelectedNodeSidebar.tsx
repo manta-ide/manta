@@ -318,7 +318,7 @@ export default function SelectedNodeSidebar() {
 											setSelectedNode(selectedNodeId, updatedNode);
 
 											// Persist to database
-											if (user?.id) {
+											if (selectedNodeId) {
 												updateNodeInSupabase(selectedNodeId!, { prompt: promptDraft }).catch((error) => {
 													console.error('Failed to save prompt:', error);
 													setRebuildError('Failed to save prompt');
