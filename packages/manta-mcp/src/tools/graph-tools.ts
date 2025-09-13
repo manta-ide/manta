@@ -424,7 +424,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         prompt: z.string().min(1),
         properties: z.array(PropertySchema).optional(),
         state: z.enum(['built','unbuilt','building']).optional(),
-        position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
+        position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }),
       },
     },
   async ({ nodeId, title, prompt, properties, state, position }) => {
