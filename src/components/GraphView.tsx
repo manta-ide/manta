@@ -480,7 +480,7 @@ function GraphCanvas() {
   //     } catch {}
 
   //     const allIds = (useProjectStore.getState().graph?.nodes || []).map((n: any) => n.id);
-  //     const response = await fetch('/api/agent-request/build-nodes', {
+  //     const response = await fetch('/api/agent-request/edit-graph', {
   //       method: 'POST',
   //       headers: { 'Content-Type': 'application/json' },
   //       body: JSON.stringify({
@@ -544,7 +544,7 @@ function GraphCanvas() {
         try { await updateNodeInSupabase(id, { state: 'building' }); } catch {}
       }
 
-      const response = await fetch('/api/agent-request/build-nodes', {
+      const response = await fetch('/api/agent-request/edit-graph', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -555,6 +555,10 @@ function GraphCanvas() {
               : `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
             variables: {}
           },
+          // Unified endpoint parameters
+          selectedNodeId: selectedNode.id,
+          selectedNodeTitle: selectedNode.title,
+          selectedNodePrompt: selectedNode.prompt,
           // Pass all selected node IDs so the agent gets the full selection
           selectedNodeIds: idsToBuild,
           // Keep legacy single-node param for compatibility
