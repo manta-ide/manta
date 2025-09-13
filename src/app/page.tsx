@@ -21,7 +21,7 @@ export default function Home() {
   
   const [isEditMode, setIsEditMode] = useState(true);
 
-  const { loadProject: loadProjectFromFileSystem, selectedNodeId, setSelectedNode } = useProjectStore();
+  const { loadProject: loadProjectFromFileSystem } = useProjectStore();
 
   // Load project on mount
   useEffect(() => {
@@ -64,26 +64,26 @@ export default function Home() {
     }
   }, [panels]);
 
-  // Set root node as selected on mount
-  useEffect(() => {
-    const setRootNodeAsSelected = async () => {
-      try {
-        // Get the graph data from store
-        const { graph } = useProjectStore.getState();
-        
-        if (graph && graph.nodes.length > 0) {
-          const rootNode = graph.nodes[0]; // First node is the root
-          setSelectedNode(rootNode.id);
-        }
-      } catch (error) {
-        console.error('Failed to set root node as selected:', error);
-      }
-    };
+  // Set root node as selected on mount - DISABLED to prevent auto-selection
+  // useEffect(() => {
+  //   const setRootNodeAsSelected = async () => {
+  //     try {
+  //       // Get the graph data from store
+  //       const { graph } = useProjectStore.getState();
+  //
+  //       if (graph && graph.nodes.length > 0) {
+  //         const rootNode = graph.nodes[0]; // First node is the root
+  //         setSelectedNode(rootNode.id);
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to set root node as selected:', error);
+  //     }
+  //   };
 
-    // Wait a bit for the project to load, then set root node
-    const timer = setTimeout(setRootNodeAsSelected, 1000);
-    return () => clearTimeout(timer);
-  }, [setSelectedNode]);
+  //   // Wait a bit for the project to load, then set root node
+  //   const timer = setTimeout(setRootNodeAsSelected, 1000);
+  //   return () => clearTimeout(timer);
+  // }, [setSelectedNode]);
 
   const togglePanel = (panel: keyof typeof panels) => {
     setPanels(prev => ({

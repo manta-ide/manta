@@ -31,9 +31,9 @@ export default function FloatingChat() {
   const [positionInitialized, setPositionInitialized] = useState(false);
   
   // Local state to track what context should be included in the next message
-  const [includeFile, setIncludeFile] = useState(true);
-  const [includeSelection, setIncludeSelection] = useState(true);
-  const [includeNode, setIncludeNode] = useState(true);
+  const [includeFile, setIncludeFile] = useState(false);
+  const [includeSelection, setIncludeSelection] = useState(false);
+  const [includeNode, setIncludeNode] = useState(false);
 
   // Use simplified chat service
   const { state, actions } = useChatService();
