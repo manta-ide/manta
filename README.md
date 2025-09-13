@@ -33,38 +33,11 @@ Manta IDE is a graph-based development environment that lets you control Codex b
 
 ## Features
 
-- **Fast and Lightweight**: Optimized for speed and a seamless development experience.
-- **Modern UI**: Intuitive, user-friendly interface designed for web development.
-- **Customizable**: Tailor your development environment to your needs.
-- **Real-time Preview**: See the changes in real time as you code.
-- **Multi-language Support**: Supports various languages such as JavaScript, HTML, CSS, and more.
+- **Node-based creation**: Create nodes and direct AI to build them, and get a stateful editable system
+- **Coding agents compatibility**: Use your existing coding agents with MCPs (currently supports Codex)
+- **Properties**: Each node has properties that you can edit in real-time for quick changes
 
 ---
-
-## Installation
-
-To install Manta IDE, follow the instructions below.
-
-### Prerequisites
-
-- **Node.js**: Make sure you have Node.js installed. You can download it from [here](https://nodejs.org/).
-  
-### Install Dependencies
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/manta-ide/manta.git
-
-2. Navigate to the project folder:
-
-   ```bash
-   cd MantaIDE
-   
-3. Install dependencies:
-
-   ```bash
-   npm install
 
 ### Developers
 
@@ -84,15 +57,3 @@ To install Manta IDE, follow the instructions below.
    ```bash
    manta i
    manta run
-
-### Build the Project
-
-1. Build the project:
-
-   ```bash
-   npm run build:all
-
-2. Run Manta IDE initialization:
-
-   ```bash
-   manta i
