@@ -25,7 +25,7 @@ import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
-import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
+import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed } from 'lucide-react';
 
 // Helper function to check if a point is within a rectangle
 function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
@@ -381,6 +381,8 @@ function GraphCanvas() {
   const [isDraggingSelect, setIsDraggingSelect] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
+  // Tool modes: 'select', 'pan', 'add-node'
+  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data with Supabase integration
@@ -399,6 +401,71 @@ function GraphCanvas() {
   const reactFlow = useReactFlow();
   // Auth removed; define placeholder to avoid TS errors
   const user: any = null;
+
+  // Generate unique node ID
+  const generateNodeId = useCallback(() => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `node-${timestamp}${random}`;
+  }, []);
+
+  // Create a new empty node at the specified position
+  const createNewNode = useCallback(async (position: { x: number; y: number }) => {
+    if (!graph) return;
+
+    const newNodeId = generateNodeId();
+    const newNode: GraphNode = {
+      id: newNodeId,
+      title: 'New Node',
+      prompt: '',
+      state: 'unbuilt',
+      position: { x: position.x, y: position.y, z: 0 }
+    };
+
+    try {
+      // Update local graph state immediately for instant feedback
+      const updatedGraph = {
+        ...graph,
+        nodes: [...graph.nodes, newNode]
+      };
+      useProjectStore.setState({ graph: updatedGraph });
+
+      // Create ReactFlow node and add to local state
+      const reactFlowNode: Node = {
+        id: newNodeId,
+        position,
+        data: {
+          label: newNode.title,
+          node: newNode,
+          state: newNode.state || "unbuilt",
+          properties: newNode.properties || []
+        },
+        type: 'custom',
+        selected: true,
+      };
+      setNodes((nds) => [...nds, reactFlowNode]);
+
+      // Persist to Supabase (this will trigger real-time updates that will sync everything)
+      await updateNodeInSupabase(newNodeId, newNode);
+
+      // Select the new node
+      setSelectedNode(newNodeId, newNode);
+      setSelectedNodeIds([newNodeId]);
+
+      console.log('✅ Created new node:', newNodeId);
+    } catch (error) {
+      console.error('❌ Failed to create new node:', error);
+      // Remove the node from both local states if persistence failed
+      setNodes((nds) => nds.filter(n => n.id !== newNodeId));
+      if (graph) {
+        const revertedGraph = {
+          ...graph,
+          nodes: graph.nodes.filter(n => n.id !== newNodeId)
+        };
+        useProjectStore.setState({ graph: revertedGraph });
+      }
+    }
+  }, [graph, generateNodeId, updateNodeInSupabase, setSelectedNode, setSelectedNodeIds, setNodes]);
 
   // Connect to graph events for real-time updates
   useEffect(() => {
@@ -837,7 +904,7 @@ function GraphCanvas() {
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
   }, [updateNodeInSupabase]);
 
-  // Handle background mouse down for drag selection
+  // Handle background mouse down for drag selection or node creation
   const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
     // Only start selection on left mouse button
     if (event.button !== 0) return;
@@ -849,16 +916,33 @@ function GraphCanvas() {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    setIsDraggingSelect(true);
-    setDragStart({ x, y });
-    setDragEnd({ x, y });
-    // If not multi-select modifier, clear current selection at drag start
-    if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
-      setSelectedNodeIds([]);
-      setSelectedNode(null, null);
+    if (currentTool === 'add-node') {
+      // Convert screen coordinates to flow coordinates
+      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      // Center the node at mouse position (node size is 260x160)
+      const centeredPosition = {
+        x: flowPosition.x - 130, // Half of node width (260/2)
+        y: flowPosition.y - 80   // Half of node height (160/2)
+      };
+      createNewNode(centeredPosition);
+      event.preventDefault();
+      return;
     }
+
+    // Only handle selection in select mode
+    if (currentTool === 'select') {
+      setIsDraggingSelect(true);
+      setDragStart({ x, y });
+      setDragEnd({ x, y });
+      // If not multi-select modifier, clear current selection at drag start
+      if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
+        setSelectedNodeIds([]);
+        setSelectedNode(null, null);
+      }
+    }
+
     event.preventDefault();
-  }, [setSelectedNode, setSelectedNodeIds]);
+  }, [currentTool, reactFlow, createNewNode, setSelectedNode, setSelectedNodeIds]);
 
   const onPaneMouseMove = useCallback((event: React.MouseEvent) => {
     if (!isDraggingSelect || !dragStart) return;
@@ -1018,9 +1102,9 @@ function GraphCanvas() {
         panOnScrollMode={PanOnScrollMode.Free}
         zoomOnScroll={false}
         zoomOnPinch={true}
-        /* Right mouse button drag pans; left drag shows selection */
-        panOnDrag={[2]}
-        selectionOnDrag={false}
+        /* Dynamic pan behavior based on tool mode */
+        panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
+        selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
         onMouseMove={onPaneMouseMove}
         onMouseUp={onPaneMouseUp}
@@ -1071,7 +1155,64 @@ function GraphCanvas() {
         })()
       )}
       
-      {/* Action Buttons */}
+      {/* Tool Buttons - Left Side */}
+      <div style={{
+        position: 'absolute',
+        left: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        zIndex: 1000,
+      }}>
+        {/* Select Tool */}
+        <Button
+          onClick={() => setCurrentTool('select')}
+          variant={currentTool === 'select' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'select'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Select Tool - Click to select nodes, drag to select multiple"
+        >
+          <SquareDashed className="w-4 h-4" />
+        </Button>
+
+        {/* Pan Tool */}
+        <Button
+          onClick={() => setCurrentTool('pan')}
+          variant={currentTool === 'pan' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'pan'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Pan Tool - Click and drag to pan the view"
+        >
+          <Hand className="w-4 h-4" />
+        </Button>
+
+        {/* Add Node Tool */}
+        <Button
+          onClick={() => setCurrentTool('add-node')}
+          variant={currentTool === 'add-node' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'add-node'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Add Node Tool - Click anywhere on the canvas to create a new node"
+        >
+          <StickyNote className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Action Buttons - Right Side */}
       <div style={{
         position: 'absolute',
         top: '12px',
