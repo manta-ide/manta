@@ -377,11 +377,12 @@ function GraphCanvas() {
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  // Multi-selection lives in the global store so sidebar can reflect it
+  const { setSelectedNode, selectedNodeId, selectedNode, selectedNodeIds, setSelectedNodeIds } = useProjectStore();
   const [isDraggingSelect, setIsDraggingSelect] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
-  const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
+  
   const { user } = useAuth();
   
   // Use the store for graph data with Supabase integration
@@ -552,38 +553,37 @@ function GraphCanvas() {
     const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
 
     if (isMultiSelect) {
-      setSelectedNodeIds(prev => {
-        const isSelected = prev.includes(node.id);
-        if (isSelected) {
-          // Remove from selection
-          const newSelection = prev.filter(id => id !== node.id);
-          // If this was the single selected node, clear the main selection
-          if (selectedNodeId === node.id && newSelection.length === 0) {
-            setSelectedNode(null, null);
-          } else if (selectedNodeId === node.id && newSelection.length > 0) {
-            // Set the first remaining node as the main selected node
-            const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
-            if (firstNode) {
-              setSelectedNode(newSelection[0], firstNode);
-            }
+      const prev = selectedNodeIds || [];
+      const isSelected = prev.includes(node.id);
+      if (isSelected) {
+        // Remove from selection
+        const newSelection = prev.filter(id => id !== node.id);
+        // If this was the single selected node, clear the main selection
+        if (selectedNodeId === node.id && newSelection.length === 0) {
+          setSelectedNode(null, null);
+        } else if (selectedNodeId === node.id && newSelection.length > 0) {
+          // Set the first remaining node as the main selected node
+          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+          if (firstNode) {
+            setSelectedNode(newSelection[0], firstNode);
           }
-          return newSelection;
-        } else {
-          // Add to selection
-          const newSelection = [...prev, node.id];
-          // Set this as the main selected node if it's the first one
-          if (prev.length === 0) {
-            setSelectedNode(node.id, freshGraphNode);
-          }
-          return newSelection;
         }
-      });
+        setSelectedNodeIds(newSelection);
+      } else {
+        // Add to selection
+        const newSelection = [...prev, node.id];
+        // Set this as the main selected node if it's the first one
+        if (prev.length === 0) {
+          setSelectedNode(node.id, freshGraphNode);
+        }
+        setSelectedNodeIds(newSelection);
+      }
     } else {
       // Single selection - clear multi-selection and select only this node
       setSelectedNodeIds([node.id]);
       setSelectedNode(node.id, freshGraphNode);
     }
-  }, [setSelectedNode, graph, selectedNodeId]);
+  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -684,7 +684,7 @@ function GraphCanvas() {
             properties: node.properties || []
           },
           type: 'custom',
-          selected: selectedNodeId === node.id,
+          selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
         };
       });
 
@@ -730,10 +730,10 @@ function GraphCanvas() {
     setNodes((nds) =>
       nds.map((node) => ({
         ...node,
-        selected: selectedNodeId === node.id,
+        selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
       }))
     );
-  }, [selectedNodeId, setNodes]);
+  }, [selectedNodeId, selectedNodeIds, setNodes]);
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
@@ -834,16 +834,14 @@ function GraphCanvas() {
     });
 
     if (selectedNodesInRect.length > 0) {
-      setSelectedNodeIds(prev => {
-        // Add new nodes to selection
-        const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
-        // Set the first selected node as the main selected node
-        const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
-        if (firstNode) {
-          setSelectedNode(newSelection[0], firstNode);
-        }
-        return newSelection;
-      });
+      const prev = selectedNodeIds || [];
+      const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
+      // Set the first selected node as the main selected node
+      const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+      if (firstNode) {
+        setSelectedNode(newSelection[0], firstNode);
+      }
+      setSelectedNodeIds(newSelection);
     }
 
     setIsDraggingSelect(false);

@@ -151,14 +151,28 @@ ${optionsXml}
 function generateNestedXml(p: Property): string {
   const type = (p as any)?.type;
 
-  if (type === 'object' && (p as any)?.fields) {
-    // Generate nested object structure
-    const fields = (p as any).fields as Property[];
-    const fieldXml = fields.map(field => {
-      const fieldValue = (p as any)?.value?.[field.id];
-      return generateFieldXml(field, fieldValue);
-    }).join('\n        ');
-    return `\n        ${fieldXml}\n      `;
+  if (type === 'object') {
+    let fields = (p as any)?.fields;
+
+    // If no fields are defined but we have a value object, infer fields from the value keys
+    if (!fields && (p as any)?.value && typeof (p as any).value === 'object' && !Array.isArray((p as any).value)) {
+      fields = Object.keys((p as any).value).map((key) => ({
+        id: key,
+        title: key,
+        type: 'text'  // Default to text type, will be overridden if the value suggests otherwise
+      }));
+    }
+
+    if (fields && fields.length > 0) {
+      // Generate nested object structure
+      const fieldXml = fields.map((field: any) => {
+        const fieldValue = (p as any)?.value?.[field.id];
+        return generateFieldXml(field, fieldValue);
+      }).join('\n        ');
+      return `\n        ${fieldXml}\n      `;
+    }
+    // If object has no fields, return empty string
+    return '';
   } else if (type === 'object-list') {
     // Generate nested array structure
     let items = Array.isArray((p as any)?.value) ? (p as any).value : [];
@@ -314,8 +328,10 @@ export function xmlToGraph(xml: string): Graph {
     const nodesData = graphData.nodes;
     const edgesData = graphData.edges;
 
-    if (!nodesData) {
-      throw new Error('Invalid graph XML: missing <nodes> section');
+    // Handle empty nodes section - if nodesData doesn't exist or has no node property, treat as empty
+    if (!nodesData || (typeof nodesData === 'object' && !nodesData.node)) {
+      // Return empty graph if no nodes section or empty nodes
+      return { nodes: [], edges: [] };
     }
 
     // Handle both single node and array of nodes

@@ -12,6 +12,9 @@ Rules
 - For nested object fields, use dot notation: e.g., "root-styles.background-color" to update specific fields within objects.
 - Size properties use select options from a fixed scale.
 - When structure or prompts change, set node state to "unbuilt" (never set to "built").
+- For any images set them as links and link them to https://placehold.co/600x400/000000/FFF?text=ABCD 
+(you can change the url parameters - size, background color, text color, text)
+- If you start from template (simple app node) - then you can delete it if the request requires something different and not changes on same website
 
 Available Tools (read + write)
 - graph_read(nodeId?)

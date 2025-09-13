@@ -14,6 +14,7 @@ interface ProjectStore {
   // Graph state
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
+  selectedNodeIds: string[];
   graph: Graph | null;
   graphLoading: boolean;
   graphError: string | null;
@@ -42,6 +43,7 @@ interface ProjectStore {
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
+  setSelectedNodeIds: (ids: string[]) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
   updateGraph: (graph: Graph) => void;
@@ -78,6 +80,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph state
   selectedNodeId: null,
   selectedNode: null,
+  selectedNodeIds: [],
   graph: null,
   graphLoading: true,
   graphError: null,
@@ -94,6 +97,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     refreshTrigger: 0,
     selectedNodeId: null,
     selectedNode: null,
+    selectedNodeIds: [],
     graph: null,
     graphLoading: true,
     graphError: null,
@@ -179,6 +183,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setSelectedFile: (path) => set({ selectedFile: path }),
   setSelection: (selection) => set({ selection }),
   setSelectedNode: (id, node = null) => set({ selectedNodeId: id, selectedNode: node ?? null }),
+  setSelectedNodeIds: (ids) => set({ selectedNodeIds: Array.isArray(ids) ? ids : [] }),
   
   getFileContent: (path) => {
     return get().files.get(path) || '';
