@@ -355,9 +355,9 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         if (!node) throw new Error(`Node ${nodeId} not found`);
         return { content: [{ type: 'text', text: JSON.stringify(node, null, 2) }] };
       } else {
-        // Return only node IDs when reading all nodes to avoid overwhelming responses
-        const nodeIds = graph.nodes.map((n: any) => n.id);
-        return { content: [{ type: 'text', text: JSON.stringify({ nodeIds }, null, 2) }] };
+        // Return node IDs and titles when reading all nodes
+        const nodes = graph.nodes.map((n: any) => ({ id: n.id, title: n.title }));
+        return { content: [{ type: 'text', text: JSON.stringify({ nodes }, null, 2) }] };
       }
     }
   );
