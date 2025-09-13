@@ -54,11 +54,11 @@ export const GraphNodeSchema = z.object({
     prompt: z.string(),
     state: z.enum(["built", "unbuilt", "building"]).default("unbuilt").optional(),
     properties: z.array(PropertySchema).optional(),
-    position: z.object({ x: z.number(), y: z.number() }).optional(),
+    position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
     width: z.number().optional(),
     height: z.number().optional(),
 });
-export const GraphEdgeSchema = z.object({ id: z.string(), source: z.string(), target: z.string() });
+export const GraphEdgeSchema = z.object({ id: z.string(), source: z.string(), target: z.string(), role: z.string().optional() });
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });
 // Export XML conversion utilities
 export { graphToXml, xmlToGraph } from './xml-utils.js';

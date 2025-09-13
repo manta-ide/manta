@@ -262,11 +262,12 @@ interface GraphNode {
   prompt?: string;
   state?: string;
   properties: Property[];
+  position?: { x: number; y: number; z?: number };
 }
 
 interface Graph {
   nodes: GraphNode[];
-  edges: Array<{ id: string; source: string; target: string }>;
+  edges: Array<{ id: string; source: string; target: string; role?: string }>;
 }
 
 export function registerGraphTools(server: McpServer, toolset: Toolset) {
@@ -423,9 +424,10 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         prompt: z.string().min(1),
         properties: z.array(PropertySchema).optional(),
         state: z.enum(['built','unbuilt','building']).optional(),
+        position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       },
     },
-  async ({ nodeId, title, prompt, properties, state }) => {
+  async ({ nodeId, title, prompt, properties, state, position }) => {
     try {
       logToFile(`Adding node: ${nodeId}`, 'DEBUG');
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
@@ -451,7 +453,8 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         title,
         prompt,
         properties: normalizeProperties(properties),
-        state: state ?? 'unbuilt'
+        state: state ?? 'unbuilt',
+        ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
       };
       logToFile(`Created node object with ${node.properties.length} properties`, 'DEBUG');
 
@@ -502,9 +505,10 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         properties: z.array(PropertySchema).optional(),
         children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
         state: z.enum(['built','unbuilt','building']).optional(),
+        position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       },
     },
-    async ({ nodeId, mode = 'replace', title, prompt, properties, children, state }) => {
+    async ({ nodeId, mode = 'replace', title, prompt, properties, children, state, position }) => {
       const origin = resolveBaseUrl(); const token = resolveAccessToken(); const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token); const parsed = GraphSchema.safeParse(data.graph ?? data); if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
@@ -520,6 +524,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         if (prompt !== undefined) next.prompt = prompt;
         if (children !== undefined) next.children = children;
         if (state !== undefined) next.state = state;
+        if (position !== undefined) next.position = { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 };
 
         // Special handling for properties: merge instead of replace
         if (properties !== undefined) {
@@ -643,10 +648,40 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       if (properties !== undefined) next.properties = normalizeProperties(properties);
       if (children !== undefined) next.children = children;
       if (state !== undefined) next.state = state;
+      if (position !== undefined) next.position = { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 };
       graph.nodes[idx] = next;
       await httpPut(url, { graph }, token);
         return { content: [{ type: 'text', text: `Replaced node ${nodeId}` }] };
       }
+    }
+  );
+
+  // graph_node_set_position (convenience tool)
+  if (toolset === 'graph-editor') server.registerTool(
+    'graph_node_set_position',
+    {
+      title: 'Set Node Position',
+      description: 'Set or update a node\'s position (x,y,z).',
+      inputSchema: {
+        nodeId: z.string().min(1),
+        x: z.number(),
+        y: z.number(),
+        z: z.number().optional().default(0),
+      },
+    },
+    async ({ nodeId, x, y, z = 0 }) => {
+      const origin = resolveBaseUrl();
+      const token = resolveAccessToken();
+      const url = `${origin}/api/graph-api`;
+      const data = await httpGet(url, token);
+      const parsed = GraphSchema.safeParse((data as any).graph ?? data);
+      if (!parsed.success) throw new Error('Graph schema validation failed');
+      const graph = parsed.data as any;
+      const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
+      if (idx === -1) throw new Error(`Node ${nodeId} not found`);
+      graph.nodes[idx] = { ...graph.nodes[idx], position: { x, y, z: typeof z === 'number' ? z : 0 } };
+      await httpPut(url, { graph }, token);
+      return { content: [{ type: 'text', text: `Updated node ${nodeId} position -> (${x}, ${y}, ${typeof z === 'number' ? z : 0})` }] };
     }
   );
 

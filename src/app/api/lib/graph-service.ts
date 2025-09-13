@@ -33,15 +33,10 @@ function readGraphFromFs(): Graph | null {
   try {
     const pXml = getGraphPath();
     const pJson = getLegacyGraphJsonPath();
-    console.log('pXml', pXml);
-    console.log('pJson', pJson);
     if (fs.existsSync(pXml)) {
       const raw = fs.readFileSync(pXml, 'utf8');
-      console.log('raw', raw);
       const graph = xmlToGraph(raw);
-      console.log('xmlgraph', graph);
       const parsed = GraphSchema.safeParse(graph);
-      console.log('parsed', parsed);
       return parsed.success ? parsed.data : (graph as Graph);
     }
     if (fs.existsSync(pJson)) {
@@ -72,8 +67,57 @@ function writeVarsToFs(graph: Graph) {
   fs.writeFileSync(getVarsPath(), JSON.stringify(vars, null, 2), 'utf8');
 }
 
-// No-op broadcast function retained for compatibility
-async function broadcastGraphReload(_userId: string): Promise<void> { return; }
+// SSE broadcast system
+const activeStreams = new Set<ReadableStreamDefaultController<Uint8Array>>();
+let broadcastTimeout: NodeJS.Timeout | null = null;
+
+function broadcastGraphUpdate(graph: Graph) {
+  if (activeStreams.size === 0) return;
+
+  try {
+    const xml = graphToXml(graph);
+    // Base64 encode the XML using UTF-8 bytes
+    const encodedXml = Buffer.from(xml, 'utf8').toString('base64');
+    const payload = `data: ${encodedXml}\n\n`;
+
+    // Clear any pending broadcast
+    if (broadcastTimeout) {
+      clearTimeout(broadcastTimeout);
+      broadcastTimeout = null;
+    }
+
+    // Debounce broadcasts to avoid spam (max 10 per second)
+    broadcastTimeout = setTimeout(() => {
+      const data = new TextEncoder().encode(payload);
+      for (const controller of activeStreams) {
+        try {
+          controller.enqueue(data);
+        } catch (error) {
+          // Remove broken connections
+          activeStreams.delete(controller);
+        }
+      }
+      broadcastTimeout = null;
+    }, 100);
+  } catch (error) {
+    console.error('Error broadcasting graph update:', error);
+  }
+}
+
+export function registerStreamController(controller: ReadableStreamDefaultController<Uint8Array>) {
+  activeStreams.add(controller);
+}
+
+export function unregisterStreamController(controller: ReadableStreamDefaultController<Uint8Array>) {
+  activeStreams.delete(controller);
+}
+
+// Broadcast function for graph updates
+async function broadcastGraphReload(_userId: string): Promise<void> {
+  if (currentGraph) {
+    broadcastGraphUpdate(currentGraph);
+  }
+}
 
 function extractVariablesFromGraph(graph: Graph): Record<string, any> {
   const vars: Record<string, any> = {};
@@ -140,8 +184,8 @@ function normalizeGraph(original: Graph): Graph {
     const pair = `${source}→${target}`;
     if (byPair.has(pair)) continue;
     byPair.add(pair);
-    const id = `${source}-${target}`;
-    nextEdges.push({ id, source, target });
+    const id = e.id || `${source}-${target}`;
+    nextEdges.push({ id, source, target, role: e.role });
   }
 
   const normalized: any = { nodes: normalizedNodes };
@@ -164,6 +208,8 @@ export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   currentGraph = normalized;
   await saveGraphToFs(normalized);
   await broadcastGraphReload(userId);
+  // Also update the vars file to ensure consistency
+  writeVarsToFs(normalized);
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {
