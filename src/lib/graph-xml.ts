@@ -21,6 +21,22 @@ const xmlBuilder = new XMLBuilder({
   suppressBooleanAttributes: false
 });
 
+// Attempt to repair common UTF-8/Latin1 mojibake (e.g., â€™ -> ’)
+function repairTextEncoding(text: string): string {
+  try {
+    if (!text) return text;
+    // Quick heuristic: apply fix if we detect common mojibake markers
+    if (/[ÃÂâ]/.test(text)) {
+      const repaired = Buffer.from(text, 'latin1').toString('utf8');
+      // Prefer repaired if it reduces mojibake markers
+      const badBefore = (text.match(/Ã|Â|â/g) || []).length;
+      const badAfter = (repaired.match(/Ã|Â|â/g) || []).length;
+      return badAfter < badBefore ? repaired : text;
+    }
+  } catch {}
+  return text;
+}
+
 // Lightweight XML helpers (no external deps)
 function escapeXml(text: string): string {
   return String(text)
@@ -151,14 +167,28 @@ ${optionsXml}
 function generateNestedXml(p: Property): string {
   const type = (p as any)?.type;
 
-  if (type === 'object' && (p as any)?.fields) {
-    // Generate nested object structure
-    const fields = (p as any).fields as Property[];
-    const fieldXml = fields.map(field => {
-      const fieldValue = (p as any)?.value?.[field.id];
-      return generateFieldXml(field, fieldValue);
-    }).join('\n        ');
-    return `\n        ${fieldXml}\n      `;
+  if (type === 'object') {
+    let fields = (p as any)?.fields;
+
+    // If no fields are defined but we have a value object, infer fields from the value keys
+    if (!fields && (p as any)?.value && typeof (p as any).value === 'object' && !Array.isArray((p as any).value)) {
+      fields = Object.keys((p as any).value).map((key) => ({
+        id: key,
+        title: key,
+        type: 'text'  // Default to text type, will be overridden if the value suggests otherwise
+      }));
+    }
+
+    if (fields && fields.length > 0) {
+      // Generate nested object structure
+      const fieldXml = fields.map((field: any) => {
+        const fieldValue = (p as any)?.value?.[field.id];
+        return generateFieldXml(field, fieldValue);
+      }).join('\n        ');
+      return `\n        ${fieldXml}\n      `;
+    }
+    // If object has no fields, return empty string
+    return '';
   } else if (type === 'object-list') {
     // Generate nested array structure
     let items = Array.isArray((p as any)?.value) ? (p as any).value : [];
@@ -284,7 +314,7 @@ ${optionsXml}
 
 function parsePropValue(type: string | undefined, text: string): any {
   const t = (type || '').toLowerCase();
-  const raw = unescapeXml(text || '').trim();
+  const raw = (text || '').trim();
   if (t === 'number') {
     const n = Number(raw);
     return Number.isFinite(n) ? n : raw;
@@ -294,7 +324,8 @@ function parsePropValue(type: string | undefined, text: string): any {
     if (raw.toLowerCase() === 'false') return false;
     return raw;
   }
-  if (t === 'json') {
+  // Parse JSON content regardless of declared type if it looks like JSON
+  if (t === 'json' || raw.startsWith('{') || raw.startsWith('[')) {
     try { return JSON.parse(raw); } catch { return raw; }
   }
   return raw;
@@ -314,13 +345,15 @@ export function xmlToGraph(xml: string): Graph {
     const nodesData = graphData.nodes;
     const edgesData = graphData.edges;
 
-    if (!nodesData) {
-      throw new Error('Invalid graph XML: missing <nodes> section');
+    // Handle empty nodes section - if nodesData doesn't exist or has no node property, treat as empty
+    if (!nodesData || (typeof nodesData === 'object' && !nodesData.node)) {
+      // Return empty graph if no nodes section or empty nodes
+      return { nodes: [], edges: [] };
     }
 
     // Handle both single node and array of nodes
     const nodeList = Array.isArray(nodesData.node) ? nodesData.node : [nodesData.node];
-    const nodes: GraphNode[] = nodeList.filter(Boolean).map((nodeData: any) => {
+  const nodes: GraphNode[] = nodeList.filter(Boolean).map((nodeData: any) => {
       const id = nodeData['@_id'] || '';
       const title = nodeData['@_title'] || '';
 
@@ -328,7 +361,7 @@ export function xmlToGraph(xml: string): Graph {
         throw new Error(`Node missing required id attribute: ${JSON.stringify(nodeData)}`);
       }
 
-      const description = (nodeData.description?.['#text'] || nodeData.description || '').trim();
+      const description = repairTextEncoding((nodeData.description?.['#text'] || nodeData.description || '').trim());
       const stateData = nodeData.state;
       let buildStatus: string | undefined;
 
@@ -355,7 +388,10 @@ export function xmlToGraph(xml: string): Graph {
         const readOptions = (optContainer: any): string[] => {
           if (!optContainer) return [];
           const list = Array.isArray(optContainer.option) ? optContainer.option : [optContainer.option];
-          return list.filter(Boolean).map((o: any) => (typeof o === 'object' ? (o['#text'] ?? '') : o)).map((s: any) => String(s));
+          return list
+            .filter(Boolean)
+            .map((o: any) => (typeof o === 'object' ? (o['#text'] ?? '') : o))
+            .map((s: any) => repairTextEncoding(String(s)));
         };
 
         // Helper: coerce primitive by type
@@ -372,7 +408,7 @@ export function xmlToGraph(xml: string): Graph {
 
           // Select with nested <value> and <options>
           if (fieldType === 'select') {
-            const fieldValue = coerce('string', fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? '');
+            const fieldValue = coerce('string', repairTextEncoding(fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? ''));
             const fieldOptions = readOptions(fieldData.options);
             const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: fieldValue };
             if (fieldOptions.length) def.options = fieldOptions;
@@ -424,7 +460,7 @@ export function xmlToGraph(xml: string): Graph {
           }
 
           // Simple types
-          const text = fieldData['#text'] ?? '';
+          const text = repairTextEncoding(fieldData['#text'] ?? '');
           const coerced = coerce(fieldType, text);
           const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: coerced };
           return { value: coerced, def };
@@ -445,7 +481,7 @@ export function xmlToGraph(xml: string): Graph {
           // Check if property has XML options structure
           if (propData.value && propData.options) {
             // Property with XML options structure
-            value = propData.value['#text'] || propData.value;
+            value = repairTextEncoding(propData.value['#text'] || propData.value);
             options = readOptions(propData.options);
           } else if (xmlOptions) {
             // Fallback to old JSON format
@@ -455,10 +491,10 @@ export function xmlToGraph(xml: string): Graph {
             } catch (e) {
               console.warn(`Failed to parse options for property ${name}:`, e);
             }
-            value = propData['#text'] || '';
+            value = repairTextEncoding(propData['#text'] || '');
           } else {
             // Simple property
-            value = propData['#text'] || '';
+            value = repairTextEncoding(propData['#text'] || '');
           }
 
           if (xmlType === 'object') {
@@ -541,7 +577,7 @@ export function xmlToGraph(xml: string): Graph {
       return {
         id,
         title,
-        prompt: unescapeXml(description),
+        prompt: description,
         state: (buildStatus as any) || 'unbuilt',
         properties
       } as GraphNode;

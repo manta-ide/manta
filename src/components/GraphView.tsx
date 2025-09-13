@@ -28,6 +28,20 @@ import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
+// Helper function to check if a point is within a rectangle
+function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
+  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+}
+
+// Helper function to get rectangle from two points
+function getRectFromPoints(p1: { x: number; y: number }, p2: { x: number; y: number }) {
+  const x = Math.min(p1.x, p2.x);
+  const y = Math.min(p1.y, p2.y);
+  const width = Math.abs(p1.x - p2.x);
+  const height = Math.abs(p1.y - p2.y);
+  return { x, y, width, height };
+}
+
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
@@ -363,7 +377,14 @@ function GraphCanvas() {
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isBuildingSelected, setIsBuildingSelected] = useState(false);
-  const { setSelectedNode, selectedNodeId, selectedNode } = useProjectStore();
+  // Multi-selection lives in the global store so sidebar can reflect it
+  const { setSelectedNode, selectedNodeId, selectedNode, selectedNodeIds, setSelectedNodeIds } = useProjectStore();
+  const [isDraggingSelect, setIsDraggingSelect] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
+  // Viewport transform for converting flow coords <-> screen coords
+  const viewport = useViewport();
+  
   const { user } = useAuth();
   
   // Use the store for graph data with Supabase integration
@@ -409,62 +430,86 @@ function GraphCanvas() {
     }
   }, [nodes, reactFlow]);
 
-  // Function to delete the graph
-  const deleteGraph = useCallback(async () => {
-    if (!confirm('Are you sure you want to delete the graph? This action cannot be undone.')) {
-      return;
-    }
+  // Function to delete the graph (clear all nodes/edges via API)
+  // const deleteGraph = useCallback(async () => {
+  //   if (!confirm('Are you sure you want to delete the graph? This action cannot be undone.')) {
+  //     return;
+  //   }
 
-    try {
-      const response = await fetch('/api/graph-api', { method: 'DELETE' });
-      if (response.ok) {
-        // Graph deleted successfully
-      } else {
-        console.error('❌ Failed to delete graph');
-      }
-    } catch (backendError) {
-      console.error('❌ Error deleting graph:', backendError);
-    }
-  }, [deleteNodeFromSupabase, graph]);
+  //   try {
+  //     // Persist empty graph through the Graph API
+  //     const response = await fetch('/api/graph-api', {
+  //       method: 'PUT',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ graph: { nodes: [], edges: [] } })
+  //     });
+  //     if (response.ok) {
+  //       // Update local store to reflect deletion
+  //       useProjectStore.setState({
+  //         graph: { nodes: [], edges: [] } as any,
+  //         selectedNode: null,
+  //         selectedNodeId: null,
+  //         selectedNodeIds: []
+  //       });
+  //     } else {
+  //       console.error('❌ Failed to delete graph');
+  //     }
+  //   } catch (backendError) {
+  //     console.error('❌ Error deleting graph:', backendError);
+  //   }
+  // }, []);
 
   // Function to rebuild the full graph
-  const rebuildFullGraph = useCallback(async () => {
-    if (!confirm('Are you sure you want to rebuild the entire graph? This will regenerate code for all nodes.')) {
-      return;
-    }
+  // const rebuildFullGraph = useCallback(async () => {
+  //   if (!confirm('Are you sure you want to rebuild the entire graph? This will regenerate code for all nodes.')) {
+  //     return;
+  //   }
 
-    setIsRebuilding(true);
-    try {
-      const response = await fetch('/api/agent-request/build-nodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: {
-            role: 'user',
-            content: 'Rebuild the entire graph and generate code for all nodes',
-            variables: {}
-          },
-          rebuildAll: true
-        }),
-      });
+  //   setIsRebuilding(true);
+  //   try {
+  //     // Gather all node IDs and optimistically mark them as building
+  //     try {
+  //       const current = useProjectStore.getState();
+  //       const g = current.graph;
+  //       if (g && Array.isArray(g.nodes)) {
+  //         const updatedNodes = g.nodes.map((n: any) => ({ ...n, state: 'building' }));
+  //         const updatedGraph = { ...g, nodes: updatedNodes } as any;
+  //         useProjectStore.setState({ graph: updatedGraph });
+  //       }
+  //     } catch {}
+
+  //     const allIds = (useProjectStore.getState().graph?.nodes || []).map((n: any) => n.id);
+  //     const response = await fetch('/api/agent-request/build-nodes', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         userMessage: {
+  //           role: 'user',
+  //           content: `Rebuild the entire graph and generate code for all ${allIds.length} nodes`,
+  //           variables: {}
+  //         },
+  //         rebuildAll: true,
+  //         selectedNodeIds: allIds
+  //       }),
+  //     });
       
-      if (response.ok) {
-        // Full graph rebuild started successfully
-        // The graph will be automatically updated via SSE
-        // Also refresh the preview iframe since code changed
-        try {
-          const { triggerRefresh } = useProjectStore.getState();
-          triggerRefresh();
-        } catch {}
-      } else {
-        console.error('❌ Failed to rebuild graph');
-      }
-    } catch (error) {
-      console.error('❌ Error rebuilding graph:', error);
-    } finally {
-      setIsRebuilding(false);
-    }
-  }, []);
+  //     if (response.ok) {
+  //       // Full graph rebuild started successfully
+  //       // The graph will be automatically updated via SSE
+  //       // Also refresh the preview iframe since code changed
+  //       try {
+  //         const { triggerRefresh } = useProjectStore.getState();
+  //         triggerRefresh();
+  //       } catch {}
+  //     } else {
+  //       console.error('❌ Failed to rebuild graph');
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Error rebuilding graph:', error);
+  //   } finally {
+  //     setIsRebuilding(false);
+  //   }
+  // }, []);
 
   // Function to build the selected node
   const buildSelectedNode = useCallback(async () => {
@@ -475,20 +520,28 @@ function GraphCanvas() {
 
     setIsBuildingSelected(true);
     try {
-      // Optimistic UI update: mark selected node as building locally
+      // Determine which IDs to build: all multi-selected if present, else the focused node
+      const idsToBuild = (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0)
+        ? selectedNodeIds
+        : [selectedNode.id];
+
+      // Optimistic UI update: mark selected nodes as building locally
       try {
         const current = useProjectStore.getState();
         const g = current.graph;
         if (g) {
-          const updatedNodes = g.nodes.map((n: any) => n.id === selectedNode.id ? { ...n, state: 'building' } : n);
+          const idSet = new Set(idsToBuild);
+          const updatedNodes = g.nodes.map((n: any) => idSet.has(n.id) ? { ...n, state: 'building' } : n);
           const updatedGraph = { ...g, nodes: updatedNodes } as any;
-          const updatedSelected = { ...selectedNode, state: 'building' } as any;
-          useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected });
+          const updatedSelected = idSet.has(selectedNode.id) ? { ...selectedNode, state: 'building' } : selectedNode;
+          useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected as any });
         }
       } catch {}
 
-      // Update node state to "building"
-      await updateNodeInSupabase(selectedNode.id, { state: 'building' });
+      // Persist each selected node state to "building"
+      for (const id of idsToBuild) {
+        try { await updateNodeInSupabase(id, { state: 'building' }); } catch {}
+      }
 
       const response = await fetch('/api/agent-request/build-nodes', {
         method: 'POST',
@@ -496,9 +549,14 @@ function GraphCanvas() {
         body: JSON.stringify({
           userMessage: {
             role: 'user',
-            content: `Implement this node: ${selectedNode.title}`,//`Build and generate code for the node: ${selectedNode.title}`,
+            content: (idsToBuild.length > 1)
+              ? `Build ${idsToBuild.length} selected nodes`
+              : `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
             variables: {}
           },
+          // Pass all selected node IDs so the agent gets the full selection
+          selectedNodeIds: idsToBuild,
+          // Keep legacy single-node param for compatibility
           nodeId: selectedNode.id
         }),
       });
@@ -507,18 +565,22 @@ function GraphCanvas() {
         // Selected node build queued successfully
         // Do not set node to built here; worker/agent will update state via MCP later.
       } else {
-        console.error('❌ Failed to build selected node');
-        // Revert node state on failure
-        try { await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' }); } catch {}
+        console.error('❌ Failed to build selected nodes');
+        // Revert node states on failure
+        for (const id of (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ? selectedNodeIds : [selectedNode.id]) {
+          try { await updateNodeInSupabase(id, { state: (selectedNode && selectedNode.id === id) ? (selectedNode.state || 'unbuilt') : 'unbuilt' }); } catch {}
+        }
       }
     } catch (error) {
-      console.error('❌ Error building selected node:', error);
-      // Revert node state on error
-      try { await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' }); } catch {}
+      console.error('❌ Error building selected nodes:', error);
+      // Revert node states on error
+      for (const id of (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ? selectedNodeIds : [selectedNode.id]) {
+        try { await updateNodeInSupabase(id, { state: (selectedNode && selectedNode.id === id) ? (selectedNode.state || 'unbuilt') : 'unbuilt' }); } catch {}
+      }
     } finally {
       setIsBuildingSelected(false);
     }
-  }, [selectedNode, updateNodeInSupabase]);
+  }, [selectedNode, selectedNodeIds, updateNodeInSupabase]);
 
   // Connection is managed centrally by AuthProvider; avoid duplicate connections here
 
@@ -528,14 +590,43 @@ function GraphCanvas() {
     const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
     const reactFlowNode = node.data?.node as GraphNode;
 
-    // Handle node click - sync properties between fresh graph data and ReactFlow
-    const bgColorFresh = freshGraphNode?.properties?.find(p => p.id === 'background-color')?.value;
-    const bgColorReactFlow = reactFlowNode?.properties?.find(p => p.id === 'background-color')?.value;
+    if (!freshGraphNode) return;
 
-    if (freshGraphNode) {
+    // Check if shift or ctrl/cmd is pressed for multi-selection
+    const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
+
+    if (isMultiSelect) {
+      const prev = selectedNodeIds || [];
+      const isSelected = prev.includes(node.id);
+      if (isSelected) {
+        // Remove from selection
+        const newSelection = prev.filter(id => id !== node.id);
+        // If this was the single selected node, clear the main selection
+        if (selectedNodeId === node.id && newSelection.length === 0) {
+          setSelectedNode(null, null);
+        } else if (selectedNodeId === node.id && newSelection.length > 0) {
+          // Set the first remaining node as the main selected node
+          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+          if (firstNode) {
+            setSelectedNode(newSelection[0], firstNode);
+          }
+        }
+        setSelectedNodeIds(newSelection);
+      } else {
+        // Add to selection
+        const newSelection = [...prev, node.id];
+        // Set this as the main selected node if it's the first one
+        if (prev.length === 0) {
+          setSelectedNode(node.id, freshGraphNode);
+        }
+        setSelectedNodeIds(newSelection);
+      }
+    } else {
+      // Single selection - clear multi-selection and select only this node
+      setSelectedNodeIds([node.id]);
       setSelectedNode(node.id, freshGraphNode);
     }
-  }, [setSelectedNode, graph]);
+  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -636,7 +727,7 @@ function GraphCanvas() {
             properties: node.properties || []
           },
           type: 'custom',
-          selected: selectedNodeId === node.id,
+          selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
         };
       });
 
@@ -668,24 +759,27 @@ function GraphCanvas() {
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
 
-      // Select root node by default if nothing is selected
-      if (!selectedNodeId && reactFlowNodes.length > 0) {
-        const root = reactFlowNodes[0];
-        setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
-      }
+      // Select root node by default only once on initial load if nothing is selected
+      // Avoid auto-selecting again after user clears the selection
+      // if (!selectedNodeId && (!selectedNodeIds || selectedNodeIds.length === 0) && reactFlowNodes.length > 0 && !hasAutoSelectedRef.current) {
+      //   const root = reactFlowNodes[0];
+      //   setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
+      //   hasAutoSelectedRef.current = true;
+      // }
     };
     rebuild();
-  }, [graph, setNodes, setEdges]);
+  }, [graph, setNodes, setEdges, selectedNodeId, selectedNodeIds]);
 
   // Update node selection without re-rendering the whole graph
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        selected: selectedNodeId === node.id,
-      }))
-    );
-  }, [selectedNodeId, setNodes]);
+  // const hasAutoSelectedRef = useRef(false);
+  // useEffect(() => {
+  //   setNodes((nds) =>
+  //     nds.map((node) => ({
+  //       ...node,
+  //       selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
+  //     }))
+  //   );
+  // }, [selectedNodeId, selectedNodeIds, setNodes]);
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
@@ -737,6 +831,100 @@ function GraphCanvas() {
     const graphNode = node.data?.node as GraphNode;
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
   }, [updateNodeInSupabase]);
+
+  // Handle background mouse down for drag selection
+  const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
+    // Only start selection on left mouse button
+    if (event.button !== 0) return;
+    // Ignore clicks that originate from nodes, edges, or handles
+    const target = event.target as HTMLElement;
+    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge') || target.closest('.react-flow__handle')) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setIsDraggingSelect(true);
+    setDragStart({ x, y });
+    setDragEnd({ x, y });
+    // If not multi-select modifier, clear current selection at drag start
+    if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
+      setSelectedNodeIds([]);
+      setSelectedNode(null, null);
+    }
+    event.preventDefault();
+  }, [setSelectedNode, setSelectedNodeIds]);
+
+  const onPaneMouseMove = useCallback((event: React.MouseEvent) => {
+    if (!isDraggingSelect || !dragStart) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setDragEnd({ x, y });
+    event.preventDefault();
+  }, [isDraggingSelect, dragStart]);
+
+  const onPaneMouseUp = useCallback((event?: React.MouseEvent) => {
+    if (!isDraggingSelect || !dragStart || !dragEnd) {
+      setIsDraggingSelect(false);
+      setDragStart(null);
+      setDragEnd(null);
+      return;
+    }
+
+    // Calculate selection rectangle in screen coordinates
+    const selectionRect = getRectFromPoints(dragStart, dragEnd);
+    const width = selectionRect.width;
+    const height = selectionRect.height;
+
+    // Find nodes within the selection rectangle (convert node positions to screen coords)
+    const selectedNodesInRect: string[] = [];
+    const { x: viewportX, y: viewportY, zoom } = viewport;
+    nodes.forEach(node => {
+      const centerFlow = { x: node.position.x + 130, y: node.position.y + 80 };
+      const centerScreen = { x: centerFlow.x * zoom + viewportX, y: centerFlow.y * zoom + viewportY };
+      if (isPointInRect(centerScreen, selectionRect)) {
+        selectedNodesInRect.push(node.id);
+      }
+    });
+
+    const isMulti = Boolean(event && (event.shiftKey || event.metaKey || event.ctrlKey));
+    const hasDrag = width >= 3 || height >= 3;
+    if (hasDrag) {
+      if (selectedNodesInRect.length > 0) {
+        if (isMulti) {
+          // Merge with existing selection
+          const prev = selectedNodeIds || [];
+          const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
+          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+          if (firstNode) setSelectedNode(newSelection[0], firstNode);
+          setSelectedNodeIds(newSelection);
+        } else {
+          // Replace selection
+          const firstNode = graph?.nodes?.find(n => n.id === selectedNodesInRect[0]);
+          if (firstNode) setSelectedNode(selectedNodesInRect[0], firstNode);
+          setSelectedNodeIds(selectedNodesInRect);
+        }
+      } else if (!isMulti) {
+        // Dragged but selected nothing -> clear selection
+        setSelectedNode(null, null);
+        setSelectedNodeIds([]);
+      }
+    } else {
+      // Treat as background click: clear selection if no modifier
+      if (!isMulti) {
+        setSelectedNode(null, null);
+        setSelectedNodeIds([]);
+      }
+    }
+
+    setIsDraggingSelect(false);
+    setDragStart(null);
+    setDragEnd(null);
+    if (event) event.preventDefault();
+  }, [isDraggingSelect, dragStart, dragEnd, nodes, graph, viewport, selectedNodeIds, setSelectedNode, setSelectedNodeIds]);
 
   // Node types for ReactFlow
   const nodeTypes = {
@@ -825,6 +1013,12 @@ function GraphCanvas() {
         panOnScrollMode={PanOnScrollMode.Free}
         zoomOnScroll={false}
         zoomOnPinch={true}
+        /* Right mouse button drag pans; left drag shows selection */
+        panOnDrag={[2]}
+        selectionOnDrag={false}
+        onMouseDown={onPaneMouseDown}
+        onMouseMove={onPaneMouseMove}
+        onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={false}
@@ -846,6 +1040,31 @@ function GraphCanvas() {
         <Controls />
         <Background color="#374151" gap={20} />
       </ReactFlow>
+
+      {/* Selection rectangle overlay */}
+      {isDraggingSelect && dragStart && dragEnd && (
+        (() => {
+          const x = Math.min(dragStart.x, dragEnd.x);
+          const y = Math.min(dragStart.y, dragEnd.y);
+          const w = Math.abs(dragStart.x - dragEnd.x);
+          const h = Math.abs(dragStart.y - dragEnd.y);
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: w,
+                height: h,
+                border: '2px solid #3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                pointerEvents: 'none',
+                zIndex: 1000,
+              }}
+            />
+          );
+        })()
+      )}
       
       {/* Action Buttons */}
       <div style={{
@@ -856,7 +1075,7 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
-        {/* Build Selected Node Button - only show when a node is selected */}
+        {/* Build/Rebuild Selected Node Button - only show when a node is selected */}
         {selectedNode && (
           <Button
             onClick={buildSelectedNode}
@@ -864,15 +1083,15 @@ function GraphCanvas() {
             variant="outline"
             size="sm"
             className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title={(isBuildingSelected || selectedNode.state === 'building') ? "Building selected node..." : `Build node: ${selectedNode.title}`}
+            title={(isBuildingSelected || selectedNode.state === 'building') ? "Building selected node..." : `${selectedNode.state === 'built' ? 'Rebuild' : 'Build'} node: ${selectedNode.title}`}
           >
             <Play className="w-4 h-4" />
-            {(isBuildingSelected || selectedNode.state === 'building') ? 'Building...' : 'Build Selected'}
+            {(isBuildingSelected || selectedNode.state === 'building') ? 'Building...' : `${selectedNode.state === 'built' ? 'Rebuild' : 'Build'} Selected`}
           </Button>
         )}
         
         {/* Rebuild Full Graph Button */}
-        <Button
+        {/* <Button
           onClick={rebuildFullGraph}
           disabled={isRebuilding}
           variant="outline"
@@ -882,10 +1101,10 @@ function GraphCanvas() {
         >
           <RotateCcw className={`w-4 h-4 ${isRebuilding ? 'animate-spin' : ''}`} />
           {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
-        </Button>
+        </Button> */}
         
         {/* Delete Graph Button */}
-        <Button
+        {/* <Button
           onClick={deleteGraph}
           variant="outline"
           size="sm"
@@ -894,7 +1113,7 @@ function GraphCanvas() {
         >
           <Trash2 className="w-4 h-4" />
           Delete Graph
-        </Button>
+        </Button> */}
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ function resolveAccessToken(): string | undefined {
   return process.env.MANTA_API_KEY || process.env.MCP_ACCESS_TOKEN || process.env.MCP_BEARER_TOKEN || undefined;
 }
 function buildAuthHeaders(token?: string): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json; charset=utf-8' };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
 }
@@ -92,7 +92,8 @@ function withLocalhostFallback(url: string): string | null {
 async function httpGet(url: string, token?: string) {
   try {
     const headers = buildAuthHeaders(token);
-    headers['Accept'] = 'application/xml,application/json;q=0.5';
+    // Prefer JSON to avoid any XML encoding quirks during reads
+    headers['Accept'] = 'application/json';
     const res = await fetch(url, { method: 'GET', headers });
     if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
     const ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -108,7 +109,7 @@ async function httpGet(url: string, token?: string) {
       logToFile(`GET fallback attempted: ${alt}`);
       try {
         const headers = buildAuthHeaders(token);
-        headers['Accept'] = 'application/xml,application/json;q=0.5';
+        headers['Accept'] = 'application/json';
         const res = await fetch(alt, { method: 'GET', headers });
         if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
         const ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -167,7 +168,7 @@ async function httpPut(url: string, body: any, token?: string) {
       logToFile(`PUT: Converting graph to XML for ${url}`, 'DEBUG');
       const xml = graphToXml(body.graph);
       logToFile(`PUT: XML length: ${xml.length} characters`, 'DEBUG');
-      headers = { ...headers, 'Content-Type': 'application/xml' };
+      headers = { ...headers, 'Content-Type': 'application/xml; charset=utf-8', 'Accept-Charset': 'utf-8' } as any;
       payload = xml;
     } else {
       payload = JSON.stringify(body);
@@ -188,7 +189,7 @@ async function httpPut(url: string, body: any, token?: string) {
         let payload: any;
         if (body && body.graph) {
           const xml = graphToXml(body.graph);
-          headers = { ...headers, 'Content-Type': 'application/xml' };
+          headers = { ...headers, 'Content-Type': 'application/xml; charset=utf-8', 'Accept-Charset': 'utf-8' } as any;
           payload = xml;
         } else {
           payload = JSON.stringify(body);
@@ -270,6 +271,60 @@ interface Graph {
 
 export function registerGraphTools(server: McpServer, toolset: Toolset) {
     logToFile(`Registering graph tools with toolset: ${toolset}`);
+
+  // Utility: normalize incoming property objects to consistent schema
+  const normalizeProperty = (prop: any): any => {
+    try {
+      if (!prop || typeof prop !== 'object') return prop;
+      const baseKeys = new Set([
+        'id','title','type','value','options','fields','itemFields',
+        'maxLength','min','max','step','itemTitle','addLabel'
+      ]);
+
+      // Collect extra keys that look like inline object fields (e.g., background-color, family, etc.)
+      const extraEntries = Object.entries(prop).filter(([k]) => !baseKeys.has(k));
+
+      // For object-typed properties, move extra keys into value object
+      if (String(prop.type) === 'object') {
+        if (extraEntries.length > 0) {
+          const valueObj: Record<string, any> = { ...(prop.value && typeof prop.value === 'object' ? prop.value : {}) };
+          for (const [k, v] of extraEntries) valueObj[k] = v;
+          const cleaned: any = { ...prop, value: valueObj };
+          // Remove extras from top-level to avoid duplication
+          for (const [k] of extraEntries) delete cleaned[k as keyof typeof cleaned];
+          return cleaned;
+        }
+        return prop;
+      }
+
+      // For object-list, prefer provided value; support alternate 'items' key
+      if (String(prop.type) === 'object-list') {
+        const next: any = { ...prop };
+        if (!Array.isArray(next.value) && Array.isArray((next as any).items)) {
+          next.value = (next as any).items;
+          delete (next as any).items;
+        }
+        return next;
+      }
+
+      // For non-object types: if no value but extra keys exist, pack them as a value object
+      // This preserves data rather than dropping it; UI/consumers can decide how to render.
+      if (prop.value === undefined && extraEntries.length > 0) {
+        const valueObj = Object.fromEntries(extraEntries);
+        const cleaned: any = { ...prop, value: valueObj };
+        for (const [k] of extraEntries) delete cleaned[k as keyof typeof cleaned];
+        return cleaned;
+      }
+    } catch (err) {
+      logToFile(`normalizeProperty failed: ${err}`, 'ERROR');
+    }
+    return prop;
+  };
+
+  const normalizeProperties = (properties?: any[]): any[] => {
+    if (!Array.isArray(properties)) return [];
+    return properties.map((p) => normalizeProperty(p));
+  };
   // read_graph (rich read)
   server.registerTool(
     'graph_read',
@@ -395,7 +450,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
         id: nodeId,
         title,
         prompt,
-        properties: Array.isArray(properties) ? properties : [],
+        properties: normalizeProperties(properties),
         state: state ?? 'unbuilt'
       };
       logToFile(`Created node object with ${node.properties.length} properties`, 'DEBUG');
@@ -468,6 +523,8 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
 
         // Special handling for properties: merge instead of replace
         if (properties !== undefined) {
+          // Normalize incoming properties first
+          properties = normalizeProperties(properties);
           const existingProps = Array.isArray(existing.properties) ? existing.properties : [];
           const byId = new Map<string, any>(existingProps.map((p: any) => [p.id, p]));
 
@@ -583,7 +640,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       const next = { ...graph.nodes[idx] } as any;
       if (title !== undefined) next.title = title;
       if (prompt !== undefined) next.prompt = prompt;
-      if (properties !== undefined) next.properties = properties;
+      if (properties !== undefined) next.properties = normalizeProperties(properties);
       if (children !== undefined) next.children = children;
       if (state !== undefined) next.state = state;
       graph.nodes[idx] = next;

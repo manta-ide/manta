@@ -100,7 +100,7 @@ export default function Home() {
       [panel]: !prev[panel]
     }));
   };
-  const hasSelected = Boolean(selectedNodeId);
+  const hasSelected = true; // Sidebar always visible now
 
   // inner group (viewer + graph) requires min 30 each when present
   const mainMin =
@@ -161,16 +161,14 @@ export default function Home() {
           </>
         )}
 
-        {hasSelected && (
-          <>
-            <ResizablePanel defaultSize={10} minSize={15.5}>
-              <div className="h-full border-r border-zinc-700">
-                <SelectedNodeSidebar />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
-          </>
-        )}
+        <>
+          <ResizablePanel defaultSize={16} minSize={15.5}>
+            <div className="h-full border-r border-zinc-700">
+              <SelectedNodeSidebar />
+            </div>
+          </ResizablePanel>
+          <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
+        </>
 
         {/* Main Content Area - outer main uses computed min/default */}
         <ResizablePanel minSize={mainMin} defaultSize={mainDefault}>

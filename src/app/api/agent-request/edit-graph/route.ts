@@ -11,7 +11,6 @@ import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import path from 'node:path';
 import fs from 'node:fs';
-
 // Multi-step agent configuration for graph editing
 const GRAPH_EDITOR_CONFIG = {
   model: 'gpt-4o',
@@ -108,8 +107,20 @@ const readJobs = (): any[] => { try { const p = jobsPath(); if (!fs.existsSync(p
 const writeJobs = (jobs: any[]) => { try { fs.mkdirSync(path.dirname(jobsPath()), { recursive: true }); fs.writeFileSync(jobsPath(), JSON.stringify(jobs, null, 2), 'utf8'); } catch {} };
 const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; const v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
 
+// Simple job polling for local mode
+const ensureJobWorkerStarted = () => {
+  // In local mode, we assume the job worker is started separately
+  // This is just a placeholder for now
+  if (LOCAL_MODE) {
+    console.log('[JobWorker] Local mode detected - job worker should be running separately');
+  }
+};
+
 export async function POST(req: NextRequest) {
   try {
+    // Ensure job worker is started for local mode
+    ensureJobWorkerStarted();
+
     // Authenticate request to associate graph with user
     const session = await auth.api.getSession({ headers: req.headers });
     if (!session || !session.user) {
@@ -213,13 +224,62 @@ export async function POST(req: NextRequest) {
     jobs.push(job);
     writeJobs(jobs);
 
-    // Mock streaming output for now. The UI treats text/plain and event-stream similarly.
+    // Stream real job processing messages
     if (GRAPH_EDITOR_CONFIG.streaming) {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           const enc = new TextEncoder();
-          controller.enqueue(enc.encode('Thinking'));
-          controller.close();
+
+          // Send initial message
+          controller.enqueue(enc.encode('Starting AI processing...\n'));
+
+          // Poll job status and stream updates
+          let pollCount = 0;
+          const maxPolls = 300; // 5 minutes at 1 second intervals
+
+          const pollJob = async () => {
+            try {
+              pollCount++;
+              const jobs = readJobs();
+              const currentJob = jobs.find(j => j.id === job.id);
+
+              if (!currentJob) {
+                controller.enqueue(enc.encode('Job not found in queue\n'));
+                controller.close();
+                return;
+              }
+
+              if (currentJob.status === 'completed') {
+                controller.enqueue(enc.encode('AI processing completed successfully\n'));
+                controller.close();
+                return;
+              } else if (currentJob.status === 'failed') {
+                controller.enqueue(enc.encode(`AI processing failed: ${currentJob.error_message || 'Unknown error'}\n`));
+                controller.close();
+                return;
+              } else if (currentJob.status === 'running') {
+                // Send progress update
+                controller.enqueue(enc.encode('AI is processing your request...\n'));
+              } else if (currentJob.status === 'queued') {
+                // Send queued message
+                controller.enqueue(enc.encode('AI request queued for processing...\n'));
+              }
+
+              // Continue polling if not done and under max polls
+              if (pollCount < maxPolls) {
+                setTimeout(pollJob, 1000); // Poll every second
+              } else {
+                controller.enqueue(enc.encode('AI processing timed out\n'));
+                controller.close();
+              }
+            } catch (error) {
+              controller.enqueue(enc.encode(`Error polling job status: ${error}\n`));
+              controller.close();
+            }
+          };
+
+          // Start polling after a short delay
+          setTimeout(pollJob, 500);
         }
       });
       return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });

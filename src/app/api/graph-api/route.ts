@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
                
                if (graph && graph.nodes) {
                  const xml = graphToXml(graph);
-                 // Base64 encode the XML to avoid SSE protocol issues with newlines
+                 // Base64 encode the XML using UTF-8 bytes
                  const encodedXml = Buffer.from(xml, 'utf8').toString('base64');
                  const payload = `data: ${encodedXml}\n\n`;
                  controller.enqueue(new TextEncoder().encode(payload));
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
 
     if (!wantsJson) {
       const xml = graphToXml(graph);
-      return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
+      return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Accept-Charset': 'utf-8' } });
     }
     return NextResponse.json({ success: true, graph });
   } catch (error) {

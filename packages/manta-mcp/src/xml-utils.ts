@@ -150,14 +150,28 @@ ${optionsXml}
 function generateNestedXml(p: any): string {
   const type = p?.type;
 
-  if (type === 'object' && p?.fields) {
-    // Generate nested object structure
-    const fields = p.fields;
-    const fieldXml = fields.map((field: any) => {
-      const fieldValue = p?.value?.[field.id];
-      return generateFieldXml(field, fieldValue);
-    }).join('\n        ');
-    return `\n        ${fieldXml}\n      `;
+  if (type === 'object') {
+    let fields = p?.fields;
+
+    // If no fields are defined but we have a value object, infer fields from the value keys
+    if (!fields && p?.value && typeof p.value === 'object' && !Array.isArray(p.value)) {
+      fields = Object.keys(p.value).map((key) => {
+        const val = (p.value as any)[key];
+        const t = typeof val === 'number' ? 'number' : typeof val === 'boolean' ? 'boolean' : (val && typeof val === 'object') ? (Array.isArray(val) ? 'object-list' : 'object') : 'text';
+        return { id: key, title: key, type: t };
+      });
+    }
+
+    if (fields && fields.length > 0) {
+      // Generate nested object structure
+      const fieldXml = fields.map((field: any) => {
+        const fieldValue = p?.value?.[field.id];
+        return generateFieldXml(field, fieldValue);
+      }).join('\n        ');
+      return `\n        ${fieldXml}\n      `;
+    }
+    // If object has no fields, return empty string
+    return '';
   } else if (type === 'object-list') {
     // Generate nested array structure
     let items = Array.isArray(p?.value) ? p.value : [];
@@ -313,8 +327,10 @@ export function xmlToGraph(xml: string): any {
     const nodesData = graphData.nodes;
     const edgesData = graphData.edges;
 
-    if (!nodesData) {
-      throw new Error('Invalid graph XML: missing <nodes> section');
+    // Handle empty nodes section - if nodesData doesn't exist or has no node property, treat as empty
+    if (!nodesData || (typeof nodesData === 'object' && !nodesData.node)) {
+      // Return empty graph if no nodes section or empty nodes
+      return { nodes: [], edges: [] };
     }
 
     // Handle both single node and array of nodes
