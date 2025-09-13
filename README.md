@@ -1,6 +1,6 @@
 # Manta IDE
 
-Manta IDE is a graph-based development environment that lets you control Codex by creating and editing nodes on a graph. 
+Manta IDE is a graph-based development environment that lets you code by creating and editing natural-language nodes on a graph. 
 
 ---
 
