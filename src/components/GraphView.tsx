@@ -400,10 +400,13 @@ function GraphCanvas() {
   // Auth removed; define placeholder to avoid TS errors
   const user: any = null;
 
-  // Log connection status to local graph events
+  // Connect to graph events for real-time updates
   useEffect(() => {
-    // Component ready
-  }, [user?.id]);
+    connectToGraphEvents();
+    return () => {
+      disconnectFromGraphEvents();
+    };
+  }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
   const latestNodesRef = useRef<Node[]>([]);
@@ -816,7 +819,7 @@ function GraphCanvas() {
       // Persist final position via graph API
       try {
         await updateNodeInSupabase(graphNode.id, {
-          position: { x: node.position.x, y: node.position.y }
+          position: { x: node.position.x, y: node.position.y, z: 0 }
         });
         // Node position saved
       } catch (e) {

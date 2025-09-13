@@ -12,12 +12,15 @@ export declare const GraphNodeSchema: z.ZodObject<{
     position: z.ZodOptional<z.ZodObject<{
         x: z.ZodNumber;
         y: z.ZodNumber;
+        z: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         x: number;
         y: number;
+        z?: number | undefined;
     }, {
         x: number;
         y: number;
+        z?: number | undefined;
     }>>;
     width: z.ZodOptional<z.ZodNumber>;
     height: z.ZodOptional<z.ZodNumber>;
@@ -30,6 +33,7 @@ export declare const GraphNodeSchema: z.ZodObject<{
     position?: {
         x: number;
         y: number;
+        z?: number | undefined;
     } | undefined;
     width?: number | undefined;
     height?: number | undefined;
@@ -42,6 +46,7 @@ export declare const GraphNodeSchema: z.ZodObject<{
     position?: {
         x: number;
         y: number;
+        z?: number | undefined;
     } | undefined;
     width?: number | undefined;
     height?: number | undefined;
@@ -51,14 +56,17 @@ export declare const GraphEdgeSchema: z.ZodObject<{
     id: z.ZodString;
     source: z.ZodString;
     target: z.ZodString;
+    role: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     id: string;
     source: string;
     target: string;
+    role?: string | undefined;
 }, {
     id: string;
     source: string;
     target: string;
+    role?: string | undefined;
 }>;
 export declare const GraphSchema: z.ZodObject<{
     nodes: z.ZodArray<z.ZodObject<{
@@ -70,12 +78,15 @@ export declare const GraphSchema: z.ZodObject<{
         position: z.ZodOptional<z.ZodObject<{
             x: z.ZodNumber;
             y: z.ZodNumber;
+            z: z.ZodOptional<z.ZodNumber>;
         }, "strip", z.ZodTypeAny, {
             x: number;
             y: number;
+            z?: number | undefined;
         }, {
             x: number;
             y: number;
+            z?: number | undefined;
         }>>;
         width: z.ZodOptional<z.ZodNumber>;
         height: z.ZodOptional<z.ZodNumber>;
@@ -88,6 +99,7 @@ export declare const GraphSchema: z.ZodObject<{
         position?: {
             x: number;
             y: number;
+            z?: number | undefined;
         } | undefined;
         width?: number | undefined;
         height?: number | undefined;
@@ -100,6 +112,7 @@ export declare const GraphSchema: z.ZodObject<{
         position?: {
             x: number;
             y: number;
+            z?: number | undefined;
         } | undefined;
         width?: number | undefined;
         height?: number | undefined;
@@ -108,14 +121,17 @@ export declare const GraphSchema: z.ZodObject<{
         id: z.ZodString;
         source: z.ZodString;
         target: z.ZodString;
+        role: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         source: string;
         target: string;
+        role?: string | undefined;
     }, {
         id: string;
         source: string;
         target: string;
+        role?: string | undefined;
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     nodes: {
@@ -127,6 +143,7 @@ export declare const GraphSchema: z.ZodObject<{
         position?: {
             x: number;
             y: number;
+            z?: number | undefined;
         } | undefined;
         width?: number | undefined;
         height?: number | undefined;
@@ -135,6 +152,7 @@ export declare const GraphSchema: z.ZodObject<{
         id: string;
         source: string;
         target: string;
+        role?: string | undefined;
     }[] | undefined;
 }, {
     nodes: {
@@ -146,6 +164,7 @@ export declare const GraphSchema: z.ZodObject<{
         position?: {
             x: number;
             y: number;
+            z?: number | undefined;
         } | undefined;
         width?: number | undefined;
         height?: number | undefined;
@@ -154,6 +173,7 @@ export declare const GraphSchema: z.ZodObject<{
         id: string;
         source: string;
         target: string;
+        role?: string | undefined;
     }[] | undefined;
 }>;
 export type Graph = z.infer<typeof GraphSchema>;

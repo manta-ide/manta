@@ -282,7 +282,13 @@ ${optionsXml}
           }
         }).join("\n")}\n      </props>`
       : '';
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}">${desc}${state}${props}\n    </node>`;
+    // Include position attributes if available (z defaults to 0)
+    const hasPos = n?.position && typeof n.position.x === 'number' && typeof n.position.y === 'number';
+    const xAttr = hasPos ? ` x="${escapeXml(String(n.position.x))}"` : '';
+    const yAttr = hasPos ? ` y="${escapeXml(String(n.position.y))}"` : '';
+    const zVal = hasPos ? (typeof n.position.z === 'number' ? n.position.z : 0) : undefined;
+    const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${state}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph.edges || []);
@@ -551,12 +557,27 @@ export function xmlToGraph(xml: string): any {
         properties = Array.from(propertyMap.values());
       }
 
+      // Parse position attributes if present
+      let position: { x: number; y: number; z?: number } | undefined = undefined;
+      try {
+        const xRaw = (nodeData as any)['@_x'];
+        const yRaw = (nodeData as any)['@_y'];
+        const zRaw = (nodeData as any)['@_z'];
+        const x = typeof xRaw === 'number' ? xRaw : (xRaw !== undefined ? Number(xRaw) : NaN);
+        const y = typeof yRaw === 'number' ? yRaw : (yRaw !== undefined ? Number(yRaw) : NaN);
+        const z = typeof zRaw === 'number' ? zRaw : (zRaw !== undefined ? Number(zRaw) : NaN);
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          position = { x, y, z: Number.isFinite(z) ? z : 0 };
+        }
+      } catch {}
+
       return {
         id,
         title,
         prompt: unescapeXml(description),
         state: (buildStatus) || 'unbuilt',
-        properties
+        properties,
+        ...(position ? { position } : {})
       };
     });
 
