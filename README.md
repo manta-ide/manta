@@ -17,7 +17,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    ```bash
    manta run
 
-3. Open http://localhost:3000 if it did not open
+3. http://localhost:3000 should open automatically
 ---
 
 ## Features
