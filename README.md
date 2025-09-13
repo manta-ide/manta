@@ -7,19 +7,22 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 ## ⚡ Quick Start
 
-1. Install Manta CLI:
+1. Install and setup Codex by OpenAI
+https://github.com/openai/codex
+
+2. Install Manta CLI:
    ```bash
    npm install -g manta-ide
 
-1. Install a template to an empty folder:
+3. Install a template to an empty folder:
    ```bash
    manta i
 
-2. Run Manta IDE in the same folder:
+4. Run Manta IDE in the same folder:
    ```bash
    manta run
 
-3. http://localhost:3000 should open automatically
+5. Open [http://localhost:3000](http://localhost:3000)
 
 ## 💡 Features
 
