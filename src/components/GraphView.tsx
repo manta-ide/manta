@@ -428,62 +428,86 @@ function GraphCanvas() {
     }
   }, [nodes, reactFlow]);
 
-  // Function to delete the graph
-  const deleteGraph = useCallback(async () => {
-    if (!confirm('Are you sure you want to delete the graph? This action cannot be undone.')) {
-      return;
-    }
+  // Function to delete the graph (clear all nodes/edges via API)
+  // const deleteGraph = useCallback(async () => {
+  //   if (!confirm('Are you sure you want to delete the graph? This action cannot be undone.')) {
+  //     return;
+  //   }
 
-    try {
-      const response = await fetch('/api/graph-api', { method: 'DELETE' });
-      if (response.ok) {
-        // Graph deleted successfully
-      } else {
-        console.error('❌ Failed to delete graph');
-      }
-    } catch (backendError) {
-      console.error('❌ Error deleting graph:', backendError);
-    }
-  }, [deleteNodeFromSupabase, graph]);
+  //   try {
+  //     // Persist empty graph through the Graph API
+  //     const response = await fetch('/api/graph-api', {
+  //       method: 'PUT',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ graph: { nodes: [], edges: [] } })
+  //     });
+  //     if (response.ok) {
+  //       // Update local store to reflect deletion
+  //       useProjectStore.setState({
+  //         graph: { nodes: [], edges: [] } as any,
+  //         selectedNode: null,
+  //         selectedNodeId: null,
+  //         selectedNodeIds: []
+  //       });
+  //     } else {
+  //       console.error('❌ Failed to delete graph');
+  //     }
+  //   } catch (backendError) {
+  //     console.error('❌ Error deleting graph:', backendError);
+  //   }
+  // }, []);
 
   // Function to rebuild the full graph
-  const rebuildFullGraph = useCallback(async () => {
-    if (!confirm('Are you sure you want to rebuild the entire graph? This will regenerate code for all nodes.')) {
-      return;
-    }
+  // const rebuildFullGraph = useCallback(async () => {
+  //   if (!confirm('Are you sure you want to rebuild the entire graph? This will regenerate code for all nodes.')) {
+  //     return;
+  //   }
 
-    setIsRebuilding(true);
-    try {
-      const response = await fetch('/api/agent-request/build-nodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: {
-            role: 'user',
-            content: 'Rebuild the entire graph and generate code for all nodes',
-            variables: {}
-          },
-          rebuildAll: true
-        }),
-      });
+  //   setIsRebuilding(true);
+  //   try {
+  //     // Gather all node IDs and optimistically mark them as building
+  //     try {
+  //       const current = useProjectStore.getState();
+  //       const g = current.graph;
+  //       if (g && Array.isArray(g.nodes)) {
+  //         const updatedNodes = g.nodes.map((n: any) => ({ ...n, state: 'building' }));
+  //         const updatedGraph = { ...g, nodes: updatedNodes } as any;
+  //         useProjectStore.setState({ graph: updatedGraph });
+  //       }
+  //     } catch {}
+
+  //     const allIds = (useProjectStore.getState().graph?.nodes || []).map((n: any) => n.id);
+  //     const response = await fetch('/api/agent-request/build-nodes', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         userMessage: {
+  //           role: 'user',
+  //           content: `Rebuild the entire graph and generate code for all ${allIds.length} nodes`,
+  //           variables: {}
+  //         },
+  //         rebuildAll: true,
+  //         selectedNodeIds: allIds
+  //       }),
+  //     });
       
-      if (response.ok) {
-        // Full graph rebuild started successfully
-        // The graph will be automatically updated via SSE
-        // Also refresh the preview iframe since code changed
-        try {
-          const { triggerRefresh } = useProjectStore.getState();
-          triggerRefresh();
-        } catch {}
-      } else {
-        console.error('❌ Failed to rebuild graph');
-      }
-    } catch (error) {
-      console.error('❌ Error rebuilding graph:', error);
-    } finally {
-      setIsRebuilding(false);
-    }
-  }, []);
+  //     if (response.ok) {
+  //       // Full graph rebuild started successfully
+  //       // The graph will be automatically updated via SSE
+  //       // Also refresh the preview iframe since code changed
+  //       try {
+  //         const { triggerRefresh } = useProjectStore.getState();
+  //         triggerRefresh();
+  //       } catch {}
+  //     } else {
+  //       console.error('❌ Failed to rebuild graph');
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Error rebuilding graph:', error);
+  //   } finally {
+  //     setIsRebuilding(false);
+  //   }
+  // }, []);
 
   // Function to build the selected node
   const buildSelectedNode = useCallback(async () => {
@@ -1000,7 +1024,7 @@ function GraphCanvas() {
         )}
         
         {/* Rebuild Full Graph Button */}
-        <Button
+        {/* <Button
           onClick={rebuildFullGraph}
           disabled={isRebuilding}
           variant="outline"
@@ -1010,10 +1034,10 @@ function GraphCanvas() {
         >
           <RotateCcw className={`w-4 h-4 ${isRebuilding ? 'animate-spin' : ''}`} />
           {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
-        </Button>
+        </Button> */}
         
         {/* Delete Graph Button */}
-        <Button
+        {/* <Button
           onClick={deleteGraph}
           variant="outline"
           size="sm"
@@ -1022,7 +1046,7 @@ function GraphCanvas() {
         >
           <Trash2 className="w-4 h-4" />
           Delete Graph
-        </Button>
+        </Button> */}
       </div>
     </div>
   );
