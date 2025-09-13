@@ -24,6 +24,7 @@ import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
+import { graphToXml, xmlToGraph } from '@/../packages/manta-mcp/src/xml-utils';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed } from 'lucide-react';
 
@@ -118,14 +119,12 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           padding: '20px',
           width: '260px',
           minHeight: '160px',
-          transition: 'all 0.2s ease',
           position: 'relative',
           fontFamily: 'Inter, sans-serif',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          transform: selected ? 'scale(1.02)' : 'scale(1)',
         }}
       >
         {/* Building state indicator */}
@@ -237,13 +236,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         padding: '20px',
         width: '260px',
         minHeight: '160px',
-        transition: 'all 0.2s ease',
         position: 'relative',
         fontFamily: 'Inter, sans-serif',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transform: selected ? 'scale(1.05)' : 'scale(1)',
       }}
     >
       {/* Building state indicator */}
@@ -467,6 +464,87 @@ function GraphCanvas() {
     }
   }, [graph, generateNodeId, updateNodeInSupabase, setSelectedNode, setSelectedNodeIds, setNodes]);
 
+  // Handle deletion of selected nodes and edges
+  const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+    try {
+      // Get current graph data
+      const origin = 'http://localhost:3000';
+      const url = `${origin}/api/graph-api`;
+
+      const data = await fetch(url, {
+        headers: {
+          'Accept': 'application/xml, application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let currentGraph;
+      const contentType = (data.headers.get('content-type') || '').toLowerCase();
+
+      if (contentType.includes('xml')) {
+        const xml = await data.text();
+        currentGraph = xmlToGraph(xml);
+      } else {
+        const graphData = await data.json();
+        currentGraph = graphData.graph || graphData;
+      }
+
+      // Delete selected nodes
+      const nodeIdsToDelete = selectedNodes.map(node => node.id);
+      if (nodeIdsToDelete.length > 0) {
+        currentGraph.nodes = currentGraph.nodes.filter((node: any) =>
+          !nodeIdsToDelete.includes(node.id)
+        );
+
+        // Also remove edges connected to deleted nodes
+        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+          !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
+        );
+
+        console.log('🗑️ Deleting nodes:', nodeIdsToDelete);
+      }
+
+      // Delete selected edges
+      const edgeIdsToDelete = selectedEdges.map(edge => edge.id);
+      if (edgeIdsToDelete.length > 0) {
+        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+          !edgeIdsToDelete.includes(edge.id)
+        );
+
+        console.log('🗑️ Deleting edges:', edgeIdsToDelete);
+      }
+
+      // Update local state immediately
+      setNodes(prevNodes => prevNodes.filter(node => !nodeIdsToDelete.includes(node.id)));
+      setEdges(prevEdges => prevEdges.filter(edge => !edgeIdsToDelete.includes(edge.id)));
+
+      // Clear selection
+      setSelectedNode(null, null);
+      setSelectedNodeIds([]);
+
+      // Persist to API
+      await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Accept-Charset': 'utf-8'
+        },
+        body: graphToXml(currentGraph)
+      });
+
+      console.log('✅ Successfully deleted selected elements');
+
+    } catch (error) {
+      console.error('❌ Failed to delete selected elements:', error);
+      // Revert local state on error by refreshing from server
+      if (refreshGraph) {
+        refreshGraph();
+      }
+    }
+  }, [setNodes, setEdges, setSelectedNode, setSelectedNodeIds, refreshGraph]);
+
   // Connect to graph events for real-time updates
   useEffect(() => {
     connectToGraphEvents();
@@ -474,6 +552,27 @@ function GraphCanvas() {
       disconnectFromGraphEvents();
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
+
+  // Handle keyboard shortcuts for deletion
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+
+        // Get selected nodes and edges from ReactFlow
+        const selectedNodes = nodes.filter(node => node.selected);
+        const selectedEdges = edges.filter(edge => edge.selected);
+
+        if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+        // Delete selected elements
+        handleDeleteSelected(selectedNodes, selectedEdges);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [nodes, edges]);
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
   const latestNodesRef = useRef<Node[]>([]);
@@ -855,7 +954,63 @@ function GraphCanvas() {
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
-  const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+  const onConnect = useCallback(async (params: Connection) => {
+    try {
+      // First add the edge to local ReactFlow state for immediate feedback
+      setEdges((eds) => addEdge(params, eds));
+
+      // Then persist to the graph API
+      const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
+      const url = `${origin}/api/graph-api`;
+
+      // Get current graph data (accept both XML and JSON)
+      const data = await fetch(url, {
+        headers: {
+          'Accept': 'application/xml, application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let graph;
+      const contentType = (data.headers.get('content-type') || '').toLowerCase();
+
+      if (contentType.includes('xml')) {
+        const xml = await data.text();
+        graph = xmlToGraph(xml);
+      } else {
+        const graphData = await data.json();
+        graph = graphData.graph || graphData;
+      }
+
+      // Create new edge
+      const newEdge = {
+        id: `${params.source}-${params.target}`,
+        source: params.source,
+        target: params.target,
+        role: 'links-to'
+      };
+
+      // Add edge to graph
+      if (!graph.edges) graph.edges = [];
+      graph.edges.push(newEdge);
+
+      // Persist to API
+      await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Accept-Charset': 'utf-8'
+        },
+        body: graphToXml(graph)
+      });
+
+      console.log('✅ Created connection between nodes:', params.source, '->', params.target);
+    } catch (error) {
+      console.error('❌ Failed to create connection:', error);
+      // Remove the edge from local state if persistence failed
+      setEdges((eds) => eds.filter(e => !(e.source === params.source && e.target === params.target)));
+    }
+  }, [setEdges]);
 
   // Throttle position broadcasts to prevent spam
   const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
@@ -1110,7 +1265,7 @@ function GraphCanvas() {
         onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={true}
-        nodesConnectable={false}
+        nodesConnectable={currentTool === 'select'}
         elementsSelectable={true}
       >
         <MiniMap 
@@ -1176,7 +1331,7 @@ function GraphCanvas() {
             : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Select Tool - Click to select nodes, drag to select multiple"
+          title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
         >
           <SquareDashed className="w-4 h-4" />
         </Button>
@@ -1191,7 +1346,7 @@ function GraphCanvas() {
             : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Pan Tool - Click and drag to pan the view"
+          title="Pan Tool - Click and drag to pan the view, right-click always pans"
         >
           <Hand className="w-4 h-4" />
         </Button>
