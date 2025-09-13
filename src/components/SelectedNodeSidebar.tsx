@@ -6,6 +6,7 @@ import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { postVarsUpdate } from '@/lib/child-bridge';
 
@@ -29,6 +30,7 @@ export default function SelectedNodeSidebar() {
 	} = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
+	const [titleDraft, setTitleDraft] = useState<string>('');
 	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 
@@ -71,8 +73,9 @@ export default function SelectedNodeSidebar() {
 	}, [supabaseConnected]);
 
 	useEffect(() => {
-		// Only reset prompt draft when switching to a different node, not when the prompt value changes
+		// Only reset drafts when switching to a different node, not when the values change
 		setPromptDraft(selectedNode?.prompt ?? '');
+		setTitleDraft(selectedNode?.title ?? '');
 		setRebuildError(null);
 		setRebuildSuccess(false);
 		
@@ -255,9 +258,30 @@ export default function SelectedNodeSidebar() {
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
 			<div className="px-3 py-2 border-b border-zinc-700">
-				<span className="font-medium text-xs truncate max-w-[280px] leading-tight text-zinc-200" title={selectedNode?.title || selectedNodeId || 'No selection'}>
-					{selectedNode?.title || selectedNodeId || 'No node selected'}
-				</span>
+				<Input
+					className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
+					value={titleDraft}
+					onChange={(e) => setTitleDraft(e.target.value)}
+					onBlur={() => {
+						// Auto-save title when user finishes editing
+						if (selectedNode && titleDraft !== selectedNode.title) {
+							console.log('💾 Auto-saving title for node:', selectedNodeId);
+							// Update the node locally
+							const updatedNode = { ...selectedNode, title: titleDraft };
+							setSelectedNode(selectedNodeId, updatedNode);
+
+							// Persist to database
+							if (selectedNodeId) {
+								updateNodeInSupabase(selectedNodeId!, { title: titleDraft }).catch((error) => {
+									console.error('Failed to save title:', error);
+									setRebuildError('Failed to save title');
+									setTimeout(() => setRebuildError(null), 3000);
+								});
+							}
+						}
+					}}
+					placeholder="Enter node title..."
+				/>
 			</div>
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
 				<div className="space-y-3 pr-2">
