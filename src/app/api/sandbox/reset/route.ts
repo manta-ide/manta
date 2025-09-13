@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { Pool } from 'pg';
 import { clearGraphSession } from '@/app/api/lib/graph-service';
@@ -12,12 +11,7 @@ const pool = !LOCAL_MODE ? new Pool({ ssl: true, connectionString: process.env.D
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() } as any);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    const userId = session.user.id as string;
+    const userId = 'default-user';
 
     // 1) Reset chatting session (server-side in-memory)
     try {

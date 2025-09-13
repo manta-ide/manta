@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
 import { setGraphEditorAuthHeaders, setGraphEditorBaseUrl } from '../../lib/graphEditorTools';
 import { z } from 'zod';
 import { generateObject, generateText, streamText } from 'ai';
@@ -134,12 +133,7 @@ export async function POST(req: NextRequest) {
     });
     setGraphEditorBaseUrl(req.nextUrl.origin);
     // forward headers for graph editor tools as well (include x-user-id)
-    let userIdHeader: Record<string, string> = {};
-    try {
-      const session = await auth.api.getSession({ headers: req.headers });
-      const uid = session?.user?.id as string | undefined;
-      if (uid) userIdHeader = { 'x-user-id': uid };
-    } catch {}
+    let userIdHeader: Record<string, string> = { 'x-user-id': 'default-user' };
     setGraphEditorAuthHeaders({
       ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
       ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),

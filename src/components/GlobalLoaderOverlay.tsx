@@ -2,14 +2,11 @@
 
 import { useEffect, useMemo } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { useAuth } from '@/lib/auth-context';
 
 export default function GlobalLoaderOverlay() {
   const { graphLoading, supabaseConnected, iframeReady, resetting } = useProjectStore();
-  const { user } = useAuth();
   const localMode = useMemo(() => {
     try {
-      if (user?.id === 'local') return true;
       if (typeof window !== 'undefined') {
         const { hostname, port } = window.location;
         if ((hostname === 'localhost' || hostname === '127.0.0.1') && (port === '' || port === '3000')) return true;
@@ -19,7 +16,7 @@ export default function GlobalLoaderOverlay() {
     } catch {
       return false;
     }
-  }, [user?.id]);
+  }, []);
 
   const show = useMemo(() => {
     // Always show when resetting
@@ -30,16 +27,9 @@ export default function GlobalLoaderOverlay() {
     if (localMode) {
       return !iframeReady;
     }
-    // If user is authenticated
-    if (user) {
-      // In local mode (or local stub user), only wait for iframe
-      if (localMode || user.id === 'local') return !iframeReady;
-      // Hosted mode: require DB and iframe
-      return !supabaseConnected || !iframeReady;
-    }
-    // If not authenticated, only wait for iframe (editor preview)
-    return !iframeReady;
-  }, [resetting, graphLoading, supabaseConnected, iframeReady, user, localMode]);
+    // Hosted mode: require DB and iframe
+    return !supabaseConnected || !iframeReady;
+  }, [resetting, graphLoading, supabaseConnected, iframeReady, localMode]);
 
   // Prevent body scroll when overlay visible
   useEffect(() => {
@@ -53,11 +43,9 @@ export default function GlobalLoaderOverlay() {
 
   const message = resetting
     ? 'Resetting project…'
-    : localMode || user?.id === 'local'
+    : localMode
       ? (!iframeReady ? 'Starting preview…' : 'Loading project…')
-      : user
-        ? (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…')
-        : 'Starting preview…';
+      : (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…');
 
   return (
     <div

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MessageSchema } from '@/app/api/lib/schemas';
 import { z } from 'zod';
-import { auth } from '@/lib/auth';
 import path from 'node:path';
 import fs from 'node:fs';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
@@ -31,12 +30,8 @@ const RequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate to associate the job with a user (skip in local mode)
-    const session = await auth.api.getSession({ headers: req.headers });
-    const userId = (LOCAL_MODE ? 'local' : (session?.user?.id as string));
-    if (!LOCAL_MODE && !userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use default user for all requests
+    const userId = 'default-user';
 
     const body = await req.json();
     const { userMessage, nodeId, selectedNodeIds, rebuildAll } = RequestSchema.parse(body);

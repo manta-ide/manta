@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current user session
-    const session = await auth.api.getSession({ headers: request.headers });
-    
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const { user } = session;
+    // Use default user
+    const user = { id: 'default-user' };
     console.log('Setting up base template for user:', user.id);
 
     // Setup base template project in the sandbox
@@ -40,17 +30,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get current user session
-    const session = await auth.api.getSession({ headers: request.headers });
-    
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const { user } = session;
+    // Use default user
+    const user = { id: 'default-user' };
 
     // Check if sandbox exists
     const sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);

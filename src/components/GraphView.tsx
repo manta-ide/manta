@@ -26,7 +26,6 @@ import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
 
 // Helper function to check if a point is within a rectangle
 function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
@@ -384,9 +383,6 @@ function GraphCanvas() {
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
-  
-  const { user } = useAuth();
-  
   // Use the store for graph data with Supabase integration
   const { 
     graph, 
@@ -401,6 +397,8 @@ function GraphCanvas() {
 
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
+  // Auth removed; define placeholder to avoid TS errors
+  const user: any = null;
 
   // Log connection status to local graph events
   useEffect(() => {
@@ -582,7 +580,7 @@ function GraphCanvas() {
     }
   }, [selectedNode, selectedNodeIds, updateNodeInSupabase]);
 
-  // Connection is managed centrally by AuthProvider; avoid duplicate connections here
+  // Connection is managed by the store
 
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeGraph, getGraphSession } from '../lib/graph-service';
 import { xmlToGraph } from '@/lib/graph-xml';
-import { auth } from '@/lib/auth';
 import { z } from 'zod';
 
 // Schema for manual node edits
@@ -87,13 +86,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Require authenticated user for persistence
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await storeGraph(graph, session.user.id);
+    // Use default user for persistence
+    await storeGraph(graph, 'default-user');
     
     return NextResponse.json({ 
       success: true, 
@@ -110,10 +104,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use default user
 
     const { nodeId, ...updateData } = await req.json();
     
@@ -158,7 +149,8 @@ export async function PUT(req: NextRequest) {
     const newGraph = { ...graph, nodes: [...graph.nodes] } as typeof graph;
     newGraph.nodes[idx] = updated;
 
-    await storeGraph(newGraph, session.user.id);
+    // Persist using default user context (no auth/session here)
+    await storeGraph(newGraph, 'default-user');
     return NextResponse.json({ node: updated });
   } catch (error) {
     console.error('Error updating graph node:', error);

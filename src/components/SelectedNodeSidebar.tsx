@@ -7,7 +7,6 @@ import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAuth } from '@/lib/auth-context';
 import { postVarsUpdate } from '@/lib/child-bridge';
 
 export default function SelectedNodeSidebar() {
@@ -29,7 +28,6 @@ export default function SelectedNodeSidebar() {
 		graph
 	} = useProjectStore();
 	const { actions } = useChatService();
-	const { user } = useAuth();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	// Building state is now tracked in node.state instead of local state
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
@@ -59,22 +57,18 @@ export default function SelectedNodeSidebar() {
 			}
 		}, [selectedNodeId, updatePropertyLocal]);
 
-	// Just monitor connection status - let AuthProvider handle the actual connection
+	// Monitor connection status
 	useEffect(() => {
 		console.log('👤 SelectedNodeSidebar: Connection status check:', {
-			user: user ? { id: user.id, email: user.email } : null,
-			supabaseConnected,
-			hasUserId: !!user?.id
+			supabaseConnected
 		});
 		
-		if (!user?.id) {
-			console.log('⚠️ SelectedNodeSidebar: No user ID available');
-		} else if (supabaseConnected) {
+		if (supabaseConnected) {
 			console.log('✅ SelectedNodeSidebar: Supabase connected');
 		} else {
-			console.log('🔄 SelectedNodeSidebar: Waiting for Supabase connection (handled by AuthProvider)');
+			console.log('🔄 SelectedNodeSidebar: Waiting for Supabase connection');
 		}
-	}, [user?.id, supabaseConnected]);
+	}, [supabaseConnected]);
 
 	useEffect(() => {
 		// Only reset prompt draft when switching to a different node, not when the prompt value changes

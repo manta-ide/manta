@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import FloatingChat from "@/components/FloatingChat";
-import FileTree from "@/components/FileTree";
-import FileEditor from "@/components/FileEditor";
 import AppViewer from "@/components/AppViewer";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
@@ -11,13 +9,10 @@ import TopBar from "@/components/TopBar";
 import GlobalLoaderOverlay from "@/components/GlobalLoaderOverlay";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
-  const { user, loading } = useAuth();
   const [panels, setPanels] = useState({
     files: false,
-    editor: false,
     viewer: true,
     graph: true,
     sandbox: false,
@@ -28,25 +23,22 @@ export default function Home() {
 
   const { loadProject: loadProjectFromFileSystem, selectedNodeId, setSelectedNode } = useProjectStore();
 
-  // Load project only when authenticated
+  // Load project on mount
   useEffect(() => {
-    if (user && !loading) {
-      console.log('🚀 Loading project on auth ready');
-      loadProjectFromFileSystem();
-    }
-  }, [user, loading, loadProjectFromFileSystem]);
+    console.log('🚀 Loading project');
+    loadProjectFromFileSystem();
+  }, [loadProjectFromFileSystem]);
 
-  // Restore panel layout from localStorage once after auth is ready
+  // Restore panel layout from localStorage
   useEffect(() => {
-    if (!user || loading || panelsLoaded) return;
+    if (panelsLoaded) return;
     try {
-      const key = `manta.panels.${user.id}`;
+      const key = 'manta.panels';
       const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
       if (raw) {
         const parsed = JSON.parse(raw);
         const next = {
           files: typeof parsed?.files === 'boolean' ? parsed.files : panels.files,
-          editor: typeof parsed?.editor === 'boolean' ? parsed.editor : panels.editor,
           viewer: typeof parsed?.viewer === 'boolean' ? parsed.viewer : panels.viewer,
           graph: typeof parsed?.graph === 'boolean' ? parsed.graph : panels.graph,
           sandbox: typeof parsed?.sandbox === 'boolean' ? parsed.sandbox : panels.sandbox,
@@ -58,20 +50,19 @@ export default function Home() {
     } finally {
       setPanelsLoaded(true);
     }
-  }, [user, loading, panelsLoaded, panels.files, panels.editor, panels.viewer, panels.graph, panels.sandbox]);
+  }, [panelsLoaded, panels.files, panels.viewer, panels.graph, panels.sandbox]);
 
-  // Persist panel layout on change (per-user)
+  // Persist panel layout on change
   useEffect(() => {
-    if (!user || loading) return;
     try {
-      const key = `manta.panels.${user.id}`;
+      const key = 'manta.panels';
       if (typeof window !== 'undefined') {
         localStorage.setItem(key, JSON.stringify(panels));
       }
     } catch (e) {
       console.warn('Failed to persist panel layout:', e);
     }
-  }, [panels, user, loading]);
+  }, [panels]);
 
   // Set root node as selected on mount
   useEffect(() => {
@@ -111,7 +102,6 @@ export default function Home() {
   // choose sane outer defaults that sum to <= 100
   const leftDefaults =
     (panels.files ? 15 : 0) +
-    (panels.editor ? 30 : 0) +
     (hasSelected ? 20 : 0);
 
   const mainDefault = Math.max(
@@ -122,14 +112,6 @@ export default function Home() {
   // Adjust panel sizes when SelectedNodeSidebar is visible
   // const selectedPanelSize = hasSelected ? 20 : 0;
 
-  if (!user || loading) {
-    return (
-      <div className="flex flex-col h-screen bg-zinc-900">
-        <TopBar panels={panels} onTogglePanel={togglePanel} isEditMode={isEditMode} setIsEditMode={setIsEditMode} />
-        <GlobalLoaderOverlay />
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen bg-zinc-900">
@@ -139,27 +121,8 @@ export default function Home() {
         direction="horizontal"
         className="flex-1"
       >
-        {panels.files && (
-          <>
-            <ResizablePanel defaultSize={15} minSize={8.7}>
-              <div className="h-full border-r border-zinc-700">
-                <FileTree />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
-          </>
-        )}
+        {panels.files && null}
 
-        {panels.editor && (
-          <>
-            <ResizablePanel defaultSize={30} minSize={20}>
-              <div className="h-full border-r border-zinc-700">
-                <FileEditor />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />
-          </>
-        )}
 
         <>
           <ResizablePanel defaultSize={16} minSize={15.5}>

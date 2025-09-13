@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import '@/lib/sandbox-provider';
 import { SandboxService } from '@/lib/sandbox-service';
 
@@ -8,19 +7,9 @@ export async function POST(request: NextRequest) {
   console.log(`[${requestId}] Sandbox export request started`);
   
   try {
-    // Get current user session
-    const session = await auth.api.getSession({ headers: request.headers });
-    
-    if (!session || !session.user) {
-      console.log(`[${requestId}] ERROR: Unauthorized - no user session`);
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in to access your sandbox' },
-        { status: 401 }
-      );
-    }
-
-    const { user } = session;
-    console.log(`[${requestId}] User authenticated: ${user.id}`);
+    // Use default user
+    const user = { id: 'default-user' };
+    console.log(`[${requestId}] Using default user: ${user.id}`);
 
     // Get user's sandbox info
     const sandboxInfo = await SandboxService.getUserSandboxInfo(user.id);

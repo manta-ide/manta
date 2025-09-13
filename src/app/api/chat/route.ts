@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
 import { Pool } from 'pg';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 
-// Create database connection with same config as Better Auth (disabled in local mode)
+// Create database connection (disabled in local mode)
 const pool = !LOCAL_MODE
   ? new Pool({ ssl: true, connectionString: process.env.DATABASE_URL })
   : null;
 
-// GET - Load user's chat history
+// GET - Load chat history
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() } as any);
-
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
 
     // Load chat history from database (or stub in local mode)
     let chatHistory: any[] = [];
@@ -33,7 +23,7 @@ export async function GET(req: NextRequest) {
       try {
         const result = await client.query(
           'SELECT chat_history FROM "user" WHERE id = $1',
-          [session.user.id]
+          ['default-user']
         );
         
         if (result.rows && result.rows.length > 0 && result.rows[0].chat_history) {
@@ -62,17 +52,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST - Save user's chat history
+// POST - Save chat history
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() } as any);
-
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
 
     const { chatHistory } = await req.json();
 
@@ -85,7 +67,7 @@ export async function POST(req: NextRequest) {
       try {
         await client.query(
           'UPDATE "user" SET chat_history = $1 WHERE id = $2',
-          [JSON.stringify(chatHistory), session.user.id]
+          [JSON.stringify(chatHistory), 'default-user']
         );
       } finally {
         client.release();
@@ -111,17 +93,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE - Clear user's chat history
+// DELETE - Clear chat history
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() } as any);
-
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
 
     // Clear chat history in database
     try {
@@ -132,7 +106,7 @@ export async function DELETE(req: NextRequest) {
       try {
         await client.query(
           'UPDATE "user" SET chat_history = NULL WHERE id = $1',
-          [session.user.id]
+          ['default-user']
         );
       } finally {
         client.release();
