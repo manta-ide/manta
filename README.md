@@ -7,7 +7,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 1. Install Manta CLI:
    ```bash
-   npm install -g manta-cli
+   npm install -g manta-ide
 
 1. Install a template to an empty folder:
    ```bash
