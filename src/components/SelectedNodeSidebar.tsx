@@ -293,10 +293,10 @@ export default function SelectedNodeSidebar() {
 					</div>
 				)}
 
-				{/* No selection state */}
+				{/* No selection state - sidebar remains visible with hint */}
 				{(!selectedNodeId || !selectedNode) && (!selectedNodeIds || selectedNodeIds.length === 0) && (
 					<div className="text-xs text-zinc-400 bg-zinc-800/30 rounded p-2 border border-zinc-700/20">
-						No node selected. Click a node to view and edit its properties.
+						Select a node to edit properties.
 					</div>
 				)}
 
@@ -350,7 +350,8 @@ export default function SelectedNodeSidebar() {
 
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
 							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
-								{[...selectedNode.properties].sort((a, b) => a.id.localeCompare(b.id)).map((property: Property, index: number) => (
+								{/* Preserve original order from graph (no sorting) */}
+								{selectedNode.properties.map((property: Property, index: number) => (
 									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
 										<PropertyEditor
 											property={{

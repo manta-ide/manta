@@ -382,6 +382,8 @@ function GraphCanvas() {
   const [isDraggingSelect, setIsDraggingSelect] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
+  // Viewport transform for converting flow coords <-> screen coords
+  const viewport = useViewport();
   
   const { user } = useAuth();
   
@@ -757,24 +759,27 @@ function GraphCanvas() {
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
 
-      // Select root node by default if nothing is selected
-      if (!selectedNodeId && reactFlowNodes.length > 0) {
-        const root = reactFlowNodes[0];
-        setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
-      }
+      // Select root node by default only once on initial load if nothing is selected
+      // Avoid auto-selecting again after user clears the selection
+      // if (!selectedNodeId && (!selectedNodeIds || selectedNodeIds.length === 0) && reactFlowNodes.length > 0 && !hasAutoSelectedRef.current) {
+      //   const root = reactFlowNodes[0];
+      //   setSelectedNode(root.id, graph.nodes.find(n => n.id === root.id) as any);
+      //   hasAutoSelectedRef.current = true;
+      // }
     };
     rebuild();
-  }, [graph, setNodes, setEdges]);
+  }, [graph, setNodes, setEdges, selectedNodeId, selectedNodeIds]);
 
   // Update node selection without re-rendering the whole graph
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
-      }))
-    );
-  }, [selectedNodeId, selectedNodeIds, setNodes]);
+  // const hasAutoSelectedRef = useRef(false);
+  // useEffect(() => {
+  //   setNodes((nds) =>
+  //     nds.map((node) => ({
+  //       ...node,
+  //       selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
+  //     }))
+  //   );
+  // }, [selectedNodeId, selectedNodeIds, setNodes]);
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
@@ -829,7 +834,11 @@ function GraphCanvas() {
 
   // Handle background mouse down for drag selection
   const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
-    if (event.target !== event.currentTarget) return; // Only start drag on background
+    // Only start selection on left mouse button
+    if (event.button !== 0) return;
+    // Ignore clicks that originate from nodes, edges, or handles
+    const target = event.target as HTMLElement;
+    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge') || target.closest('.react-flow__handle')) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -838,7 +847,13 @@ function GraphCanvas() {
     setIsDraggingSelect(true);
     setDragStart({ x, y });
     setDragEnd({ x, y });
-  }, []);
+    // If not multi-select modifier, clear current selection at drag start
+    if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
+      setSelectedNodeIds([]);
+      setSelectedNode(null, null);
+    }
+    event.preventDefault();
+  }, [setSelectedNode, setSelectedNodeIds]);
 
   const onPaneMouseMove = useCallback((event: React.MouseEvent) => {
     if (!isDraggingSelect || !dragStart) return;
@@ -848,9 +863,10 @@ function GraphCanvas() {
     const y = event.clientY - rect.top;
 
     setDragEnd({ x, y });
+    event.preventDefault();
   }, [isDraggingSelect, dragStart]);
 
-  const onPaneMouseUp = useCallback(() => {
+  const onPaneMouseUp = useCallback((event?: React.MouseEvent) => {
     if (!isDraggingSelect || !dragStart || !dragEnd) {
       setIsDraggingSelect(false);
       setDragStart(null);
@@ -860,35 +876,55 @@ function GraphCanvas() {
 
     // Calculate selection rectangle in screen coordinates
     const selectionRect = getRectFromPoints(dragStart, dragEnd);
+    const width = selectionRect.width;
+    const height = selectionRect.height;
 
-    // Find nodes within the selection rectangle
+    // Find nodes within the selection rectangle (convert node positions to screen coords)
     const selectedNodesInRect: string[] = [];
+    const { x: viewportX, y: viewportY, zoom } = viewport;
     nodes.forEach(node => {
-      const nodeCenter = {
-        x: node.position.x + 130, // node width / 2
-        y: node.position.y + 80   // node height / 2
-      };
-
-      if (isPointInRect(nodeCenter, selectionRect)) {
+      const centerFlow = { x: node.position.x + 130, y: node.position.y + 80 };
+      const centerScreen = { x: centerFlow.x * zoom + viewportX, y: centerFlow.y * zoom + viewportY };
+      if (isPointInRect(centerScreen, selectionRect)) {
         selectedNodesInRect.push(node.id);
       }
     });
 
-    if (selectedNodesInRect.length > 0) {
-      const prev = selectedNodeIds || [];
-      const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
-      // Set the first selected node as the main selected node
-      const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
-      if (firstNode) {
-        setSelectedNode(newSelection[0], firstNode);
+    const isMulti = Boolean(event && (event.shiftKey || event.metaKey || event.ctrlKey));
+    const hasDrag = width >= 3 || height >= 3;
+    if (hasDrag) {
+      if (selectedNodesInRect.length > 0) {
+        if (isMulti) {
+          // Merge with existing selection
+          const prev = selectedNodeIds || [];
+          const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
+          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+          if (firstNode) setSelectedNode(newSelection[0], firstNode);
+          setSelectedNodeIds(newSelection);
+        } else {
+          // Replace selection
+          const firstNode = graph?.nodes?.find(n => n.id === selectedNodesInRect[0]);
+          if (firstNode) setSelectedNode(selectedNodesInRect[0], firstNode);
+          setSelectedNodeIds(selectedNodesInRect);
+        }
+      } else if (!isMulti) {
+        // Dragged but selected nothing -> clear selection
+        setSelectedNode(null, null);
+        setSelectedNodeIds([]);
       }
-      setSelectedNodeIds(newSelection);
+    } else {
+      // Treat as background click: clear selection if no modifier
+      if (!isMulti) {
+        setSelectedNode(null, null);
+        setSelectedNodeIds([]);
+      }
     }
 
     setIsDraggingSelect(false);
     setDragStart(null);
     setDragEnd(null);
-  }, [isDraggingSelect, dragStart, dragEnd, nodes, graph]);
+    if (event) event.preventDefault();
+  }, [isDraggingSelect, dragStart, dragEnd, nodes, graph, viewport, selectedNodeIds, setSelectedNode, setSelectedNodeIds]);
 
   // Node types for ReactFlow
   const nodeTypes = {
@@ -977,6 +1013,12 @@ function GraphCanvas() {
         panOnScrollMode={PanOnScrollMode.Free}
         zoomOnScroll={false}
         zoomOnPinch={true}
+        /* Right mouse button drag pans; left drag shows selection */
+        panOnDrag={[2]}
+        selectionOnDrag={false}
+        onMouseDown={onPaneMouseDown}
+        onMouseMove={onPaneMouseMove}
+        onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={false}
@@ -998,6 +1040,31 @@ function GraphCanvas() {
         <Controls />
         <Background color="#374151" gap={20} />
       </ReactFlow>
+
+      {/* Selection rectangle overlay */}
+      {isDraggingSelect && dragStart && dragEnd && (
+        (() => {
+          const x = Math.min(dragStart.x, dragEnd.x);
+          const y = Math.min(dragStart.y, dragEnd.y);
+          const w = Math.abs(dragStart.x - dragEnd.x);
+          const h = Math.abs(dragStart.y - dragEnd.y);
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: w,
+                height: h,
+                border: '2px solid #3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                pointerEvents: 'none',
+                zIndex: 1000,
+              }}
+            />
+          );
+        })()
+      )}
       
       {/* Action Buttons */}
       <div style={{
