@@ -10,8 +10,8 @@ import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import path from 'node:path';
 import fs from 'node:fs';
-// Multi-step agent configuration for graph editing
-const GRAPH_EDITOR_CONFIG = {
+// Unified agent configuration for both graph editing and building
+const UNIFIED_AGENT_CONFIG = {
   model: 'gpt-4o',
   maxSteps: 20,
   streaming: true,
@@ -20,10 +20,10 @@ const GRAPH_EDITOR_CONFIG = {
   promptTemplates: {
     user: 'user-prompt-template',
     assistant: 'assistant-prompt-template',
-    system: 'graph-editor-template',
+    system: 'build-nodes-template', // Use unified template
   },
   structuredOutput: false,
-  toolsetName: 'graph-editor'
+  toolsetName: 'graph-editor' // Keep as graph-editor since it has all tools
 } as const;
 
 const RequestSchema = z.object({
@@ -31,6 +31,10 @@ const RequestSchema = z.object({
   selectedNodeId: z.string().optional(),
   selectedNodeTitle: z.string().optional(),
   selectedNodePrompt: z.string().optional(),
+  // Build-nodes compatibility fields
+  nodeId: z.string().optional(),
+  selectedNodeIds: z.array(z.string()).optional(),
+  rebuildAll: z.boolean().optional().default(false),
 });
 
 async function buildParsedMessages(
@@ -131,7 +135,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { userMessage, selectedNodeId, selectedNodeTitle, selectedNodePrompt } = parsed.data;
+    const { userMessage, selectedNodeId, selectedNodeTitle, selectedNodePrompt, nodeId, selectedNodeIds, rebuildAll } = parsed.data;
     // forward auth headers for downstream API calls
     setGraphEditorAuthHeaders({
       ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
@@ -171,44 +175,60 @@ export async function POST(req: NextRequest) {
     // Always set the current graph (either existing or newly created)
     await setCurrentGraph(graph);
 
+    // Determine target node IDs for build operations
+    let targetNodeIds: string[] = [];
+    if (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) {
+      targetNodeIds = selectedNodeIds;
+    } else if (nodeId) {
+      targetNodeIds = [nodeId];
+    } else if (rebuildAll && graph?.nodes?.length) {
+      targetNodeIds = graph.nodes.map((n: any) => n.id);
+    }
+
     const variables = {
       GRAPH_DATA: JSON.stringify(graph, null, 2),
       SELECTED_NODE_ID: selectedNodeId || userMessage.variables?.SELECTED_NODE_ID,
       SELECTED_NODE_TITLE: selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE,
       SELECTED_NODE_PROMPT: selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT,
+      SELECTED_NODE_IDS: JSON.stringify(targetNodeIds),
+      REBUILD_ALL: rebuildAll ? '1' : '',
     };
 
     const parsedMessages = await buildParsedMessages(
       req,
       userMessage,
-      GRAPH_EDITOR_CONFIG.promptTemplates,
+      UNIFIED_AGENT_CONFIG.promptTemplates,
       variables
     );
 
     // Build a single prompt from template for the CLI provider
-    const template = await getTemplate('graph-editor-template');
+    const template = await getTemplate('build-nodes-template');
     const templateVariables = {
       ...variables,
       USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
     } as Record<string, any>;
     const prompt = process.env.CLI_CODEX_PROMPT || parseMessageWithTemplate(template, templateVariables);
 
-    // Queue a local job for the Codex provider (with MCP graph-editor tools)
+    // Queue a local job for the Codex provider (with unified MCP tools)
     const now = new Date().toISOString();
     const job = {
       id: uuid(),
       user_id: userId,
       job_name: 'run',
       status: 'queued',
-      priority: 5,
+      priority: rebuildAll ? 10 : 5, // Higher priority for rebuild all operations
       payload: {
         provider: 'codex',
         prompt,
         interactive: false,
         meta: {
-          kind: 'graph-editor',
+          kind: 'unified-agent', // Unified operation type
           requestedAt: now,
           selectedNodeId: variables.SELECTED_NODE_ID || null,
+          selectedNodeIds: targetNodeIds,
+          rebuildAll: Boolean(rebuildAll),
+          // Include build-nodes compatibility
+          nodeId: nodeId ?? null,
         }
       },
       created_at: now,
@@ -219,7 +239,7 @@ export async function POST(req: NextRequest) {
     writeJobs(jobs);
 
     // Stream real job processing messages
-    if (GRAPH_EDITOR_CONFIG.streaming) {
+    if (UNIFIED_AGENT_CONFIG.streaming) {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           const enc = new TextEncoder();

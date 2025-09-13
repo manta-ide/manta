@@ -92,8 +92,8 @@ function withLocalhostFallback(url: string): string | null {
 async function httpGet(url: string, token?: string) {
   try {
     const headers = buildAuthHeaders(token);
-    // Prefer JSON to avoid any XML encoding quirks during reads
-    headers['Accept'] = 'application/json';
+    // Prefer XML for graph data to ensure we get the full XML representation
+    headers['Accept'] = 'application/xml, application/json';
     const res = await fetch(url, { method: 'GET', headers });
     if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
     const ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -109,7 +109,7 @@ async function httpGet(url: string, token?: string) {
       logToFile(`GET fallback attempted: ${alt}`);
       try {
         const headers = buildAuthHeaders(token);
-        headers['Accept'] = 'application/json';
+        headers['Accept'] = 'application/xml, application/json';
         const res = await fetch(alt, { method: 'GET', headers });
         if (!res.ok) throw new Error(`GET ${alt} failed: ${res.status}`);
         const ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -343,26 +343,27 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       const token = resolveAccessToken();
       const url = `${origin}/api/graph-api`;
       const data = await httpGet(url, token);
-      // Check if we have raw XML (from local fallback) - return it directly
-      if (data.rawXml) {
-        return { content: [{ type: 'text', text: data.rawXml }] };
-      }
 
-      // Otherwise, parse and return JSON (for API responses)
+      // Parse the graph data
       const parsed = GraphSchema.safeParse(data.graph ?? data);
       if (!parsed.success) throw new Error('Graph schema validation failed');
       const graph = parsed.data;
+
       if (nodeId) {
+        // Return full node details when specific node is requested
         const node = graph.nodes.find((n: any) => n.id === nodeId);
         if (!node) throw new Error(`Node ${nodeId} not found`);
         return { content: [{ type: 'text', text: JSON.stringify(node, null, 2) }] };
+      } else {
+        // Return only node IDs when reading all nodes to avoid overwhelming responses
+        const nodeIds = graph.nodes.map((n: any) => n.id);
+        return { content: [{ type: 'text', text: JSON.stringify({ nodeIds }, null, 2) }] };
       }
-      return { content: [{ type: 'text', text: JSON.stringify(graph, null, 2) }] };
     }
   );
 
   // graph_edge_create
-  if (toolset === 'graph-editor') server.registerTool(
+  server.registerTool(
     'graph_edge_create',
     {
       title: 'Create Graph Edge',
@@ -411,9 +412,8 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   );
 
-  // graph_node_add (graph-editor only)
-  if (toolset === 'graph-editor') {
-    server.registerTool(
+  // graph_node_add
+  server.registerTool(
       'graph_node_add',
     {
       title: 'Add Node',
@@ -489,10 +489,9 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   }
     );
-  }
 
   // graph_node_edit
-  if (toolset === 'graph-editor') server.registerTool(
+  server.registerTool(
     'graph_node_edit',
     {
       title: 'Edit Node',
@@ -657,7 +656,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
   );
 
   // graph_node_set_position (convenience tool)
-  if (toolset === 'graph-editor') server.registerTool(
+  server.registerTool(
     'graph_node_set_position',
     {
       title: 'Set Node Position',
@@ -686,7 +685,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
   );
 
   // graph_node_delete
-  if (toolset === 'graph-editor') server.registerTool(
+  server.registerTool(
     'graph_node_delete',
     {
       title: 'Delete Node',
@@ -716,7 +715,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
   }
   );
 
-  // set node state (allowed for both graph-editor and build-nodes jobs)
+  // set node state
   const setStateHandler = async ({ nodeId, state }: { nodeId: string; state: 'built'|'unbuilt'|'building' }) => {
     const origin = resolveBaseUrl();
     const token = resolveAccessToken();
