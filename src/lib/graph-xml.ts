@@ -21,6 +21,22 @@ const xmlBuilder = new XMLBuilder({
   suppressBooleanAttributes: false
 });
 
+// Attempt to repair common UTF-8/Latin1 mojibake (e.g., â€™ -> ’)
+function repairTextEncoding(text: string): string {
+  try {
+    if (!text) return text;
+    // Quick heuristic: apply fix if we detect common mojibake markers
+    if (/[ÃÂâ]/.test(text)) {
+      const repaired = Buffer.from(text, 'latin1').toString('utf8');
+      // Prefer repaired if it reduces mojibake markers
+      const badBefore = (text.match(/Ã|Â|â/g) || []).length;
+      const badAfter = (repaired.match(/Ã|Â|â/g) || []).length;
+      return badAfter < badBefore ? repaired : text;
+    }
+  } catch {}
+  return text;
+}
+
 // Lightweight XML helpers (no external deps)
 function escapeXml(text: string): string {
   return String(text)
@@ -308,7 +324,8 @@ function parsePropValue(type: string | undefined, text: string): any {
     if (raw.toLowerCase() === 'false') return false;
     return raw;
   }
-  if (t === 'json') {
+  // Parse JSON content regardless of declared type if it looks like JSON
+  if (t === 'json' || raw.startsWith('{') || raw.startsWith('[')) {
     try { return JSON.parse(raw); } catch { return raw; }
   }
   return raw;
@@ -336,7 +353,7 @@ export function xmlToGraph(xml: string): Graph {
 
     // Handle both single node and array of nodes
     const nodeList = Array.isArray(nodesData.node) ? nodesData.node : [nodesData.node];
-    const nodes: GraphNode[] = nodeList.filter(Boolean).map((nodeData: any) => {
+  const nodes: GraphNode[] = nodeList.filter(Boolean).map((nodeData: any) => {
       const id = nodeData['@_id'] || '';
       const title = nodeData['@_title'] || '';
 
@@ -344,7 +361,7 @@ export function xmlToGraph(xml: string): Graph {
         throw new Error(`Node missing required id attribute: ${JSON.stringify(nodeData)}`);
       }
 
-      const description = (nodeData.description?.['#text'] || nodeData.description || '').trim();
+      const description = repairTextEncoding((nodeData.description?.['#text'] || nodeData.description || '').trim());
       const stateData = nodeData.state;
       let buildStatus: string | undefined;
 
@@ -371,7 +388,10 @@ export function xmlToGraph(xml: string): Graph {
         const readOptions = (optContainer: any): string[] => {
           if (!optContainer) return [];
           const list = Array.isArray(optContainer.option) ? optContainer.option : [optContainer.option];
-          return list.filter(Boolean).map((o: any) => (typeof o === 'object' ? (o['#text'] ?? '') : o)).map((s: any) => String(s));
+          return list
+            .filter(Boolean)
+            .map((o: any) => (typeof o === 'object' ? (o['#text'] ?? '') : o))
+            .map((s: any) => repairTextEncoding(String(s)));
         };
 
         // Helper: coerce primitive by type
@@ -388,7 +408,7 @@ export function xmlToGraph(xml: string): Graph {
 
           // Select with nested <value> and <options>
           if (fieldType === 'select') {
-            const fieldValue = coerce('string', fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? '');
+            const fieldValue = coerce('string', repairTextEncoding(fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? ''));
             const fieldOptions = readOptions(fieldData.options);
             const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: fieldValue };
             if (fieldOptions.length) def.options = fieldOptions;
@@ -440,7 +460,7 @@ export function xmlToGraph(xml: string): Graph {
           }
 
           // Simple types
-          const text = fieldData['#text'] ?? '';
+          const text = repairTextEncoding(fieldData['#text'] ?? '');
           const coerced = coerce(fieldType, text);
           const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: coerced };
           return { value: coerced, def };
@@ -461,7 +481,7 @@ export function xmlToGraph(xml: string): Graph {
           // Check if property has XML options structure
           if (propData.value && propData.options) {
             // Property with XML options structure
-            value = propData.value['#text'] || propData.value;
+            value = repairTextEncoding(propData.value['#text'] || propData.value);
             options = readOptions(propData.options);
           } else if (xmlOptions) {
             // Fallback to old JSON format
@@ -471,10 +491,10 @@ export function xmlToGraph(xml: string): Graph {
             } catch (e) {
               console.warn(`Failed to parse options for property ${name}:`, e);
             }
-            value = propData['#text'] || '';
+            value = repairTextEncoding(propData['#text'] || '');
           } else {
             // Simple property
-            value = propData['#text'] || '';
+            value = repairTextEncoding(propData['#text'] || '');
           }
 
           if (xmlType === 'object') {

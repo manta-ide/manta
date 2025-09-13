@@ -155,11 +155,11 @@ function generateNestedXml(p: any): string {
 
     // If no fields are defined but we have a value object, infer fields from the value keys
     if (!fields && p?.value && typeof p.value === 'object' && !Array.isArray(p.value)) {
-      fields = Object.keys(p.value).map((key) => ({
-        id: key,
-        title: key,
-        type: 'text'  // Default to text type, will be overridden if the value suggests otherwise
-      }));
+      fields = Object.keys(p.value).map((key) => {
+        const val = (p.value as any)[key];
+        const t = typeof val === 'number' ? 'number' : typeof val === 'boolean' ? 'boolean' : (val && typeof val === 'object') ? (Array.isArray(val) ? 'object-list' : 'object') : 'text';
+        return { id: key, title: key, type: t };
+      });
     }
 
     if (fields && fields.length > 0) {

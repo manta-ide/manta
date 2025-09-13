@@ -494,20 +494,28 @@ function GraphCanvas() {
 
     setIsBuildingSelected(true);
     try {
-      // Optimistic UI update: mark selected node as building locally
+      // Determine which IDs to build: all multi-selected if present, else the focused node
+      const idsToBuild = (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0)
+        ? selectedNodeIds
+        : [selectedNode.id];
+
+      // Optimistic UI update: mark selected nodes as building locally
       try {
         const current = useProjectStore.getState();
         const g = current.graph;
         if (g) {
-          const updatedNodes = g.nodes.map((n: any) => n.id === selectedNode.id ? { ...n, state: 'building' } : n);
+          const idSet = new Set(idsToBuild);
+          const updatedNodes = g.nodes.map((n: any) => idSet.has(n.id) ? { ...n, state: 'building' } : n);
           const updatedGraph = { ...g, nodes: updatedNodes } as any;
-          const updatedSelected = { ...selectedNode, state: 'building' } as any;
-          useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected });
+          const updatedSelected = idSet.has(selectedNode.id) ? { ...selectedNode, state: 'building' } : selectedNode;
+          useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected as any });
         }
       } catch {}
 
-      // Update node state to "building"
-      await updateNodeInSupabase(selectedNode.id, { state: 'building' });
+      // Persist each selected node state to "building"
+      for (const id of idsToBuild) {
+        try { await updateNodeInSupabase(id, { state: 'building' }); } catch {}
+      }
 
       const response = await fetch('/api/agent-request/build-nodes', {
         method: 'POST',
@@ -515,9 +523,14 @@ function GraphCanvas() {
         body: JSON.stringify({
           userMessage: {
             role: 'user',
-            content: `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
+            content: (idsToBuild.length > 1)
+              ? `Build ${idsToBuild.length} selected nodes`
+              : `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
             variables: {}
           },
+          // Pass all selected node IDs so the agent gets the full selection
+          selectedNodeIds: idsToBuild,
+          // Keep legacy single-node param for compatibility
           nodeId: selectedNode.id
         }),
       });
@@ -526,18 +539,22 @@ function GraphCanvas() {
         // Selected node build queued successfully
         // Do not set node to built here; worker/agent will update state via MCP later.
       } else {
-        console.error('❌ Failed to build selected node');
-        // Revert node state on failure
-        try { await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' }); } catch {}
+        console.error('❌ Failed to build selected nodes');
+        // Revert node states on failure
+        for (const id of (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ? selectedNodeIds : [selectedNode.id]) {
+          try { await updateNodeInSupabase(id, { state: (selectedNode && selectedNode.id === id) ? (selectedNode.state || 'unbuilt') : 'unbuilt' }); } catch {}
+        }
       }
     } catch (error) {
-      console.error('❌ Error building selected node:', error);
-      // Revert node state on error
-      try { await updateNodeInSupabase(selectedNode.id, { state: selectedNode.state || 'unbuilt' }); } catch {}
+      console.error('❌ Error building selected nodes:', error);
+      // Revert node states on error
+      for (const id of (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ? selectedNodeIds : [selectedNode.id]) {
+        try { await updateNodeInSupabase(id, { state: (selectedNode && selectedNode.id === id) ? (selectedNode.state || 'unbuilt') : 'unbuilt' }); } catch {}
+      }
     } finally {
       setIsBuildingSelected(false);
     }
-  }, [selectedNode, updateNodeInSupabase]);
+  }, [selectedNode, selectedNodeIds, updateNodeInSupabase]);
 
   // Connection is managed centrally by AuthProvider; avoid duplicate connections here
 

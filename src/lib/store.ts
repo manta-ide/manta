@@ -247,7 +247,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (i === -1) next.nodes.push(node); else next.nodes[i] = { ...(next.nodes[i] as any), ...node } as any;
     set({ graph: next });
     const xml = graphToXml(next);
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
 
   updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
@@ -304,7 +304,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   syncGraphToSupabase: async (graph: Graph) => {
     const xml = graphToXml(graph);
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
   
   // Graph event handling
@@ -326,9 +326,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             const graph = xmlToGraph(raw);
             set({ graph, graphLoading: false, graphError: null, graphConnected: true });
           } else if (raw.length > 100 && !raw.includes(' ') && /^[A-Za-z0-9+/=]+$/.test(raw)) {
-            // Likely base64 encoded XML (contains only base64 characters)
+            // Base64 encoded XML → decode to bytes, then UTF-8 string
             try {
-              const decodedXml = atob(raw);
+              const bin = atob(raw);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              const decodedXml = new TextDecoder('utf-8').decode(bytes);
               const graph = xmlToGraph(decodedXml);
               set({ graph, graphLoading: false, graphError: null, graphConnected: true });
             } catch (decodeError) {
