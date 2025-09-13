@@ -74,7 +74,7 @@ export default function TextPropertyEditor({ property, onChange }: TextPropertyE
             placeholder="Enter text..."
             maxLength={property.maxLength}
             rows={2}
-            className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
+            className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 selection:bg-blue-500 selection:text-white"
           />
         ) : (
           <Input

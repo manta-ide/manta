@@ -49,6 +49,10 @@ export default function SelectedNodeSidebar() {
 	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastPropertyUpdate = useRef<{ [propertyId: string]: number }>({});
 	const PROPERTY_UPDATE_THROTTLE = 60; // Update every 60ms for smoother live updates
+	const titleDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const descriptionDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const TITLE_DEBOUNCE_DELAY = 300; // Wait 300ms after last change before saving title
+	const DESCRIPTION_DEBOUNCE_DELAY = 500; // Wait 500ms after last change before saving description
 
 		const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
 			// Lightweight preview: update local state and in-memory graph without saving
@@ -96,14 +100,32 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNodeId]);
 
-	// Cleanup timeout on unmount
+	// Cleanup timeouts on unmount and when node changes
 	useEffect(() => {
 		return () => {
 			if (propertyChangeTimeoutRef.current) {
 				clearTimeout(propertyChangeTimeoutRef.current);
 			}
+			if (titleDebounceTimeoutRef.current) {
+				clearTimeout(titleDebounceTimeoutRef.current);
+			}
+			if (descriptionDebounceTimeoutRef.current) {
+				clearTimeout(descriptionDebounceTimeoutRef.current);
+			}
 		};
 	}, []);
+
+	// Clear pending timeouts when node changes
+	useEffect(() => {
+		if (titleDebounceTimeoutRef.current) {
+			clearTimeout(titleDebounceTimeoutRef.current);
+			titleDebounceTimeoutRef.current = null;
+		}
+		if (descriptionDebounceTimeoutRef.current) {
+			clearTimeout(descriptionDebounceTimeoutRef.current);
+			descriptionDebounceTimeoutRef.current = null;
+		}
+	}, [selectedNodeId]);
 
 
   // Sidebar should always render; handle empty and multi-select states below
@@ -255,30 +277,68 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode]);
 
+	// Debounced update functions for title and description
+	const debouncedUpdateTitle = useCallback((newTitle: string) => {
+		// Clear any existing timeout
+		if (titleDebounceTimeoutRef.current) {
+			clearTimeout(titleDebounceTimeoutRef.current);
+		}
+
+		// Set new timeout to save after delay
+		titleDebounceTimeoutRef.current = setTimeout(() => {
+			if (selectedNode && newTitle !== selectedNode.title) {
+				console.log('💾 Debounced update: saving title for node:', selectedNodeId);
+				const updatedNode = { ...selectedNode, title: newTitle };
+				setSelectedNode(selectedNodeId, updatedNode);
+
+				if (selectedNodeId) {
+					updateNodeInSupabase(selectedNodeId!, { title: newTitle }).catch((error) => {
+						console.error('Failed to save title:', error);
+						setRebuildError('Failed to save title');
+						setTimeout(() => setRebuildError(null), 3000);
+					});
+				}
+			}
+		}, TITLE_DEBOUNCE_DELAY);
+	}, [selectedNode, selectedNodeId, setSelectedNode, updateNodeInSupabase]);
+
+	const debouncedUpdateDescription = useCallback((newDescription: string) => {
+		// Clear any existing timeout
+		if (descriptionDebounceTimeoutRef.current) {
+			clearTimeout(descriptionDebounceTimeoutRef.current);
+		}
+
+		// Set new timeout to save after delay
+		descriptionDebounceTimeoutRef.current = setTimeout(() => {
+			if (selectedNode && newDescription !== selectedNode.prompt) {
+				console.log('💾 Debounced update: saving description for node:', selectedNodeId);
+				const updatedNode = { ...selectedNode, prompt: newDescription };
+				setSelectedNode(selectedNodeId, updatedNode);
+
+				if (selectedNodeId) {
+					updateNodeInSupabase(selectedNodeId!, { prompt: newDescription }).catch((error) => {
+						console.error('Failed to save description:', error);
+						setRebuildError('Failed to save description');
+						setTimeout(() => setRebuildError(null), 3000);
+					});
+				}
+			}
+		}, DESCRIPTION_DEBOUNCE_DELAY);
+	}, [selectedNode, selectedNodeId, setSelectedNode, updateNodeInSupabase]);
+
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
 			<div className="px-3 py-2 border-b border-zinc-700">
+				<div className="text-xs font-medium text-zinc-300 mb-2">
+					Title
+				</div>
 				<Input
 					className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
 					value={titleDraft}
-					onChange={(e) => setTitleDraft(e.target.value)}
-					onBlur={() => {
-						// Auto-save title when user finishes editing
-						if (selectedNode && titleDraft !== selectedNode.title) {
-							console.log('💾 Auto-saving title for node:', selectedNodeId);
-							// Update the node locally
-							const updatedNode = { ...selectedNode, title: titleDraft };
-							setSelectedNode(selectedNodeId, updatedNode);
-
-							// Persist to database
-							if (selectedNodeId) {
-								updateNodeInSupabase(selectedNodeId!, { title: titleDraft }).catch((error) => {
-									console.error('Failed to save title:', error);
-									setRebuildError('Failed to save title');
-									setTimeout(() => setRebuildError(null), 3000);
-								});
-							}
-						}
+					onChange={(e) => {
+						const newValue = e.target.value;
+						setTitleDraft(newValue);
+						debouncedUpdateTitle(newValue);
 					}}
 					placeholder="Enter node title..."
 				/>
@@ -321,37 +381,23 @@ export default function SelectedNodeSidebar() {
 				{/* Single selection details */}
 				{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
 					<>
-						{/* Prompt Section */}
+						{/* Description Section */}
 						<div>
 							<div className="flex items-center justify-between mb-3">
 								<div className="text-xs font-medium text-zinc-300">
-									Prompt
+									Description
 								</div>
 							</div>
 							<div className="space-y-1.5">
 								<Textarea
 									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
 									value={promptDraft}
-									onChange={(e) => setPromptDraft(e.target.value)}
-									onBlur={() => {
-										// Auto-save prompt when user finishes editing
-										if (selectedNode && promptDraft !== selectedNode.prompt) {
-											console.log('💾 Auto-saving prompt for node:', selectedNodeId);
-											// Update the node locally
-											const updatedNode = { ...selectedNode, prompt: promptDraft };
-											setSelectedNode(selectedNodeId, updatedNode);
-
-											// Persist to database
-											if (selectedNodeId) {
-												updateNodeInSupabase(selectedNodeId!, { prompt: promptDraft }).catch((error) => {
-													console.error('Failed to save prompt:', error);
-													setRebuildError('Failed to save prompt');
-													setTimeout(() => setRebuildError(null), 3000);
-												});
-											}
-										}
+									onChange={(e) => {
+										const newValue = e.target.value;
+										setPromptDraft(newValue);
+										debouncedUpdateDescription(newValue);
 									}}
-									placeholder="Enter prompt..."
+									placeholder="Enter description..."
 								/>
 								{rebuildError && (
 									<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
