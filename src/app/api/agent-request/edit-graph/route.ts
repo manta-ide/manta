@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Build a single prompt from template for the CLI provider
-    const template = await getTemplate('build-nodes-template');
+    const template = await getTemplate('graph-editor-template');
     const templateVariables = {
       ...variables,
       USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
