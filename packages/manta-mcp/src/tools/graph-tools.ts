@@ -900,4 +900,4 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   );
   }
-}
+}}
