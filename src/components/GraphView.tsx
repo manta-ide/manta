@@ -11,6 +11,7 @@ import {
   Edge,
   Connection,
   NodeMouseHandler,
+  EdgeMouseHandler,
   Handle,
   Position,
   useViewport,
@@ -576,9 +577,14 @@ function GraphCanvas() {
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
   const latestNodesRef = useRef<Node[]>([]);
+  // Keep a ref of latest edges to preserve selection state across rebuilds
+  const latestEdgesRef = useRef<Edge[]>([]);
   useEffect(() => {
     latestNodesRef.current = nodes;
   }, [nodes]);
+  useEffect(() => {
+    latestEdgesRef.current = edges;
+  }, [edges]);
 
   // Fit view to center the graph when nodes first load
   const hasFittedRef = useRef(false);
@@ -799,6 +805,19 @@ function GraphCanvas() {
     }
   }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
 
+  // Handle edge selection (with multi-select support)
+  const onEdgeClick: EdgeMouseHandler = useCallback((event, _edge) => {
+    const isMulti = event.shiftKey || event.metaKey || event.ctrlKey;
+    // prevent parent handlers from interfering with selection rectangle
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isMulti) {
+      // Clear node selection when focusing an edge; let React Flow handle edge selection
+      setSelectedNode(null, null);
+      setSelectedNodeIds([]);
+    }
+  }, [setSelectedNode, setSelectedNodeIds]);
+
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
@@ -907,6 +926,11 @@ function GraphCanvas() {
       const addedEdges = new Set<string>();
 
       if ((graph as any).edges && (graph as any).edges.length > 0) {
+        const previouslySelectedEdges = new Set(
+          (latestEdgesRef.current || [])
+            .filter((e) => e.selected)
+            .map((e) => e.id)
+        );
         (graph as any).edges.forEach((edge: any) => {
           const edgeId = `${edge.source}-${edge.target}`;
           if (!addedEdges.has(edgeId)) {
@@ -915,8 +939,20 @@ function GraphCanvas() {
               source: edge.source,
               target: edge.target,
               type: 'smoothstep',
-              style: { stroke: '#9ca3af', strokeWidth: 2 },
-              animated: false,
+              style: previouslySelectedEdges.has(edge.id)
+                ? {
+                    stroke: '#3b82f6',
+                    strokeWidth: 3,
+                    opacity: 1,
+                  }
+                : {
+                    stroke: '#9ca3af',
+                    strokeWidth: 2,
+                    opacity: 0.8,
+                  },
+              // Increase interaction width to make edges easier to hover/click
+              interactionWidth: 24,
+              selected: previouslySelectedEdges.has(edge.id),
             });
             addedEdges.add(edgeId);
           }
@@ -1244,6 +1280,7 @@ function GraphCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
@@ -1252,6 +1289,7 @@ function GraphCanvas() {
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}
+        edgesFocusable={true}
         /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
         panOnScroll={true}
         panOnScrollMode={PanOnScrollMode.Free}
