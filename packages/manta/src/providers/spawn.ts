@@ -60,12 +60,13 @@ export async function spawnCommand(
   // eslint-disable-next-line no-console
   console.error(`[manta-cli] spawn env: ${envSummary} (total_keys=${envKeys.length})`);
 
+  const isWin32 = process.platform === 'win32';
   const subprocess = execa(bin, args, {
     cwd: opts?.cwd ?? process.cwd(),
     env: sanitizeEnv(opts?.env),
     stdio: interactive ? 'inherit' : 'pipe',
     shell: useShell,
-    windowsHide: false,
+    windowsHide: isWin32 ? false : undefined, // Only set windowsHide on actual Windows
     reject: false,
     preferLocal: true,
     input: opts?.input,
@@ -83,8 +84,14 @@ export async function spawnCommand(
 }
 
 export async function which(bin: string): Promise<string | null> {
-  const cmd = process.platform === 'win32' ? 'where' : 'which';
-  const { exitCode, stdout } = await execa(cmd, [bin], { reject: false, shell: false, windowsHide: true });
+  const isWin32 = process.platform === 'win32';
+  const isWSL = process.platform === 'linux' && process.env.WSL_DISTRO_NAME !== undefined;
+  const cmd = (isWin32 || isWSL) ? 'where' : 'which';
+  const { exitCode, stdout } = await execa(cmd, [bin], {
+    reject: false,
+    shell: isWSL, // Use shell on WSL to handle PATH properly
+    windowsHide: isWin32 // Only use windowsHide on actual Windows
+  });
   if (exitCode !== 0) return null;
   const first = stdout.split(/\r?\n/).map((s) => s.trim()).find(Boolean);
   return first ?? bin;
