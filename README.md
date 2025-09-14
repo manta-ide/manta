@@ -32,12 +32,15 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 ## 🧑‍💻 Developers
 
-1. Clone the repository:
+1. Install and setup Codex by OpenAI:
+   https://github.com/openai/codex
+   
+2. Clone the repository:
 
    ```bash
    git clone https://github.com/manta-ide/manta.git
   
-2. Install dependencies:
+3. Install dependencies:
 
    ```bash
    cd manta
@@ -45,7 +48,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    npm run build:all
    npm install -g .
 
-3. Install the template and run Manta IDE in an empty folder:
+4. Install the template and run Manta IDE in an empty folder:
    ```bash
    manta i
    manta run
