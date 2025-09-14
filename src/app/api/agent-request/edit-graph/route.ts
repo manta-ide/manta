@@ -231,6 +231,7 @@ export async function POST(req: NextRequest) {
 
     // Stream real job processing messages
     {
+      let timeoutId: NodeJS.Timeout | null = null;
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           const enc = new TextEncoder();
@@ -241,50 +242,78 @@ export async function POST(req: NextRequest) {
           // Poll job status and stream updates
           let pollCount = 0;
           const maxPolls = 300; // 5 minutes at 1 second intervals
+          let isClosed = false;
 
           const pollJob = async () => {
             try {
+              // Check if controller is already closed
+              if (isClosed) return;
+
               pollCount++;
               const jobs = readJobs();
               const currentJob = jobs.find(j => j.id === job.id);
 
               if (!currentJob) {
-                controller.enqueue(enc.encode('Job not found in queue\n'));
-                controller.close();
+                if (!isClosed) {
+                  controller.enqueue(enc.encode('Job not found in queue\n'));
+                  controller.close();
+                  isClosed = true;
+                }
                 return;
               }
 
               if (currentJob.status === 'completed') {
-                controller.enqueue(enc.encode('AI processing completed successfully\n'));
-                controller.close();
+                if (!isClosed) {
+                  controller.enqueue(enc.encode('AI processing completed successfully\n'));
+                  controller.close();
+                  isClosed = true;
+                }
                 return;
               } else if (currentJob.status === 'failed') {
-                controller.enqueue(enc.encode(`AI processing failed: ${currentJob.error_message || 'Unknown error'}\n`));
-                controller.close();
+                if (!isClosed) {
+                  controller.enqueue(enc.encode(`AI processing failed: ${currentJob.error_message || 'Unknown error'}\n`));
+                  controller.close();
+                  isClosed = true;
+                }
                 return;
               } else if (currentJob.status === 'running') {
                 // Send progress update
-                controller.enqueue(enc.encode('AI is processing your request...\n'));
+                if (!isClosed) {
+                  controller.enqueue(enc.encode('AI is processing your request...\n'));
+                }
               } else if (currentJob.status === 'queued') {
                 // Send queued message
-                controller.enqueue(enc.encode('AI request queued for processing...\n'));
+                if (!isClosed) {
+                  controller.enqueue(enc.encode('AI request queued for processing...\n'));
+                }
               }
 
               // Continue polling if not done and under max polls
-              if (pollCount < maxPolls) {
-                setTimeout(pollJob, 1000); // Poll every second
-              } else {
+              if (pollCount < maxPolls && !isClosed) {
+                timeoutId = setTimeout(pollJob, 1000); // Poll every second
+              } else if (!isClosed) {
                 controller.enqueue(enc.encode('AI processing timed out\n'));
                 controller.close();
+                isClosed = true;
               }
             } catch (error) {
-              controller.enqueue(enc.encode(`Error polling job status: ${error}\n`));
-              controller.close();
+              if (!isClosed) {
+                controller.enqueue(enc.encode(`Error polling job status: ${error}\n`));
+                controller.close();
+                isClosed = true;
+              }
             }
           };
 
           // Start polling after a short delay
-          setTimeout(pollJob, 500);
+          timeoutId = setTimeout(pollJob, 500);
+        },
+        cancel() {
+          // Clear any pending timeouts when the stream is cancelled
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
         }
       });
       return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
