@@ -41,3 +41,4 @@ registerTemplate('assistant-prompt-template', `{{#ASSISTANT_RESPONSE}}
 // Use unified template for both graph editing and building
 registerTemplate('graph-editor-template', load('graph-editor-template.txt'));
 registerTemplate('build-graph-template', load('build-graph-template.txt'));
+registerTemplate('build-nodes-template', load('build-nodes-template.txt'));
