@@ -4,27 +4,17 @@ import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTempl
 import { graphToXml } from '@/lib/graph-xml';
 import '@/app/api/lib/prompts/registry';
 import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
-import { getGraphSession, storeGraph } from '@/app/api/lib/graph-service';
-import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
+import { storeGraph } from '@/app/api/lib/graph-service';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
 import path from 'node:path';
 import fs from 'node:fs';
 
-// Unified agent configuration for graph building
-const GRAPH_BUILD_AGENT_CONFIG = {
-  model: 'gpt-4o',
-  maxSteps: 20,
-  streaming: true,
-  temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'minimal' } },
-  promptTemplates: {
-    user: 'user-prompt-template',
-    assistant: 'assistant-prompt-template',
-    system: 'build-graph-template', // New template for graph building
-  },
-  structuredOutput: false,
-  toolsetName: 'graph-editor'
+// Prompt templates for graph building
+const GRAPH_BUILD_PROMPT_TEMPLATES = {
+  user: 'user-prompt-template',
+  assistant: 'assistant-prompt-template',
+  system: 'build-graph-template', // New template for graph building
 } as const;
 
 const GraphDiffSchema = z.object({
@@ -179,7 +169,7 @@ export async function POST(req: NextRequest) {
     const parsedMessages = await buildParsedMessages(
       req,
       userMessage,
-      GRAPH_BUILD_AGENT_CONFIG.promptTemplates,
+      GRAPH_BUILD_PROMPT_TEMPLATES,
       variables
     );
 
@@ -219,7 +209,7 @@ export async function POST(req: NextRequest) {
     writeJobs(jobs);
 
     // Stream real job processing messages
-    if (GRAPH_BUILD_AGENT_CONFIG.streaming) {
+    {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           const enc = new TextEncoder();
@@ -289,18 +279,6 @@ export async function POST(req: NextRequest) {
       });
       return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
-
-    // For non-streaming responses, we won't save the base graph automatically
-    // The client should poll for job completion and handle base graph saving
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Graph build started',
-      jobId: job.id,
-      willSaveBaseGraphOnCompletion: true
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
   } catch (err: any) {
     console.error('Graph build error:', err);
     // Reset pending changes on error

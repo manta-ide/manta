@@ -460,6 +460,9 @@ function GraphCanvas() {
       setSelectedNode(newNodeId, newNode);
       setSelectedNodeIds([newNodeId]);
 
+      // Switch back to select tool after creating node
+      setCurrentTool('select');
+
       console.log('✅ Created new node:', newNodeId);
     } catch (error) {
       console.error('❌ Failed to create new node:', error);
@@ -901,7 +904,7 @@ function GraphCanvas() {
               id: edge.id,
               source: edge.source,
               target: edge.target,
-              type: 'smoothstep',
+              type: 'default',
               style: previouslySelectedEdges.has(edge.id)
                 ? {
                     stroke: '#3b82f6',

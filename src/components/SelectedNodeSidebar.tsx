@@ -152,17 +152,30 @@ export default function SelectedNodeSidebar() {
 
 		// Skip heavy tracking to avoid lag
 
-		// Immediately update in-memory graph so UI/preview can reflect changes
-			if (selectedNodeId) {
+		// For high-frequency properties, throttle in-memory graph updates to reduce re-renders
+		if (selectedNodeId) {
+			const now = Date.now();
+			const lastLocalUpdate = lastPropertyUpdate.current[`${propertyId}_local`] || 0;
+
+			// Only update in-memory graph for high-frequency properties every 100ms
+			if (!isHighFrequency || now - lastLocalUpdate >= 100) {
+				lastPropertyUpdate.current[`${propertyId}_local`] = now;
 				updatePropertyLocal(selectedNodeId, propertyId, value);
+			}
+
+			// Always update vars for live preview, but throttle for high-frequency
+			const lastVarsUpdate = lastPropertyUpdate.current[`${propertyId}_vars`] || 0;
+			if (!isHighFrequency || now - lastVarsUpdate >= 50) {
+				lastPropertyUpdate.current[`${propertyId}_vars`] = now;
 				postVarsUpdate({ [propertyId]: value });
 			}
+		}
 
     // For high-frequency props (e.g., color), opportunistically persist faster (throttled)
     if (isHighFrequency && selectedNodeId) {
       const now = Date.now();
       const last = lastPropertyUpdate.current[propertyId] || 0;
-      if (now - last >= 120) {
+      if (now - last >= 200) { // Increased throttle from 120ms to 200ms
         lastPropertyUpdate.current[propertyId] = now;
         updatePropertyInSupabase(selectedNodeId, propertyId, value).catch(() => {});
       }
@@ -174,7 +187,7 @@ export default function SelectedNodeSidebar() {
 			propertyChangeTimeoutRef.current = setTimeout(() => {
 				// Persist the latest staged values for all changed properties
 				applyPropertyChangesToSupabase(nextValues);
-			}, 250);
+			}, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
 		} else {
 			if (selectedNodeId) updatePropertyInSupabase(selectedNodeId, propertyId, value);
 		}
@@ -193,7 +206,7 @@ export default function SelectedNodeSidebar() {
 		propertyChangeTimeoutRef.current = setTimeout(async () => {
 			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
 			await applyPropertyChangesToSupabase(payloadValues);
-		}, 250); // slightly faster debounce for smoother UX
+		}, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
 	}, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, supabaseConnected, updatePropertyInSupabase]);
 
 		// (preview handler defined above)

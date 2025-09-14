@@ -322,12 +322,50 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         throw new Error('Failed to start graph build');
       }
 
-      console.log('✅ Graph build started successfully');
+      const result = await response.json();
+      const jobId = result.jobId;
+
+      console.log('✅ Graph build started successfully, job ID:', jobId);
+
+      // Poll for job completion
+      if (jobId) {
+        const pollJobCompletion = async () => {
+          try {
+            const statusResponse = await fetch(`/api/jobs/status?id=${jobId}`);
+            if (!statusResponse.ok) {
+              throw new Error('Failed to check job status');
+            }
+
+            const statusData = await statusResponse.json();
+            const job = statusData.job;
+
+            if (job.status === 'completed') {
+              console.log('✅ Graph build completed successfully');
+              set({ isBuildingGraph: false });
+              // Refresh the graph to show any changes
+              state.refreshGraph();
+            } else if (job.status === 'failed') {
+              console.error('❌ Graph build failed:', job.error_message);
+              set({ graphError: 'Graph build failed', isBuildingGraph: false });
+            } else {
+              // Job still running, poll again in 2 seconds
+              setTimeout(pollJobCompletion, 2000);
+            }
+          } catch (error) {
+            console.error('❌ Error polling job status:', error);
+            set({ graphError: 'Failed to check build status', isBuildingGraph: false });
+          }
+        };
+
+        // Start polling after a short delay
+        setTimeout(pollJobCompletion, 1000);
+      } else {
+        // Fallback if no job ID returned
+        setTimeout(() => set({ isBuildingGraph: false }), 5000);
+      }
     } catch (error) {
       console.error('❌ Error building graph:', error);
-      set({ graphError: 'Failed to build graph' });
-    } finally {
-      set({ isBuildingGraph: false });
+      set({ graphError: 'Failed to build graph', isBuildingGraph: false });
     }
   },
 

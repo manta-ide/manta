@@ -73,7 +73,9 @@ console.error('[manta-mcp] server created');
 // Toolset selection is decided at startup based on env (provided by the CLI per job)
 function resolveToolset(): Toolset {
   const raw = (process.env.MANTA_MCP_TOOLSET || '').toLowerCase();
-  return raw === 'graph-editor' ? 'graph-editor' : 'read-only';
+  if (raw === 'graph-builder') return 'graph-builder';
+  if (raw === 'graph-editor') return 'graph-editor';
+  return 'read-only';
 }
 
 // Register graph tools (includes resource and state updates)

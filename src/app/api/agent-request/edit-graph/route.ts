@@ -10,20 +10,11 @@ import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import path from 'node:path';
 import fs from 'node:fs';
-// Unified agent configuration for both graph editing and building
-const UNIFIED_AGENT_CONFIG = {
-  model: 'gpt-4o',
-  maxSteps: 20,
-  streaming: true,
-  temperature: 1,
-  providerOptions: { azure: { reasoning_effort: 'minimal' } },
-  promptTemplates: {
-    user: 'user-prompt-template',
-    assistant: 'assistant-prompt-template',
-    system: 'build-nodes-template', // Use unified template
-  },
-  structuredOutput: false,
-  toolsetName: 'graph-editor' // Keep as graph-editor since it has all tools
+// Prompt templates for graph editing
+const GRAPH_EDIT_PROMPT_TEMPLATES = {
+  user: 'user-prompt-template',
+  assistant: 'assistant-prompt-template',
+  system: 'graph-editor-template', // Use graph editor template for node editing
 } as const;
 
 const RequestSchema = z.object({
@@ -197,12 +188,12 @@ export async function POST(req: NextRequest) {
     const parsedMessages = await buildParsedMessages(
       req,
       userMessage,
-      UNIFIED_AGENT_CONFIG.promptTemplates,
+      GRAPH_EDIT_PROMPT_TEMPLATES,
       variables
     );
 
     // Build a single prompt from template for the CLI provider
-    const template = await getTemplate('build-nodes-template');
+    const template = await getTemplate('graph-editor-template');
     const templateVariables = {
       ...variables,
       USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
@@ -222,7 +213,7 @@ export async function POST(req: NextRequest) {
         prompt,
         interactive: false,
         meta: {
-          kind: 'unified-agent', // Unified operation type
+          kind: 'graph-editor', // Use graph-editor toolset for full graph editing capabilities
           requestedAt: now,
           selectedNodeId: variables.SELECTED_NODE_ID || null,
           selectedNodeIds: targetNodeIds,
@@ -239,7 +230,7 @@ export async function POST(req: NextRequest) {
     writeJobs(jobs);
 
     // Stream real job processing messages
-    if (UNIFIED_AGENT_CONFIG.streaming) {
+    {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           const enc = new TextEncoder();
@@ -298,9 +289,6 @@ export async function POST(req: NextRequest) {
       });
       return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
-
-    // Non-streaming JSON ack
-    return new Response(JSON.stringify({ success: true, message: 'Thinking', jobId: job.id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     console.error(err);
     // Reset pending changes on error

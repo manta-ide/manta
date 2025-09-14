@@ -520,7 +520,7 @@ export class SandboxService {
 
       console.log(`[SandboxService] ✅ Base template setup completed for user ${userId}`);
 
-      // Graph will be read from local _graph/graph.xml; no remote sync needed
+      // Graph variables will be read from local _graph/ files (current-graph.xml, base-graph.xml, etc.); no remote sync needed
     } catch (error) {
       console.error(`[SandboxService] Failed to setup base template for user ${userId}:`, error);
       throw error;

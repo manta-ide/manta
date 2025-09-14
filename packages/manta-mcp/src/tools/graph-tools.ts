@@ -52,7 +52,7 @@ process.on('SIGTERM', closeLogger);
 
 // Toolset is chosen at startup by the MCP based on env
 
-export type Toolset = 'graph-editor' | 'read-only';
+export type Toolset = 'graph-editor' | 'read-only' | 'graph-builder';
 
 // Load schemas from shared-schemas package with fallback
 let PropertySchema: any;
@@ -299,6 +299,19 @@ interface Graph {
 export function registerGraphTools(server: McpServer, toolset: Toolset) {
     logToFile(`Registering graph tools with toolset: ${toolset}`);
 
+    // Helper function to determine if tool should be registered
+    const shouldRegister = (toolName: string) => {
+        if (toolset === 'read-only') {
+            return toolName === 'graph_read';
+        }
+        if (toolset === 'graph-builder') {
+            // Limited tools for build operations
+            return ['graph_read', 'graph_node_edit', 'graph_node_set_state', 'graph_analyze_diff'].includes(toolName);
+        }
+        // graph-editor: all tools
+        return true;
+    };
+
   // Utility: normalize incoming property objects to consistent schema
   const normalizeProperty = (prop: any): any => {
     try {
@@ -353,8 +366,9 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     return properties.map((p) => normalizeProperty(p));
   };
   // read_graph (rich read)
-  server.registerTool(
-    'graph_read',
+  if (shouldRegister('graph_read')) {
+    server.registerTool(
+      'graph_read',
     {
       title: 'Read Graph',
       description: 'Read the current graph or a specific node.',
@@ -387,9 +401,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       }
     }
   );
+  }
 
   // graph_edge_create
-  server.registerTool(
+  if (shouldRegister('graph_edge_create')) {
+    server.registerTool(
     'graph_edge_create',
     {
       title: 'Create Graph Edge',
@@ -437,9 +453,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       return { content: [{ type: 'text', text: `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}` }] };
     }
   );
+  }
 
   // graph_node_add
-  server.registerTool(
+  if (shouldRegister('graph_node_add')) {
+    server.registerTool(
       'graph_node_add',
     {
       title: 'Add Node',
@@ -515,9 +533,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   }
     );
+  }
 
   // graph_node_edit
-  server.registerTool(
+  if (shouldRegister('graph_node_edit')) {
+    server.registerTool(
     'graph_node_edit',
     {
       title: 'Edit Node',
@@ -680,9 +700,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       }
     }
   );
+  }
 
   // graph_node_set_position (convenience tool)
-  server.registerTool(
+  if (shouldRegister('graph_node_set_position')) {
+    server.registerTool(
     'graph_node_set_position',
     {
       title: 'Set Node Position',
@@ -709,9 +731,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       return { content: [{ type: 'text', text: `Updated node ${nodeId} position -> (${x}, ${y}, ${typeof z === 'number' ? z : 0})` }] };
     }
   );
+  }
 
   // graph_node_delete
-  server.registerTool(
+  if (shouldRegister('graph_node_delete')) {
+    server.registerTool(
     'graph_node_delete',
     {
       title: 'Delete Node',
@@ -740,6 +764,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     return { content: [{ type: 'text', text: `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}` }] };
   }
   );
+  }
 
   // set node state
   const setStateHandler = async ({ nodeId, state }: { nodeId: string; state: 'built'|'unbuilt'|'building' }) => {
@@ -758,8 +783,9 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
   };
 
   // Alias for convenience
-  server.registerTool(
-    'graph_node_set_state',
+  if (shouldRegister('graph_node_set_state')) {
+    server.registerTool(
+      'graph_node_set_state',
     {
       title: 'Set Node State',
       description: 'Update a node\'s state (built/unbuilt/building).',
@@ -770,10 +796,12 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     },
     setStateHandler as any
   );
+  }
 
 
   // Graph diff analysis tool
-  server.registerTool(
+  if (shouldRegister('graph_analyze_diff')) {
+    server.registerTool(
     'graph_analyze_diff',
     {
       title: 'Analyze Graph Diff',
@@ -843,5 +871,5 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       return { content: [{ type: 'text', text: JSON.stringify(diff, null, 2) }] };
     }
   );
-
+  }
 }

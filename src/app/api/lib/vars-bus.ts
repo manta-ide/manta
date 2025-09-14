@@ -95,7 +95,7 @@ function loadVarsFromXml(xmlPath: string): Record<string, any> {
 
     return allVars;
   } catch (error) {
-    console.warn('Failed to load vars from XML:', error);
+    console.warn(`Failed to load vars from ${xmlPath}:`, error);
     return {};
   }
 }
@@ -103,18 +103,29 @@ function loadVarsFromXml(xmlPath: string): Record<string, any> {
 export function loadVarsSnapshot(projectDir?: string): Record<string, any> {
   try {
     const base = projectDir || process.env.MANTA_PROJECT_DIR || process.cwd();
+    const graphDir = path.join(base, '_graph');
 
-    // Always load from graph.xml as the primary source
-    const graphXmlPath = path.join(base, '_graph', 'graph.xml');
-    const vars = loadVarsFromXml(graphXmlPath);
+    // Priority order for loading variables:
+    // 1. current-graph.xml (latest working state)
 
-    // Also check for backup XML file if primary is empty
-    if (Object.keys(vars).length === 0) {
-      const backupXmlPath = path.join(base, '_graph', 'graph_backup.xml');
-      return loadVarsFromXml(backupXmlPath);
+    const currentGraphPath = path.join(graphDir, 'current-graph.xml');
+    const backupGraphPath = path.join(graphDir, 'graph_backup.xml');
+
+    let vars = loadVarsFromXml(currentGraphPath);
+    if (Object.keys(vars).length > 0) {
+      console.log('Loaded vars from current-graph.xml');
+      return vars;
     }
 
-    return vars;
+    // Final fallback to backup
+    vars = loadVarsFromXml(backupGraphPath);
+    if (Object.keys(vars).length > 0) {
+      console.log('Loaded vars from graph_backup.xml');
+      return vars;
+    }
+
+    console.log('No vars found in any graph file');
+    return {};
   } catch (error) {
     console.warn('Failed to load vars snapshot:', error);
     return {};

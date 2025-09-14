@@ -300,8 +300,8 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
       }
     }
   }
-  // Save the updated graph to graph.xml as the primary persistence
-  if (currentGraph) writeGraphToFs(currentGraph);
+  // Save the updated graph to current-graph.xml as the primary persistence
+  if (currentGraph) writeCurrentGraphToFs(currentGraph);
   // Always publish a realtime vars update for subscribers (iframe bridge) and update vars.json convenience file
   try { publishVarsUpdate({ [propertyId]: value }); } catch {}
 }
