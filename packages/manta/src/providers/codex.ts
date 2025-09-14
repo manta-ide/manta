@@ -24,8 +24,10 @@ export class CodexProvider implements Provider {
       // eslint-disable-next-line no-console
       console.error(`[manta-cli] codex resolved: ${resolved ?? 'not found in PATH'}`);
     } catch {}
-    // On Windows, if a bare path is returned (no extension), try common executable extensions
-    if (process.platform === 'win32') {
+    // On Windows and WSL, if a bare path is returned (no extension), try common executable extensions
+    const isWin32 = process.platform === 'win32';
+    const isWSL = process.platform === 'linux' && process.env.WSL_DISTRO_NAME !== undefined;
+    if (isWin32 || isWSL) {
       try {
         const isPath = /[:\\/]/.test(resolvedCodexBin);
         const hasExt = /\.[A-Za-z0-9]+$/.test(resolvedCodexBin);
@@ -112,7 +114,7 @@ export class CodexProvider implements Provider {
         mcpFlags.push('--config', `${base}.command=${quote(process.execPath)}`);
         mcpFlags.push('--config', `${base}.args=${tomlArray([bundledMcp])}`);
         if (Object.keys(envMap).length > 0) {
-          if (process.platform === 'win32') {
+          if (isWin32 || isWSL) {
             for (const [k, v] of Object.entries(envMap)) {
               mcpFlags.push('--config', `${base}.env.${k}=${quote(v)}`);
             }
@@ -122,13 +124,13 @@ export class CodexProvider implements Provider {
         }
       } else {
         // Then prefer local project binary if installed
-        const localBin = path.resolve(cwd, 'node_modules', '.bin', process.platform === 'win32' ? 'manta-mcp.cmd' : 'manta-mcp');
+        const localBin = path.resolve(cwd, 'node_modules', '.bin', (isWin32 || isWSL) ? 'manta-mcp.cmd' : 'manta-mcp');
         if (fs.existsSync(localBin)) {
           // eslint-disable-next-line no-console
           console.error(`[manta-cli] Using local MCP bin: ${localBin}`);
           mcpFlags.push('--config', `${base}.command=${quote(localBin)}`);
           if (Object.keys(envMap).length > 0) {
-            if (process.platform === 'win32') {
+            if (isWin32 || isWSL) {
               for (const [k, v] of Object.entries(envMap)) {
                 mcpFlags.push('--config', `${base}.env.${k}=${quote(v)}`);
               }
@@ -144,7 +146,7 @@ export class CodexProvider implements Provider {
             console.error(`[manta-cli] Using global MCP: manta-mcp`);
             mcpFlags.push('--config', `${base}.command=${quote('manta-mcp')}`);
             if (Object.keys(envMap).length > 0) {
-              if (process.platform === 'win32') {
+              if (isWin32 || isWSL) {
                 for (const [k, v] of Object.entries(envMap)) {
                   mcpFlags.push('--config', `${base}.env.${k}=${quote(v)}`);
                 }
@@ -169,13 +171,13 @@ export class CodexProvider implements Provider {
     try {
       const localBin = path.resolve(opts.cwd || process.cwd(), 'node_modules', '.bin');
       if (fs.existsSync(localBin)) {
-        const sep = process.platform === 'win32' ? ';' : ':';
+        const sep = (isWin32 || isWSL) ? ';' : ':';
         const pathVar = env.PATH || process.env.PATH || '';
         if (!pathVar.split(sep).includes(localBin)) env.PATH = `${localBin}${sep}${pathVar}`;
       }
     } catch {}
 
-    // Ensure codex receives the full prompt reliably on Windows.
+    // Ensure codex receives the full prompt reliably on Windows and WSL.
     // Prefer piping prompt via stdin when using `exec` to avoid .cmd newline parsing issues.
     let stdinInput: string | undefined;
     const execIndex = args.findIndex((a) => String(a).toLowerCase() === 'exec');
@@ -198,8 +200,8 @@ export class CodexProvider implements Provider {
     console.error(`[manta-cli] Spawning codex with jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
     console.error(`[manta-cli] codex args: ${finalArgs.join(' ')}`);
     const ext = path.extname(resolvedCodexBin).toLowerCase();
-    // Avoid shell; even for .cmd, prefer direct exec to keep argv intact
-    const needsShell = false;
+    // Use shell on WSL for better compatibility, avoid shell on Windows to keep argv intact
+    const needsShell = isWSL;
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] codex spawn target: ${resolvedCodexBin} (shell=${needsShell})`);
     return await spawnCommand(resolvedCodexBin, finalArgs, {
