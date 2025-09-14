@@ -40,6 +40,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 2. Install dependencies:
 
    ```bash
+   cd manta
    npm run i:all
    npm run build:all
    npm install -g .
