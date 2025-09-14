@@ -27,7 +27,7 @@ import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/../packages/manta-mcp/src/xml-utils';
 import { Button } from '@/components/ui/button';
-import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed } from 'lucide-react';
+import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed, Loader2 } from 'lucide-react';
 
 // Helper function to check if a point is within a rectangle
 function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
@@ -373,9 +373,19 @@ function GraphCanvas() {
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
-  const [isBuildingSelected, setIsBuildingSelected] = useState(false);
   // Multi-selection lives in the global store so sidebar can reflect it
-  const { setSelectedNode, selectedNodeId, selectedNode, selectedNodeIds, setSelectedNodeIds } = useProjectStore();
+  const {
+    setSelectedNode,
+    selectedNodeId,
+    selectedNode,
+    selectedNodeIds,
+    setSelectedNodeIds,
+    buildEntireGraph,
+    isBuildingGraph,
+    baseGraph,
+    setBaseGraph,
+    loadBaseGraph
+  } = useProjectStore();
   const [isDraggingSelect, setIsDraggingSelect] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
@@ -449,6 +459,9 @@ function GraphCanvas() {
       // Select the new node
       setSelectedNode(newNodeId, newNode);
       setSelectedNodeIds([newNodeId]);
+
+      // Switch back to select tool after creating node
+      setCurrentTool('select');
 
       console.log('✅ Created new node:', newNodeId);
     } catch (error) {
@@ -554,9 +567,36 @@ function GraphCanvas() {
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
+  // Initialize base graph when graph is first loaded
+  useEffect(() => {
+    if (graph && !baseGraph) {
+      // Try to load base graph from file, or initialize with current graph
+      loadBaseGraph().then((loadedBaseGraph) => {
+        if (!loadedBaseGraph) {
+          // No base graph exists yet, use current graph as base
+          const graphCopy = JSON.parse(JSON.stringify(graph));
+          setBaseGraph(graphCopy);
+          // Don't save it yet - wait for first build
+        }
+      });
+    }
+  }, [graph, baseGraph, setBaseGraph, loadBaseGraph]);
+
   // Handle keyboard shortcuts for deletion
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Check if we're in an input field or textarea - if so, don't handle graph shortcuts
+      const activeElement = document.activeElement as HTMLElement;
+      const isInInput = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.contentEditable === 'true' ||
+        activeElement.closest('[contenteditable="true"]')
+      );
+
+      // Don't handle graph shortcuts if we're typing in a form element
+      if (isInInput) return;
+
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
 
@@ -684,80 +724,6 @@ function GraphCanvas() {
   //   }
   // }, []);
 
-  // Function to build the selected node
-  const buildSelectedNode = useCallback(async () => {
-    if (!selectedNode) {
-      console.error('❌ No node selected');
-      return;
-    }
-
-    setIsBuildingSelected(true);
-    try {
-      // Determine which IDs to build: all multi-selected if present, else the focused node
-      const idsToBuild = (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0)
-        ? selectedNodeIds
-        : [selectedNode.id];
-
-      // Optimistic UI update: mark selected nodes as building locally
-      try {
-        const current = useProjectStore.getState();
-        const g = current.graph;
-        if (g) {
-          const idSet = new Set(idsToBuild);
-          const updatedNodes = g.nodes.map((n: any) => idSet.has(n.id) ? { ...n, state: 'building' } : n);
-          const updatedGraph = { ...g, nodes: updatedNodes } as any;
-          const updatedSelected = idSet.has(selectedNode.id) ? { ...selectedNode, state: 'building' } : selectedNode;
-          useProjectStore.setState({ graph: updatedGraph, selectedNode: updatedSelected as any });
-        }
-      } catch {}
-
-      // Persist each selected node state to "building"
-      for (const id of idsToBuild) {
-        try { await updateNodeInSupabase(id, { state: 'building' }); } catch {}
-      }
-
-      const response = await fetch('/api/agent-request/edit-graph', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: {
-            role: 'user',
-            content: (idsToBuild.length > 1)
-              ? `Build ${idsToBuild.length} selected nodes`
-              : `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
-            variables: {}
-          },
-          // Unified endpoint parameters
-          selectedNodeId: selectedNode.id,
-          selectedNodeTitle: selectedNode.title,
-          selectedNodePrompt: selectedNode.prompt,
-          // Pass all selected node IDs so the agent gets the full selection
-          selectedNodeIds: idsToBuild,
-          // Keep legacy single-node param for compatibility
-          nodeId: selectedNode.id
-        }),
-      });
-
-      if (response.ok) {
-        // Selected node build queued successfully
-        // Do not set node to built here; worker/agent will update state via MCP later.
-      } else {
-        console.error('❌ Failed to build selected nodes');
-        // Revert node states on failure
-        for (const id of (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ? selectedNodeIds : [selectedNode.id]) {
-          try { await updateNodeInSupabase(id, { state: (selectedNode && selectedNode.id === id) ? (selectedNode.state || 'unbuilt') : 'unbuilt' }); } catch {}
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error building selected nodes:', error);
-      // Revert node states on error
-      for (const id of (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) ? selectedNodeIds : [selectedNode.id]) {
-        try { await updateNodeInSupabase(id, { state: (selectedNode && selectedNode.id === id) ? (selectedNode.state || 'unbuilt') : 'unbuilt' }); } catch {}
-      }
-    } finally {
-      setIsBuildingSelected(false);
-    }
-  }, [selectedNode, selectedNodeIds, updateNodeInSupabase]);
 
   // Connection is managed by the store
 
@@ -938,7 +904,7 @@ function GraphCanvas() {
               id: edge.id,
               source: edge.source,
               target: edge.target,
-              type: 'smoothstep',
+              type: 'default',
               style: previouslySelectedEdges.has(edge.id)
                 ? {
                     stroke: '#3b82f6',
@@ -1414,20 +1380,29 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
-        {/* Build/Rebuild Selected Node Button - only show when a node is selected */}
-        {selectedNode && (
-          <Button
-            onClick={buildSelectedNode}
-            disabled={isBuildingSelected || selectedNode.state === 'building'}
-            variant="outline"
-            size="sm"
-            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title={(isBuildingSelected || selectedNode.state === 'building') ? "Building selected node..." : `${selectedNode.state === 'built' ? 'Rebuild' : 'Build'} node: ${selectedNode.title}`}
-          >
-            <Play className="w-4 h-4" />
-            {(isBuildingSelected || selectedNode.state === 'building') ? 'Building...' : `${selectedNode.state === 'built' ? 'Rebuild' : 'Build'} Selected`}
-          </Button>
-        )}
+        {/* Build Entire Graph Button */}
+        <Button
+          onClick={buildEntireGraph}
+          disabled={isBuildingGraph || !graph}
+          variant="outline"
+          size="sm"
+          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+            isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
+          }`}
+          title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
+        >
+          {isBuildingGraph ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Building Graph...
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 mr-2" />
+              Build Graph
+            </>
+          )}
+        </Button>
         
         {/* Rebuild Full Graph Button */}
         {/* <Button

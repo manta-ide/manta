@@ -26,6 +26,8 @@ function getProjectDir(): string {
 }
 function getGraphDir(): string { return path.join(getProjectDir(), '_graph'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
+function getCurrentGraphPath(): string { return path.join(getGraphDir(), 'current-graph.xml'); }
+function getBaseGraphPath(): string { return path.join(getGraphDir(), 'base-graph.xml'); }
 function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
 function getVarsPath(): string { return path.join(getGraphDir(), 'vars.json'); }
 function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
@@ -60,6 +62,49 @@ function writeGraphToFs(graph: Graph) {
   ensureGraphDir();
   const xml = graphToXml(graph);
   fs.writeFileSync(getGraphPath(), xml, 'utf8');
+}
+
+function readCurrentGraphFromFs(): Graph | null {
+  try {
+    const currentPath = getCurrentGraphPath();
+    if (fs.existsSync(currentPath)) {
+      const raw = fs.readFileSync(currentPath, 'utf8');
+      const graph = xmlToGraph(raw);
+      const parsed = GraphSchema.safeParse(graph);
+      return parsed.success ? parsed.data : (graph as Graph);
+    }
+    // Fallback to main graph file if current doesn't exist
+    return readGraphFromFs();
+  } catch {
+    return null;
+  }
+}
+
+function writeCurrentGraphToFs(graph: Graph) {
+  ensureGraphDir();
+  const xml = graphToXml(graph);
+  fs.writeFileSync(getCurrentGraphPath(), xml, 'utf8');
+}
+
+function readBaseGraphFromFs(): Graph | null {
+  try {
+    const basePath = getBaseGraphPath();
+    if (fs.existsSync(basePath)) {
+      const raw = fs.readFileSync(basePath, 'utf8');
+      const graph = xmlToGraph(raw);
+      const parsed = GraphSchema.safeParse(graph);
+      return parsed.success ? parsed.data : (graph as Graph);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeBaseGraphToFs(graph: Graph) {
+  ensureGraphDir();
+  const xml = graphToXml(graph);
+  fs.writeFileSync(getBaseGraphPath(), xml, 'utf8');
 }
 function writeVarsToFs(graph: Graph) {
   const vars = extractVariablesFromGraph(graph);
@@ -196,20 +241,52 @@ function normalizeGraph(original: Graph): Graph {
 // Persist graph to local filesystem
 async function saveGraphToFs(graph: Graph): Promise<void> {
   const normalized = normalizeGraph(graph);
-  writeGraphToFs(normalized);
+  writeCurrentGraphToFs(normalized);
   writeVarsToFs(normalized);
+}
+
+async function saveCurrentGraphToFs(graph: Graph): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  writeCurrentGraphToFs(normalized);
+  writeVarsToFs(normalized);
+}
+
+async function saveBaseGraphToFs(graph: Graph): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  writeBaseGraphToFs(normalized);
 }
 
 // --- Public API (in-memory + persistence) ---
 export function getGraphSession(): Graph | null { return currentGraph; }
 
+export function getCurrentGraphSession(): Graph | null { return currentGraph; }
+
+export function getBaseGraphSession(): Graph | null {
+  // For now, we'll store this in memory too, but we could load from file if needed
+  return null; // Will be managed by frontend store
+}
+
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   currentGraph = normalized;
-  await saveGraphToFs(normalized);
+  await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId);
   // Also update the vars file to ensure consistency
   writeVarsToFs(normalized);
+}
+
+export async function storeCurrentGraph(graph: Graph, userId: string): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  currentGraph = normalized;
+  await saveCurrentGraphToFs(normalized);
+  await broadcastGraphReload(userId);
+  writeVarsToFs(normalized);
+}
+
+export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  await saveBaseGraphToFs(normalized);
+  // Don't update current graph or broadcast for base graph changes
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {
@@ -223,16 +300,27 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
       }
     }
   }
-  // Save the updated graph to graph.xml as the primary persistence
-  if (currentGraph) writeGraphToFs(currentGraph);
+  // Save the updated graph to current-graph.xml as the primary persistence
+  if (currentGraph) writeCurrentGraphToFs(currentGraph);
   // Always publish a realtime vars update for subscribers (iframe bridge) and update vars.json convenience file
   try { publishVarsUpdate({ [propertyId]: value }); } catch {}
 }
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
-  const graph = readGraphFromFs();
+  // Prioritize current graph file, fallback to main graph file
+  const graph = readCurrentGraphFromFs();
   currentGraph = graph;
   return graph;
+}
+
+export async function loadCurrentGraphFromFile(_userId: string): Promise<Graph | null> {
+  const graph = readCurrentGraphFromFs();
+  currentGraph = graph;
+  return graph;
+}
+
+export async function loadBaseGraphFromFile(_userId: string): Promise<Graph | null> {
+  return readBaseGraphFromFs();
 }
 
 export async function clearGraphSession(): Promise<void> { currentGraph = null; }
@@ -253,17 +341,21 @@ export async function markNodesBuilt(nodeIds: string[], _userId: string): Promis
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
-  if (currentGraph) writeGraphToFs(currentGraph);
+  if (currentGraph) writeCurrentGraphToFs(currentGraph);
 }
 
 export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Promise<void> {
   if (!currentGraph) return;
   const idSet = new Set(nodeIds);
   currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
-  if (currentGraph) writeGraphToFs(currentGraph);
+  if (currentGraph) writeCurrentGraphToFs(currentGraph);
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
-  // Nothing to do; graph is read lazily from _graph/graph.json
-  return;
+  // Load current graph from file
+  const currentGraphFromFile = readCurrentGraphFromFs();
+  if (currentGraphFromFile) {
+    currentGraph = currentGraphFromFile;
+  }
+  // Note: base graph is loaded on-demand, not pre-loaded here
 }

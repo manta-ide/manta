@@ -16,12 +16,14 @@ interface ProjectStore {
   selectedNode: GraphNode | null;
   selectedNodeIds: string[];
   graph: Graph | null;
+  baseGraph: Graph | null; // Last built version of the graph
   graphLoading: boolean;
   graphError: string | null;
   graphConnected: boolean;
   supabaseConnected: boolean;
   iframeReady: boolean;
   resetting: boolean;
+  isBuildingGraph: boolean;
   resetStore: () => void;
   
   // File operations
@@ -49,6 +51,14 @@ interface ProjectStore {
   updateGraph: (graph: Graph) => void;
   setGraphLoading: (loading: boolean) => void;
   setGraphError: (error: string | null) => void;
+
+  // Graph build operations
+  setBaseGraph: (graph: Graph | null) => void;
+  setIsBuildingGraph: (building: boolean) => void;
+  buildEntireGraph: () => Promise<void>;
+  calculateGraphDiff: () => any;
+  loadBaseGraph: () => Promise<Graph | null>;
+  saveBaseGraph: (graph: Graph) => Promise<void>;
   
   // Graph mutations (local)
   saveNodeToSupabase: (node: GraphNode) => Promise<void>;
@@ -82,12 +92,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectedNode: null,
   selectedNodeIds: [],
   graph: null,
+  baseGraph: null,
   graphLoading: true,
   graphError: null,
   graphConnected: false,
   supabaseConnected: false,
   iframeReady: false,
   resetting: false,
+  isBuildingGraph: false,
   resetStore: () => set({
     files: new Map(),
     currentFile: null,
@@ -99,11 +111,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     selectedNode: null,
     selectedNodeIds: [],
     graph: null,
+    baseGraph: null,
     graphLoading: true,
     graphError: null,
     graphConnected: false,
     supabaseConnected: false,
     iframeReady: false,
+    resetting: false,
+    isBuildingGraph: false,
   }),
 
   loadProject: async () => {
@@ -228,6 +243,37 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       console.error('Error loading graph:', error);
     }
   },
+
+  loadCurrentGraph: async () => {
+    try {
+      set({ graphLoading: true, graphError: null });
+      const res = await fetch('/api/graph-api?type=current', { method: 'GET', headers: { Accept: 'application/xml' } });
+      if (!res.ok) throw new Error('Current graph not found');
+      const xml = await res.text();
+      const graph = xmlToGraph(xml);
+      set({ graph, graphLoading: false, graphError: null });
+    } catch (error) {
+      set({ graphError: 'Failed to load current graph', graphLoading: false });
+      console.error('Error loading current graph:', error);
+    }
+  },
+
+  loadBaseGraph: async () => {
+    try {
+      const res = await fetch('/api/graph-api?type=base', { method: 'GET', headers: { Accept: 'application/xml' } });
+      if (!res.ok) {
+        // Base graph doesn't exist yet, which is fine
+        return null;
+      }
+      const xml = await res.text();
+      const graph = xmlToGraph(xml);
+      set({ baseGraph: graph });
+      return graph;
+    } catch (error) {
+      console.error('Error loading base graph:', error);
+      return null;
+    }
+  },
   
   refreshGraph: async () => {
     await get().loadGraph();
@@ -236,8 +282,148 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateGraph: (graph) => { set({ graph }); },
   
   setGraphLoading: (loading) => set({ graphLoading: loading }),
-  
+
   setGraphError: (error) => set({ graphError: error }),
+
+  // Graph build operations
+  setBaseGraph: (graph) => set({ baseGraph: graph }),
+
+  setIsBuildingGraph: (building) => set({ isBuildingGraph: building }),
+
+  buildEntireGraph: async () => {
+    const state = get();
+    if (!state.graph) {
+      console.error('❌ No current graph to build');
+      return;
+    }
+
+    set({ isBuildingGraph: true });
+
+    try {
+      // Calculate the diff between current and base graphs
+      const diff = state.calculateGraphDiff();
+
+      // Send build request with diff to agent
+      const response = await fetch('/api/agent-request/build-graph', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: {
+            role: 'user',
+            content: 'Build the entire graph with the following changes',
+            variables: { GRAPH_DIFF: JSON.stringify(diff) }
+          },
+          graphDiff: diff,
+          currentGraph: state.graph
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start graph build');
+      }
+
+      const result = await response.json();
+      const jobId = result.jobId;
+
+      console.log('✅ Graph build started successfully, job ID:', jobId);
+
+      // Poll for job completion
+      if (jobId) {
+        const pollJobCompletion = async () => {
+          try {
+            const statusResponse = await fetch(`/api/jobs/status?id=${jobId}`);
+            if (!statusResponse.ok) {
+              throw new Error('Failed to check job status');
+            }
+
+            const statusData = await statusResponse.json();
+            const job = statusData.job;
+
+            if (job.status === 'completed') {
+              console.log('✅ Graph build completed successfully');
+              set({ isBuildingGraph: false });
+              // Refresh the graph to show any changes
+              state.refreshGraph();
+            } else if (job.status === 'failed') {
+              console.error('❌ Graph build failed:', job.error_message);
+              set({ graphError: 'Graph build failed', isBuildingGraph: false });
+            } else {
+              // Job still running, poll again in 2 seconds
+              setTimeout(pollJobCompletion, 2000);
+            }
+          } catch (error) {
+            console.error('❌ Error polling job status:', error);
+            set({ graphError: 'Failed to check build status', isBuildingGraph: false });
+          }
+        };
+
+        // Start polling after a short delay
+        setTimeout(pollJobCompletion, 1000);
+      } else {
+        // Fallback if no job ID returned
+        setTimeout(() => set({ isBuildingGraph: false }), 5000);
+      }
+    } catch (error) {
+      console.error('❌ Error building graph:', error);
+      set({ graphError: 'Failed to build graph', isBuildingGraph: false });
+    }
+  },
+
+  calculateGraphDiff: () => {
+    const state = get();
+    const current = state.graph;
+    const base = state.baseGraph;
+
+    if (!current) return { changes: [] };
+    if (!base) return { changes: [] }; // No base graph yet
+
+    const diff: any = {
+      changes: []
+    };
+
+    // Compare nodes
+    const currentNodeMap = new Map(current.nodes.map(n => [n.id, n]));
+    const baseNodeMap = new Map(base.nodes.map(n => [n.id, n]));
+
+    // Find added/modified nodes
+    for (const [nodeId, currentNode] of currentNodeMap) {
+      const baseNode = baseNodeMap.get(nodeId);
+      if (!baseNode) {
+        diff.changes.push({ type: 'node-added', node: currentNode });
+      } else if (JSON.stringify(currentNode) !== JSON.stringify(baseNode)) {
+        diff.changes.push({ type: 'node-modified', nodeId, oldNode: baseNode, newNode: currentNode });
+      }
+    }
+
+    // Find deleted nodes
+    for (const [nodeId, baseNode] of baseNodeMap) {
+      if (!currentNodeMap.has(nodeId)) {
+        diff.changes.push({ type: 'node-deleted', nodeId, node: baseNode });
+      }
+    }
+
+    // Compare edges
+    const currentEdges = current.edges || [];
+    const baseEdges = base.edges || [];
+    const currentEdgeMap = new Map(currentEdges.map(e => [`${e.source}-${e.target}`, e]));
+    const baseEdgeMap = new Map(baseEdges.map(e => [`${e.source}-${e.target}`, e]));
+
+    // Find added edges
+    for (const [edgeKey, currentEdge] of currentEdgeMap) {
+      if (!baseEdgeMap.has(edgeKey)) {
+        diff.changes.push({ type: 'edge-added', edge: currentEdge });
+      }
+    }
+
+    // Find deleted edges
+    for (const [edgeKey, baseEdge] of baseEdgeMap) {
+      if (!currentEdgeMap.has(edgeKey)) {
+        diff.changes.push({ type: 'edge-deleted', edge: baseEdge });
+      }
+    }
+
+    return diff;
+  },
   
   // Supabase graph operations (priority)
   saveNodeToSupabase: async (node: GraphNode) => {
@@ -247,7 +433,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (i === -1) next.nodes.push(node); else next.nodes[i] = { ...(next.nodes[i] as any), ...node } as any;
     set({ graph: next });
     const xml = graphToXml(next);
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
+    await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
 
   updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
@@ -256,7 +442,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
     const xml = graphToXml(next);
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+    await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   updatePropertyInSupabase: async (nodeId: string, propertyId: string, value: any) => {
@@ -271,7 +457,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       } as any;
       set({ graph: updatedGraph });
     }
-    await fetch('/api/graph-api', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodeId, propertyId, value }) });
+    await fetch('/api/graph-api?type=current', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodeId, propertyId, value }) });
   },
 
   updatePropertyLocal: (nodeId: string, propertyId: string, value: any) => {
@@ -299,12 +485,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
     set({ graph: next });
     const xml = graphToXml(next);
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+    await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   syncGraphToSupabase: async (graph: Graph) => {
     const xml = graphToXml(graph);
-    await fetch('/api/graph-api', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
+    await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
+  },
+
+  saveBaseGraph: async (graph: Graph) => {
+    const xml = graphToXml(graph);
+    await fetch('/api/graph-api?type=base', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
   
   // Graph event handling

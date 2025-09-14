@@ -52,7 +52,7 @@ process.on('SIGTERM', closeLogger);
 
 // Toolset is chosen at startup by the MCP based on env
 
-export type Toolset = 'graph-editor' | 'read-only';
+export type Toolset = 'graph-editor' | 'read-only' | 'graph-builder';
 
 // Load schemas from shared-schemas package with fallback
 let PropertySchema: any;
@@ -225,6 +225,9 @@ function projectDir(): string {
   } catch { return process.cwd(); }
 }
 function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.xml'); }
+function currentGraphPath(): string { return path.join(projectDir(), '_graph', 'current-graph.xml'); }
+function baseGraphPath(): string { return path.join(projectDir(), '_graph', 'base-graph.xml'); }
+
 function readLocalGraph(): any | null {
   try {
     const p = graphPath();
@@ -237,6 +240,29 @@ function readLocalGraph(): any | null {
     return { graph: parsedGraph, rawXml };
   } catch { return null; }
 }
+
+function readCurrentGraph(): any | null {
+  try {
+    const p = currentGraphPath();
+    if (!fs.existsSync(p)) return readLocalGraph(); // Fallback to main graph
+    const rawXml = fs.readFileSync(p, 'utf8');
+    const g = xmlToGraph(rawXml);
+    const parsed = GraphSchema.safeParse(g);
+    return parsed.success ? parsed.data : g;
+  } catch { return null; }
+}
+
+function readBaseGraph(): any | null {
+  try {
+    const p = baseGraphPath();
+    if (!fs.existsSync(p)) return null;
+    const rawXml = fs.readFileSync(p, 'utf8');
+    const g = xmlToGraph(rawXml);
+    const parsed = GraphSchema.safeParse(g);
+    return parsed.success ? parsed.data : g;
+  } catch { return null; }
+}
+
 function writeLocalGraph(graph: any) {
   try {
     const p = graphPath();
@@ -272,6 +298,19 @@ interface Graph {
 
 export function registerGraphTools(server: McpServer, toolset: Toolset) {
     logToFile(`Registering graph tools with toolset: ${toolset}`);
+
+    // Helper function to determine if tool should be registered
+    const shouldRegister = (toolName: string) => {
+        if (toolset === 'read-only') {
+            return toolName === 'graph_read';
+        }
+        if (toolset === 'graph-builder') {
+            // Limited tools for build operations
+            return ['graph_read', 'graph_node_edit', 'graph_node_set_state', 'graph_analyze_diff'].includes(toolName);
+        }
+        // graph-editor: all tools
+        return true;
+    };
 
   // Utility: normalize incoming property objects to consistent schema
   const normalizeProperty = (prop: any): any => {
@@ -327,8 +366,9 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     return properties.map((p) => normalizeProperty(p));
   };
   // read_graph (rich read)
-  server.registerTool(
-    'graph_read',
+  if (shouldRegister('graph_read')) {
+    server.registerTool(
+      'graph_read',
     {
       title: 'Read Graph',
       description: 'Read the current graph or a specific node.',
@@ -361,9 +401,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       }
     }
   );
+  }
 
   // graph_edge_create
-  server.registerTool(
+  if (shouldRegister('graph_edge_create')) {
+    server.registerTool(
     'graph_edge_create',
     {
       title: 'Create Graph Edge',
@@ -411,9 +453,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       return { content: [{ type: 'text', text: `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}` }] };
     }
   );
+  }
 
   // graph_node_add
-  server.registerTool(
+  if (shouldRegister('graph_node_add')) {
+    server.registerTool(
       'graph_node_add',
     {
       title: 'Add Node',
@@ -491,7 +535,8 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     );
 
   // graph_node_edit
-  server.registerTool(
+  if (shouldRegister('graph_node_edit')) {
+    server.registerTool(
     'graph_node_edit',
     {
       title: 'Edit Node',
@@ -654,6 +699,38 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
       }
     }
   );
+  }
+
+  // graph_node_set_position (convenience tool)
+  if (shouldRegister('graph_node_set_position')) {
+    server.registerTool(
+    'graph_node_set_position',
+    {
+      title: 'Set Node Position',
+      description: 'Set or update a node\'s position (x,y,z).',
+      inputSchema: {
+        nodeId: z.string().min(1),
+        x: z.number(),
+        y: z.number(),
+        z: z.number().optional().default(0),
+      },
+    },
+    async ({ nodeId, x, y, z = 0 }) => {
+      const origin = resolveBaseUrl();
+      const token = resolveAccessToken();
+      const url = `${origin}/api/graph-api`;
+      const data = await httpGet(url, token);
+      const parsed = GraphSchema.safeParse((data as any).graph ?? data);
+      if (!parsed.success) throw new Error('Graph schema validation failed');
+      const graph = parsed.data as any;
+      const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
+      if (idx === -1) throw new Error(`Node ${nodeId} not found`);
+      graph.nodes[idx] = { ...graph.nodes[idx], position: { x, y, z: typeof z === 'number' ? z : 0 } };
+      await httpPut(url, { graph }, token);
+      return { content: [{ type: 'text', text: `Updated node ${nodeId} position -> (${x}, ${y}, ${typeof z === 'number' ? z : 0})` }] };
+    }
+  );
+  }
 
   // graph_node_set_position (convenience tool)
   server.registerTool(
@@ -685,7 +762,8 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
   );
 
   // graph_node_delete
-  server.registerTool(
+  if (shouldRegister('graph_node_delete')) {
+    server.registerTool(
     'graph_node_delete',
     {
       title: 'Delete Node',
@@ -714,6 +792,7 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     return { content: [{ type: 'text', text: `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}` }] };
   }
   );
+  }
 
   // set node state
   const setStateHandler = async ({ nodeId, state }: { nodeId: string; state: 'built'|'unbuilt'|'building' }) => {
@@ -732,8 +811,9 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
   };
 
   // Alias for convenience
-  server.registerTool(
-    'graph_node_set_state',
+  if (shouldRegister('graph_node_set_state')) {
+    server.registerTool(
+      'graph_node_set_state',
     {
       title: 'Set Node State',
       description: 'Update a node\'s state (built/unbuilt/building).',
@@ -744,4 +824,80 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     },
     setStateHandler as any
   );
+  }
+
+
+  // Graph diff analysis tool
+  if (shouldRegister('graph_analyze_diff')) {
+    server.registerTool(
+    'graph_analyze_diff',
+    {
+      title: 'Analyze Graph Diff',
+      description: 'Analyze the differences between base and current graphs to understand what changed.',
+      inputSchema: {
+        // No parameters needed - graphs are read from filesystem
+      },
+    },
+    async () => {
+      logToFile('Analyzing graph diff', 'INFO');
+
+      // Read base and current graphs from filesystem
+      const baseGraph = readBaseGraph();
+      const currentGraph = readCurrentGraph();
+
+      if (!baseGraph || !currentGraph) {
+        return { content: [{ type: 'text', text: 'Error: Cannot read graphs from filesystem' }] };
+      }
+
+      const diff: any = {
+        changes: []
+      };
+
+      // Compare nodes
+      const currentNodeMap = new Map(currentGraph.nodes.map((n: any) => [n.id, n]));
+      const baseNodeMap = new Map(baseGraph.nodes.map((n: any) => [n.id, n]));
+
+      // Find added/modified nodes
+      for (const [nodeId, currentNode] of currentNodeMap) {
+        const baseNode = baseNodeMap.get(nodeId);
+        if (!baseNode) {
+          diff.changes.push({ type: 'node-added', node: currentNode });
+        } else if (JSON.stringify(currentNode) !== JSON.stringify(baseNode)) {
+          diff.changes.push({ type: 'node-modified', nodeId, oldNode: baseNode, newNode: currentNode });
+        }
+      }
+
+      // Find deleted nodes
+      for (const [nodeId, baseNode] of baseNodeMap) {
+        if (!currentNodeMap.has(nodeId)) {
+          diff.changes.push({ type: 'node-deleted', nodeId, node: baseNode });
+        }
+      }
+
+      // Compare edges
+      const currentEdges = currentGraph.edges || [];
+      const baseEdges = baseGraph.edges || [];
+      const currentEdgeMap = new Map(currentEdges.map((e: any) => [`${e.source}-${e.target}`, e]));
+      const baseEdgeMap = new Map(baseEdges.map((e: any) => [`${e.source}-${e.target}`, e]));
+
+      // Find added edges
+      for (const [edgeKey, currentEdge] of currentEdgeMap) {
+        if (!baseEdgeMap.has(edgeKey)) {
+          diff.changes.push({ type: 'edge-added', edge: currentEdge });
+        }
+      }
+
+      // Find deleted edges
+      for (const [edgeKey, baseEdge] of baseEdgeMap) {
+        if (!currentEdgeMap.has(edgeKey)) {
+          diff.changes.push({ type: 'edge-deleted', edge: baseEdge });
+        }
+      }
+
+      logToFile(`Diff analysis complete: ${diff.changes.length} changes found`, 'INFO');
+
+      return { content: [{ type: 'text', text: JSON.stringify(diff, null, 2) }] };
+    }
+  );
+  }
 }
