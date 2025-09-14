@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars } from '../lib/graph-service';
+import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars, registerStreamController, unregisterStreamController } from '../lib/graph-service';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
@@ -35,8 +35,11 @@ export async function GET(req: NextRequest) {
 
       const stream = new ReadableStream({
         start(controller) {
-                     // Send initial graph data
-           const sendGraphData = async () => {
+          // Register the controller for broadcasts
+          registerStreamController(controller);
+
+          // Send initial graph data
+          const sendGraphData = async () => {
              try {
                let graph = getGraphSession();
                if (!graph) {
@@ -70,6 +73,7 @@ export async function GET(req: NextRequest) {
 
           // Clean up on close
           req.signal.addEventListener('abort', () => {
+            unregisterStreamController(controller);
             clearInterval(interval);
             controller.close();
           });

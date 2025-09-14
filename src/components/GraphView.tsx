@@ -11,6 +11,7 @@ import {
   Edge,
   Connection,
   NodeMouseHandler,
+  EdgeMouseHandler,
   Handle,
   Position,
   useViewport,
@@ -24,8 +25,9 @@ import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
+import { graphToXml, xmlToGraph } from '@/../packages/manta-mcp/src/xml-utils';
 import { Button } from '@/components/ui/button';
-import { Play, RotateCcw, Trash2, Folder, Settings } from 'lucide-react';
+import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed } from 'lucide-react';
 
 // Helper function to check if a point is within a rectangle
 function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
@@ -118,14 +120,12 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           padding: '20px',
           width: '260px',
           minHeight: '160px',
-          transition: 'all 0.2s ease',
           position: 'relative',
           fontFamily: 'Inter, sans-serif',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          transform: selected ? 'scale(1.02)' : 'scale(1)',
         }}
       >
         {/* Building state indicator */}
@@ -237,13 +237,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         padding: '20px',
         width: '260px',
         minHeight: '160px',
-        transition: 'all 0.2s ease',
         position: 'relative',
         fontFamily: 'Inter, sans-serif',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transform: selected ? 'scale(1.05)' : 'scale(1)',
       }}
     >
       {/* Building state indicator */}
@@ -381,6 +379,8 @@ function GraphCanvas() {
   const [isDraggingSelect, setIsDraggingSelect] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
+  // Tool modes: 'select', 'pan', 'add-node'
+  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data with Supabase integration
@@ -400,16 +400,191 @@ function GraphCanvas() {
   // Auth removed; define placeholder to avoid TS errors
   const user: any = null;
 
-  // Log connection status to local graph events
+  // Generate unique node ID
+  const generateNodeId = useCallback(() => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `node-${timestamp}${random}`;
+  }, []);
+
+  // Create a new empty node at the specified position
+  const createNewNode = useCallback(async (position: { x: number; y: number }) => {
+    if (!graph) return;
+
+    const newNodeId = generateNodeId();
+    const newNode: GraphNode = {
+      id: newNodeId,
+      title: 'New Node',
+      prompt: '',
+      state: 'unbuilt',
+      position: { x: position.x, y: position.y, z: 0 }
+    };
+
+    try {
+      // Update local graph state immediately for instant feedback
+      const updatedGraph = {
+        ...graph,
+        nodes: [...graph.nodes, newNode]
+      };
+      useProjectStore.setState({ graph: updatedGraph });
+
+      // Create ReactFlow node and add to local state
+      const reactFlowNode: Node = {
+        id: newNodeId,
+        position,
+        data: {
+          label: newNode.title,
+          node: newNode,
+          state: newNode.state || "unbuilt",
+          properties: newNode.properties || []
+        },
+        type: 'custom',
+        selected: true,
+      };
+      setNodes((nds) => [...nds, reactFlowNode]);
+
+      // Persist to Supabase (this will trigger real-time updates that will sync everything)
+      await updateNodeInSupabase(newNodeId, newNode);
+
+      // Select the new node
+      setSelectedNode(newNodeId, newNode);
+      setSelectedNodeIds([newNodeId]);
+
+      console.log('✅ Created new node:', newNodeId);
+    } catch (error) {
+      console.error('❌ Failed to create new node:', error);
+      // Remove the node from both local states if persistence failed
+      setNodes((nds) => nds.filter(n => n.id !== newNodeId));
+      if (graph) {
+        const revertedGraph = {
+          ...graph,
+          nodes: graph.nodes.filter(n => n.id !== newNodeId)
+        };
+        useProjectStore.setState({ graph: revertedGraph });
+      }
+    }
+  }, [graph, generateNodeId, updateNodeInSupabase, setSelectedNode, setSelectedNodeIds, setNodes]);
+
+  // Handle deletion of selected nodes and edges
+  const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+    try {
+      // Get current graph data
+      const origin = 'http://localhost:3000';
+      const url = `${origin}/api/graph-api`;
+
+      const data = await fetch(url, {
+        headers: {
+          'Accept': 'application/xml, application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let currentGraph;
+      const contentType = (data.headers.get('content-type') || '').toLowerCase();
+
+      if (contentType.includes('xml')) {
+        const xml = await data.text();
+        currentGraph = xmlToGraph(xml);
+      } else {
+        const graphData = await data.json();
+        currentGraph = graphData.graph || graphData;
+      }
+
+      // Delete selected nodes
+      const nodeIdsToDelete = selectedNodes.map(node => node.id);
+      if (nodeIdsToDelete.length > 0) {
+        currentGraph.nodes = currentGraph.nodes.filter((node: any) =>
+          !nodeIdsToDelete.includes(node.id)
+        );
+
+        // Also remove edges connected to deleted nodes
+        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+          !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
+        );
+
+        console.log('🗑️ Deleting nodes:', nodeIdsToDelete);
+      }
+
+      // Delete selected edges
+      const edgeIdsToDelete = selectedEdges.map(edge => edge.id);
+      if (edgeIdsToDelete.length > 0) {
+        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+          !edgeIdsToDelete.includes(edge.id)
+        );
+
+        console.log('🗑️ Deleting edges:', edgeIdsToDelete);
+      }
+
+      // Update local state immediately
+      setNodes(prevNodes => prevNodes.filter(node => !nodeIdsToDelete.includes(node.id)));
+      setEdges(prevEdges => prevEdges.filter(edge => !edgeIdsToDelete.includes(edge.id)));
+
+      // Clear selection
+      setSelectedNode(null, null);
+      setSelectedNodeIds([]);
+
+      // Persist to API
+      await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Accept-Charset': 'utf-8'
+        },
+        body: graphToXml(currentGraph)
+      });
+
+      console.log('✅ Successfully deleted selected elements');
+
+    } catch (error) {
+      console.error('❌ Failed to delete selected elements:', error);
+      // Revert local state on error by refreshing from server
+      if (refreshGraph) {
+        refreshGraph();
+      }
+    }
+  }, [setNodes, setEdges, setSelectedNode, setSelectedNodeIds, refreshGraph]);
+
+  // Connect to graph events for real-time updates
   useEffect(() => {
-    // Component ready
-  }, [user?.id]);
+    connectToGraphEvents();
+    return () => {
+      disconnectFromGraphEvents();
+    };
+  }, [connectToGraphEvents, disconnectFromGraphEvents]);
+
+  // Handle keyboard shortcuts for deletion
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+
+        // Get selected nodes and edges from ReactFlow
+        const selectedNodes = nodes.filter(node => node.selected);
+        const selectedEdges = edges.filter(edge => edge.selected);
+
+        if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+        // Delete selected elements
+        handleDeleteSelected(selectedNodes, selectedEdges);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [nodes, edges]);
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
   const latestNodesRef = useRef<Node[]>([]);
+  // Keep a ref of latest edges to preserve selection state across rebuilds
+  const latestEdgesRef = useRef<Edge[]>([]);
   useEffect(() => {
     latestNodesRef.current = nodes;
   }, [nodes]);
+  useEffect(() => {
+    latestEdgesRef.current = edges;
+  }, [edges]);
 
   // Fit view to center the graph when nodes first load
   const hasFittedRef = useRef(false);
@@ -477,7 +652,7 @@ function GraphCanvas() {
   //     } catch {}
 
   //     const allIds = (useProjectStore.getState().graph?.nodes || []).map((n: any) => n.id);
-  //     const response = await fetch('/api/agent-request/build-nodes', {
+  //     const response = await fetch('/api/agent-request/edit-graph', {
   //       method: 'POST',
   //       headers: { 'Content-Type': 'application/json' },
   //       body: JSON.stringify({
@@ -541,7 +716,7 @@ function GraphCanvas() {
         try { await updateNodeInSupabase(id, { state: 'building' }); } catch {}
       }
 
-      const response = await fetch('/api/agent-request/build-nodes', {
+      const response = await fetch('/api/agent-request/edit-graph', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -552,6 +727,10 @@ function GraphCanvas() {
               : `${selectedNode.state === 'built' ? 'Rebuild' : 'Implement'} this node: ${selectedNode.title}`,
             variables: {}
           },
+          // Unified endpoint parameters
+          selectedNodeId: selectedNode.id,
+          selectedNodeTitle: selectedNode.title,
+          selectedNodePrompt: selectedNode.prompt,
           // Pass all selected node IDs so the agent gets the full selection
           selectedNodeIds: idsToBuild,
           // Keep legacy single-node param for compatibility
@@ -625,6 +804,19 @@ function GraphCanvas() {
       setSelectedNode(node.id, freshGraphNode);
     }
   }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
+
+  // Handle edge selection (with multi-select support)
+  const onEdgeClick: EdgeMouseHandler = useCallback((event, _edge) => {
+    const isMulti = event.shiftKey || event.metaKey || event.ctrlKey;
+    // prevent parent handlers from interfering with selection rectangle
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isMulti) {
+      // Clear node selection when focusing an edge; let React Flow handle edge selection
+      setSelectedNode(null, null);
+      setSelectedNodeIds([]);
+    }
+  }, [setSelectedNode, setSelectedNodeIds]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -734,6 +926,11 @@ function GraphCanvas() {
       const addedEdges = new Set<string>();
 
       if ((graph as any).edges && (graph as any).edges.length > 0) {
+        const previouslySelectedEdges = new Set(
+          (latestEdgesRef.current || [])
+            .filter((e) => e.selected)
+            .map((e) => e.id)
+        );
         (graph as any).edges.forEach((edge: any) => {
           const edgeId = `${edge.source}-${edge.target}`;
           if (!addedEdges.has(edgeId)) {
@@ -742,8 +939,20 @@ function GraphCanvas() {
               source: edge.source,
               target: edge.target,
               type: 'smoothstep',
-              style: { stroke: '#9ca3af', strokeWidth: 2 },
-              animated: false,
+              style: previouslySelectedEdges.has(edge.id)
+                ? {
+                    stroke: '#3b82f6',
+                    strokeWidth: 3,
+                    opacity: 1,
+                  }
+                : {
+                    stroke: '#9ca3af',
+                    strokeWidth: 2,
+                    opacity: 0.8,
+                  },
+              // Increase interaction width to make edges easier to hover/click
+              interactionWidth: 24,
+              selected: previouslySelectedEdges.has(edge.id),
             });
             addedEdges.add(edgeId);
           }
@@ -781,7 +990,63 @@ function GraphCanvas() {
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
-  const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+  const onConnect = useCallback(async (params: Connection) => {
+    try {
+      // First add the edge to local ReactFlow state for immediate feedback
+      setEdges((eds) => addEdge(params, eds));
+
+      // Then persist to the graph API
+      const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
+      const url = `${origin}/api/graph-api`;
+
+      // Get current graph data (accept both XML and JSON)
+      const data = await fetch(url, {
+        headers: {
+          'Accept': 'application/xml, application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let graph;
+      const contentType = (data.headers.get('content-type') || '').toLowerCase();
+
+      if (contentType.includes('xml')) {
+        const xml = await data.text();
+        graph = xmlToGraph(xml);
+      } else {
+        const graphData = await data.json();
+        graph = graphData.graph || graphData;
+      }
+
+      // Create new edge
+      const newEdge = {
+        id: `${params.source}-${params.target}`,
+        source: params.source,
+        target: params.target,
+        role: 'links-to'
+      };
+
+      // Add edge to graph
+      if (!graph.edges) graph.edges = [];
+      graph.edges.push(newEdge);
+
+      // Persist to API
+      await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Accept-Charset': 'utf-8'
+        },
+        body: graphToXml(graph)
+      });
+
+      console.log('✅ Created connection between nodes:', params.source, '->', params.target);
+    } catch (error) {
+      console.error('❌ Failed to create connection:', error);
+      // Remove the edge from local state if persistence failed
+      setEdges((eds) => eds.filter(e => !(e.source === params.source && e.target === params.target)));
+    }
+  }, [setEdges]);
 
   // Throttle position broadcasts to prevent spam
   const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
@@ -816,7 +1081,7 @@ function GraphCanvas() {
       // Persist final position via graph API
       try {
         await updateNodeInSupabase(graphNode.id, {
-          position: { x: node.position.x, y: node.position.y }
+          position: { x: node.position.x, y: node.position.y, z: 0 }
         });
         // Node position saved
       } catch (e) {
@@ -830,7 +1095,7 @@ function GraphCanvas() {
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
   }, [updateNodeInSupabase]);
 
-  // Handle background mouse down for drag selection
+  // Handle background mouse down for drag selection or node creation
   const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
     // Only start selection on left mouse button
     if (event.button !== 0) return;
@@ -842,16 +1107,33 @@ function GraphCanvas() {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    setIsDraggingSelect(true);
-    setDragStart({ x, y });
-    setDragEnd({ x, y });
-    // If not multi-select modifier, clear current selection at drag start
-    if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
-      setSelectedNodeIds([]);
-      setSelectedNode(null, null);
+    if (currentTool === 'add-node') {
+      // Convert screen coordinates to flow coordinates
+      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      // Center the node at mouse position (node size is 260x160)
+      const centeredPosition = {
+        x: flowPosition.x - 130, // Half of node width (260/2)
+        y: flowPosition.y - 80   // Half of node height (160/2)
+      };
+      createNewNode(centeredPosition);
+      event.preventDefault();
+      return;
     }
+
+    // Only handle selection in select mode
+    if (currentTool === 'select') {
+      setIsDraggingSelect(true);
+      setDragStart({ x, y });
+      setDragEnd({ x, y });
+      // If not multi-select modifier, clear current selection at drag start
+      if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
+        setSelectedNodeIds([]);
+        setSelectedNode(null, null);
+      }
+    }
+
     event.preventDefault();
-  }, [setSelectedNode, setSelectedNodeIds]);
+  }, [currentTool, reactFlow, createNewNode, setSelectedNode, setSelectedNodeIds]);
 
   const onPaneMouseMove = useCallback((event: React.MouseEvent) => {
     if (!isDraggingSelect || !dragStart) return;
@@ -998,6 +1280,7 @@ function GraphCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
@@ -1006,20 +1289,21 @@ function GraphCanvas() {
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}
+        edgesFocusable={true}
         /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
         panOnScroll={true}
         panOnScrollMode={PanOnScrollMode.Free}
         zoomOnScroll={false}
         zoomOnPinch={true}
-        /* Right mouse button drag pans; left drag shows selection */
-        panOnDrag={[2]}
-        selectionOnDrag={false}
+        /* Dynamic pan behavior based on tool mode */
+        panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
+        selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
         onMouseMove={onPaneMouseMove}
         onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={true}
-        nodesConnectable={false}
+        nodesConnectable={currentTool === 'select'}
         elementsSelectable={true}
       >
         <MiniMap 
@@ -1064,7 +1348,64 @@ function GraphCanvas() {
         })()
       )}
       
-      {/* Action Buttons */}
+      {/* Tool Buttons - Left Side */}
+      <div style={{
+        position: 'absolute',
+        left: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        zIndex: 1000,
+      }}>
+        {/* Select Tool */}
+        <Button
+          onClick={() => setCurrentTool('select')}
+          variant={currentTool === 'select' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'select'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
+        >
+          <SquareDashed className="w-4 h-4" />
+        </Button>
+
+        {/* Pan Tool */}
+        <Button
+          onClick={() => setCurrentTool('pan')}
+          variant={currentTool === 'pan' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'pan'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Pan Tool - Click and drag to pan the view, right-click always pans"
+        >
+          <Hand className="w-4 h-4" />
+        </Button>
+
+        {/* Add Node Tool */}
+        <Button
+          onClick={() => setCurrentTool('add-node')}
+          variant={currentTool === 'add-node' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'add-node'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Add Node Tool - Click anywhere on the canvas to create a new node"
+        >
+          <StickyNote className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Action Buttons - Right Side */}
       <div style={{
         position: 'absolute',
         top: '12px',

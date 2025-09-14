@@ -328,10 +328,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           } else if (raw.length > 100 && !raw.includes(' ') && /^[A-Za-z0-9+/=]+$/.test(raw)) {
             // Base64 encoded XML → decode to bytes, then UTF-8 string
             try {
-              const bin = atob(raw);
-              const bytes = new Uint8Array(bin.length);
-              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-              const decodedXml = new TextDecoder('utf-8').decode(bytes);
+              // Decode base64 to UTF-8 string
+              const decodedXml = atob(raw);
               const graph = xmlToGraph(decodedXml);
               set({ graph, graphLoading: false, graphError: null, graphConnected: true });
             } catch (decodeError) {
