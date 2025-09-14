@@ -14,7 +14,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    ```bash
    npm i -g manta-ide
 
-3. Install a template to an empty folder:
+3. Install the template to an empty folder:
    ```bash
    manta i
 
@@ -45,7 +45,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    npm run build:all
    npm install -g .
 
-3. Run
+3. Install the template and run Manta IDE in an empty folder:
    ```bash
    manta i
    manta run
