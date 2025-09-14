@@ -225,6 +225,9 @@ function projectDir(): string {
   } catch { return process.cwd(); }
 }
 function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.xml'); }
+function currentGraphPath(): string { return path.join(projectDir(), '_graph', 'current-graph.xml'); }
+function baseGraphPath(): string { return path.join(projectDir(), '_graph', 'base-graph.xml'); }
+
 function readLocalGraph(): any | null {
   try {
     const p = graphPath();
@@ -237,6 +240,29 @@ function readLocalGraph(): any | null {
     return { graph: parsedGraph, rawXml };
   } catch { return null; }
 }
+
+function readCurrentGraph(): any | null {
+  try {
+    const p = currentGraphPath();
+    if (!fs.existsSync(p)) return readLocalGraph(); // Fallback to main graph
+    const rawXml = fs.readFileSync(p, 'utf8');
+    const g = xmlToGraph(rawXml);
+    const parsed = GraphSchema.safeParse(g);
+    return parsed.success ? parsed.data : g;
+  } catch { return null; }
+}
+
+function readBaseGraph(): any | null {
+  try {
+    const p = baseGraphPath();
+    if (!fs.existsSync(p)) return null;
+    const rawXml = fs.readFileSync(p, 'utf8');
+    const g = xmlToGraph(rawXml);
+    const parsed = GraphSchema.safeParse(g);
+    return parsed.success ? parsed.data : g;
+  } catch { return null; }
+}
+
 function writeLocalGraph(graph: any) {
   try {
     const p = graphPath();
@@ -744,4 +770,78 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     },
     setStateHandler as any
   );
+
+
+  // Graph diff analysis tool
+  server.registerTool(
+    'graph_analyze_diff',
+    {
+      title: 'Analyze Graph Diff',
+      description: 'Analyze the differences between base and current graphs to understand what changed.',
+      inputSchema: {
+        // No parameters needed - graphs are read from filesystem
+      },
+    },
+    async () => {
+      logToFile('Analyzing graph diff', 'INFO');
+
+      // Read base and current graphs from filesystem
+      const baseGraph = readBaseGraph();
+      const currentGraph = readCurrentGraph();
+
+      if (!baseGraph || !currentGraph) {
+        return { content: [{ type: 'text', text: 'Error: Cannot read graphs from filesystem' }] };
+      }
+
+      const diff: any = {
+        changes: []
+      };
+
+      // Compare nodes
+      const currentNodeMap = new Map(currentGraph.nodes.map((n: any) => [n.id, n]));
+      const baseNodeMap = new Map(baseGraph.nodes.map((n: any) => [n.id, n]));
+
+      // Find added/modified nodes
+      for (const [nodeId, currentNode] of currentNodeMap) {
+        const baseNode = baseNodeMap.get(nodeId);
+        if (!baseNode) {
+          diff.changes.push({ type: 'node-added', node: currentNode });
+        } else if (JSON.stringify(currentNode) !== JSON.stringify(baseNode)) {
+          diff.changes.push({ type: 'node-modified', nodeId, oldNode: baseNode, newNode: currentNode });
+        }
+      }
+
+      // Find deleted nodes
+      for (const [nodeId, baseNode] of baseNodeMap) {
+        if (!currentNodeMap.has(nodeId)) {
+          diff.changes.push({ type: 'node-deleted', nodeId, node: baseNode });
+        }
+      }
+
+      // Compare edges
+      const currentEdges = currentGraph.edges || [];
+      const baseEdges = baseGraph.edges || [];
+      const currentEdgeMap = new Map(currentEdges.map((e: any) => [`${e.source}-${e.target}`, e]));
+      const baseEdgeMap = new Map(baseEdges.map((e: any) => [`${e.source}-${e.target}`, e]));
+
+      // Find added edges
+      for (const [edgeKey, currentEdge] of currentEdgeMap) {
+        if (!baseEdgeMap.has(edgeKey)) {
+          diff.changes.push({ type: 'edge-added', edge: currentEdge });
+        }
+      }
+
+      // Find deleted edges
+      for (const [edgeKey, baseEdge] of baseEdgeMap) {
+        if (!currentEdgeMap.has(edgeKey)) {
+          diff.changes.push({ type: 'edge-deleted', edge: baseEdge });
+        }
+      }
+
+      logToFile(`Diff analysis complete: ${diff.changes.length} changes found`, 'INFO');
+
+      return { content: [{ type: 'text', text: JSON.stringify(diff, null, 2) }] };
+    }
+  );
+
 }

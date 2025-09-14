@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars, registerStreamController, unregisterStreamController } from '../lib/graph-service';
+import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars, registerStreamController, unregisterStreamController, storeCurrentGraph, storeBaseGraph, loadCurrentGraphFromFile, loadBaseGraphFromFile } from '../lib/graph-service';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const isSSE = url.searchParams.get('sse') === 'true';
     const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
+    const graphType = url.searchParams.get('type'); // 'current', 'base', or undefined for default
     const accept = (req.headers.get('accept') || '').toLowerCase();
     const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
@@ -88,8 +89,12 @@ export async function GET(req: NextRequest) {
       // Always try to load from file first to ensure we have the latest data
       let graph = getGraphSession();
       if (!graph) {
-        await loadGraphFromFile(user.id);
-        graph = getGraphSession();
+        if (graphType === 'base') {
+          graph = await loadBaseGraphFromFile(user.id);
+        } else {
+          await loadGraphFromFile(user.id);
+          graph = getGraphSession();
+        }
       }
       
       if (!graph) {
@@ -118,8 +123,12 @@ export async function GET(req: NextRequest) {
     // Always try to load from file first to ensure we have the latest data
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile(user.id);
-      graph = getGraphSession();
+      if (graphType === 'base') {
+        graph = await loadBaseGraphFromFile(user.id);
+      } else {
+        await loadGraphFromFile(user.id);
+        graph = getGraphSession();
+      }
     }
     
     if (!graph) {
@@ -229,6 +238,8 @@ export async function PUT(req: NextRequest) {
     const user = session?.user || { id: 'default-user' };
     
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
+    const url = new URL(req.url);
+    const graphType = url.searchParams.get('type'); // 'current', 'base', or undefined for default
     let graph: any;
     if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
       const text = await req.text();
@@ -239,12 +250,16 @@ export async function PUT(req: NextRequest) {
     }
     if (!graph) return NextResponse.json({ error: 'Graph data is required' }, { status: 400 });
 
-    console.log(`💾 Saving graph for user ${user.id}...`);
-    
-    // Store the graph using the storage function
-    await storeGraph(graph, user.id);
+    console.log(`💾 Saving ${graphType || 'current'} graph for user ${user.id}...`);
 
-    console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes`);
+    // Store the graph using the appropriate storage function
+    if (graphType === 'base') {
+      await storeBaseGraph(graph, user.id);
+      console.log(`✅ Base graph saved successfully with ${graph.nodes?.length || 0} nodes`);
+    } else {
+      await storeCurrentGraph(graph, user.id);
+      console.log(`✅ Current graph saved successfully with ${graph.nodes?.length || 0} nodes`);
+    }
 
     return NextResponse.json({ success: true, message: 'Graph saved successfully' });
   } catch (error) {

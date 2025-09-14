@@ -9,7 +9,7 @@ type JobStatus = 'queued'|'running'|'completed'|'failed'|'cancelled';
 type JobRecord = {
   id: string;
   user_id?: string;
-  job_name: 'run'|'terminate';
+  job_name: 'run'|'terminate'|'build-graph';
   status: JobStatus;
   priority: number;
   payload?: any;
@@ -72,7 +72,7 @@ export class LocalJobWorker extends EventEmitter {
     this.writeJobs(jobs);
     this.running = true;
     try {
-      if (job.job_name === 'run') await this.handleRun(job);
+      if (job.job_name === 'run' || job.job_name === 'build-graph') await this.handleRun(job);
       else if (job.job_name === 'terminate') await this.handleTerminate(job);
       const done = this.readJobs();
       const di = done.findIndex(j => j.id === job.id);

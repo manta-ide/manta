@@ -54,7 +54,7 @@ export class CodexProvider implements Provider {
 
     // Determine model based on job kind
     const jobKind = (opts.jobKind || '').toLowerCase();
-    const model_reasoning_effort = jobKind === 'build-nodes' ? 'medium' : 'low';
+    const model_reasoning_effort = (jobKind === 'build-nodes' || jobKind === 'graph-builder') ? 'medium' : 'low';
     // eslint-disable-next-line no-console
     console.error(`[manta-cli] jobKind=${jobKind}, model_reasoning_effort=${model_reasoning_effort}`);
 
@@ -91,7 +91,7 @@ export class CodexProvider implements Provider {
       const projectDir = opts.cwd || process.cwd();
       envMap.MANTA_PROJECT_DIR = String(process.env.MANTA_PROJECT_DIR || projectDir);
       // Select MCP toolset based on job kind (graph-editor vs read-only)
-      envMap.MANTA_MCP_TOOLSET = jobKind === 'graph-editor' ? 'graph-editor' : 'read-only';
+      envMap.MANTA_MCP_TOOLSET = (jobKind === 'graph-editor' || jobKind === 'graph-builder') ? 'graph-editor' : 'read-only';
       if (process.env.MANTA_API_KEY) envMap.MANTA_API_KEY = process.env.MANTA_API_KEY as string;
       // eslint-disable-next-line no-console
       console.error(`[manta-cli] MCP env plan: MANTA_API_URL=${envMap.MANTA_API_URL}, MANTA_MCP_TOOLSET=${envMap.MANTA_MCP_TOOLSET}, MANTA_API_KEY=${envMap.MANTA_API_KEY ? '[set]' : '[unset]'}`);
@@ -165,7 +165,7 @@ export class CodexProvider implements Provider {
     if ((cfg as any).mantaApiUrl && !env.MANTA_API_URL) env.MANTA_API_URL = (cfg as any).mantaApiUrl;
     if ((cfg as any).mantaApiKey && !env.MANTA_API_KEY) env.MANTA_API_KEY = (cfg as any).mantaApiKey;
     // Optionally mirror toolset into the env we pass to Codex (informational; MCP still gets it via --config)
-    if (!env.MANTA_MCP_TOOLSET) env.MANTA_MCP_TOOLSET = (jobKind === 'graph-editor' ? 'graph-editor' : 'read-only') as any;
+    if (!env.MANTA_MCP_TOOLSET) env.MANTA_MCP_TOOLSET = ((jobKind === 'graph-editor' || jobKind === 'graph-builder') ? 'graph-editor' : 'read-only') as any;
     try {
       const localBin = path.resolve(opts.cwd || process.cwd(), 'node_modules', '.bin');
       if (fs.existsSync(localBin)) {
