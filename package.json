@@ -29,10 +29,12 @@
     "prepublishOnly": "npm run build:all"
   },
   "dependencies": {
+    "@blaxel/core": "^0.2.38",
     "@headless-tree/core": "^1.2.1",
     "@headless-tree/react": "^1.2.1",
     "@internationalized/date": "^3.8.2",
     "@modelcontextprotocol/sdk": "^1.17.5",
+    "@monaco-editor/react": "^4.7.0",
     "@oclif/core": "^3.26.6",
     "@origin-space/image-cropper": "^0.1.9",
     "@radix-ui/react-scroll-area": "^1.2.10",
