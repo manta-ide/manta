@@ -29,9 +29,9 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     console.log('🔑 Claude Code: ANTHROPIC_API_KEY present:', !!apiKey);
 
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable is required');
-    }
+    // if (!apiKey) {
+    //   throw new Error('ANTHROPIC_API_KEY environment variable is required');
+    // }
 
     // Get base URL for MCP server tools
     const baseUrl = getBaseUrl(req);

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="252.21573271021535" y="-159.90362614970806" z="0">
+    <node id="app" title="Simple App" x="-28.680975513766327" y="-336.59671680672875" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
       <state status="active">
         <build status="built"/>
@@ -37,46 +37,38 @@
       </props>
     </node>
 
-    <node id="test-node-1" title="Simple Test Node" x="255.71022728065319" y="227.22600464312612" z="0">
-      <description>This is a simple test node for demonstration purposes</description>
-      <state status="active">
-        <build status="built"/>
-      </state>
-      <props>
-        <prop name="test-text" title="Test Text" type="text">Hello World</prop>
-        <prop name="test-number" title="Test Number" type="number">42</prop>
-      </props>
-    </node>
-
-    <node id="test-node-123" title="test-node-123" x="-128.53996480725309" y="-193.2860211546102" z="0">
-      <description>A test node with ID test-node-123</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-    </node>
-
-    <node id="test-node-321" title="Test Node 321" x="0" y="0" z="0">
-      <description>A test node with ID test-node-321</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-    </node>
-
-    <node id="test-color-node" title="Test Color Node" x="-66.65823527798258" y="248.96001560244466" z="0">
-      <description>A test node demonstrating various color properties</description>
+    <node id="user-reviews-section" title="User Reviews Section" x="-21.41986742585013" y="71.0042107639761" z="0">
+      <description>Create a section that displays user reviews and testimonials. This section should showcase feedback from users, including ratings, comments, and user information. It should be visually appealing and help build trust with potential users.</description>
       <state status="active">
         <build status="unbuilt"/>
       </state>
       <props>
-        <prop name="primary-color" title="Primary Color" type="color">#3b82f6</prop>
-        <prop name="secondary-color" title="Secondary Color" type="color">#ef4444</prop>
-        <prop name="accent-color" title="Accent Color" type="color">#10b981</prop>
-        <prop name="background-color" title="Background Color" type="color">#f3f4f6</prop>
+        <prop name="section-title" title="Section Title" type="text">What Our Users Say</prop>
+        <prop name="review-layout" title="Review Layout" type="select">
+          <value>grid</value>
+          <options>
+          <option>grid</option>
+          <option>carousel</option>
+          <option>list</option>
+          </options>
+        </prop>
+        <prop name="max-reviews" title="Maximum Reviews to Show" type="number">6</prop>
+        <prop name="show-ratings" title="Show Star Ratings" type="boolean">true</prop>
+        <prop name="show-avatars" title="Show User Avatars" type="boolean">true</prop>
+        <prop name="review-source" title="Review Source" type="select">
+          <value>internal</value>
+          <options>
+          <option>internal</option>
+          <option>google</option>
+          <option>trustpilot</option>
+          <option>mixed</option>
+          </options>
+        </prop>
       </props>
     </node>
   </nodes>
 
   <edges>
-
+    <edge id="app-user-reviews-section" source="app" target="user-reviews-section" role="links-to"/>
   </edges>
 </graph>

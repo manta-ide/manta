@@ -6,8 +6,6 @@ import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { EDIT_GRAPH_TOOLS } from '@/app/api/lib/claude-code-utils';
-import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
-import '@/app/api/lib/prompts/registry';
 
 // No longer using template-based approach - using system prompt in Claude Code
 
@@ -99,30 +97,35 @@ export async function POST(req: NextRequest) {
       REBUILD_ALL: rebuildAll ? '1' : '',
     };
 
-    // Get the system message template
-    const systemMessageTemplate = await getTemplate('graph-editor-template');
-    const systemMessageVariables = {
-      USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
-      SELECTED_NODE_ID: selectedNodeId || userMessage.variables?.SELECTED_NODE_ID || '',
-      SELECTED_NODE_TITLE: selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE || '',
-      SELECTED_NODE_PROMPT: selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT || '',
-      GRAPH_DATA: JSON.stringify(graph, null, 2),
-    };
-    const appendSystemMessage = parseMessageWithTemplate(systemMessageTemplate, systemMessageVariables);
+    // Hardcoded system message for graph editor
+    const appendSystemMessage = `You are a graph editor agent.
 
-    // Create a prompt that encourages Claude Code to use graph tools
-    const userRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
-    const prompt = `${userRequest}
+Rules:
+- Use unique IDs for all nodes
+- Never edit source code - graph changes only
+- Delete template nodes if request requires different structure
+- Create CMS-style properties when possible (colors, text, numbers, booleans, selects)
+- Set new nodes to "unbuilt" state
 
-You have access to graph modification tools:
-- graph_read: Read the current graph
-- graph_node_add: Add new nodes to the graph
-- graph_node_edit: Edit existing nodes
-- graph_node_delete: Delete nodes from the graph
-- graph_edge_create: Create connections between nodes
-- graph_node_set_state: Change node states
+Tools: graph_read, graph_node_add, graph_node_edit, graph_node_delete, graph_edge_create
 
-Please use these tools as needed to fulfill the request.`;
+Keep responses brief. Complete all changes in one operation.`;
+
+    // Build user prompt simply
+    const baseUserRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
+    let prompt = baseUserRequest;
+
+    // Add selected node info if available
+    if (selectedNodeId || userMessage.variables?.SELECTED_NODE_ID) {
+      const nodeTitle = selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE || 'Unknown';
+      const nodeId = selectedNodeId || userMessage.variables?.SELECTED_NODE_ID || '';
+      const nodePrompt = selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT;
+
+      prompt += `\n\nSelected Node: ${nodeTitle} (ID: ${nodeId})`;
+      if (nodePrompt) {
+        prompt += `\nPrompt: ${nodePrompt}`;
+      }
+    }
 
     console.log('🔧 Edit-graph: Generated prompt length:', prompt.length);
     console.log('🔧 Edit-graph: System message length:', appendSystemMessage.length);
@@ -134,7 +137,7 @@ Please use these tools as needed to fulfill the request.`;
       body: JSON.stringify({
         prompt,
         allowedTools: EDIT_GRAPH_TOOLS,
-        //appendSystemMessage,
+        appendSystemMessage,
         authHeaders: {
           ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
           ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),

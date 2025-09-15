@@ -31,23 +31,6 @@ function load(file: string): string {
 // Register all known templates. The names must match those used by getTemplate callers.
 console.log('📝 Registering templates...');
 
-registerTemplate('user-prompt-template', `{{#SELECTION}}
-User selected an area: {{SELECTION_WIDTH}}×{{SELECTION_HEIGHT}} at position ({{SELECTION_X}}, {{SELECTION_Y}}).
-Selected elements are: {{SELECTION_ELEMENTS}}
-Use coverage as weight, so try to understand which element was truly selected and edit only it.
-
-{{/SELECTION}}
-
-{{#CURRENT_FILE}}
-- Currently selected file: {{CURRENT_FILE}}
-{{/CURRENT_FILE}}
-{{USER_REQUEST}}`);
-
-registerTemplate('assistant-prompt-template', `{{#ASSISTANT_RESPONSE}}
-{{ASSISTANT_RESPONSE}}
-{{/ASSISTANT_RESPONSE}}
-`);
-
 registerTemplate('graph-editor-template', load('graph-editor-template.txt'));
 registerTemplate('build-graph-template', load('build-graph-template.txt'));
 registerTemplate('build-nodes-template', load('build-nodes-template.txt'));

@@ -1,8 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { graphToXml } from '@/lib/graph-xml';
-import '@/app/api/lib/prompts/registry';
 import { MessageSchema } from '@/app/api/lib/schemas';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
@@ -64,17 +62,40 @@ export async function POST(req: NextRequest) {
     // Set the current graph for the agent to work with
     await setCurrentGraph(currentGraph);
 
-    // Get the system message template
-    const systemMessageTemplate = await getTemplate('build-graph-template');
-    const systemMessageVariables = {
-      USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
-      PROJECT_FILES: [],
-      GRAPH_CONTEXT: JSON.stringify(currentGraph, null, 2),
-      MAX_NODES: '50',
-    } as Record<string, any>;
-    const appendSystemMessage = parseMessageWithTemplate(systemMessageTemplate, systemMessageVariables);
+    // Build system message simply
+    const maxNodes = 50;
+    const appendSystemMessage = `You are a graph builder agent.
 
-    // Create a prompt that encourages Claude Code to use graph tools
+Goal: Create or modify graph nodes based on the user request.
+
+Rules:
+- Read the graph to check existence; never duplicate nodes.
+- Change only what the user asks; keep other parts unchanged.
+- Do not edit any source code while creating or updating the graph; code changes are handled by a separate build agent.
+- Use simple IDs (e.g., "header", "hero", "footer").
+- Property IDs must be globally unique and prefixed per node.
+- For nested object fields, use dot notation: e.g., "root-styles.background-color".
+- Size properties use select options from a fixed scale.
+- When structure or prompts change, set node state to "unbuilt" (never set to "built").
+- For any images set them as text (image URL) and link to placeholder images.
+- If you start from template (simple app node) - then you can delete it if the request requires something different.
+- Make sure to properly structure the nodes, so the sections of a website or components should be different nodes.
+- Do not create components that are not in the schema.
+- For any lists use object-list.
+- Limit to ${maxNodes} nodes maximum.
+
+Available Tools:
+- graph_read(nodeId?)
+- graph_node_add(parentId?, nodeId, title, prompt, properties?, children?)
+- graph_node_edit(nodeId, mode?, title?, prompt?, properties?, children?, state?)
+- graph_node_delete(nodeId, recursive?)
+- graph_edge_create(sourceId, targetId, role?)
+
+Output: Short, single-sentence status updates during work. End with one concise summary sentence.
+
+This is a Vite project using TypeScript and Tailwind CSS. Complete the entire structure in one operation.`;
+
+    // Build user prompt simply
     const userRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
     const prompt = `${userRequest}
 
@@ -86,6 +107,9 @@ You have access to graph modification tools:
 
 Please use these tools as needed to fulfill the request.`;
 
+    // Use system message directly (already has variables interpolated)
+    const finalSystemMessage = appendSystemMessage;
+
     // Call Claude Code API endpoint
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
@@ -93,7 +117,7 @@ Please use these tools as needed to fulfill the request.`;
       body: JSON.stringify({
         prompt,
         allowedTools: BUILD_GRAPH_TOOLS,
-        appendSystemMessage,
+        appendSystemMessage: finalSystemMessage,
         authHeaders: {
           ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
           ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
