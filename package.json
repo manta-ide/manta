@@ -96,7 +96,22 @@
     "manta-mcp": "^0.1.2"
   },
   "files": [
-    "packages/manta/dist",
+    "packages/manta/dist/bin.js",
+    "packages/manta/dist/commands",
+    "packages/manta/dist/config",
+    "packages/manta/dist/editor/.next/server",
+    "packages/manta/dist/editor/.next/static",
+    "packages/manta/dist/editor/.next/app-build-manifest.json",
+    "packages/manta/dist/editor/.next/app-path-routes-manifest.json",
+    "packages/manta/dist/editor/.next/BUILD_ID",
+    "packages/manta/dist/editor/.next/build-manifest.json",
+    "packages/manta/dist/editor/.next/package.json",
+    "packages/manta/dist/editor/public",
+    "packages/manta/dist/editor/server.mjs",
+    "packages/manta/dist/index.js",
+    "packages/manta/dist/jobs",
+    "packages/manta/dist/providers",
+    "packages/manta/README.md",
     "README.md"
   ]
 }
