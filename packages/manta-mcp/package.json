@@ -1,6 +1,6 @@
 {
   "name": "manta-mcp",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "type": "module",
   "bin": {
     "manta-mcp": "dist/index.js"

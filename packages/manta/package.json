@@ -1,6 +1,6 @@
 {
   "name": "manta-cli",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Manta CLI: provider proxy + job worker with Codex and MCP integration",
   "type": "module",
   "private": true,
