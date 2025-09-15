@@ -173,6 +173,7 @@ useEffect(() => {
 
       if (contentType.includes('text/plain') || contentType.includes('text/event-stream')) {
         console.log('🎯 Chat Service: Starting streaming response handling');
+        console.log('🎯 Chat Service: Response headers:', Object.fromEntries(response.headers.entries()));
 
         // Handle streaming LLM response
         const reader = response.body?.getReader();
@@ -185,6 +186,8 @@ useEffect(() => {
 
           console.log('📖 Chat Service: Reader available, starting to read');
 
+          try {
+
           while (true) {
             const { value, done } = await reader.read();
             if (done) {
@@ -192,8 +195,12 @@ useEffect(() => {
               break;
             }
 
+            const chunkSize = value.length;
+            console.log(`📦 Chat Service: Received chunk of ${chunkSize} bytes`);
+
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
+            console.log(`📦 Chat Service: Buffer now ${buffer.length} chars, split into ${lines.length} lines`);
 
             // Keep the last incomplete line in buffer
             buffer = lines.pop() || '';
@@ -201,10 +208,47 @@ useEffect(() => {
             for (const line of lines) {
               if (line.trim()) {
                 chunkCount++;
-                // Accumulate the content
-                accumulatedContent += line;
+                // Accumulate the content (handle both plain text and potential JSON)
+                let chunkContent = line;
 
-                console.log(`📝 Chat Service: Chunk ${chunkCount}, length: ${line.length}, total: ${accumulatedContent.length}, content: "${line.slice(0, 100)}${line.length > 100 ? '...' : ''}"`);
+                // Check if this is SSE format (data: prefix)
+                if (line.startsWith('data: ')) {
+                  const dataPart = line.substring(6).trim(); // Remove 'data: ' prefix
+                  try {
+                    const parsed = JSON.parse(dataPart);
+                    if (parsed.content) {
+                      chunkContent = parsed.content;
+                    } else if (parsed.error) {
+                      chunkContent = `Error: ${parsed.error}`;
+                    } else {
+                      // Handle control messages like [STREAM_START], [STREAM_END]
+                      chunkContent = '';
+                    }
+                  } catch {
+                    // Not JSON, use as plain text
+                    chunkContent = dataPart;
+                  }
+                } else {
+                  // Handle plain text (non-SSE format)
+                  try {
+                    const parsed = JSON.parse(line);
+                    if (parsed.content) {
+                      chunkContent = parsed.content;
+                    } else if (parsed.error) {
+                      chunkContent = `Error: ${parsed.error}`;
+                    }
+                  } catch {
+                    // Not JSON, use as plain text
+                    chunkContent = line;
+                  }
+                }
+
+                // Only accumulate actual content, skip empty chunks
+                if (chunkContent.trim()) {
+                  accumulatedContent += chunkContent;
+                }
+
+                console.log(`📝 Chat Service: Chunk ${chunkCount}, raw: "${line.slice(0, 50)}${line.length > 50 ? '...' : ''}", processed: "${chunkContent.slice(0, 50)}${chunkContent.length > 50 ? '...' : ''}", total: ${accumulatedContent.length}`);
 
                 // Update the UI with the accumulated content (throttled to reduce updates)
                 setMessages((prev) => {
@@ -226,13 +270,92 @@ useEffect(() => {
               }
             }
           }
+          // Process any leftover buffer content that didn't end with a newline
+          if (buffer && buffer.trim().length > 0) {
+            let finalChunk = buffer;
+            if (buffer.startsWith('data: ')) {
+              const dataPart = buffer.substring(6).trim();
+              try {
+                const parsed = JSON.parse(dataPart);
+                if (parsed.content) {
+                  finalChunk = parsed.content;
+                } else if (parsed.error) {
+                  finalChunk = `Error: ${parsed.error}`;
+                } else {
+                  finalChunk = '';
+                }
+              } catch {
+                finalChunk = dataPart;
+              }
+            } else {
+              try {
+                const parsed = JSON.parse(buffer);
+                if (parsed.content) {
+                  finalChunk = parsed.content;
+                } else if (parsed.error) {
+                  finalChunk = `Error: ${parsed.error}`;
+                }
+              } catch {
+                finalChunk = buffer;
+              }
+            }
+            if (finalChunk.trim().length > 0) {
+              accumulatedContent += finalChunk;
+              // Push a final UI update with leftover content
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === 'assistant') {
+                  updated[updated.length - 1] = {
+                    ...last,
+                    content: accumulatedContent,
+                    variables: {
+                      ...(last as any).variables,
+                      HAD_STREAMING: '1',
+                      ASSISTANT_RESPONSE: accumulatedContent
+                    }
+                  } as any;
+                }
+                return updated;
+              });
+            }
+          }
+          } catch (streamError) {
+            console.error('❌ Chat Service: Streaming error:', streamError);
+            // Fallback: try to read the entire response as text
+            try {
+              console.log('🔄 Chat Service: Attempting fallback to read entire response');
+              const fullResponse = await response.text();
+              console.log('📄 Chat Service: Fallback response length:', fullResponse.length);
+              accumulatedContent = fullResponse;
+            } catch (fallbackError) {
+              console.error('❌ Chat Service: Fallback also failed:', fallbackError);
+              accumulatedContent = 'Error: Failed to read response';
+            }
+          }
         } else {
-          console.log('❌ Chat Service: No reader available');
+          console.log('❌ Chat Service: No reader available for streaming');
+          // Fallback: try to read the entire response as text
+          try {
+            console.log('🔄 Chat Service: Attempting fallback to read entire response');
+            const fullResponse = await response.text();
+            console.log('📄 Chat Service: Fallback response length:', fullResponse.length);
+            accumulatedContent = fullResponse;
+          } catch (fallbackError) {
+            console.error('❌ Chat Service: Fallback also failed:', fallbackError);
+            accumulatedContent = 'Error: Failed to read response';
+          }
         }
 
         // Final update with completion status
         console.log('✅ Chat Service: Final update - accumulated content length:', accumulatedContent.length);
         console.log('📄 Chat Service: Final content preview:', accumulatedContent.slice(0, 200) + (accumulatedContent.length > 200 ? '...' : ''));
+
+        // Check if content is empty and provide a meaningful fallback
+        if (!accumulatedContent || accumulatedContent.trim().length === 0) {
+          console.log('⚠️ Chat Service: Accumulated content is empty, using fallback');
+          accumulatedContent = 'I processed your request but received no response content.';
+        }
 
         setMessages((prev) => {
           const updated = [...prev];
@@ -240,12 +363,12 @@ useEffect(() => {
           if (last && last.role === 'assistant') {
             updated[updated.length - 1] = {
               ...last,
-              content: accumulatedContent || 'Response completed',
+              content: accumulatedContent,
               variables: {
                 ...(last as any).variables,
                 HAD_STREAMING: '1',
                 STREAM_COMPLETE: '1',
-                ASSISTANT_RESPONSE: accumulatedContent || 'Response completed'
+                ASSISTANT_RESPONSE: accumulatedContent
               }
             } as any;
           }
@@ -254,21 +377,30 @@ useEffect(() => {
           saveChatHistory(updated);
           return updated;
         });
+
+        // Set loading to false to hide "Thinking..." indicator
+        setLoading(false);
       } else {
         // Non-streaming JSON response
+        console.log('📄 Chat Service: Handling non-streaming JSON response');
         const result = await response.json();
-        
+        console.log('📄 Chat Service: JSON result:', result);
+
+        const content = result.message || result.result?.content || 'Processing completed.';
+        console.log('📄 Chat Service: Using content:', content);
+
         const updatedMessages = [...newMessagesWithAssistant];
         const lastMessage = updatedMessages[updatedMessages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           updatedMessages[updatedMessages.length - 1] = {
             ...lastMessage,
-            content: result.message || result.result?.content || 'Request completed successfully',
-            variables: { ASSISTANT_RESPONSE: result.message || result.result?.content || 'Request completed successfully' }
+            content: content,
+            variables: { ASSISTANT_RESPONSE: content }
           } as any;
         }
         setMessages(updatedMessages);
         await saveChatHistory(updatedMessages);
+        setLoading(false);
       }
 
       // Clear selection if it was valid and used

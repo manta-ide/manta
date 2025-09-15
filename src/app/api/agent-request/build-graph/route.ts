@@ -1,111 +1,21 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import path from 'path';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { graphToXml } from '@/lib/graph-xml';
 import '@/app/api/lib/prompts/registry';
-import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
+import { MessageSchema } from '@/app/api/lib/schemas';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
-import { getDevProjectDir } from '@/lib/project-config';
-
-// Prompt templates for graph building
-const GRAPH_BUILD_PROMPT_TEMPLATES = {
-  user: 'user-prompt-template',
-  assistant: 'assistant-prompt-template',
-  system: 'build-graph-template', // New template for graph building
-} as const;
-
-const GraphDiffSchema = z.object({
-  changes: z.array(z.object({
-    type: z.enum(['node-added', 'node-modified', 'node-deleted', 'edge-added', 'edge-deleted']),
-    node: z.any().optional(),
-    nodeId: z.string().optional(),
-    oldNode: z.any().optional(),
-    newNode: z.any().optional(),
-    edge: z.any().optional(),
-  })).optional(),
-});
+import { BUILD_GRAPH_TOOLS } from '@/app/api/lib/claude-code-utils';
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
-  graphDiff: GraphDiffSchema,
+  graphDiff: z.any().optional(),
   currentGraph: z.any(),
 });
 
-async function buildParsedMessages(
-  req: NextRequest,
-  userMessage: Message,
-  promptTemplates: Record<'system' | 'user' | 'assistant', string>,
-  extraVariables?: Record<string, unknown>
-): Promise<ParsedMessage[]> {
-  const systemMessage = await createSystemMessage();
-  // Load chat history from database for the authenticated user
-  let chatHistory: Message[] = [];
-  try {
-    const chatRes = await fetch(`${req.nextUrl.origin}/api/chat`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
-        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
-      },
-      signal: req.signal,
-    });
-    if (chatRes.ok) {
-      const data = await chatRes.json();
-      if (Array.isArray(data?.chatHistory)) {
-        chatHistory = data.chatHistory as Message[];
-      }
-    }
-  } catch {}
-  // Prefer DB history (already includes current userMessage saved by client) but ensure it's present
-  const all = chatHistory.length > 0 ? chatHistory : [userMessage];
-  const allMessages = [systemMessage, ...all];
 
-  const parsed: ParsedMessage[] = await Promise.all(
-    allMessages.map(async (message) => {
-      const template = await getTemplate(promptTemplates[message.role]);
-      const validatedVariables = MessageVariablesSchema.parse({
-        ...(message.variables || {}),
-        ...(extraVariables || {}),
-      });
-      const content = parseMessageWithTemplate(template, validatedVariables);
-      return { role: message.role, content };
-    })
-  );
-  return parsed;
-}
-
-// Local system message generator
-async function createSystemMessage(): Promise<Message> {
-  return {
-    role: 'system',
-    variables: {
-      PROJECT_FILES: [],
-      GRAPH_CONTEXT: '',
-      MAX_NODES: '50', // Higher limit for graph builds
-    },
-    content: '',
-  };
-}
-
-// Direct Claude Code execution utilities
-const projectDir = () => {
-  // Use the configured development project directory
-  try {
-    const devProjectDir = getDevProjectDir();
-    if (require('fs').existsSync(devProjectDir)) {
-      return devProjectDir;
-    }
-  } catch (error) {
-    console.warn('Failed to get dev project directory, falling back to current directory:', error);
-  }
-
-  // Fallback to current directory if dev project directory doesn't exist
-  return process.cwd();
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -154,38 +64,41 @@ export async function POST(req: NextRequest) {
     // Set the current graph for the agent to work with
     await setCurrentGraph(currentGraph);
 
-    // Prepare variables for the prompt template (no graph data or diff sent)
-    const variables = {
-      // Graph data and diff will be read by the agent using MCP tools
-    };
-
-    // Build the system message with graph context
-    const systemMessage = await createSystemMessage();
-    systemMessage.variables = {
-      ...systemMessage.variables,
-      GRAPH_CONTEXT: JSON.stringify(currentGraph, null, 2),
-    };
-
-    const parsedMessages = await buildParsedMessages(
-      req,
-      userMessage,
-      GRAPH_BUILD_PROMPT_TEMPLATES,
-      variables
-    );
-
-    // Build a single prompt from template for the CLI provider
-    const template = await getTemplate('build-graph-template');
-    const templateVariables = {
-      ...variables,
+    // Get the system message template
+    const systemMessageTemplate = await getTemplate('build-graph-template');
+    const systemMessageVariables = {
       USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
+      PROJECT_FILES: [],
+      GRAPH_CONTEXT: JSON.stringify(currentGraph, null, 2),
+      MAX_NODES: '50',
     } as Record<string, any>;
-    const prompt = parseMessageWithTemplate(template, templateVariables);
+    const appendSystemMessage = parseMessageWithTemplate(systemMessageTemplate, systemMessageVariables);
+
+    // Create a prompt that encourages Claude Code to use graph tools
+    const userRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
+    const prompt = `${userRequest}
+
+You have access to graph modification tools:
+- graph_read: Read the current graph
+- graph_node_add: Add new nodes to the graph
+- graph_node_edit: Edit existing nodes
+- graph_node_set_state: Change node states
+
+Please use these tools as needed to fulfill the request.`;
 
     // Call Claude Code API endpoint
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({
+        prompt,
+        allowedTools: BUILD_GRAPH_TOOLS,
+        appendSystemMessage,
+        authHeaders: {
+          ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+          ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+        }
+      }),
     });
 
     if (!response.ok) {

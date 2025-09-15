@@ -48,9 +48,7 @@ registerTemplate('assistant-prompt-template', `{{#ASSISTANT_RESPONSE}}
 {{/ASSISTANT_RESPONSE}}
 `);
 
-// Graph editor template is now handled via system prompt in Claude Code, not template
-console.log('📝 Graph editor uses system prompt in Claude Code, not template file');
-
+registerTemplate('graph-editor-template', load('graph-editor-template.txt'));
 registerTemplate('build-graph-template', load('build-graph-template.txt'));
 registerTemplate('build-nodes-template', load('build-nodes-template.txt'));
 

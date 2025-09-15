@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import path from 'path';
 import { graphToXml } from '@/lib/graph-xml';
 import { Message, MessageSchema } from '@/app/api/lib/schemas';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
-import { getDevProjectDir } from '@/lib/project-config';
+import { EDIT_GRAPH_TOOLS } from '@/app/api/lib/claude-code-utils';
+import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
+import '@/app/api/lib/prompts/registry';
 
 // No longer using template-based approach - using system prompt in Claude Code
 
@@ -25,21 +26,6 @@ const RequestSchema = z.object({
 
 // Removed createSystemMessage - now using system prompt in Claude Code
 
-// Direct Claude Code execution utilities
-const projectDir = () => {
-  // Use the configured development project directory
-  try {
-    const devProjectDir = getDevProjectDir();
-    if (require('fs').existsSync(devProjectDir)) {
-      return devProjectDir;
-    }
-  } catch (error) {
-    console.warn('Failed to get dev project directory, falling back to current directory:', error);
-  }
-
-  // Fallback to current directory if dev project directory doesn't exist
-  return process.cwd();
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -113,20 +99,47 @@ export async function POST(req: NextRequest) {
       REBUILD_ALL: rebuildAll ? '1' : '',
     };
 
-    // Create simple user prompt for Claude Code (system prompt is handled in Claude Code)
-    const userPrompt = userMessage.content || userMessage.variables?.USER_REQUEST || '';
+    // Get the system message template
+    const systemMessageTemplate = await getTemplate('graph-editor-template');
+    const systemMessageVariables = {
+      USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
+      SELECTED_NODE_ID: selectedNodeId || userMessage.variables?.SELECTED_NODE_ID || '',
+      SELECTED_NODE_TITLE: selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE || '',
+      SELECTED_NODE_PROMPT: selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT || '',
+      GRAPH_DATA: JSON.stringify(graph, null, 2),
+    };
+    const appendSystemMessage = parseMessageWithTemplate(systemMessageTemplate, systemMessageVariables);
 
-    console.log('🔧 Edit-graph: User prompt:', userPrompt);
-    console.log('🔧 Edit-graph: User prompt length:', userPrompt.length);
+    // Create a prompt that encourages Claude Code to use graph tools
+    const userRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
+    const prompt = `${userRequest}
 
-    // Use the user message directly as the prompt
-    const prompt = userPrompt;
+You have access to graph modification tools:
+- graph_read: Read the current graph
+- graph_node_add: Add new nodes to the graph
+- graph_node_edit: Edit existing nodes
+- graph_node_delete: Delete nodes from the graph
+- graph_edge_create: Create connections between nodes
+- graph_node_set_state: Change node states
+
+Please use these tools as needed to fulfill the request.`;
+
+    console.log('🔧 Edit-graph: Generated prompt length:', prompt.length);
+    console.log('🔧 Edit-graph: System message length:', appendSystemMessage.length);
 
     // Call Claude Code API endpoint
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({
+        prompt,
+        allowedTools: EDIT_GRAPH_TOOLS,
+        //appendSystemMessage,
+        authHeaders: {
+          ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
+          ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
+        }
+      }),
     });
 
     if (!response.ok) {
@@ -235,7 +248,8 @@ export async function POST(req: NextRequest) {
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           const enc = new TextEncoder();
-          controller.enqueue(enc.encode(result));
+          // Append a newline to ensure downstream line-based parsers process the final chunk
+          controller.enqueue(enc.encode(result + "\n"));
           controller.close();
         }
       });
