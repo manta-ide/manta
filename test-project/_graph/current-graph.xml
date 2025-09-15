@@ -66,6 +66,13 @@
         </prop>
       </props>
     </node>
+
+    <node id="test-node" title="Test Node" x="100" y="100" z="0">
+      <description>This is a test node for demonstration purposes</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+    </node>
   </nodes>
 
   <edges>

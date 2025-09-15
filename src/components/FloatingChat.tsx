@@ -361,7 +361,7 @@ export default function FloatingChat() {
 
       {/* Messages */}
       <div className="max-h-[60vh] overflow-y-auto p-3 pb-2 space-y-2">
-        {loadingHistory && (
+        {loadingHistory && messages.length > 0 && (
           <div className="w-full">
             <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
               <ShimmeringText

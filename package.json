@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:ide": "NODE_ENV=development next dev --turbopack",
+    "dev:ide": "next dev --turbopack",
     "dev:app": "cd test-project && npm run dev -- --port 3001",
     "build:app": "cd test-project && npm run build",
     "start:app": "cd test-project && npm run preview -- --port 3001",
