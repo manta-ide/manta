@@ -36,6 +36,17 @@
       </prop>
       </props>
     </node>
+
+    <node id="test-node-1" title="Simple Test Node" x="175.52724185962566" y="238.4666100759804" z="0">
+      <description>This is a simple test node for demonstration purposes</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="test-text" title="Test Text" type="text">Hello World</prop>
+        <prop name="test-number" title="Test Number" type="number">42</prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>

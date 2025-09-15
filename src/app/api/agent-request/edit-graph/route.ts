@@ -1,22 +1,14 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import path from 'path';
-import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { graphToXml } from '@/lib/graph-xml';
-import '@/app/api/lib/prompts/registry';
-import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@/app/api/lib/schemas';
-import { getGraphSession } from '@/app/api/lib/graph-service';
+import { Message, MessageSchema } from '@/app/api/lib/schemas';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { getDevProjectDir } from '@/lib/project-config';
 
-// Prompt templates for graph editing
-const GRAPH_EDIT_PROMPT_TEMPLATES = {
-  user: 'user-prompt-template',
-  assistant: 'assistant-prompt-template',
-  system: 'graph-editor-template', // Use graph editor template for node editing
-} as const;
+// No longer using template-based approach - using system prompt in Claude Code
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
@@ -29,70 +21,9 @@ const RequestSchema = z.object({
   rebuildAll: z.boolean().optional().default(false),
 });
 
-async function buildParsedMessages(
-  req: NextRequest,
-  userMessage: Message,
-  promptTemplates: Record<'system' | 'user' | 'assistant', string>,
-  extraVariables?: Record<string, unknown>
-): Promise<ParsedMessage[]> {
-  const systemMessage = await createSystemMessage();
-  // Load chat history from database for the authenticated user
-  let chatHistory: Message[] = [];
-  try {
-    const chatRes = await fetch(`${req.nextUrl.origin}/api/chat`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
-        ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
-      },
-      signal: req.signal,
-    });
-    if (chatRes.ok) {
-      const data = await chatRes.json();
-      if (Array.isArray(data?.chatHistory)) {
-        chatHistory = data.chatHistory as Message[];
-      }
-    }
-  } catch {}
-  // Prefer DB history (already includes current userMessage saved by client) but ensure it's present
-  const all = chatHistory.length > 0 ? chatHistory : [userMessage];
-  const allMessages = [systemMessage, ...all];
+// Removed buildParsedMessages - now using system prompt approach in Claude Code
 
-  const parsed: ParsedMessage[] = await Promise.all(
-    allMessages.map(async (message) => {
-      const template = await getTemplate(promptTemplates[message.role]);
-      const validatedVariables = MessageVariablesSchema.parse({
-        ...(message.variables || {}),
-        ...(extraVariables || {}),
-      });
-      const content = parseMessageWithTemplate(template, validatedVariables);
-      return { role: message.role, content };
-    })
-  );
-  return parsed;
-}
-
-// Local system message generator (no separate module)
-async function createSystemMessage(options?: { files?: string[] }): Promise<Message> {
-  const files = Array.isArray(options?.files) ? options!.files : [];
-  let graphContext = '';
-  try {
-    const graph = getGraphSession();
-    if (graph) graphContext = JSON.stringify(graph, null, 2);
-  } catch (error) {
-    console.warn('Failed to get graph from storage:', error);
-  }
-  return {
-    role: 'system',
-    variables: {
-      PROJECT_FILES: files,
-      GRAPH_CONTEXT: graphContext,
-      MAX_NODES: '5',
-    },
-    content: '',
-  };
-}
+// Removed createSystemMessage - now using system prompt in Claude Code
 
 // Direct Claude Code execution utilities
 const projectDir = () => {
@@ -182,20 +113,14 @@ export async function POST(req: NextRequest) {
       REBUILD_ALL: rebuildAll ? '1' : '',
     };
 
-    const parsedMessages = await buildParsedMessages(
-      req,
-      userMessage,
-      GRAPH_EDIT_PROMPT_TEMPLATES,
-      variables
-    );
+    // Create simple user prompt for Claude Code (system prompt is handled in Claude Code)
+    const userPrompt = userMessage.content || userMessage.variables?.USER_REQUEST || '';
 
-    // Build a single prompt from template for Claude Code
-    const template = await getTemplate('graph-editor-template');
-    const templateVariables = {
-      ...variables,
-      USER_REQUEST: userMessage.content || userMessage.variables?.USER_REQUEST || '',
-    } as Record<string, any>;
-    const prompt = process.env.CLI_CODEX_PROMPT || parseMessageWithTemplate(template, templateVariables);
+    console.log('🔧 Edit-graph: User prompt:', userPrompt);
+    console.log('🔧 Edit-graph: User prompt length:', userPrompt.length);
+
+    // Use the user message directly as the prompt
+    const prompt = userPrompt;
 
     // Call Claude Code API endpoint
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
@@ -210,6 +135,8 @@ export async function POST(req: NextRequest) {
 
     // If the response is already streaming, pass it through
     if (response.headers.get('content-type')?.includes('text/plain')) {
+      console.log('🔄 Edit-graph: Processing streaming response from Claude Code');
+
       // Create a new stream that processes the Server-Sent Events from Claude Code
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -220,16 +147,23 @@ export async function POST(req: NextRequest) {
 
           try {
             if (!reader) {
+              console.log('❌ Edit-graph: No reader available');
               controller.close();
               return;
             }
 
             let buffer = '';
             let hasStarted = false;
+            let totalContent = '';
+
+            console.log('🎬 Edit-graph: Starting stream processing');
 
             while (true) {
               const { value, done } = await reader.read();
-              if (done) break;
+              if (done) {
+                console.log('🏁 Edit-graph: Reader done, total content length:', totalContent.length);
+                break;
+              }
 
               buffer += decoder.decode(value, { stream: true });
               const lines = buffer.split('\n');
@@ -240,29 +174,35 @@ export async function POST(req: NextRequest) {
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6); // Remove 'data: ' prefix
+                  console.log('📦 Edit-graph: Received data:', data);
 
                   if (data === '[STREAM_START]') {
                     if (!hasStarted) {
                       hasStarted = true;
-                      // Send initial thinking indicator
-                      controller.enqueue(enc.encode('Thinking...\n'));
+                      console.log('🎯 Edit-graph: Stream started');
                     }
                   } else if (data === '[STREAM_END]') {
-                    // Send completion message
-                    controller.enqueue(enc.encode('\n\nProcessing completed successfully\n'));
+                    console.log('🏁 Edit-graph: Stream ended, total content:', totalContent);
                     controller.close();
                     return;
                   } else {
                     try {
                       const parsed = JSON.parse(data);
+                      console.log('📝 Edit-graph: Parsed content:', parsed);
+
                       if (parsed.content) {
                         // Stream the actual content
+                        totalContent += parsed.content;
+                        console.log('📤 Edit-graph: Sending content:', parsed.content);
                         controller.enqueue(enc.encode(parsed.content));
                       } else if (parsed.error) {
+                        console.log('❌ Edit-graph: Error in content:', parsed.error);
                         controller.enqueue(enc.encode(`\n\nError: ${parsed.error}\n`));
                       }
                     } catch (e) {
                       // If it's not JSON, treat as plain text
+                      console.log('📝 Edit-graph: Plain text content:', data);
+                      totalContent += data;
                       controller.enqueue(enc.encode(data + '\n'));
                     }
                   }
@@ -271,9 +211,10 @@ export async function POST(req: NextRequest) {
             }
 
             // Close if we finish without [STREAM_END]
+            console.log('🏁 Edit-graph: Stream completed without [STREAM_END]');
             controller.close();
           } catch (error) {
-            console.error('Streaming error:', error);
+            console.error('❌ Edit-graph: Streaming error:', error);
             controller.enqueue(enc.encode(`\n\nError: ${error instanceof Error ? error.message : String(error)}\n`));
             controller.close();
           }

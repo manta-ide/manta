@@ -72,6 +72,8 @@ useEffect(() => {
   }, []);
 
   const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNode?: boolean }) => {
+    console.log('🚀 Chat Service: sendMessage called with input:', input.slice(0, 100) + (input.length > 100 ? '...' : ''));
+
     if (!input.trim()) return;
 
     // Use context flags if provided, otherwise include everything
@@ -152,40 +154,59 @@ useEffect(() => {
 
     // Route: simple Q&A vs graph editing
     // Always use the full graph agent. It will decide whether to answer, read, or edit.
+    console.log('📡 Chat Service: Making request to /api/agent-request/edit-graph');
+
     const response = await fetch('/api/agent-request/edit-graph', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userMessage }),
     });
 
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.statusText}`);
-      }
+    console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));
 
-      const contentType = response.headers.get('Content-Type') || '';
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('Content-Type') || '';
+    console.log('📡 Chat Service: Content type detected:', contentType);
 
       if (contentType.includes('text/plain') || contentType.includes('text/event-stream')) {
+        console.log('🎯 Chat Service: Starting streaming response handling');
+
         // Handle streaming LLM response
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let accumulatedContent = '';
-        let isStreaming = false;
 
         if (reader) {
+          let buffer = '';
+          let chunkCount = 0;
+
+          console.log('📖 Chat Service: Reader available, starting to read');
+
           while (true) {
             const { value, done } = await reader.read();
-            if (done) break;
+            if (done) {
+              console.log('🏁 Chat Service: Reader done, final accumulated content length:', accumulatedContent.length);
+              break;
+            }
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(line => line.trim());
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+
+            // Keep the last incomplete line in buffer
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
-              const trimmedLine = line.trim();
-              if (trimmedLine) {
+              if (line.trim()) {
+                chunkCount++;
                 // Accumulate the content
-                accumulatedContent += trimmedLine;
+                accumulatedContent += line;
 
-                // Update the UI with the accumulated content
+                console.log(`📝 Chat Service: Chunk ${chunkCount}, length: ${line.length}, total: ${accumulatedContent.length}, content: "${line.slice(0, 100)}${line.length > 100 ? '...' : ''}"`);
+
+                // Update the UI with the accumulated content (throttled to reduce updates)
                 setMessages((prev) => {
                   const updated = [...prev];
                   const last = updated[updated.length - 1];
@@ -202,15 +223,17 @@ useEffect(() => {
                   }
                   return updated;
                 });
-
-                // Mark that we've started streaming
-                isStreaming = true;
               }
             }
           }
+        } else {
+          console.log('❌ Chat Service: No reader available');
         }
 
         // Final update with completion status
+        console.log('✅ Chat Service: Final update - accumulated content length:', accumulatedContent.length);
+        console.log('📄 Chat Service: Final content preview:', accumulatedContent.slice(0, 200) + (accumulatedContent.length > 200 ? '...' : ''));
+
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -227,6 +250,7 @@ useEffect(() => {
             } as any;
           }
           // Persist the complete final message
+          console.log('💾 Chat Service: Saving to database');
           saveChatHistory(updated);
           return updated;
         });

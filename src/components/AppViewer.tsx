@@ -4,7 +4,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IframeOverlay from './IframeOverlay';
-import { LoaderFive } from '@/components/ui/loader';
 import { setLastError } from '@/lib/runtimeErrorStore';
 import { useProjectStore } from '@/lib/store';
 import { postVarsUpdate } from '@/lib/child-bridge';
@@ -59,19 +58,76 @@ const childPort = (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_CHI
 const childUrl = (typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_CHILD_URL || '') : '') as string;
 const IFRAME_URL = childUrl || (childPort ? `/iframe/` : '/iframe/');
 
+// Timeout for iframe loading (15 seconds - faster than before)
+const IFRAME_LOAD_TIMEOUT = 15000;
+
 export default function AppViewer({ isEditMode }: AppViewerProps) {
   /* ── state & refs ───────────────────────────────────────────── */
   const [iframeKey, setIframeKey] = useState(0);
   const { refreshTrigger, setIframeReady } = useProjectStore();
-  
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   /* host element (inside iframe) that will receive the portal */
   const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
 
+  /* ── handle iframe errors ── */
+  const handleIframeError = useCallback(() => {
+    console.error('Iframe failed to load - child app may not be running');
+
+    // Clear the timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
+
+    // Try to retry if we haven't exceeded max retries
+    if (retryCountRef.current < maxRetries) {
+      retryCountRef.current += 1;
+      console.log(`Retrying iframe load (attempt ${retryCountRef.current}/${maxRetries}) - make sure child app is running with 'npm run dev:app'`);
+      setTimeout(() => {
+        setIframeKey(prev => prev + 1);
+      }, 2000); // Wait 2 seconds before retry
+    } else {
+      console.warn('Max iframe load retries exceeded, assuming ready (child app may not be available)');
+      setIframeReady(true);
+    }
+  }, [maxRetries]);
+
   /* ── create / reuse host <div> inside the iframe once it loads ── */
-  const handleIframeLoad = useCallback(() => {
-    setIframeReady(true);
+  const handleIframeLoad = useCallback(async () => {
+    console.log('✅ Iframe load event fired');
+
+    // Clear the timeout since iframe loaded successfully
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
+
+    // Reset retry count on successful load
+    retryCountRef.current = 0;
+
+    // Verify iframe content is actually accessible
+    try {
+      const iframeDoc = iframeRef.current?.contentDocument || iframeRef.current?.contentWindow?.document;
+      if (iframeDoc && iframeDoc.readyState === 'complete') {
+        console.log('✅ Iframe content is ready');
+        setIframeReady(true);
+      } else {
+        // Wait a bit more for content to be ready
+        setTimeout(() => {
+          console.log('✅ Iframe marked as ready (after verification delay)');
+          setIframeReady(true);
+        }, 1000);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not verify iframe content, assuming ready:', error);
+      setIframeReady(true);
+    }
+
     // Give iframe time to fully hydrate before manipulating DOM
     setTimeout(() => {
       let doc: Document | null = null;
@@ -123,6 +179,28 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     setIframeReady(false);
   }, []); // Remove setIframeReady from dependencies to prevent infinite loop
 
+  // Set up timeout for iframe loading
+  useEffect(() => {
+    // Clear any existing timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+
+    // Set new timeout - if iframe doesn't load within timeout, assume it's ready anyway
+    loadTimeoutRef.current = setTimeout(() => {
+      console.warn(`Iframe load timeout reached (${IFRAME_LOAD_TIMEOUT}ms), assuming ready`);
+      setIframeReady(true);
+      loadTimeoutRef.current = null;
+    }, IFRAME_LOAD_TIMEOUT);
+
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+    };
+  }, [iframeKey, setIframeReady]); // Restart timeout when iframe reloads
+
   // Subscribe to server-sent vars updates and forward to child iframe
   useEffect(() => {
     let es: EventSource | null = null;
@@ -168,6 +246,8 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   useEffect(() => {
     if (refreshTrigger > 0) {
       console.log('refreshing iframe');
+      // Reset retry count on manual refresh
+      retryCountRef.current = 0;
       setIframeKey(prevKey => prevKey + 1);
     }
   }, [refreshTrigger]); // Remove setIframeReady from dependencies
@@ -187,6 +267,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
             className="w-full h-full border-0"
             title="Demo App"
             onLoad={handleIframeLoad}
+            onError={handleIframeError}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
 

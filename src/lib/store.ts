@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 
+// Utility function to determine if we're in local mode
+const isLocalMode = (): boolean => {
+  if (typeof window === 'undefined') return false; // SSR fallback
+  try {
+    const { hostname, port } = window.location;
+    return (hostname === 'localhost' || hostname === '127.0.0.1') && (port === '' || port === '3000');
+  } catch {
+    return false;
+  }
+};
+
 interface ProjectStore {
   // File system state
   files: Map<string, string>;
@@ -86,7 +97,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   fileTree: [],
   selection: null,
   refreshTrigger: 0,
-  
+
   // Graph state
   selectedNodeId: null,
   selectedNode: null,
@@ -96,7 +107,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   graphLoading: true,
   graphError: null,
   graphConnected: false,
-  supabaseConnected: false,
+  supabaseConnected: isLocalMode(), // In local mode, we don't need Supabase so consider it "connected"
   iframeReady: false,
   resetting: false,
   isBuildingGraph: false,
@@ -115,7 +126,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     graphLoading: true,
     graphError: null,
     graphConnected: false,
-    supabaseConnected: false,
+    supabaseConnected: isLocalMode(), // In local mode, we don't need Supabase so consider it "connected"
     iframeReady: false,
     resetting: false,
     isBuildingGraph: false,

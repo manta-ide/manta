@@ -500,12 +500,29 @@ export default function FloatingChat() {
                 ) : hasStreaming ? (
                   // Streaming response - show content directly without animation
                   <div className="md-ol-continue">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={markdownComponents}
-                    >
-                      {m.content || ''}
-                    </ReactMarkdown>
+                    {m.content && m.content.trim() ? (
+                      <>
+                        {console.log('🎨 FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
+                      </>
+                    ) : (
+                      <>
+                        {console.log('💭 FloatingChat: Showing thinking indicator')}
+                        <ShimmeringText
+                          text={'Thinking...'}
+                          duration={1.0}
+                          wave={false}
+                          transition={{ repeatDelay: 0 }}
+                          shimmeringColor="#FFFFFF" /* white */
+                          color="#71717A" /* zinc-500 */
+                        />
+                      </>
+                    )}
                   </div>
                 ) : shouldTypeFinal ? (
                   <AnimatedTyping
