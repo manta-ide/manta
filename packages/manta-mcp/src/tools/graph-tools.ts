@@ -302,11 +302,11 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     // Helper function to determine if tool should be registered
     const shouldRegister = (toolName: string) => {
         if (toolset === 'read-only') {
-            return toolName === 'graph_read';
+            return ['graph_read', 'graph_analyze_diff'].includes(toolName);
         }
         if (toolset === 'graph-builder') {
             // Limited tools for build operations
-            return ['graph_read', 'graph_node_edit', 'graph_node_set_state', 'graph_analyze_diff'].includes(toolName);
+            return ['graph_read', 'graph_node_edit', 'graph_node_set_state', 'graph_analyze_diff', 'graph_node_add', 'graph_edge_create', 'graph_node_delete'].includes(toolName);
         }
         // graph-editor: all tools
         return true;
