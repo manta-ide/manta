@@ -10,8 +10,8 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 ## ⚡ Quick Start
 
-1. Install and setup Codex by OpenAI:
-   https://github.com/openai/codex
+1. Obtain your Anthropic API Key:
+   https://console.anthropic.com/settings/keys
 
 2. Install Manta CLI:
    ```bash
@@ -30,7 +30,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 ## 💡 Features
 
 - **Node-based creation**: Create nodes and direct AI to build them, and get a stateful editable system
-- **Coding agents compatibility**: Use your existing coding agents with MCPs (currently supports Codex)
+- **MCP compatibility**: Use any MCPs you like to make the agent better
 - **Properties**: Each node has properties that you can edit in real-time for quick updates
 
 ## 🧑‍💻 Developers

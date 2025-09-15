@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { graphToXml } from '@/lib/graph-xml';
 import { MessageSchema } from '@/app/api/lib/schemas';
+import { formatTraceMessage } from '@/lib/chatService';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
@@ -62,50 +63,41 @@ export async function POST(req: NextRequest) {
     // Set the current graph for the agent to work with
     await setCurrentGraph(currentGraph);
 
-    // Build system message simply
-    const maxNodes = 50;
-    const appendSystemMessage = `You are a graph builder agent.
+    // Build system message for code implementation
+    const appendSystemMessage = `You are the unified Manta code builder agent.
 
-Goal: Create or modify graph nodes based on the user request.
+Goal: Build and implement code based on graph changes, ensuring properties are properly wired.
 
 Rules:
-- Read the graph to check existence; never duplicate nodes.
-- Change only what the user asks; keep other parts unchanged.
-- Do not edit any source code while creating or updating the graph; code changes are handled by a separate build agent.
-- Use simple IDs (e.g., "header", "hero", "footer").
-- Property IDs must be globally unique and prefixed per node.
-- For nested object fields, use dot notation: e.g., "root-styles.background-color".
-- Size properties use select options from a fixed scale.
-- When structure or prompts change, set node state to "unbuilt" (never set to "built").
-- For any images set them as text (image URL) and link to placeholder images.
-- If you start from template (simple app node) - then you can delete it if the request requires something different.
-- Make sure to properly structure the nodes, so the sections of a website or components should be different nodes.
-- Do not create components that are not in the schema.
-- For any lists use object-list.
-- Limit to ${maxNodes} nodes maximum.
+- Use graph_analyze_diff() to understand what changed in the graph since the last build
+- Focus exclusively on code generation and implementation - no graph structure editing
+- Implement code based on node prompts and properties, keeping changes minimal and focused
+- Property IDs must be globally unique and prefixed per node
+- For nested object fields, use dot notation: e.g., "root-styles.background-color"
+- Set node states to "built" after successful implementation
+- Ensure all properties are properly wired and connected in the generated code
+- When implementation is complete, set node state to "built"
+- Summarize applied changes at the end
 
 Available Tools:
-- graph_read(nodeId?)
-- graph_node_add(parentId?, nodeId, title, prompt, properties?, children?)
-- graph_node_edit(nodeId, mode?, title?, prompt?, properties?, children?, state?)
-- graph_node_delete(nodeId, recursive?)
-- graph_edge_create(sourceId, targetId, role?)
+- graph_read(nodeId?, includeProperties?, includeChildren?) - Read graph or specific nodes
+- graph_analyze_diff() - Analyze what changed in the graph
+- graph_node_set_state(nodeId, state) - Update node build state
 
-Output: Short, single-sentence status updates during work. End with one concise summary sentence.
+Output: Short, single-sentence status updates during work. End with concise summary of what was accomplished.
 
-This is a Vite project using TypeScript and Tailwind CSS. Complete the entire structure in one operation.`;
+This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
 
-    // Build user prompt simply
+    // Build user prompt for code implementation
     const userRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
-    const prompt = `${userRequest}
+    const prompt = `User Request: ${userRequest}
 
-You have access to graph modification tools:
-- graph_read: Read the current graph
-- graph_node_add: Add new nodes to the graph
-- graph_node_edit: Edit existing nodes
-- graph_node_set_state: Change node states
+Available Tools:
+- graph_read(nodeId?, includeProperties?, includeChildren?) - Read graph or specific nodes
+- graph_analyze_diff() - Analyze what changed in the graph since last build
+- graph_node_set_state(nodeId, state) - Update node build state
 
-Please use these tools as needed to fulfill the request.`;
+Please implement the code changes based on graph changes and ensure properties are properly wired.`;
 
     // Use system message directly (already has variables interpolated)
     const finalSystemMessage = appendSystemMessage;
@@ -129,37 +121,135 @@ Please use these tools as needed to fulfill the request.`;
       throw new Error(`Claude Code API failed: ${response.status}`);
     }
 
-    const result = await response.text();
+    // If the response is streaming, pass it through with trace handling
+    if (response.headers.get('content-type')?.includes('text/plain')) {
+      console.log('🔄 Build-graph: Processing streaming response from Claude Code');
 
-    // Stream the result with graph saving logic
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        const enc = new TextEncoder();
+      // Create a new stream that processes the Server-Sent Events from Claude Code
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-        // Send initial message
-        controller.enqueue(enc.encode('Starting graph build...\n'));
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const enc = new TextEncoder();
 
-        // Send result
-        controller.enqueue(enc.encode(result + '\n'));
-
-        // Save base graph only when build completes successfully
-        (async () => {
           try {
-            await storeBaseGraph(currentGraph, 'default-user');
-            console.log('✅ Base graph saved after successful build completion');
-            controller.enqueue(enc.encode('Base graph updated with current state\n'));
-          } catch (error: any) {
-            console.error('❌ Failed to save base graph after build completion:', error);
-            controller.enqueue(enc.encode('Warning: Failed to save base graph\n'));
+            if (!reader) {
+              console.log('❌ Build-graph: No reader available');
+              controller.close();
+              return;
+            }
+
+            let buffer = '';
+            let hasStarted = false;
+            let totalContent = '';
+
+            console.log('🎬 Build-graph: Starting stream processing');
+
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) {
+                console.log('🏁 Build-graph: Reader done, total content length:', totalContent.length);
+                break;
+              }
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+
+              // Keep the last incomplete line in buffer
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6); // Remove 'data: ' prefix
+                  console.log('📦 Build-graph: Received data:', data);
+
+                  if (data === '[STREAM_START]') {
+                    if (!hasStarted) {
+                      hasStarted = true;
+                      console.log('🎯 Build-graph: Stream started');
+                    }
+                  } else if (data === '[STREAM_END]') {
+                    console.log('🏁 Build-graph: Stream ended, total content:', totalContent);
+                    controller.close();
+                    return;
+                  } else {
+                    try {
+                      const parsed = JSON.parse(data);
+                      console.log('📝 Build-graph: Parsed content:', parsed);
+
+                      if (parsed.type === 'result' && parsed.content) {
+                        // Stream the final result
+                        totalContent += parsed.content;
+                        console.log('📤 Build-graph: Sending final result:', parsed.content);
+                        controller.enqueue(enc.encode(parsed.content));
+                      } else if (parsed.type === 'trace') {
+                        // Stream trace information
+                        const traceContent = formatTraceMessage(parsed.trace);
+                        totalContent += traceContent;
+                        console.log('📤 Build-graph: Sending trace:', traceContent.trim());
+                        controller.enqueue(enc.encode(traceContent));
+                      } else if (parsed.content) {
+                        // Stream regular content (backward compatibility)
+                        totalContent += parsed.content;
+                        console.log('📤 Build-graph: Sending content:', parsed.content);
+                        controller.enqueue(enc.encode(parsed.content));
+                      } else if (parsed.error) {
+                        console.log('❌ Build-graph: Error in content:', parsed.error);
+                        controller.enqueue(enc.encode(`\n\nError: ${parsed.error}\n`));
+                      }
+                    } catch (e) {
+                      // If it's not JSON, treat as plain text
+                      console.log('📝 Build-graph: Plain text content:', data);
+                      totalContent += data;
+                      controller.enqueue(enc.encode(data + '\n'));
+                    }
+                  }
+                }
+              }
+            }
+
+            // Save base graph when streaming completes
+            console.log('💾 Build-graph: Saving base graph after streaming completion');
+            try {
+              await storeBaseGraph(currentGraph, 'default-user');
+              console.log('✅ Base graph saved after successful build completion');
+              controller.enqueue(enc.encode('\nBase graph updated with current state\n'));
+            } catch (error) {
+              console.error('❌ Failed to save base graph:', error);
+              controller.enqueue(enc.encode('\nWarning: Failed to save base graph\n'));
+            }
+
+            controller.enqueue(enc.encode('\nGraph build completed successfully\n'));
+            controller.close();
+          } catch (error) {
+            console.error('❌ Build-graph: Streaming error:', error);
+            controller.enqueue(enc.encode(`\n\nError: ${error instanceof Error ? error.message : String(error)}\n`));
+            controller.close();
           }
+        }
+      });
 
-          controller.enqueue(enc.encode('Graph build completed successfully\n'));
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      });
+    } else {
+      // Fallback for non-streaming responses
+      const result = await response.text();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const enc = new TextEncoder();
+          // Append a newline to ensure downstream line-based parsers process the final chunk
+          controller.enqueue(enc.encode(result + '\n'));
           controller.close();
-        })();
-      }
-    });
-
-    return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        }
+      });
+    }
   } catch (err: any) {
     console.error('Graph build error:', err);
     // Reset pending changes on error

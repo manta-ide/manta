@@ -4,6 +4,7 @@
  * React hook that manages chat state and makes requests to the agent-request API.
  * No streaming complexity - just basic message management.
  */
+'use client';
 
 import { useState, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
@@ -233,9 +234,13 @@ useEffect(() => {
                   try {
                     const parsed = JSON.parse(line);
                     if (parsed.content) {
+                      // Final result - clear any previous trace content and show only the final result
                       chunkContent = parsed.content;
                     } else if (parsed.error) {
                       chunkContent = `Error: ${parsed.error}`;
+                    } else if (parsed.type === 'trace') {
+                      // Handle trace messages - these are separate from final content
+                      chunkContent = formatTraceMessage(parsed.trace);
                     }
                   } catch {
                     // Not JSON, use as plain text
@@ -243,9 +248,25 @@ useEffect(() => {
                   }
                 }
 
-                // Only accumulate actual content, skip empty chunks
+                // Handle content accumulation
                 if (chunkContent.trim()) {
-                  accumulatedContent += chunkContent;
+                  // Check if this is a final result by parsing the JSON
+                  try {
+                    const parsed = JSON.parse(line);
+                    if (parsed.content && parsed.type === 'result') {
+                      // This is a final result - replace all accumulated content
+                      accumulatedContent = parsed.content;
+                    } else if (parsed.type === 'trace') {
+                      // This is a trace - accumulate it
+                      accumulatedContent += chunkContent;
+                    } else if (parsed.content) {
+                      // Fallback for other content types
+                      accumulatedContent += chunkContent;
+                    }
+                  } catch {
+                    // Not JSON, just accumulate
+                    accumulatedContent += chunkContent;
+                  }
                 }
 
                 console.log(`📝 Chat Service: Chunk ${chunkCount}, raw: "${line.slice(0, 50)}${line.length > 50 ? '...' : ''}", processed: "${chunkContent.slice(0, 50)}${chunkContent.length > 50 ? '...' : ''}", total: ${accumulatedContent.length}`);
@@ -459,4 +480,38 @@ useEffect(() => {
     state: { messages, loading, loadingHistory },
     actions: { sendMessage, clearMessages, loadChatHistory }
   };
+}
+
+/**
+ * Format trace messages for display in the chat
+ * Returns empty strings for most traces to keep UI clean, but keeps streaming active
+ */
+export function formatTraceMessage(trace: any): string {
+  if (!trace) return '';
+
+  switch (trace.type) {
+    case 'system':
+      // Don't show system messages - let chat handle its own thinking indicator
+      return '';
+
+    case 'tool_call':
+      // Show tool calls in UI with clean formatting
+      const toolName = trace.tool?.replace('mcp__graph-tools__', '');
+      const args = trace.arguments ? Object.keys(trace.arguments) : [];
+      const argsText = args.length > 0 ? ` (${args.slice(0, 3).join(', ')}${args.length > 3 ? '...' : ''})` : '';
+      return `🔧 ${toolName}${argsText}\n`;
+
+    case 'thinking':
+      // Don't show thinking content - let chat handle its own thinking animation
+      return '';
+
+    case 'user_message':
+    case 'message':
+      // Return empty string to hide these traces from UI but keep streaming active
+      return '';
+
+    default:
+      // Hide all other traces from UI
+      return '';
+  }
 } 

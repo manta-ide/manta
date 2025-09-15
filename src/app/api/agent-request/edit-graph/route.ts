@@ -6,6 +6,7 @@ import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { EDIT_GRAPH_TOOLS } from '@/app/api/lib/claude-code-utils';
+import { formatTraceMessage } from '@/lib/chatService';
 
 // No longer using template-based approach - using system prompt in Claude Code
 
@@ -206,8 +207,19 @@ Keep responses brief. Complete all changes in one operation.`;
                       const parsed = JSON.parse(data);
                       console.log('📝 Edit-graph: Parsed content:', parsed);
 
-                      if (parsed.content) {
-                        // Stream the actual content
+                      if (parsed.type === 'result' && parsed.content) {
+                        // Stream the final result
+                        totalContent += parsed.content;
+                        console.log('📤 Edit-graph: Sending final result:', parsed.content);
+                        controller.enqueue(enc.encode(parsed.content));
+                      } else if (parsed.type === 'trace') {
+                        // Stream trace information
+                        const traceContent = formatTraceMessage(parsed.trace);
+                        totalContent += traceContent;
+                        console.log('📤 Edit-graph: Sending trace:', traceContent.trim());
+                        controller.enqueue(enc.encode(traceContent));
+                      } else if (parsed.content) {
+                        // Stream regular content (backward compatibility)
                         totalContent += parsed.content;
                         console.log('📤 Edit-graph: Sending content:', parsed.content);
                         controller.enqueue(enc.encode(parsed.content));
