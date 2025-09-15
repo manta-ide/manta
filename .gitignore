@@ -5,6 +5,8 @@
 /cli-proxy/package-lock.json
 /base-template/node_modules
 /base-template/package-lock.json
+/test-project/node_modules
+/test-project/package-lock.json
 /node_modules
 /.pnp
 .pnp.*
