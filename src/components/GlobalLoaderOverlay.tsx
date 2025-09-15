@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
 
 export default function GlobalLoaderOverlay() {
   const { graphLoading, supabaseConnected, iframeReady, resetting } = useProjectStore();
+  const [mounted, setMounted] = useState(false);
+
+  // Mark as mounted after hydration to prevent hydration mismatches
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const localMode = useMemo(() => {
+    if (!mounted) return false; // Default to false during SSR/hydration
+
     try {
       if (typeof window !== 'undefined') {
         const { hostname, port } = window.location;
@@ -16,7 +25,7 @@ export default function GlobalLoaderOverlay() {
     } catch {
       return false;
     }
-  }, []);
+  }, [mounted]);
 
   const show = useMemo(() => {
     // Always show when resetting
@@ -43,9 +52,11 @@ export default function GlobalLoaderOverlay() {
 
   const message = resetting
     ? 'Resetting project…'
-    : localMode
-      ? (!iframeReady ? 'Starting preview…' : 'Loading project…')
-      : (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…');
+    : !mounted
+      ? 'Loading…' // Generic message during hydration
+      : localMode
+        ? (!iframeReady ? 'Starting preview…' : 'Loading project…')
+        : (!supabaseConnected ? 'Connecting to database…' : 'Starting development environment…');
 
   return (
     <div

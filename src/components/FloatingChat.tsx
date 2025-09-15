@@ -40,17 +40,7 @@ export default function FloatingChat() {
   const { messages, loading, loadingHistory } = state;
   const { sendMessage, clearMessages } = actions;
 
-  // Check if there's an active job being processed
-  const isProcessingJob = messages.some(m =>
-    m.role === 'assistant' &&
-    (m as any).variables?.IS_JOB_STATUS === '1' &&
-    (m as any).variables?.JOB_COMPLETE !== '1'
-  );
-
-  // Check if the last assistant message indicates job completion
-  const lastAssistantMessage = messages.slice().reverse().find(m => m.role === 'assistant');
-  const isJobComplete = lastAssistantMessage &&
-    (lastAssistantMessage as any).variables?.JOB_COMPLETE === '1';
+  // No longer using job system - simplified logic
 
   // Reset context flags when actual selections change
   useEffect(() => {
@@ -164,7 +154,7 @@ export default function FloatingChat() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isProcessingJob) return;
+    if (!input.trim()) return;
 
     const messageToSend = input;
     setInput(''); // Clear input immediately
@@ -385,7 +375,7 @@ export default function FloatingChat() {
             </div>
           </div>
         )}
-        {!loadingHistory && lastTwoMessages.length === 0 && loading && !isProcessingJob && (
+        {!loadingHistory && lastTwoMessages.length === 0 && loading && (
           <div className="w-full">
             <div className="rounded-lg w-full text-xs px-2 bg-zinc-900 text-zinc-200">
               <ShimmeringText
@@ -401,7 +391,11 @@ export default function FloatingChat() {
         )}
         {!loadingHistory && lastTwoMessages.map((m, idx) => {
           const isStreamingAssistant = m.role === 'assistant' && loading && idx === lastTwoMessages.length - 1;
-          const isJobStatusMessage = (m as any)?.variables?.IS_JOB_STATUS === '1';
+          const isJobStatusMessage = false; // No longer using job system
+          const hasStreaming = (m as any)?.variables?.HAD_STREAMING === '1';
+          const isStreamComplete = (m as any)?.variables?.STREAM_COMPLETE === '1';
+
+          // For streaming responses, don't use typing animation - show content directly
           const typedCacheRef = (FloatingChat as any)._typedCache || ((FloatingChat as any)._typedCache = new Set<string>());
           // Consider only fenced code blocks as risky for typing animation.
           // Lists, headings, and quotes are fine to animate as a full chunk.
@@ -414,8 +408,9 @@ export default function FloatingChat() {
             !typedCacheRef.has(m.content) &&
             !hasCodeFence &&
             m.content.length < 1500 &&
-            // Do not animate if we already revealed streaming chunks
-            (m as any)?.variables?.HAD_STREAMING !== '1' &&
+            // Do not animate if we already revealed streaming chunks or if it's streaming
+            !hasStreaming &&
+            !isStreamComplete &&
             // Don't animate job status messages
             !isJobStatusMessage
           );
@@ -502,18 +497,15 @@ export default function FloatingChat() {
                       />
                     )}
                   </div>
-                ) : isJobStatusMessage ? (
-                  <div className="mb-2">
-                    <div className="flex items-center gap-2">
-                      {(m as any).variables?.JOB_COMPLETE === '1' ? (
-                        <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
-                        </div>
-                      ) : (
-                        <div className="animate-spin rounded-full h-3 w-3 border border-zinc-400 border-t-transparent"></div>
-                      )}
-                      <span className="text-zinc-300">{m.content}</span>
-                    </div>
+                ) : hasStreaming ? (
+                  // Streaming response - show content directly without animation
+                  <div className="md-ol-continue">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {m.content || ''}
+                    </ReactMarkdown>
                   </div>
                 ) : shouldTypeFinal ? (
                   <AnimatedTyping
@@ -557,22 +549,18 @@ export default function FloatingChat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isProcessingJob ? "AI is processing your request..." : "Ask AI..."}
-              disabled={isProcessingJob}
+              placeholder="Ask AI..."
+              disabled={false}
               className="flex-1 resize-none text-xs field-sizing-content max-h-20 min-h-0 py-1.5 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <Button
               type="submit"
               size="icon"
-              disabled={!input.trim() || loading || isProcessingJob}
+              disabled={!input.trim() || loading}
               className="shrink-0 bg-zinc-700 hover:bg-zinc-600 h-8 w-8 disabled:opacity-50"
-              title={isProcessingJob ? "Processing request..." : "Send message"}
+              title="Send message"
             >
-              {isProcessingJob ? (
-                <div className="animate-spin rounded-full h-3 w-3 border border-zinc-400 border-t-transparent"></div>
-              ) : (
-                <Send className="h-3 w-3" />
-              )}
+              <Send className="h-3 w-3" />
             </Button>
           </div>
         </form>

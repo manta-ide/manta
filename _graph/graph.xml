@@ -165,7 +165,7 @@
     </node>
 
     <node id="header" title="Header / Navigation">
-      <description>Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic &lt;header&gt; and &lt;nav&gt;, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean.</description>
+      <description>Does this work? Sticky top navigation bar with brand, primary nav links, and a mobile menu button. Consumes page-level CSS custom properties for colors, spacing, and typography. Uses semantic &lt;header&gt; and &lt;nav&gt;, keyboard accessible. Includes: brand name, subtitle, nav links (Home, Projects, About, Contact), resume button, and a dark theme boolean.</description>
       <state status="active">
         <build status="built"/>
       </state>

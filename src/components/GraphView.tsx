@@ -25,7 +25,7 @@ import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
-import { graphToXml, xmlToGraph } from '@/../packages/manta-mcp/src/xml-utils';
+import { graphToXml, xmlToGraph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed, Loader2 } from 'lucide-react';
 

@@ -165,11 +165,11 @@ useEffect(() => {
       const contentType = response.headers.get('Content-Type') || '';
 
       if (contentType.includes('text/plain') || contentType.includes('text/event-stream')) {
-        // Handle streaming job status messages
+        // Handle streaming LLM response
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
-        const accumulatedMessages: string[] = [];
-        let isProcessingComplete = false;
+        let accumulatedContent = '';
+        let isStreaming = false;
 
         if (reader) {
           while (true) {
@@ -182,31 +182,29 @@ useEffect(() => {
             for (const line of lines) {
               const trimmedLine = line.trim();
               if (trimmedLine) {
-                accumulatedMessages.push(trimmedLine);
+                // Accumulate the content
+                accumulatedContent += trimmedLine;
 
-                // Update the UI with the latest message
+                // Update the UI with the accumulated content
                 setMessages((prev) => {
                   const updated = [...prev];
                   const last = updated[updated.length - 1];
                   if (last && last.role === 'assistant') {
-                    // Show the most recent status message
                     updated[updated.length - 1] = {
                       ...last,
-                      content: trimmedLine,
+                      content: accumulatedContent,
                       variables: {
                         ...(last as any).variables,
-                        IS_JOB_STATUS: '1',
-                        JOB_STATUS_MESSAGE: trimmedLine
+                        HAD_STREAMING: '1',
+                        ASSISTANT_RESPONSE: accumulatedContent
                       }
                     } as any;
                   }
                   return updated;
                 });
 
-                // Check if processing is complete
-                if (trimmedLine.includes('completed successfully') || trimmedLine.includes('failed') || trimmedLine.includes('timed out')) {
-                  isProcessingComplete = true;
-                }
+                // Mark that we've started streaming
+                isStreaming = true;
               }
             }
           }
@@ -217,18 +215,14 @@ useEffect(() => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && last.role === 'assistant') {
-            const finalMessage = isProcessingComplete
-              ? (accumulatedMessages[accumulatedMessages.length - 1] || 'Processing completed')
-              : 'Processing completed';
-
             updated[updated.length - 1] = {
               ...last,
-              content: finalMessage,
+              content: accumulatedContent || 'Response completed',
               variables: {
                 ...(last as any).variables,
-                IS_JOB_STATUS: '1',
-                JOB_COMPLETE: '1',
-                ASSISTANT_RESPONSE: finalMessage
+                HAD_STREAMING: '1',
+                STREAM_COMPLETE: '1',
+                ASSISTANT_RESPONSE: accumulatedContent || 'Response completed'
               }
             } as any;
           }

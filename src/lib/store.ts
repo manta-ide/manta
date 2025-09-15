@@ -322,46 +322,46 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         throw new Error('Failed to start graph build');
       }
 
-      const result = await response.json();
-      const jobId = result.jobId;
+      console.log('✅ Graph build started successfully');
 
-      console.log('✅ Graph build started successfully, job ID:', jobId);
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
 
-      // Poll for job completion
-      if (jobId) {
-        const pollJobCompletion = async () => {
-          try {
-            const statusResponse = await fetch(`/api/jobs/status?id=${jobId}`);
-            if (!statusResponse.ok) {
-              throw new Error('Failed to check job status');
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.trim()) {
+              console.log('Build progress:', line);
+              if (line.includes('completed successfully')) {
+                console.log('✅ Graph build completed successfully');
+                set({ isBuildingGraph: false });
+                // Refresh the graph to show any changes
+                state.refreshGraph();
+                return;
+              } else if (line.includes('failed')) {
+                console.error('❌ Graph build failed:', line);
+                set({ graphError: 'Graph build failed', isBuildingGraph: false });
+                return;
+              }
             }
-
-            const statusData = await statusResponse.json();
-            const job = statusData.job;
-
-            if (job.status === 'completed') {
-              console.log('✅ Graph build completed successfully');
-              set({ isBuildingGraph: false });
-              // Refresh the graph to show any changes
-              state.refreshGraph();
-            } else if (job.status === 'failed') {
-              console.error('❌ Graph build failed:', job.error_message);
-              set({ graphError: 'Graph build failed', isBuildingGraph: false });
-            } else {
-              // Job still running, poll again in 2 seconds
-              setTimeout(pollJobCompletion, 2000);
-            }
-          } catch (error) {
-            console.error('❌ Error polling job status:', error);
-            set({ graphError: 'Failed to check build status', isBuildingGraph: false });
           }
-        };
-
-        // Start polling after a short delay
-        setTimeout(pollJobCompletion, 1000);
-      } else {
-        // Fallback if no job ID returned
-        setTimeout(() => set({ isBuildingGraph: false }), 5000);
+        }
+      } catch (error) {
+        console.error('❌ Error reading build stream:', error);
+        set({ graphError: 'Failed to read build status', isBuildingGraph: false });
       }
     } catch (error) {
       console.error('❌ Error building graph:', error);

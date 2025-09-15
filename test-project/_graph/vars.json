@@ -1,0 +1,9 @@
+{
+  "is-dark-theme": "",
+  "root-styles": {
+    "background-color": "#f6f6f6",
+    "text-color": "#000000",
+    "font-family": "Arial",
+    "base-font-size": "1rem"
+  }
+}

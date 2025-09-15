@@ -1,6 +1,27 @@
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { xmlToGraph, graphToXml } from '../../../../packages/shared-schemas/dist/xml-utils.js';
+import { xmlToGraph, graphToXml } from '../lib/schemas';
+import { getDevProjectDir } from '@/lib/project-config';
+
+// Shared project directory resolution
+function resolveProjectDir(): string {
+  // Use the configured development project directory
+  try {
+    const devProjectDir = getDevProjectDir();
+    if (existsSync(devProjectDir)) {
+      return devProjectDir;
+    }
+  } catch (error) {
+    console.warn('Failed to get dev project directory, falling back to current directory:', error);
+  }
+
+  // Fallback to current directory if dev project directory doesn't exist
+  try {
+    return process.cwd();
+  } catch {
+    return process.cwd();
+  }
+}
 
 type Listener = (updates: Record<string, any>) => void;
 
@@ -102,7 +123,7 @@ function loadVarsFromXml(xmlPath: string): Record<string, any> {
 
 export function loadVarsSnapshot(projectDir?: string): Record<string, any> {
   try {
-    const base = projectDir || process.env.MANTA_PROJECT_DIR || process.cwd();
+    const base = projectDir || resolveProjectDir();
     const graphDir = path.join(base, '_graph');
 
     // Priority order for loading variables:
@@ -134,7 +155,7 @@ export function loadVarsSnapshot(projectDir?: string): Record<string, any> {
 
 function saveVarsConvenienceFile(vars: Record<string, any>, projectDir?: string): void {
   try {
-    const base = projectDir || process.env.MANTA_PROJECT_DIR || process.cwd();
+    const base = projectDir || resolveProjectDir();
     const varsPath = path.join(base, '_graph', 'vars.json');
 
     // Save to vars.json as a convenience file for child projects to capture variables easier

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import path from 'path';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { graphToXml } from '@/lib/graph-xml';
 import '@/app/api/lib/prompts/registry';
@@ -7,8 +8,7 @@ import { Message, ParsedMessage, MessageVariablesSchema, MessageSchema } from '@
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
-import path from 'node:path';
-import fs from 'node:fs';
+import { getDevProjectDir } from '@/lib/project-config';
 
 // Prompt templates for graph building
 const GRAPH_BUILD_PROMPT_TEMPLATES = {
@@ -91,24 +91,24 @@ async function createSystemMessage(): Promise<Message> {
   };
 }
 
-// Local job queue utilities
-const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
-const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
-const jobsPath = () => path.join(projectDir(), '_graph', 'jobs.json');
-const readJobs = (): any[] => { try { const p = jobsPath(); if (!fs.existsSync(p)) return []; return JSON.parse(fs.readFileSync(p, 'utf8')) as any[]; } catch { return []; } };
-const writeJobs = (jobs: any[]) => { try { fs.mkdirSync(path.dirname(jobsPath()), { recursive: true }); fs.writeFileSync(jobsPath(), JSON.stringify(jobs, null, 2), 'utf8'); } catch {} };
-const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; const v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
-
-// Simple job polling for local mode
-const ensureJobWorkerStarted = () => {
-  if (LOCAL_MODE) {
-    console.log('[GraphBuilder] Local mode detected - job worker should be running separately');
+// Direct Claude Code execution utilities
+const projectDir = () => {
+  // Use the configured development project directory
+  try {
+    const devProjectDir = getDevProjectDir();
+    if (require('fs').existsSync(devProjectDir)) {
+      return devProjectDir;
+    }
+  } catch (error) {
+    console.warn('Failed to get dev project directory, falling back to current directory:', error);
   }
+
+  // Fallback to current directory if dev project directory doesn't exist
+  return process.cwd();
 };
 
 export async function POST(req: NextRequest) {
   try {
-    ensureJobWorkerStarted();
 
     // Use default user for all requests
     const userId = 'default-user';
@@ -181,104 +181,48 @@ export async function POST(req: NextRequest) {
     } as Record<string, any>;
     const prompt = parseMessageWithTemplate(template, templateVariables);
 
-    // Queue a local job for the Codex provider (with unified MCP tools)
-    const now = new Date().toISOString();
-    const job = {
-      id: uuid(),
-      user_id: userId,
-      job_name: 'build-graph',
-      status: 'queued',
-      priority: 10, // High priority for graph builds
-      payload: {
-        provider: 'codex',
-        prompt,
-        interactive: false,
-        meta: {
-          kind: 'graph-builder',
-          requestedAt: now,
-          graphDiff: graphDiff,
-          currentGraph: currentGraph,
-          saveBaseGraphOnCompletion: true, // Flag to save base graph when job completes
-        }
-      },
-      created_at: now,
-      updated_at: now,
-    };
-    const jobs = readJobs();
-    jobs.push(job);
-    writeJobs(jobs);
+    // Call Claude Code API endpoint
+    const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
 
-    // Stream real job processing messages
-    {
-      const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
-          const enc = new TextEncoder();
-
-          // Send initial message
-          controller.enqueue(enc.encode('Starting graph build...\n'));
-
-          // Poll job status and stream updates
-          let pollCount = 0;
-          const maxPolls = 300; // 5 minutes at 1 second intervals
-
-          const pollJob = async () => {
-            try {
-              pollCount++;
-              const jobs = readJobs();
-              const currentJob = jobs.find(j => j.id === job.id);
-
-              if (!currentJob) {
-                controller.enqueue(enc.encode('Job not found in queue\n'));
-                controller.close();
-                return;
-              }
-
-              if (currentJob.status === 'completed') {
-                // Save base graph only when build completes successfully
-                if (currentJob.payload?.meta?.saveBaseGraphOnCompletion && currentJob.payload?.meta?.currentGraph) {
-                  try {
-                    await storeBaseGraph(currentJob.payload.meta.currentGraph, 'default-user');
-                    console.log('✅ Base graph saved after successful build completion');
-                    controller.enqueue(enc.encode('Base graph updated with current state\n'));
-                  } catch (error) {
-                    console.error('❌ Failed to save base graph after build completion:', error);
-                    controller.enqueue(enc.encode('Warning: Failed to save base graph\n'));
-                  }
-                }
-                controller.enqueue(enc.encode('Graph build completed successfully\n'));
-                controller.close();
-                return;
-              } else if (currentJob.status === 'failed') {
-                controller.enqueue(enc.encode(`Graph build failed: ${currentJob.error_message || 'Unknown error'}\n`));
-                controller.close();
-                return;
-              } else if (currentJob.status === 'running') {
-                // Send progress update
-                controller.enqueue(enc.encode('Building graph...\n'));
-              } else if (currentJob.status === 'queued') {
-                // Send queued message
-                controller.enqueue(enc.encode('Graph build queued for processing...\n'));
-              }
-
-              // Continue polling if not done and under max polls
-              if (pollCount < maxPolls) {
-                setTimeout(pollJob, 1000); // Poll every second
-              } else {
-                controller.enqueue(enc.encode('Graph build timed out\n'));
-                controller.close();
-              }
-            } catch (error) {
-              controller.enqueue(enc.encode(`Error polling job status: ${error}\n`));
-              controller.close();
-            }
-          };
-
-          // Start polling after a short delay
-          setTimeout(pollJob, 500);
-        }
-      });
-      return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    if (!response.ok) {
+      throw new Error(`Claude Code API failed: ${response.status}`);
     }
+
+    const result = await response.text();
+
+    // Stream the result with graph saving logic
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const enc = new TextEncoder();
+
+        // Send initial message
+        controller.enqueue(enc.encode('Starting graph build...\n'));
+
+        // Send result
+        controller.enqueue(enc.encode(result + '\n'));
+
+        // Save base graph only when build completes successfully
+        (async () => {
+          try {
+            await storeBaseGraph(currentGraph, 'default-user');
+            console.log('✅ Base graph saved after successful build completion');
+            controller.enqueue(enc.encode('Base graph updated with current state\n'));
+          } catch (error: any) {
+            console.error('❌ Failed to save base graph after build completion:', error);
+            controller.enqueue(enc.encode('Warning: Failed to save base graph\n'));
+          }
+
+          controller.enqueue(enc.encode('Graph build completed successfully\n'));
+          controller.close();
+        })();
+      }
+    });
+
+    return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   } catch (err: any) {
     console.error('Graph build error:', err);
     // Reset pending changes on error

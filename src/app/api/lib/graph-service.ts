@@ -4,6 +4,7 @@ import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { publishVarsUpdate } from './vars-bus';
 import fs from 'fs';
 import path from 'path';
+import { getDevProjectDir } from '@/lib/project-config';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
@@ -13,9 +14,17 @@ let currentGraph: Graph | null = null;
 // Local mode toggle and helpers
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 function getProjectDir(): string {
-  const envDir = process.env.MANTA_PROJECT_DIR;
-  if (envDir && fs.existsSync(envDir)) return envDir;
-  // Fallback: try current working directory if it contains _graph
+  // Use the configured development project directory
+  try {
+    const devProjectDir = getDevProjectDir();
+    if (fs.existsSync(devProjectDir)) {
+      return devProjectDir;
+    }
+  } catch (error) {
+    console.warn('Failed to get dev project directory, falling back to current directory:', error);
+  }
+
+  // Fallback to current directory if dev project directory doesn't exist
   try {
     const cwd = process.cwd();
     if (fs.existsSync(path.join(cwd, '_graph'))) return cwd;

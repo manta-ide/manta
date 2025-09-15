@@ -7,10 +7,27 @@ import {
   SandboxProcessManager,
   SandboxService as GenericSandboxService,
 } from './sandbox-service';
+import { getDevProjectDir } from './project-config';
 
 const PREVIEW_URL = `http://localhost:${process.env.MANTA_CHILD_PORT || '3001'}`;
 const APP_ROOT = '/';
-const BASE_DIR = process.env.MANTA_PROJECT_DIR ? path.resolve(process.env.MANTA_PROJECT_DIR) : process.cwd();
+// Project directory resolution
+function getProjectDir(): string {
+  // Use the configured development project directory
+  try {
+    const devProjectDir = getDevProjectDir();
+    if (require('fs').existsSync(devProjectDir)) {
+      return path.resolve(devProjectDir);
+    }
+  } catch (error) {
+    console.warn('Failed to get dev project directory, falling back to current directory:', error);
+  }
+
+  // Fallback to current directory if dev project directory doesn't exist
+  return process.cwd();
+}
+
+const BASE_DIR = getProjectDir();
 
 class LocalFs implements SandboxFs {
   private toDiskPath(p: string): string {

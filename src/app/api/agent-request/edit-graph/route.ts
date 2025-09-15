@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import path from 'path';
 import { getTemplate, parseMessageWithTemplate } from '@/app/api/lib/promptTemplateUtils';
 import { graphToXml } from '@/lib/graph-xml';
 import '@/app/api/lib/prompts/registry';
@@ -8,8 +9,8 @@ import { getGraphSession } from '@/app/api/lib/graph-service';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
-import path from 'node:path';
-import fs from 'node:fs';
+import { getDevProjectDir } from '@/lib/project-config';
+
 // Prompt templates for graph editing
 const GRAPH_EDIT_PROMPT_TEMPLATES = {
   user: 'user-prompt-template',
@@ -93,28 +94,24 @@ async function createSystemMessage(options?: { files?: string[] }): Promise<Mess
   };
 }
 
-// Local job queue utilities (shared pattern with build-nodes route)
-const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
-const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
-const jobsPath = () => path.join(projectDir(), '_graph', 'jobs.json');
-const readJobs = (): any[] => { try { const p = jobsPath(); if (!fs.existsSync(p)) return []; return JSON.parse(fs.readFileSync(p, 'utf8')) as any[]; } catch { return []; } };
-const writeJobs = (jobs: any[]) => { try { fs.mkdirSync(path.dirname(jobsPath()), { recursive: true }); fs.writeFileSync(jobsPath(), JSON.stringify(jobs, null, 2), 'utf8'); } catch {} };
-const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = Math.random() * 16 | 0; const v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
-
-// Simple job polling for local mode
-const ensureJobWorkerStarted = () => {
-  // In local mode, we assume the job worker is started separately
-  // This is just a placeholder for now
-  if (LOCAL_MODE) {
-    console.log('[JobWorker] Local mode detected - job worker should be running separately');
+// Direct Claude Code execution utilities
+const projectDir = () => {
+  // Use the configured development project directory
+  try {
+    const devProjectDir = getDevProjectDir();
+    if (require('fs').existsSync(devProjectDir)) {
+      return devProjectDir;
+    }
+  } catch (error) {
+    console.warn('Failed to get dev project directory, falling back to current directory:', error);
   }
+
+  // Fallback to current directory if dev project directory doesn't exist
+  return process.cwd();
 };
 
 export async function POST(req: NextRequest) {
   try {
-// Ensure job worker is started for local mode
-    ensureJobWorkerStarted();
-
     // Use default user for all requests
     const userId = 'default-user';
     const parsed = RequestSchema.safeParse(await req.json());
@@ -151,18 +148,18 @@ export async function POST(req: NextRequest) {
       return ok;
     });
     let graph = await fetchGraphFromApi(req);
-    
+
     // If no graph exists, create a completely empty one
     if (!graph) {
       const emptyGraph = {
         nodes: []
       };
-      
+
       await storeGraph(emptyGraph, userId);
-      
+
       graph = emptyGraph;
     }
-    
+
     // Always set the current graph (either existing or newly created)
     await setCurrentGraph(graph);
 
@@ -192,7 +189,7 @@ export async function POST(req: NextRequest) {
       variables
     );
 
-    // Build a single prompt from template for the CLI provider
+    // Build a single prompt from template for Claude Code
     const template = await getTemplate('graph-editor-template');
     const templateVariables = {
       ...variables,
@@ -200,132 +197,118 @@ export async function POST(req: NextRequest) {
     } as Record<string, any>;
     const prompt = process.env.CLI_CODEX_PROMPT || parseMessageWithTemplate(template, templateVariables);
 
-    // Queue a local job for the Codex provider (with unified MCP tools)
-    const now = new Date().toISOString();
-    const job = {
-      id: uuid(),
-      user_id: userId,
-      job_name: 'run',
-      status: 'queued',
-      priority: rebuildAll ? 10 : 5, // Higher priority for rebuild all operations
-      payload: {
-        provider: 'codex',
-        prompt,
-        interactive: false,
-        meta: {
-          kind: 'graph-editor', // Use graph-editor toolset for full graph editing capabilities
-          requestedAt: now,
-          selectedNodeId: variables.SELECTED_NODE_ID || null,
-          selectedNodeIds: targetNodeIds,
-          rebuildAll: Boolean(rebuildAll),
-          // Include build-nodes compatibility
-          nodeId: nodeId ?? null,
-        }
-      },
-      created_at: now,
-      updated_at: now,
-    };
-    const jobs = readJobs();
-    jobs.push(job);
-    writeJobs(jobs);
+    // Call Claude Code API endpoint
+    const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
 
-    // Stream real job processing messages
-    {
-      let timeoutId: NodeJS.Timeout | null = null;
+    if (!response.ok) {
+      throw new Error(`Claude Code API failed: ${response.status}`);
+    }
+
+    // If the response is already streaming, pass it through
+    if (response.headers.get('content-type')?.includes('text/plain')) {
+      // Create a new stream that processes the Server-Sent Events from Claude Code
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
       const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
+        async start(controller) {
           const enc = new TextEncoder();
 
-          // Send initial message
-          controller.enqueue(enc.encode('Starting AI processing...\n'));
+          try {
+            if (!reader) {
+              controller.close();
+              return;
+            }
 
-          // Poll job status and stream updates
-          let pollCount = 0;
-          const maxPolls = 300; // 5 minutes at 1 second intervals
-          let isClosed = false;
+            let buffer = '';
+            let hasStarted = false;
 
-          const pollJob = async () => {
-            try {
-              // Check if controller is already closed
-              if (isClosed) return;
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
 
-              pollCount++;
-              const jobs = readJobs();
-              const currentJob = jobs.find(j => j.id === job.id);
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
 
-              if (!currentJob) {
-                if (!isClosed) {
-                  controller.enqueue(enc.encode('Job not found in queue\n'));
-                  controller.close();
-                  isClosed = true;
+              // Keep the last incomplete line in buffer
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6); // Remove 'data: ' prefix
+
+                  if (data === '[STREAM_START]') {
+                    if (!hasStarted) {
+                      hasStarted = true;
+                      // Send initial thinking indicator
+                      controller.enqueue(enc.encode('Thinking...\n'));
+                    }
+                  } else if (data === '[STREAM_END]') {
+                    // Send completion message
+                    controller.enqueue(enc.encode('\n\nProcessing completed successfully\n'));
+                    controller.close();
+                    return;
+                  } else {
+                    try {
+                      const parsed = JSON.parse(data);
+                      if (parsed.content) {
+                        // Stream the actual content
+                        controller.enqueue(enc.encode(parsed.content));
+                      } else if (parsed.error) {
+                        controller.enqueue(enc.encode(`\n\nError: ${parsed.error}\n`));
+                      }
+                    } catch (e) {
+                      // If it's not JSON, treat as plain text
+                      controller.enqueue(enc.encode(data + '\n'));
+                    }
+                  }
                 }
-                return;
-              }
-
-              if (currentJob.status === 'completed') {
-                if (!isClosed) {
-                  controller.enqueue(enc.encode('AI processing completed successfully\n'));
-                  controller.close();
-                  isClosed = true;
-                }
-                return;
-              } else if (currentJob.status === 'failed') {
-                if (!isClosed) {
-                  controller.enqueue(enc.encode(`AI processing failed: ${currentJob.error_message || 'Unknown error'}\n`));
-                  controller.close();
-                  isClosed = true;
-                }
-                return;
-              } else if (currentJob.status === 'running') {
-                // Send progress update
-                if (!isClosed) {
-                  controller.enqueue(enc.encode('AI is processing your request...\n'));
-                }
-              } else if (currentJob.status === 'queued') {
-                // Send queued message
-                if (!isClosed) {
-                  controller.enqueue(enc.encode('AI request queued for processing...\n'));
-                }
-              }
-
-              // Continue polling if not done and under max polls
-              if (pollCount < maxPolls && !isClosed) {
-                timeoutId = setTimeout(pollJob, 1000); // Poll every second
-              } else if (!isClosed) {
-                controller.enqueue(enc.encode('AI processing timed out\n'));
-                controller.close();
-                isClosed = true;
-              }
-            } catch (error) {
-              if (!isClosed) {
-                controller.enqueue(enc.encode(`Error polling job status: ${error}\n`));
-                controller.close();
-                isClosed = true;
               }
             }
-          };
 
-          // Start polling after a short delay
-          timeoutId = setTimeout(pollJob, 500);
-        },
-        cancel() {
-          // Clear any pending timeouts when the stream is cancelled
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
+            // Close if we finish without [STREAM_END]
+            controller.close();
+          } catch (error) {
+            console.error('Streaming error:', error);
+            controller.enqueue(enc.encode(`\n\nError: ${error instanceof Error ? error.message : String(error)}\n`));
+            controller.close();
           }
         }
       });
+
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      });
+    } else {
+      // Fallback for non-streaming responses
+      const result = await response.text();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const enc = new TextEncoder();
+          controller.enqueue(enc.encode(result));
+          controller.close();
+        }
+      });
+
       return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
   } catch (err: any) {
     console.error(err);
     // Reset pending changes on error
     resetPendingChanges();
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: err?.message || 'Server error',
-      success: false 
-    }), { 
+      success: false
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

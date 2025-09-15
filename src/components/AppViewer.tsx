@@ -121,7 +121,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   useEffect(() => {
     // mark not ready until probe or load fires
     setIframeReady(false);
-  }, [setIframeReady]);
+  }, []); // Remove setIframeReady from dependencies to prevent infinite loop
 
   // Subscribe to server-sent vars updates and forward to child iframe
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
       console.log('refreshing iframe');
       setIframeKey(prevKey => prevKey + 1);
     }
-  }, [refreshTrigger, setIframeReady]);
+  }, [refreshTrigger]); // Remove setIframeReady from dependencies
 
   /* No local fallback UI; a global overlay handles loading */
 

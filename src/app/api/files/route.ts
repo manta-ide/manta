@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
+import { getDevProjectDir } from '@/lib/project-config';
 
-const projectDir = () => process.env.MANTA_PROJECT_DIR || process.cwd();
+const projectDir = () => {
+  // Use the configured development project directory
+  try {
+    const devProjectDir = getDevProjectDir();
+    if (require('fs').existsSync(devProjectDir)) {
+      return devProjectDir;
+    }
+  } catch (error) {
+    console.warn('Failed to get dev project directory, falling back to current directory:', error);
+  }
+
+  // Fallback to current directory if dev project directory doesn't exist
+  return process.cwd();
+};
 const IGNORE = new Set(['node_modules', '.git', '.next', 'dist', 'build', 'out', '_graph', 'coverage']);
 
 type FileNode = { name: string; path: string; type: 'file'|'directory'; children?: FileNode[]; content?: string };

@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  serverExternalPackages: ['@anthropic-ai/claude-code'],
   async rewrites() {
     const base = childBase();
     return [
