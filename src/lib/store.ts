@@ -35,6 +35,9 @@ interface ProjectStore {
   iframeReady: boolean;
   resetting: boolean;
   isBuildingGraph: boolean;
+  optimisticOperationsActive: boolean; // Flag to prevent graph updates during optimistic operations
+  // Timestamp (ms) until which SSE updates are suppressed to avoid stale snapshots overriding optimistic UI
+  sseSuppressedUntil?: number | null;
   resetStore: () => void;
   
   // File operations
@@ -82,11 +85,68 @@ interface ProjectStore {
   // Graph event handling
   connectToGraphEvents: (userId?: string) => Promise<void>;
   disconnectFromGraphEvents: () => void;
+  setOptimisticOperationsActive: (active: boolean) => void;
+  // Temporarily suppress SSE updates for a stabilization window after mutations
+  suppressSSE: (ms: number) => void;
 }
 
 // Private variable to track the EventSource connection
 let graphEventSource: EventSource | null = null;
 let reconnectTimeout: NodeJS.Timeout | null = null;
+let graphPollInterval: NodeJS.Timeout | null = null;
+
+// Append-only merge: add new nodes/edges and update node content while preserving local positions
+function mergeGraphAppendOnly(current: Graph | null, incoming: Graph | null): Graph | null {
+  if (!incoming) return current;
+  if (!current) return incoming;
+
+  const currentNodeMap = new Map<string, any>();
+  const nextNodes: any[] = [];
+  for (const n of current.nodes || []) {
+    currentNodeMap.set(n.id, n);
+    nextNodes.push({ ...n });
+  }
+
+  for (const inNode of incoming.nodes || []) {
+    const existing = currentNodeMap.get(inNode.id);
+    if (!existing) {
+      nextNodes.push({ ...inNode });
+    } else {
+      // Merge: preserve current position when available; update other fields from incoming
+      const position = existing.position || inNode.position;
+      const mergedProps = Array.isArray(inNode.properties) ? inNode.properties : existing.properties;
+      const merged = {
+        ...existing,
+        ...inNode,
+        position,
+        properties: mergedProps,
+      } as any;
+      const idx = nextNodes.findIndex(n => n.id === inNode.id);
+      if (idx !== -1) nextNodes[idx] = merged; else nextNodes.push(merged);
+    }
+  }
+
+  // Merge edges (union by id or source-target)
+  const ensureEdgeId = (e: any) => e.id || `${e.source}-${e.target}`;
+  const byId = new Set<string>();
+  const nextEdges: any[] = [];
+  for (const e of (current.edges || [])) {
+    const id = ensureEdgeId(e);
+    if (byId.has(id)) continue;
+    byId.add(id);
+    nextEdges.push({ ...e, id });
+  }
+  for (const e of (incoming.edges || [])) {
+    const id = ensureEdgeId(e);
+    if (byId.has(id)) continue;
+    byId.add(id);
+    nextEdges.push({ ...e, id });
+  }
+
+  const merged: any = { nodes: nextNodes };
+  if (nextEdges.length > 0) merged.edges = nextEdges;
+  return merged as Graph;
+}
 
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -111,6 +171,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   iframeReady: false,
   resetting: false,
   isBuildingGraph: false,
+  optimisticOperationsActive: false,
+  sseSuppressedUntil: null,
   resetStore: () => set({
     files: new Map(),
     currentFile: null,
@@ -130,6 +192,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     iframeReady: false,
     resetting: false,
     isBuildingGraph: false,
+    optimisticOperationsActive: false,
+    sseSuppressedUntil: null,
   }),
 
   loadProject: async () => {
@@ -442,7 +506,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const next = state.graph ? { ...state.graph } : ({ nodes: [] } as Graph);
     const i = next.nodes.findIndex(n => n.id === node.id);
     if (i === -1) next.nodes.push(node); else next.nodes[i] = { ...(next.nodes[i] as any), ...node } as any;
-    set({ graph: next });
+
+    // Skip graph state update if optimistic operations are active
+    if (!state.optimisticOperationsActive) {
+      set({ graph: next });
+    }
+
     const xml = graphToXml(next);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
@@ -452,7 +521,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
-    const xml = graphToXml(next);
+
+    const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
@@ -466,7 +536,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           properties: (n.properties || []).map((p: any) => p.id === propertyId ? { ...p, value } : p).sort((a: any, b: any) => a.id.localeCompare(b.id))
         }) : n)
       } as any;
-      set({ graph: updatedGraph });
+
+      // Skip graph state update if optimistic operations are active
+      if (!state.optimisticOperationsActive) {
+        set({ graph: updatedGraph });
+      }
     }
     await fetch('/api/graph-api?type=current', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodeId, propertyId, value }) });
   },
@@ -495,11 +569,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
     set({ graph: next });
+
     const xml = graphToXml(next);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
   syncGraphToSupabase: async (graph: Graph) => {
+    const state = get();
+    set({ graph });
+
     const xml = graphToXml(graph);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
@@ -512,8 +590,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph event handling
   connectToGraphEvents: async (_userId?: string) => {
     try {
-      // Local mode: connect to SSE endpoint for periodic graph updates
+      // Close any previous source
       if (graphEventSource) { graphEventSource.close(); graphEventSource = null; }
+
       const es = new EventSource('/api/graph-api?sse=true');
       graphEventSource = es;
 
@@ -524,23 +603,42 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       es.onmessage = (ev) => {
         try {
           const raw = ev.data || '';
-          if (raw.trim().startsWith('<')) {
-            const graph = xmlToGraph(raw);
-            set({ graph, graphLoading: false, graphError: null, graphConnected: true });
-          } else if (raw.length > 100 && !raw.includes(' ') && /^[A-Za-z0-9+/=]+$/.test(raw)) {
-            // Base64 encoded XML → decode to bytes, then UTF-8 string
+
+          // Skip graph updates if optimistic/suppression window is active
+          const currentState = get();
+          const now = Date.now();
+          const suppressed = currentState.optimisticOperationsActive || (currentState.sseSuppressedUntil != null && now < (currentState.sseSuppressedUntil as number));
+          if (suppressed) return;
+
+          const trimmed = raw.trim();
+          // Case 1: plain XML
+          if (trimmed.startsWith('<')) {
+            const incoming = xmlToGraph(trimmed);
+            const merged = mergeGraphAppendOnly(get().graph, incoming);
+            if (merged) set({ graph: merged, graphLoading: false, graphError: null, graphConnected: true });
+            return;
+          }
+
+          // Case 2: JSON message
+          try {
+            const data = JSON.parse(trimmed);
+            if (data?.type === 'graph-update' && data.graph) {
+              const merged = mergeGraphAppendOnly(get().graph, data.graph);
+              if (merged) set({ graph: merged, graphLoading: false, graphError: null, graphConnected: true });
+              return;
+            }
+          } catch {}
+
+          // Case 3: base64-encoded XML (any length)
+          if (/^[A-Za-z0-9+/=]+$/.test(trimmed)) {
             try {
-              // Decode base64 to UTF-8 string
-              const decodedXml = atob(raw);
-              const graph = xmlToGraph(decodedXml);
-              set({ graph, graphLoading: false, graphError: null, graphConnected: true });
+              const decodedXml = atob(trimmed);
+              const incoming = xmlToGraph(decodedXml);
+              const merged = mergeGraphAppendOnly(get().graph, incoming);
+              if (merged) set({ graph: merged, graphLoading: false, graphError: null, graphConnected: true });
+              return;
             } catch (decodeError) {
               console.error('Failed to decode base64 XML:', decodeError);
-            }
-          } else {
-            const data = JSON.parse(raw);
-            if (data?.type === 'graph-update' && data.graph) {
-              set({ graph: data.graph, graphLoading: false, graphError: null, graphConnected: true });
             }
           }
         } catch (error) {
@@ -550,8 +648,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       es.onerror = () => {
         set({ graphConnected: false });
       };
-      // Kick initial load
+      // Initial load for good measure
       await get().loadGraph();
+
+      // Fallback polling: periodically fetch graph to ensure UI receives updates
+      if (graphPollInterval) { clearInterval(graphPollInterval); graphPollInterval = null; }
+      graphPollInterval = setInterval(async () => {
+        try {
+          const state = get();
+          const now = Date.now();
+          const suppressed = state.optimisticOperationsActive || (state.sseSuppressedUntil != null && now < (state.sseSuppressedUntil as number));
+          if (suppressed) return;
+          // Manual poll: fetch and append-only merge to avoid full reload
+          const res = await fetch('/api/graph-api', { method: 'GET', headers: { Accept: 'application/xml' } });
+          if (res.ok) {
+            const xml = await res.text();
+            const incoming = xmlToGraph(xml);
+            const merged = mergeGraphAppendOnly(state.graph, incoming);
+            if (merged) set({ graph: merged, graphLoading: false, graphError: null });
+          }
+        } catch {}
+      }, 1500);
     } catch (error) {
       console.error('Error connecting to graph events:', error);
       set({ graphError: 'Failed to connect to graph events' });
@@ -559,19 +676,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   disconnectFromGraphEvents: () => {
-    // Clear any pending reconnection timeout
     if (reconnectTimeout) {
       clearTimeout(reconnectTimeout);
       reconnectTimeout = null;
     }
-    
-    // Close the EventSource connection
     if (graphEventSource) {
       graphEventSource.close();
       graphEventSource = null;
       console.log('🔌 Disconnected from local graph events');
     }
-    
+    if (graphPollInterval) {
+      clearInterval(graphPollInterval);
+      graphPollInterval = null;
+    }
     set({ graphConnected: false, supabaseConnected: false });
+  },
+
+  setOptimisticOperationsActive: (active: boolean) => {
+    set({ optimisticOperationsActive: active });
+  },
+  suppressSSE: (ms: number) => {
+    const until = Date.now() + Math.max(0, ms || 0);
+    set({ sseSuppressedUntil: until });
+    // Clear after the window to avoid lingering suppression
+    setTimeout(() => {
+      const state = get();
+      if (state.sseSuppressedUntil && state.sseSuppressedUntil <= until) {
+        set({ sseSuppressedUntil: null });
+      }
+    }, Math.max(0, ms || 0) + 5);
   },
 })); 

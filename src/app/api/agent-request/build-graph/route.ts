@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { graphToXml } from '@/lib/graph-xml';
-import { MessageSchema } from '@/app/api/lib/schemas';
+import { MessageSchema, ClaudeCodeOptions, McpServerConfig } from '@/app/api/lib/schemas';
 import { formatTraceMessage } from '@/lib/chatService';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
 import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
-import { BUILD_GRAPH_TOOLS } from '@/app/api/lib/claude-code-utils';
+import { BUILD_GRAPH_TOOLS, getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 
 const RequestSchema = z.object({
   userMessage: MessageSchema,
@@ -30,7 +30,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { userMessage, graphDiff, currentGraph } = parsed.data;
+    const {
+      userMessage,
+      graphDiff,
+      currentGraph
+    } = parsed.data;
 
     // Get the base graph for comparison
     const baseGraph = await loadBaseGraphFromFile(userId);
@@ -89,36 +93,44 @@ Output: Short, single-sentence status updates during work. End with concise summ
 This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
 
     // Build user prompt for code implementation
-    const userRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
-    const prompt = `User Request: ${userRequest}
+    const prompt = `Please implement the code changes based on graph changes and ensure properties are properly wired.`;
 
-Available Tools:
-- graph_read(nodeId?, includeProperties?, includeChildren?) - Read graph or specific nodes
-- graph_analyze_diff() - Analyze what changed in the graph since last build
-- graph_node_set_state(nodeId, state) - Update node build state
+    // Get base URL for MCP server tools
+    const baseUrl = getBaseUrl(req);
+    console.log('🌐 Build-graph: Base URL for MCP tools:', baseUrl);
 
-Please implement the code changes based on graph changes and ensure properties are properly wired.`;
+    // Create MCP server configuration that can be serialized
+    const graphToolsServerConfig: McpServerConfig = {
+      name: "graph-tools",
+      baseUrl: baseUrl,
+      tools: BUILD_GRAPH_TOOLS // Tools will be filtered by the claude-code endpoint
+    };
 
-    // Use system message directly (already has variables interpolated)
-    const finalSystemMessage = appendSystemMessage;
+    console.log('🎯 Build-graph: MCP server config created successfully');
+
+    // Build Claude Code options for graph building
+    const claudeOptions: ClaudeCodeOptions = {
+      appendSystemPrompt: appendSystemMessage,
+      mcpServers: {
+        "graph-tools": graphToolsServerConfig,
+      },
+      // No allowedTools - using disallowedTools instead
+      disallowedTools: [], // Empty array means no tools are disallowed
+      cwd: projectDir(),
+      includePartialMessages: true, // Enable streaming for real-time updates
+      permissionMode: 'bypassPermissions', // Allow internal operations
+      abortController: new AbortController()
+    };
 
     // Call Claude Code API endpoint
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        allowedTools: BUILD_GRAPH_TOOLS,
-        appendSystemMessage: finalSystemMessage,
-        authHeaders: {
-          ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
-          ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
-        }
-      }),
+      body: JSON.stringify({prompt, options: claudeOptions}),
     });
 
     if (!response.ok) {
-      throw new Error(`Claude Code API failed: ${response.status}`);
+      throw new Error(`Claude Code API failed: ${response.status} ${response.body?.toString()}`);
     }
 
     // If the response is streaming, pass it through with trace handling

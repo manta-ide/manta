@@ -1,16 +1,7 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options, type HookCallbackMatcher } from '@anthropic-ai/claude-code';
+import { ClaudeCodeRequestSchema, McpServerConfig } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
-import { getBaseUrl, BUILD_GRAPH_TOOLS, EDIT_GRAPH_TOOLS, projectDir } from '../../lib/claude-code-utils';
-
-
-const RequestSchema = z.object({
-  prompt: z.string(),
-  allowedTools: z.array(z.string()).optional(),
-  appendSystemMessage: z.string().optional(),
-  authHeaders: z.record(z.string()).optional(),
-});
 
 
 
@@ -19,15 +10,12 @@ const RequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, allowedTools, appendSystemMessage, authHeaders } = RequestSchema.parse(await req.json());
-    // Determine which tools to use - default to all if not specified
-    const toolsToUse = allowedTools || [...BUILD_GRAPH_TOOLS, ...EDIT_GRAPH_TOOLS];
+    const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
 
     console.log('🎯 Claude Code: User asked:', prompt.length > 100 ?
       `"${prompt.substring(0, 100)}..."` :
       `"${prompt}"`);
-    console.log('🎯 Claude Code: System message present:', !!appendSystemMessage);
-    console.log('🎯 Claude Code: Tools available:', toolsToUse.length);
+    console.log('🎯 Claude Code: Options received:', Object.keys(options || {}));
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     console.log('🔑 Claude Code: ANTHROPIC_API_KEY present:', !!apiKey);
@@ -36,21 +24,6 @@ export async function POST(req: NextRequest) {
     //   throw new Error('ANTHROPIC_API_KEY environment variable is required');
     // }
 
-    // Get base URL for MCP server tools
-    const baseUrl = getBaseUrl(req);
-    console.log('🌐 Claude Code: Base URL for MCP tools:', baseUrl);
-
-    // Create MCP server with tools from the tools file
-    const toolsArray = createGraphTools(baseUrl, authHeaders);
-    console.log('🎯 Claude Code: Created tools array with length:', toolsArray.length, '(should be 7 graph tools)');
-
-    const graphToolsServerWithBaseUrl = createSdkMcpServer({
-      name: "graph-tools",
-      version: "1.0.0",
-      tools: toolsArray
-    });
-
-    console.log('🎯 Claude Code: MCP server created successfully');
 
     // Execute Claude Code with SDK and stream response
     let fullResponse = '';
@@ -89,22 +62,47 @@ export async function POST(req: NextRequest) {
 
           let messageCount = 0;
           try {
-            // Use proper Options type with all available configuration
+            // Reconstruct MCP servers from configuration
+            let reconstructedMcpServers: Record<string, any> | undefined;
+            if (options?.mcpServers) {
+              reconstructedMcpServers = {};
+              for (const [serverName, serverConfig] of Object.entries(options.mcpServers)) {
+                const config = serverConfig as McpServerConfig;
+                console.log(`🔧 Claude Code: Reconstructing MCP server "${serverName}" with baseUrl:`, config.baseUrl);
+
+                // Create tools for this server
+                const toolsArray = createGraphTools(config.baseUrl);
+                console.log(`🔧 Claude Code: Created ${toolsArray.length} tools for MCP server "${serverName}"`);
+
+                // Filter tools if specific tools were requested
+                const filteredTools = config.tools
+                  ? toolsArray.filter(tool => config.tools!.includes(tool.name))
+                  : toolsArray;
+
+                console.log(`🔧 Claude Code: Using ${filteredTools.length} filtered tools for MCP server "${serverName}"`);
+
+                // Create the actual MCP server instance
+                const mcpServer = createSdkMcpServer({
+                  name: config.name,
+                  version: "1.0.0",
+                  tools: filteredTools
+                });
+
+                reconstructedMcpServers[serverName] = mcpServer;
+              }
+            }
+
+            // Use the options directly as provided by build-graph/edit-graph
+            // But reconstruct AbortController if it was serialized and MCP servers
             const queryOptions: Options = {
-              ...(appendSystemMessage && { appendSystemPrompt: appendSystemMessage }),
-              mcpServers: {
-                "graph-tools": graphToolsServerWithBaseUrl,
-              },
-              allowedTools: toolsToUse,
-              cwd: projectDir(),
-              includePartialMessages: true, // Enable streaming partial messages
-              permissionMode: 'bypassPermissions',
-              abortController: new AbortController()
+              ...options,
+              abortController: options?.abortController instanceof AbortController
+                ? options.abortController
+                : new AbortController(),
+              mcpServers: reconstructedMcpServers
             };
 
-            console.log('🚀 Using Claude Code configuration');
-            console.log('🎯 Claude Code: System message length:', appendSystemMessage?.length || 0);
-            console.log('🎯 Claude Code: System message preview:', appendSystemMessage?.substring(0, 200) + '...' || 'none');
+            console.log('🚀 Using Claude Code configuration from build-graph/edit-graph');
 
             for await (const message of query({
               prompt: generateUserMessage(),

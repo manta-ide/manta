@@ -373,6 +373,9 @@ function GraphCanvas() {
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
+
+  // Get optimistic operations flag from store to prevent real-time updates during local operations
+  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNodeInSupabase } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
     setSelectedNode,
@@ -394,16 +397,16 @@ function GraphCanvas() {
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data with Supabase integration
-  const { 
-    graph, 
-    graphLoading: loading, 
-    graphError: error, 
-    refreshGraph, 
-    connectToGraphEvents, 
+  const {
+    graph,
+    graphLoading: loading,
+    graphError: error,
+    refreshGraph,
+    connectToGraphEvents,
     disconnectFromGraphEvents,
-    updateNodeInSupabase,
     deleteNodeFromSupabase
   } = useProjectStore();
+  const { suppressSSE } = useProjectStore.getState();
 
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
@@ -431,6 +434,9 @@ function GraphCanvas() {
     };
 
     try {
+      // Mark optimistic operation as in progress
+      setOptimisticOperationsActive(true);
+
       // Update local graph state immediately for instant feedback
       const updatedGraph = {
         ...graph,
@@ -445,13 +451,15 @@ function GraphCanvas() {
         data: {
           label: newNode.title,
           node: newNode,
-          state: newNode.state || "unbuilt",
-          properties: newNode.properties || []
+          state: newNode.state,
+          properties: newNode.properties
         },
         type: 'custom',
         selected: true,
       };
       setNodes((nds) => [...nds, reactFlowNode]);
+
+      console.log('➕ Optimistically created new node:', newNodeId);
 
       // Persist to Supabase (this will trigger real-time updates that will sync everything)
       await updateNodeInSupabase(newNodeId, newNode);
@@ -463,7 +471,11 @@ function GraphCanvas() {
       // Switch back to select tool after creating node
       setCurrentTool('select');
 
-      console.log('✅ Created new node:', newNodeId);
+      console.log('✅ Successfully persisted new node to server:', newNodeId);
+
+      // Suppress SSE briefly to avoid stale snapshot race, then clear optimistic flag
+      suppressSSE?.(800);
+      setOptimisticOperationsActive(false);
     } catch (error) {
       console.error('❌ Failed to create new node:', error);
       // Remove the node from both local states if persistence failed
@@ -475,15 +487,49 @@ function GraphCanvas() {
         };
         useProjectStore.setState({ graph: revertedGraph });
       }
+
+      // Clear optimistic operation flag on error (after rollback)
+      setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNodeInSupabase, setSelectedNode, setSelectedNodeIds, setNodes]);
+  }, [graph, generateNodeId, updateNodeInSupabase, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
     if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
 
+    // Store original state for potential rollback
+    const originalNodes = [...nodes];
+    const originalEdges = [...edges];
+    const originalSelectedNodeIds = [...(selectedNodeIds || [])];
+
+    // Generate unique operation ID for tracking optimistic state
+    const operationId = `delete-${Date.now()}-${Math.random()}`;
+
     try {
-      // Get current graph data
+      // Mark optimistic operation as in progress
+      setOptimisticOperationsActive(true);
+
+      // Update local state immediately for optimistic UI
+      const nodeIdsToDelete = selectedNodes.map(node => node.id);
+      // Normalize edge IDs to server format (source-target)
+      const edgeIdsToDelete = selectedEdges.map(edge => {
+        const reactFlowId = edge.id || '';
+        if (reactFlowId.startsWith('reactflow__edge-') && edge.source && edge.target) {
+          return `${edge.source}-${edge.target}`;
+        }
+        return reactFlowId;
+      });
+
+      setNodes(prevNodes => prevNodes.filter(node => !nodeIdsToDelete.includes(node.id)));
+      setEdges(prevEdges => prevEdges.filter(edge => !edgeIdsToDelete.includes(edge.id)));
+
+      // Clear selection
+      setSelectedNode(null, null);
+      setSelectedNodeIds([]);
+
+      console.log('🗑️ Optimistically deleted nodes:', nodeIdsToDelete, 'edges:', edgeIdsToDelete);
+
+      // Now fetch current graph and persist changes
       const origin = 'http://localhost:3000';
       const url = `${origin}/api/graph-api`;
 
@@ -505,8 +551,7 @@ function GraphCanvas() {
         currentGraph = graphData.graph || graphData;
       }
 
-      // Delete selected nodes
-      const nodeIdsToDelete = selectedNodes.map(node => node.id);
+      // Delete selected nodes from server graph
       if (nodeIdsToDelete.length > 0) {
         currentGraph.nodes = currentGraph.nodes.filter((node: any) =>
           !nodeIdsToDelete.includes(node.id)
@@ -516,27 +561,14 @@ function GraphCanvas() {
         currentGraph.edges = currentGraph.edges.filter((edge: any) =>
           !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
         );
-
-        console.log('🗑️ Deleting nodes:', nodeIdsToDelete);
       }
 
-      // Delete selected edges
-      const edgeIdsToDelete = selectedEdges.map(edge => edge.id);
+      // Delete selected edges from server graph
       if (edgeIdsToDelete.length > 0) {
         currentGraph.edges = currentGraph.edges.filter((edge: any) =>
           !edgeIdsToDelete.includes(edge.id)
         );
-
-        console.log('🗑️ Deleting edges:', edgeIdsToDelete);
       }
-
-      // Update local state immediately
-      setNodes(prevNodes => prevNodes.filter(node => !nodeIdsToDelete.includes(node.id)));
-      setEdges(prevEdges => prevEdges.filter(edge => !edgeIdsToDelete.includes(edge.id)));
-
-      // Clear selection
-      setSelectedNode(null, null);
-      setSelectedNodeIds([]);
 
       // Persist to API
       await fetch(url, {
@@ -548,16 +580,35 @@ function GraphCanvas() {
         body: graphToXml(currentGraph)
       });
 
-      console.log('✅ Successfully deleted selected elements');
+      console.log('✅ Successfully persisted deletion to server');
+
+      // Update local store graph to match server snapshot
+      useProjectStore.setState({ graph: currentGraph });
+
+      // Suppress SSE briefly to avoid stale snapshot race and clear optimistic flag
+      suppressSSE?.(800);
+      setOptimisticOperationsActive(false);
 
     } catch (error) {
       console.error('❌ Failed to delete selected elements:', error);
-      // Revert local state on error by refreshing from server
-      if (refreshGraph) {
-        refreshGraph();
+
+      // Revert local state on error
+      setNodes(originalNodes);
+      setEdges(originalEdges);
+      setSelectedNodeIds(originalSelectedNodeIds);
+
+      // Restore selection if there was one
+      if (originalSelectedNodeIds.length > 0) {
+        const firstNode = graph?.nodes?.find(n => n.id === originalSelectedNodeIds[0]);
+        if (firstNode) {
+          setSelectedNode(originalSelectedNodeIds[0], firstNode);
+        }
       }
+
+      // Clear optimistic operation flag on error (after rollback)
+      setOptimisticOperationsActive(false);
     }
-  }, [setNodes, setEdges, setSelectedNode, setSelectedNodeIds, refreshGraph]);
+  }, [nodes, edges, selectedNodeIds, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive]);
 
   // Connect to graph events for real-time updates
   useEffect(() => {
@@ -787,6 +838,12 @@ function GraphCanvas() {
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
+      // Skip rebuild if optimistic operations are in progress to prevent overriding local changes
+      if (optimisticOperationsActive) {
+        console.log('⏭️ Skipping graph rebuild due to active optimistic operations');
+        return;
+      }
+
       if (!graph || !graph.nodes) {
         setNodes([]);
         setEdges([]);
@@ -941,7 +998,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graph, setNodes, setEdges, selectedNodeId, selectedNodeIds]);
+  }, [graph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -957,9 +1014,32 @@ function GraphCanvas() {
   // No realtime broadcast integration; positions update via API/SSE refresh
 
   const onConnect = useCallback(async (params: Connection) => {
+    // Store the new edge for potential rollback
+    const newEdge = {
+      id: `${params.source}-${params.target}`,
+      source: params.source,
+      target: params.target,
+      type: 'default',
+      style: {
+        stroke: '#9ca3af',
+        strokeWidth: 2,
+        opacity: 0.8,
+      },
+      interactionWidth: 24,
+      selected: false,
+    };
+
+    // Generate unique operation ID for tracking optimistic state
+    const operationId = `connect-${Date.now()}-${Math.random()}`;
+
     try {
+      // Mark optimistic operation as in progress
+      setOptimisticOperationsActive(true);
+
       // First add the edge to local ReactFlow state for immediate feedback
       setEdges((eds) => addEdge(params, eds));
+
+      console.log('🔗 Optimistically connected nodes:', params.source, '->', params.target);
 
       // Then persist to the graph API
       const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
@@ -973,19 +1053,19 @@ function GraphCanvas() {
         }
       });
 
-      let graph;
+      let currentGraph;
       const contentType = (data.headers.get('content-type') || '').toLowerCase();
 
       if (contentType.includes('xml')) {
         const xml = await data.text();
-        graph = xmlToGraph(xml);
+        currentGraph = xmlToGraph(xml);
       } else {
         const graphData = await data.json();
-        graph = graphData.graph || graphData;
+        currentGraph = graphData.graph || graphData;
       }
 
-      // Create new edge
-      const newEdge = {
+      // Create new edge for server
+      const serverEdge = {
         id: `${params.source}-${params.target}`,
         source: params.source,
         target: params.target,
@@ -993,8 +1073,8 @@ function GraphCanvas() {
       };
 
       // Add edge to graph
-      if (!graph.edges) graph.edges = [];
-      graph.edges.push(newEdge);
+      if (!currentGraph.edges) currentGraph.edges = [];
+      currentGraph.edges.push(serverEdge);
 
       // Persist to API
       await fetch(url, {
@@ -1003,16 +1083,26 @@ function GraphCanvas() {
           'Content-Type': 'application/xml; charset=utf-8',
           'Accept-Charset': 'utf-8'
         },
-        body: graphToXml(graph)
+        body: graphToXml(currentGraph)
       });
 
-      console.log('✅ Created connection between nodes:', params.source, '->', params.target);
+      console.log('✅ Successfully persisted connection to server');
+
+      // Update local store graph to match server snapshot
+      useProjectStore.setState({ graph: currentGraph });
+
+      // Suppress SSE briefly to avoid stale snapshot race and clear optimistic flag
+      suppressSSE?.(800);
+      setOptimisticOperationsActive(false);
     } catch (error) {
       console.error('❌ Failed to create connection:', error);
       // Remove the edge from local state if persistence failed
       setEdges((eds) => eds.filter(e => !(e.source === params.source && e.target === params.target)));
+
+      // Clear optimistic operation flag on error (after rollback)
+      setOptimisticOperationsActive(false);
     }
-  }, [setEdges]);
+  }, [setEdges, setOptimisticOperationsActive]);
 
   // Throttle position broadcasts to prevent spam
   const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
@@ -1251,7 +1341,6 @@ function GraphCanvas() {
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
-        fitView
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}

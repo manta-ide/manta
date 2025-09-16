@@ -264,6 +264,54 @@ export const ChatServiceActionsSchema = z.object({
 
 export type ChatServiceActions = z.infer<typeof ChatServiceActionsSchema>;
 
+// MCP Server configuration for serialization
+export const McpServerConfigSchema = z.object({
+  name: z.string(),
+  baseUrl: z.string(),
+  tools: z.array(z.string()).optional(), // Tool names that should be enabled
+});
+
+export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+
+// Claude Code request schemas
+export const ClaudeCodeOptionsSchema = z.object({
+  abortController: z.any().optional(), // AbortController can't be validated after JSON serialization
+  additionalDirectories: z.array(z.string()).optional(),
+  allowedTools: z.array(z.string()).optional(),
+  appendSystemPrompt: z.string().optional(),
+  canUseTool: z.any().optional(), // Function type, can't validate easily
+  continue: z.boolean().optional(),
+  customSystemPrompt: z.string().optional(),
+  cwd: z.string().optional(),
+  disallowedTools: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+  executable: z.enum(['bun', 'deno', 'node']).optional(),
+  executableArgs: z.array(z.string()).optional(),
+  extraArgs: z.record(z.string()).optional(),
+  fallbackModel: z.string().optional(),
+  hooks: z.any().optional(), // Complex nested object with function types
+  includePartialMessages: z.boolean().optional(),
+  maxThinkingTokens: z.number().optional(),
+  maxTurns: z.number().optional(),
+  mcpServers: z.record(McpServerConfigSchema).optional(), // Serializable MCP server configs
+  model: z.string().optional(),
+  pathToClaudeCodeExecutable: z.string().optional(),
+  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional(),
+  permissionPromptToolName: z.string().optional(),
+  resume: z.string().optional(),
+  stderr: z.any().optional(), // Function type
+  strictMcpConfig: z.boolean().optional(),
+});
+
+export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;
+
+export const ClaudeCodeRequestSchema = z.object({
+  prompt: z.string(),
+  options: ClaudeCodeOptionsSchema.optional(),
+});
+
+export type ClaudeCodeRequest = z.infer<typeof ClaudeCodeRequestSchema>;
+
 // Property code service schemas
 export const CodeUpdateSchema = z.object({
   file: z.string(),

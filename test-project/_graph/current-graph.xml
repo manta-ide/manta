@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="-28.680975513766327" y="-336.59671680672875" z="0">
+    <node id="app" title="Simple App" x="-11.490284953079282" y="-451.7743435633321" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
       <state status="active">
         <build status="built"/>
@@ -65,13 +65,6 @@
           </options>
         </prop>
       </props>
-    </node>
-
-    <node id="test-node" title="Test Node" x="100" y="100" z="0">
-      <description>This is a test node for demonstration purposes</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
     </node>
   </nodes>
 

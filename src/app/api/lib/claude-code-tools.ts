@@ -90,14 +90,13 @@ function readLocalGraph(): any | null {
 }
 
 // Tool definitions for Claude Code MCP server
-export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, string>) => {
-  console.log('🔧 Creating graph tools with baseUrl:', baseUrl, 'authHeaders present:', !!authHeaders);
+export const createGraphTools = (baseUrl: string) => {
+  console.log('🔧 Creating graph tools with baseUrl:', baseUrl);
 
   // Helper function to build request headers
   const buildHeaders = (additionalHeaders?: Record<string, string>) => {
     return {
       'Accept': 'application/xml, application/json',
-      ...authHeaders,
       ...additionalHeaders
     };
   };
@@ -284,7 +283,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
         console.log('✅ TOOL: graph_edge_create added edge, total edges:', validatedGraph.edges.length);
 
         console.log('💾 TOOL: graph_edge_create saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl, authHeaders);
+        const saveResult = await saveGraph(validatedGraph, baseUrl);
         if (!saveResult.success) {
           console.log('📤 TOOL: graph_edge_create returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -380,7 +379,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
         console.log('✅ TOOL: graph_node_add added node, total nodes:', validatedGraph.nodes.length);
 
         console.log('💾 TOOL: graph_node_add saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl, authHeaders);
+        const saveResult = await saveGraph(validatedGraph, baseUrl);
         if (!saveResult.success) {
           console.log('📤 TOOL: graph_node_add returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -608,7 +607,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
 
         validatedGraph.nodes[idx] = next;
         console.log('💾 TOOL: graph_node_edit saving updated graph (merge mode)');
-        const saveResult = await saveGraph(validatedGraph, baseUrl, authHeaders);
+        const saveResult = await saveGraph(validatedGraph, baseUrl);
         if (!saveResult.success) {
           console.log('📤 TOOL: graph_node_edit returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -649,7 +648,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
         }
         validatedGraph.nodes[idx] = next;
         console.log('💾 TOOL: graph_node_edit saving updated graph (replace mode)');
-        const saveResult = await saveGraph(validatedGraph, baseUrl, authHeaders);
+        const saveResult = await saveGraph(validatedGraph, baseUrl);
         if (!saveResult.success) {
           console.log('📤 TOOL: graph_node_edit returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -732,7 +731,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
         validatedGraph.nodes[idx] = { ...validatedGraph.nodes[idx], state };
 
         console.log('💾 TOOL: graph_node_set_state saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl, authHeaders);
+        const saveResult = await saveGraph(validatedGraph, baseUrl);
         if (!saveResult.success) {
           console.log('📤 TOOL: graph_node_set_state returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -830,7 +829,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
         console.log('✅ TOOL: graph_node_delete removed nodes, count changed from', originalCount, 'to', validatedGraph.nodes.length);
 
         console.log('💾 TOOL: graph_node_delete saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl, authHeaders);
+        const saveResult = await saveGraph(validatedGraph, baseUrl);
         if (!saveResult.success) {
           console.log('📤 TOOL: graph_node_delete returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -938,7 +937,7 @@ export const createGraphTools = (baseUrl: string, authHeaders?: Record<string, s
 };
 
 // Helper function to save graph
-async function saveGraph(graph: any, baseUrl: string, authHeaders?: Record<string, string>): Promise<{ success: boolean; error?: string }> {
+async function saveGraph(graph: any, baseUrl: string): Promise<{ success: boolean; error?: string }> {
   console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0);
 
   try {
@@ -950,8 +949,7 @@ async function saveGraph(graph: any, baseUrl: string, authHeaders?: Record<strin
       method: 'PUT',
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Accept-Charset': 'utf-8',
-        ...authHeaders
+        'Accept-Charset': 'utf-8'
       },
       body: xml
     });

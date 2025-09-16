@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { graphToXml } from '@/lib/graph-xml';
-import { Message, MessageSchema } from '@/app/api/lib/schemas';
+import { Message, MessageSchema, ClaudeCodeOptions, McpServerConfig } from '@/app/api/lib/schemas';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
-import { EDIT_GRAPH_TOOLS } from '@/app/api/lib/claude-code-utils';
+import { EDIT_GRAPH_TOOLS, getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { formatTraceMessage } from '@/lib/chatService';
 
 // No longer using template-based approach - using system prompt in Claude Code
@@ -39,7 +39,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { userMessage, selectedNodeId, selectedNodeTitle, selectedNodePrompt, nodeId, selectedNodeIds, rebuildAll } = parsed.data;
+    const {
+      userMessage,
+      selectedNodeId,
+      selectedNodeTitle,
+      selectedNodePrompt,
+      nodeId,
+      selectedNodeIds,
+      rebuildAll
+    } = parsed.data;
     // forward auth headers for downstream API calls
     setGraphEditorAuthHeaders({
       ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
@@ -91,63 +99,76 @@ export async function POST(req: NextRequest) {
 
     const variables = {
       GRAPH_DATA: JSON.stringify(graph, null, 2),
-      SELECTED_NODE_ID: selectedNodeId || userMessage.variables?.SELECTED_NODE_ID,
-      SELECTED_NODE_TITLE: selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE,
-      SELECTED_NODE_PROMPT: selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT,
+      SELECTED_NODE_ID: selectedNodeId,
+      SELECTED_NODE_TITLE: selectedNodeTitle,
+      SELECTED_NODE_PROMPT: selectedNodePrompt,
       SELECTED_NODE_IDS: JSON.stringify(targetNodeIds),
       REBUILD_ALL: rebuildAll ? '1' : '',
     };
 
-    // Hardcoded system message for graph editor
-    const appendSystemMessage = `You are a graph editor agent.
+    // Build system message for graph editor
+    const customSystemPrompt = 
+    `You are a graph editor agent.
 
-Rules:
-- Use unique IDs for all nodes
-- Never edit source code - graph changes only
-- Delete template nodes if request requires different structure
-- Create CMS-style properties when possible (colors, text, numbers, booleans, selects)
-- Set new nodes to "unbuilt" state
+    Rules:
+    - Use unique IDs for all nodes
+    - Never edit source code - graph changes only
+    - Delete template nodes if request requires different structure
+    - Create CMS-style properties when possible (colors, text, numbers, booleans, selects)
+    - Set new nodes to "unbuilt" state
 
-Tools: graph_read, graph_node_add, graph_node_edit, graph_node_delete, graph_edge_create
+    Tools: graph_read, graph_node_add, graph_node_edit, graph_node_delete, graph_edge_create
 
-Keep responses brief. Complete all changes in one operation.`;
+    Keep responses brief, use the tools quickly and efficiently.`;
 
-    // Build user prompt simply
-    const baseUserRequest = userMessage.content || userMessage.variables?.USER_REQUEST || '';
-    let prompt = baseUserRequest;
+    let prompt = userMessage.content;
 
     // Add selected node info if available
-    if (selectedNodeId || userMessage.variables?.SELECTED_NODE_ID) {
-      const nodeTitle = selectedNodeTitle || userMessage.variables?.SELECTED_NODE_TITLE || 'Unknown';
-      const nodeId = selectedNodeId || userMessage.variables?.SELECTED_NODE_ID || '';
-      const nodePrompt = selectedNodePrompt || userMessage.variables?.SELECTED_NODE_PROMPT;
-
-      prompt += `\n\nSelected Node: ${nodeTitle} (ID: ${nodeId})`;
-      if (nodePrompt) {
-        prompt += `\nPrompt: ${nodePrompt}`;
+    if (selectedNodeId) {
+      prompt += `\n\nSelected Node: ${selectedNodeTitle} (ID: ${selectedNodeId})`;
+      if (selectedNodePrompt) {
+        prompt += `\nPrompt: ${selectedNodePrompt}`;
       }
     }
 
     console.log('🔧 Edit-graph: Generated prompt length:', prompt.length);
-    console.log('🔧 Edit-graph: System message length:', appendSystemMessage.length);
+    console.log('🔧 Edit-graph: System message length:', customSystemPrompt.length);
+
+    // Get base URL for MCP server tools
+    const baseUrl = getBaseUrl(req);
+    console.log('🌐 Edit-graph: Base URL for MCP tools:', baseUrl);
+
+    // Create MCP server configuration that can be serialized
+    const graphToolsServerConfig: McpServerConfig = {
+      name: "graph-tools",
+      baseUrl: baseUrl,
+      tools: EDIT_GRAPH_TOOLS // Tools will be filtered by the claude-code endpoint
+    };
+
+    console.log('🎯 Edit-graph: MCP server config created successfully');
+
+    // Build Claude Code options for graph editing
+    const claudeOptions: ClaudeCodeOptions = {
+      appendSystemPrompt: customSystemPrompt,
+      mcpServers: {
+        "graph-tools": graphToolsServerConfig,
+      },
+      allowedTools: EDIT_GRAPH_TOOLS,
+      cwd: projectDir(),
+      includePartialMessages: true, // Enable streaming for real-time updates
+      permissionMode: 'bypassPermissions', // Allow internal operations
+      abortController: new AbortController()
+    };
 
     // Call Claude Code API endpoint
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        allowedTools: EDIT_GRAPH_TOOLS,
-        appendSystemMessage,
-        authHeaders: {
-          ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
-          ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
-        }
-      }),
+      body: JSON.stringify({prompt, options: claudeOptions})
     });
 
     if (!response.ok) {
-      throw new Error(`Claude Code API failed: ${response.status}`);
+      throw new Error(`Claude Code API failed: ${response.status} ${response.body?.toString()}`);
     }
 
     // If the response is already streaming, pass it through
