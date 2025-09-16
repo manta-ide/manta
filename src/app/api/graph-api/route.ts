@@ -70,13 +70,11 @@ export async function GET(req: NextRequest) {
           // Send initial data
           sendGraphData();
 
-          // Set up periodic updates (every 500ms for more responsive updates)
-          const interval = setInterval(sendGraphData, 500);
+          // No periodic updates - only send data when broadcasts happen via the broadcast system
 
           // Clean up on close
           req.signal.addEventListener('abort', () => {
             unregisterStreamController(controller);
-            clearInterval(interval);
             controller.close();
           });
         }
@@ -253,6 +251,7 @@ export async function PUT(req: NextRequest) {
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
     const url = new URL(req.url);
     const graphType = url.searchParams.get('type'); // 'current', 'base', or undefined for default
+    const isAgentInitiated = req.headers.get('x-agent-initiated') === 'true';
     let graph: any;
     if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
       const text = await req.text();
@@ -263,15 +262,23 @@ export async function PUT(req: NextRequest) {
     }
     if (!graph) return NextResponse.json({ error: 'Graph data is required' }, { status: 400 });
 
-    console.log(`💾 Saving ${graphType || 'current'} graph for user ${user.id}...`);
+    console.log(`💾 Saving ${graphType || 'current'} graph for user ${user.id}${isAgentInitiated ? ' (agent-initiated)' : ''}...`);
 
     // Store the graph using the appropriate storage function
     if (graphType === 'base') {
       await storeBaseGraph(graph, user.id);
       console.log(`✅ Base graph saved successfully with ${graph.nodes?.length || 0} nodes`);
     } else {
-      await storeCurrentGraph(graph, user.id);
-      console.log(`✅ Current graph saved successfully with ${graph.nodes?.length || 0} nodes`);
+      // Only broadcast if this is agent-initiated
+      if (isAgentInitiated) {
+        await storeCurrentGraph(graph, user.id);
+        console.log(`✅ Current graph saved successfully with ${graph.nodes?.length || 0} nodes (broadcasted)`);
+      } else {
+        // For user-initiated changes, save without broadcasting
+        const { storeCurrentGraphWithoutBroadcast } = await import('../lib/graph-service');
+        await storeCurrentGraphWithoutBroadcast(graph, user.id);
+        console.log(`✅ Current graph saved successfully with ${graph.nodes?.length || 0} nodes (no broadcast)`);
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Graph saved successfully' });

@@ -292,6 +292,13 @@ export async function storeCurrentGraph(graph: Graph, userId: string): Promise<v
   writeVarsToFs(normalized);
 }
 
+export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  currentGraph = normalized;
+  await saveCurrentGraphToFs(normalized);
+  writeVarsToFs(normalized);
+}
+
 export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   await saveBaseGraphToFs(normalized);

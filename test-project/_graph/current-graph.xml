@@ -37,7 +37,7 @@
       </props>
     </node>
 
-    <node id="node-1758061078838971" title="Header" x="-8.166052567882076" y="297.53670741381717" z="0">
+    <node id="node-1758061078838971" title="Header" x="3.919447171651356" y="295.11960746591046" z="0">
       <description>Black header bar with nav links</description>
       <state status="active">
         <build status="built"/>
@@ -108,9 +108,97 @@
       </prop>
       </props>
     </node>
+
+    <node id="node-1758061687539528" title="Hero section" x="362.3458605995344" y="301.4403549446807" z="0">
+      <description>Hero section with a few texts and a gradient</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="hero-styles" title="Hero Styles" type="object">
+        <field name="background-gradient-start" title="Gradient Start Color" type="color">#e5e7f1</field>
+        <field name="background-gradient-end" title="Gradient End Color" type="color">#764ba2</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="padding-y" title="Vertical Padding" type="select">
+          <value>5rem</value>
+          <options>
+          <option>3rem</option>
+          <option>4rem</option>
+          <option>5rem</option>
+          <option>6rem</option>
+          <option>8rem</option>
+          </options>
+        </field>
+        <field name="padding-x" title="Horizontal Padding" type="select">
+          <value>2rem</value>
+          <options>
+          <option>1rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="hero-content" title="Hero Content" type="object">
+        <field name="headline" title="Main Headline" type="text">Welcome to Our Platform</field>
+        <field name="subheadline" title="Subheadline" type="textarea">Build amazing experiences with our powerful tools</field>
+        <field name="cta-text" title="Call-to-Action Text" type="text">Get Started</field>
+        <field name="cta-href" title="Call-to-Action Link" type="text">#start</field>
+      </prop>
+        <prop name="hero-typography" title="Typography" type="object">
+        <field name="headline-size" title="Headline Font Size" type="select">
+          <value>3.5rem</value>
+          <options>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          <option>3.5rem</option>
+          <option>4rem</option>
+          <option>4.5rem</option>
+          </options>
+        </field>
+        <field name="subheadline-size" title="Subheadline Font Size" type="select">
+          <value>1.25rem</value>
+          <options>
+          <option>1rem</option>
+          <option>1.125rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>1.75rem</option>
+          </options>
+        </field>
+        <field name="headline-weight" title="Headline Font Weight" type="select">
+          <value>bold</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          <option>extrabold</option>
+          </options>
+        </field>
+        <field name="text-align" title="Text Alignment" type="select">
+          <value>center</value>
+          <options>
+          <option>left</option>
+          <option>center</option>
+          <option>right</option>
+          </options>
+        </field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1758062731672417" title="New Node" x="358.8473122233024" y="-3.8993238216322865" z="0">
+      <description>Test node</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+    </node>
   </nodes>
 
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
+    <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
   </edges>
 </graph>

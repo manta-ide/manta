@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, memo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -29,22 +29,9 @@ import { graphToXml, xmlToGraph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed, Loader2 } from 'lucide-react';
 
-// Helper function to check if a point is within a rectangle
-function isPointInRect(point: { x: number; y: number }, rect: { x: number; y: number; width: number; height: number }) {
-  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
-}
-
-// Helper function to get rectangle from two points
-function getRectFromPoints(p1: { x: number; y: number }, p2: { x: number; y: number }) {
-  const x = Math.min(p1.x, p2.x);
-  const y = Math.min(p1.y, p2.y);
-  const width = Math.abs(p1.x - p2.x);
-  const height = Math.abs(p1.y - p2.y);
-  return { x, y, width, height };
-}
 
 // Custom node component
-function CustomNode({ data, selected }: { data: any; selected: boolean }) {
+const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
   const { zoom } = useViewport();
 
@@ -60,6 +47,10 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
+  // Calculate handle size based on zoom level
+  const handleSize = isZoomedOut ? (selected ? '24px' : '20px') : (selected ? '16px' : '12px');
+  // Calculate indicator dot size based on zoom level
+  const indicatorSize = isZoomedOut ? '16px' : '12px';
   
   // Derive effective visual state:
   // - If explicitly building, show building even if built flag is true
@@ -75,34 +66,35 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Determine styling based on node state (built/unbuilt/building)
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '3px' : '0px';
-    
+
     switch (effectiveState) {
       case 'built':
+      case 'unbuilt': // Unbuilt nodes now look exactly like built nodes
         return {
           background: selected ? '#f8fafc' : '#ffffff',
           border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
-          boxShadow: selected 
-            ? '0 0 0 4px #2563eb' 
+          boxShadow: selected
+            ? '0 0 0 2px #2563eb'
             : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           borderRadius: '8px',
         };
-      
+
       case 'building':
         return {
           background: '#fef3c7', // Yellow background like unbuilt
           border: selected ? `${borderWidth} solid #ea580c` : '1px dashed #ea580c', // Dashed border to indicate processing
-          boxShadow: selected 
-            ? '0 0 0 4px #ea580c' 
+          boxShadow: selected
+            ? '0 0 0 2px #ea580c'
             : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           borderRadius: '8px',
         };
-      
-      default: // 'unbuilt' or any other state
+
+      default: // Any other state - also treat as built-like
         return {
-          background: '#fef3c7', // Keep yellow background even when selected
-          border: selected ? `${borderWidth} solid #ea580c` : '1px solid #fbbf24',
-          boxShadow: selected 
-            ? '0 0 0 4px #ea580c' 
+          background: selected ? '#f8fafc' : '#ffffff',
+          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+          boxShadow: selected
+            ? '0 0 0 2px #2563eb'
             : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           borderRadius: '8px',
         };
@@ -128,7 +120,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           alignItems: 'center',
         }}
       >
-        {/* Building state indicator */}
+        {/* State indicators */}
         {effectiveState === 'building' && (
           <div style={{
             position: 'absolute',
@@ -142,6 +134,18 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             animation: 'spin 1s linear infinite',
           }} />
         )}
+        {effectiveState === 'unbuilt' && (
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            width: indicatorSize,
+            height: indicatorSize,
+            borderRadius: '50%',
+            background: '#ef4444',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+          }} />
+        )}
         <style jsx>{`
           @keyframes spin {
             to { transform: rotate(360deg); }
@@ -153,9 +157,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           style={{
             fontSize: '24px',
             fontWeight: '700',
-            color: selected ? 
-              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
-              '#1f2937',
+            color: '#1f2937',
             textAlign: 'center',
             lineHeight: '1.2',
             overflow: 'hidden',
@@ -170,9 +172,9 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         </div>
         
         {/* Simple metadata for zoomed out view */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '16px', 
+        <div style={{
+          display: 'flex',
+          gap: '16px',
           fontSize: '14px',
           color: '#6b7280',
           fontWeight: '500',
@@ -194,32 +196,30 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             </div>
           )}
         </div>
-        
+
         {/* Handles for connections */}
         <Handle
           type="target"
           position={Position.Top}
           style={{
-            background: selected ? 
-              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
-              '#6b7280',
-            width: selected ? '10px' : '8px',
-            height: selected ? '10px' : '8px',
-            border: selected ? '1px solid #ffffff' : 'none',
-            boxShadow: selected ? '0 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
+            background: '#ffffff',
+            width: handleSize,
+            height: handleSize,
+            border: '1px solid #9ca3af',
+            borderRadius: '50%',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           }}
         />
         <Handle
           type="source"
           position={Position.Bottom}
           style={{
-            background: selected ? 
-              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
-              '#6b7280',
-            width: selected ? '10px' : '8px',
-            height: selected ? '10px' : '8px',
-            border: selected ? '1px solid #ffffff' : 'none',
-            boxShadow: selected ? '0 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
+            background: '#ffffff',
+            width: handleSize,
+            height: handleSize,
+            border: '1px solid #9ca3af',
+            borderRadius: '50%',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           }}
         />
       </div>
@@ -244,7 +244,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         justifyContent: 'space-between',
       }}
     >
-      {/* Building state indicator */}
+      {/* State indicators */}
       {effectiveState === 'building' && (
         <div style={{
           position: 'absolute',
@@ -256,6 +256,18 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           border: '2px solid #ea580c',
           borderTopColor: 'transparent',
           animation: 'spin 1s linear infinite',
+        }} />
+      )}
+      {effectiveState === 'unbuilt' && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          width: indicatorSize,
+          height: indicatorSize,
+          borderRadius: '50%',
+          background: '#ef4444',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
         }} />
       )}
       <style jsx>{`
@@ -271,9 +283,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           style={{
             fontSize: '16px',
             fontWeight: '600',
-            color: selected ? 
-              (effectiveState === 'built' ? '#2563eb' : '#ea580c') : 
-              '#1f2937',
+            color: '#1f2937',
             marginBottom: '12px',
             lineHeight: '1.4',
           }}
@@ -343,29 +353,43 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           </div>
         )}
       </div>
-      
+
       {/* Handles for connections */}
       <Handle
         type="target"
         position={Position.Top}
         style={{
-          background: '#3b82f6',
-          width: '8px',
-          height: '8px',
+          background: '#ffffff',
+          width: handleSize,
+          height: handleSize,
+          border: '1px solid #9ca3af',
+          borderRadius: '50%',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
         }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         style={{
-          background: '#3b82f6',
-          width: '8px',
-          height: '8px',
+          background: '#ffffff',
+          width: handleSize,
+          height: handleSize,
+          border: '1px solid #9ca3af',
+          borderRadius: '50%',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
         }}
       />
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if selected state or node data actually changed
+  return prevProps.selected === nextProps.selected &&
+         prevProps.data?.node?.id === nextProps.data?.node?.id &&
+         prevProps.data?.node?.title === nextProps.data?.node?.title &&
+         prevProps.data?.node?.prompt === nextProps.data?.node?.prompt &&
+         prevProps.data?.node?.state === nextProps.data?.node?.state &&
+         JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties);
+});
 
 function GraphCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -389,9 +413,6 @@ function GraphCanvas() {
     setBaseGraph,
     loadBaseGraph
   } = useProjectStore();
-  const [isDraggingSelect, setIsDraggingSelect] = useState(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null);
   // Tool modes: 'select', 'pan', 'add-node'
   const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
@@ -438,6 +459,10 @@ function GraphCanvas() {
       // Mark optimistic operation as in progress
       setOptimisticOperationsActive(true);
 
+      // Set selection immediately before adding the node
+      setSelectedNode(newNodeId, newNode);
+      setSelectedNodeIds([newNodeId]);
+
       // Update local graph state immediately for instant feedback
       const updatedGraph = {
         ...graph,
@@ -445,7 +470,7 @@ function GraphCanvas() {
       };
       useProjectStore.setState({ graph: updatedGraph });
 
-      // Create ReactFlow node and add to local state
+      // Create ReactFlow node and add to local state (already selected)
       const reactFlowNode: Node = {
         id: newNodeId,
         position,
@@ -456,7 +481,7 @@ function GraphCanvas() {
           properties: newNode.properties
         },
         type: 'custom',
-        selected: true,
+        selected: true, // Node is already selected
       };
       setNodes((nds) => [...nds, reactFlowNode]);
 
@@ -465,17 +490,13 @@ function GraphCanvas() {
       // Persist to Supabase (this will trigger real-time updates that will sync everything)
       await updateNodeInSupabase(newNodeId, newNode);
 
-      // Select the new node
-      setSelectedNode(newNodeId, newNode);
-      setSelectedNodeIds([newNodeId]);
-
       // Switch back to select tool after creating node
       setCurrentTool('select');
 
       console.log('✅ Successfully persisted new node to server:', newNodeId);
 
-      // Suppress SSE briefly to avoid stale snapshot race, then clear optimistic flag
-      suppressSSE?.(800);
+      // Suppress SSE for longer to avoid stale snapshot race, then clear optimistic flag
+      suppressSSE?.(2000);
       setOptimisticOperationsActive(false);
     } catch (error) {
       console.error('❌ Failed to create new node:', error);
@@ -587,7 +608,7 @@ function GraphCanvas() {
       useProjectStore.setState({ graph: currentGraph });
 
       // Suppress SSE briefly to avoid stale snapshot race and clear optimistic flag
-      suppressSSE?.(800);
+      suppressSSE?.(2000);
       setOptimisticOperationsActive(false);
 
     } catch (error) {
@@ -619,17 +640,7 @@ function GraphCanvas() {
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
-  // Poll for graph updates as fallback for tool changes (using reconciliation to preserve UI state)
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      // Only poll if we're not in the middle of an optimistic operation
-      if (!optimisticOperationsActive) {
-        reconcileGraphRefresh();
-      }
-    }, 2000); // Poll every 2 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [reconcileGraphRefresh, optimisticOperationsActive]);
+  // No polling - rely on SSE for agent-initiated updates only
 
   // Initialize base graph when graph is first loaded
   useEffect(() => {
@@ -986,7 +997,7 @@ function GraphCanvas() {
                     strokeWidth: 2,
                     opacity: 0.8,
                   },
-              // Increase interaction width to make edges easier to hover/click
+              // Standard interaction width since handles are now visually large
               interactionWidth: 24,
               selected: previouslySelectedEdges.has(edge.id),
             });
@@ -1049,8 +1060,17 @@ function GraphCanvas() {
       // Mark optimistic operation as in progress
       setOptimisticOperationsActive(true);
 
-      // First add the edge to local ReactFlow state for immediate feedback
-      setEdges((eds) => addEdge(params, eds));
+    // First add the edge to local ReactFlow state for immediate feedback with correct styling
+    const customEdge: Edge = {
+      id: newEdge.id,
+      source: newEdge.source,
+      target: newEdge.target,
+      type: 'default',
+      style: newEdge.style,
+      interactionWidth: newEdge.interactionWidth,
+      selected: false,
+    };
+    setEdges((eds) => [...eds, customEdge]);
 
       console.log('🔗 Optimistically connected nodes:', params.source, '->', params.target);
 
@@ -1105,7 +1125,7 @@ function GraphCanvas() {
       useProjectStore.setState({ graph: currentGraph });
 
       // Suppress SSE briefly to avoid stale snapshot race and clear optimistic flag
-      suppressSSE?.(800);
+      suppressSSE?.(2000);
       setOptimisticOperationsActive(false);
     } catch (error) {
       console.error('❌ Failed to create connection:', error);
@@ -1164,17 +1184,13 @@ function GraphCanvas() {
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
   }, [updateNodeInSupabase]);
 
-  // Handle background mouse down for drag selection or node creation
+  // Handle background mouse down for node creation
   const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
     // Only start selection on left mouse button
     if (event.button !== 0) return;
     // Ignore clicks that originate from nodes, edges, or handles
     const target = event.target as HTMLElement;
     if (target.closest('.react-flow__node') || target.closest('.react-flow__edge') || target.closest('.react-flow__handle')) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
 
     if (currentTool === 'add-node') {
       // Convert screen coordinates to flow coordinates
@@ -1189,91 +1205,8 @@ function GraphCanvas() {
       return;
     }
 
-    // Only handle selection in select mode
-    if (currentTool === 'select') {
-      setIsDraggingSelect(true);
-      setDragStart({ x, y });
-      setDragEnd({ x, y });
-      // If not multi-select modifier, clear current selection at drag start
-      if (!(event.shiftKey || event.metaKey || event.ctrlKey)) {
-        setSelectedNodeIds([]);
-        setSelectedNode(null, null);
-      }
-    }
-
     event.preventDefault();
-  }, [currentTool, reactFlow, createNewNode, setSelectedNode, setSelectedNodeIds]);
-
-  const onPaneMouseMove = useCallback((event: React.MouseEvent) => {
-    if (!isDraggingSelect || !dragStart) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    setDragEnd({ x, y });
-    event.preventDefault();
-  }, [isDraggingSelect, dragStart]);
-
-  const onPaneMouseUp = useCallback((event?: React.MouseEvent) => {
-    if (!isDraggingSelect || !dragStart || !dragEnd) {
-      setIsDraggingSelect(false);
-      setDragStart(null);
-      setDragEnd(null);
-      return;
-    }
-
-    // Calculate selection rectangle in screen coordinates
-    const selectionRect = getRectFromPoints(dragStart, dragEnd);
-    const width = selectionRect.width;
-    const height = selectionRect.height;
-
-    // Find nodes within the selection rectangle (convert node positions to screen coords)
-    const selectedNodesInRect: string[] = [];
-    const { x: viewportX, y: viewportY, zoom } = viewport;
-    nodes.forEach(node => {
-      const centerFlow = { x: node.position.x + 130, y: node.position.y + 80 };
-      const centerScreen = { x: centerFlow.x * zoom + viewportX, y: centerFlow.y * zoom + viewportY };
-      if (isPointInRect(centerScreen, selectionRect)) {
-        selectedNodesInRect.push(node.id);
-      }
-    });
-
-    const isMulti = Boolean(event && (event.shiftKey || event.metaKey || event.ctrlKey));
-    const hasDrag = width >= 3 || height >= 3;
-    if (hasDrag) {
-      if (selectedNodesInRect.length > 0) {
-        if (isMulti) {
-          // Merge with existing selection
-          const prev = selectedNodeIds || [];
-          const newSelection = [...new Set([...prev, ...selectedNodesInRect])];
-          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
-          if (firstNode) setSelectedNode(newSelection[0], firstNode);
-          setSelectedNodeIds(newSelection);
-        } else {
-          // Replace selection
-          const firstNode = graph?.nodes?.find(n => n.id === selectedNodesInRect[0]);
-          if (firstNode) setSelectedNode(selectedNodesInRect[0], firstNode);
-          setSelectedNodeIds(selectedNodesInRect);
-        }
-      } else if (!isMulti) {
-        // Dragged but selected nothing -> clear selection
-        setSelectedNode(null, null);
-        setSelectedNodeIds([]);
-      }
-    } else {
-      // Treat as background click: clear selection if no modifier
-      if (!isMulti) {
-        setSelectedNode(null, null);
-        setSelectedNodeIds([]);
-      }
-    }
-
-    setIsDraggingSelect(false);
-    setDragStart(null);
-    setDragEnd(null);
-    if (event) event.preventDefault();
-  }, [isDraggingSelect, dragStart, dragEnd, nodes, graph, viewport, selectedNodeIds, setSelectedNode, setSelectedNodeIds]);
+  }, [currentTool, reactFlow, createNewNode]);
 
   // Node types for ReactFlow
   const nodeTypes = {
@@ -1346,8 +1279,6 @@ function GraphCanvas() {
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
         selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
-        onMouseMove={onPaneMouseMove}
-        onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
@@ -1370,31 +1301,6 @@ function GraphCanvas() {
         <Background color="#374151" gap={20} />
       </ReactFlow>
 
-      {/* Selection rectangle overlay */}
-      {isDraggingSelect && dragStart && dragEnd && (
-        (() => {
-          const x = Math.min(dragStart.x, dragEnd.x);
-          const y = Math.min(dragStart.y, dragEnd.y);
-          const w = Math.abs(dragStart.x - dragEnd.x);
-          const h = Math.abs(dragStart.y - dragEnd.y);
-          return (
-            <div
-              style={{
-                position: 'absolute',
-                left: x,
-                top: y,
-                width: w,
-                height: h,
-                border: '2px solid #3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                pointerEvents: 'none',
-                zIndex: 1000,
-              }}
-            />
-          );
-        })()
-      )}
-      
       {/* Tool Buttons - Left Side */}
       <div style={{
         position: 'absolute',

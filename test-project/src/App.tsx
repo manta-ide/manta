@@ -1,5 +1,6 @@
 import React from "react";
 import Header from "./components/Header";
+import Hero from "./components/Hero";
 
 interface AppProps {
   vars: Record<string, any>;
@@ -21,16 +22,7 @@ export default function App({ vars }: AppProps) {
       className="min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased"
     >
       <Header vars={vars} />
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4" style={{ fontFamily: "var(--font-family)" }}>
-            Hello World
-          </h1>
-          <p className="text-lg" style={{ fontFamily: "var(--font-family)" }}>
-            Welcome to your Manta template
-          </p>
-        </div>
-      </div>
+      <Hero vars={vars} />
     </main>
   );
 }

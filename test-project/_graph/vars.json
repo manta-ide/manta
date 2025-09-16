@@ -34,5 +34,24 @@
     "text": "MyApp",
     "font-size": "1.5rem",
     "font-weight": "bold"
+  },
+  "hero-styles": {
+    "background-gradient-start": "#e5e7f1",
+    "background-gradient-end": "#764ba2",
+    "text-color": "#ffffff",
+    "padding-y": "5rem",
+    "padding-x": "2rem"
+  },
+  "hero-content": {
+    "headline": "Welcome to Our Platform",
+    "subheadline": "Build amazing experiences with our powerful tools",
+    "cta-text": "Get Started",
+    "cta-href": "#start"
+  },
+  "hero-typography": {
+    "headline-size": "3.5rem",
+    "subheadline-size": "1.25rem",
+    "headline-weight": "bold",
+    "text-align": "center"
   }
 }

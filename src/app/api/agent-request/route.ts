@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/xml',
+          'X-Agent-Initiated': 'true', // Mark this as agent-initiated to trigger SSE broadcasts
           ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
           ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
         },
