@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     let streamClosed = false;
     let lastSentIndex = 0;
     let first = true;
+    let lastLoggedLength = 0;
     // Note: Hooks are causing type issues, using simplified approach
     // Will rely on message streaming for trace information
     
@@ -170,6 +171,7 @@ export async function POST(req: NextRequest) {
               - IMPORTANT: Always use the correct property type - NEVER use "text" type for color properties, always use "color" type, etc.
               - Group related properties using 'object' type for better organization (e.g., "root-styles" with background-color, text-color, font-family)
               - Use 'object-list' for repeatable content structures with defined itemFields
+              - Make sure that all properties are editable by a normal user without programming/css knowledge, for a gradient do an object with a few colors, etc.
 
 
               Available Tools:
@@ -216,7 +218,7 @@ export async function POST(req: NextRequest) {
               }
 
               // Handle different message types with proper typing
-              if (VERBOSE) {
+              if (VERBOSE && (message as any).type !== 'stream_event') {
                 logHeader(`SDK Message #${messageCount} (${(message as any).type})`);
                 logLine('📥 Full message payload:', pretty(message));
               }
@@ -403,40 +405,50 @@ export async function POST(req: NextRequest) {
 
       // Handle different streaming events
       if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
-        // Accumulate and log what Claude is saying in real-time
+        // Accumulate what Claude is saying in real-time
         const content = event.delta.text || '';
         if (content) {
           accumulatedThinking += content;
 
-          // Stream raw delta for full visibility
-          logLine('🟡 STREAM Δ', content);
-
           // Mark that thinking has started (but don't send UI message - let chat handle it)
           if (!thinkingSent && accumulatedThinking.length > 5) {
             thinkingSent = true;
-            logLine('🤔 Claude started thinking...');
+            logLine('🤔 Claude started writing...');
+          }
+
+          // Show continuous writing progress without line breaks
+          const shouldLog = accumulatedThinking.length - lastLoggedLength >= 20 ||
+                           ['\n', '.', '!', '?', ':'].some(char => content.includes(char));
+
+          if (shouldLog && accumulatedThinking.length > lastLoggedLength) {
+            const previewLength = 80;
+            const preview = accumulatedThinking.length > previewLength
+              ? '...' + accumulatedThinking.slice(-previewLength)
+              : accumulatedThinking;
+            logLine(`✨ Claude writing: ${preview}`);
+            lastLoggedLength = accumulatedThinking.length;
           }
 
           // Don't send thinking content to UI - let chat handle its own thinking animation
           lastSentIndex = accumulatedThinking.length;
         }
-      } else if (event?.type === 'content_block_start') {
-        logLine('🤔 Claude started writing...');
       } else if (event?.type === 'content_block_stop') {
-        // Show what Claude finished thinking
+        // Show what Claude finished thinking as a combined log entry
         if (accumulatedThinking.length > 0) {
-          logHeader('🟢 Claude finished thinking (full)');
+          logHeader('🟢 Claude finished thinking (combined content)');
           logLine('', accumulatedThinking);
         }
         logLine('📝 Claude Code: Content block completed');
         accumulatedThinking = ''; // Reset for next message
         lastSentIndex = 0;
+        lastLoggedLength = 0;
       } else if (event?.type === 'message_stop') {
         // Message is complete
         logLine('📝 Claude Code: Message streaming completed');
         accumulatedThinking = ''; // Reset accumulated content
         thinkingSent = false; // Reset thinking flag
         lastSentIndex = 0;
+        lastLoggedLength = 0;
       }
     }
 
