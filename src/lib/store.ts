@@ -62,6 +62,7 @@ interface ProjectStore {
   setSelectedNodeIds: (ids: string[]) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
+  reconcileGraphRefresh: () => Promise<void>;
   updateGraph: (graph: Graph) => void;
   setGraphLoading: (loading: boolean) => void;
   setGraphError: (error: string | null) => void;
@@ -292,7 +293,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
-      const res = await fetch('/api/graph-api', { method: 'GET', headers: { Accept: 'application/xml' } });
+      const res = await fetch('/api/graph-api?graphType=current', { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
       const xml = await res.text();
       const graph = xmlToGraph(xml);
@@ -337,6 +338,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   refreshGraph: async () => {
     await get().loadGraph();
   },
+
+  // Reconcile-based graph refresh for polling (preserves UI state)
+  reconcileGraphRefresh: async () => {
+    try {
+      // Use API call that reads directly from filesystem
+      const res = await fetch('/api/graph-api?type=current&fresh=true', { method: 'GET', headers: { Accept: 'application/xml' } });
+      if (!res.ok) return; // Silently fail for polling
+
+      const xml = await res.text();
+      const incoming = xmlToGraph(xml);
+      const current = get().graph;
+      const reconciled = reconcileGraph(current, incoming);
+
+      if (reconciled) {
+        set({ graph: reconciled, graphError: null });
+      }
+    } catch (error) {
+      // Silently fail polling errors to avoid spam
+      console.debug('Graph reconciliation polling failed:', error);
+    }
+  },
   
   updateGraph: (graph) => { set({ graph }); },
   
@@ -363,10 +385,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const diff = state.calculateGraphDiff();
 
       // Send build request with diff to agent
-      const response = await fetch('/api/agent-request/build-graph', {
+      const response = await fetch('/api/agent-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          agentType: 'build-graph',
           userMessage: {
             role: 'user',
             content: 'Build the entire graph with the following changes',

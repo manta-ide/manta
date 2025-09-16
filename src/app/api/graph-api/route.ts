@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const isSSE = url.searchParams.get('sse') === 'true';
     const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
-    const graphType = url.searchParams.get('type'); // 'current', 'base', or undefined for default
+    const fresh = url.searchParams.get('fresh') === 'true'; // Force fresh read from filesystem
+    const graphType = url.searchParams.get('type') || url.searchParams.get('graphType'); // 'current', 'base', or undefined for default
     const accept = (req.headers.get('accept') || '').toLowerCase();
     const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
@@ -121,13 +122,25 @@ export async function GET(req: NextRequest) {
 
     // Regular GET request
     // Always try to load from file first to ensure we have the latest data
-    let graph = getGraphSession();
-    if (!graph) {
+    let graph = null;
+    if (fresh) {
+      // Force fresh read from filesystem, bypass session cache
       if (graphType === 'base') {
         graph = await loadBaseGraphFromFile(user.id);
       } else {
-        await loadGraphFromFile(user.id);
-        graph = getGraphSession();
+        graph = await loadCurrentGraphFromFile(user.id);
+      }
+    } else {
+      // Use session cache with fallback to filesystem
+      graph = getGraphSession();
+      if (!graph) {
+        if (graphType === 'base') {
+          graph = await loadBaseGraphFromFile(user.id);
+        } else {
+         console.log('ℹ️ Loading graph from file system');
+          await loadGraphFromFile(user.id);
+          graph = getGraphSession();
+        }
       }
     }
     

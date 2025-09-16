@@ -402,6 +402,7 @@ function GraphCanvas() {
     graphLoading: loading,
     graphError: error,
     refreshGraph,
+    reconcileGraphRefresh,
     connectToGraphEvents,
     disconnectFromGraphEvents,
     deleteNodeFromSupabase
@@ -531,7 +532,7 @@ function GraphCanvas() {
 
       // Now fetch current graph and persist changes
       const origin = 'http://localhost:3000';
-      const url = `${origin}/api/graph-api`;
+      const url = `${origin}/api/graph-api?graphType=current`;
 
       const data = await fetch(url, {
         headers: {
@@ -617,6 +618,18 @@ function GraphCanvas() {
       disconnectFromGraphEvents();
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
+
+  // Poll for graph updates as fallback for tool changes (using reconciliation to preserve UI state)
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      // Only poll if we're not in the middle of an optimistic operation
+      if (!optimisticOperationsActive) {
+        reconcileGraphRefresh();
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [reconcileGraphRefresh, optimisticOperationsActive]);
 
   // Initialize base graph when graph is first loaded
   useEffect(() => {
@@ -1043,7 +1056,7 @@ function GraphCanvas() {
 
       // Then persist to the graph API
       const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
-      const url = `${origin}/api/graph-api`;
+      const url = `${origin}/api/graph-api?graphType=current`;
 
       // Get current graph data (accept both XML and JSON)
       const data = await fetch(url, {

@@ -1,16 +1,17 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { graphToXml } from '@/lib/graph-xml';
-import { Message, MessageSchema, ClaudeCodeOptions, McpServerConfig } from '@/app/api/lib/schemas';
+import { Message, MessageSchema } from '@/app/api/lib/schemas';
 import { storeGraph } from '@/app/api/lib/graph-service';
 import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
 import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
-import { EDIT_GRAPH_TOOLS, getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
+import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
 import { formatTraceMessage } from '@/lib/chatService';
 
-// No longer using template-based approach - using system prompt in Claude Code
+const AgentTypeSchema = z.enum(['edit-graph', 'build-graph']);
 
 const RequestSchema = z.object({
+  agentType: AgentTypeSchema,
   userMessage: MessageSchema,
   selectedNodeId: z.string().optional(),
   selectedNodeTitle: z.string().optional(),
@@ -19,6 +20,9 @@ const RequestSchema = z.object({
   nodeId: z.string().optional(),
   selectedNodeIds: z.array(z.string()).optional(),
   rebuildAll: z.boolean().optional().default(false),
+  // Build-graph specific fields
+  graphDiff: z.any().optional(),
+  currentGraph: z.any().optional(),
 });
 
 // Removed buildParsedMessages - now using system prompt approach in Claude Code
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
     const userId = 'default-user';
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
-      console.log('Graph editor request schema error:', parsed.error.flatten());
+      console.log('Agent request schema error:', parsed.error.flatten());
       return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -40,13 +44,16 @@ export async function POST(req: NextRequest) {
     }
 
     const {
+      agentType,
       userMessage,
       selectedNodeId,
       selectedNodeTitle,
       selectedNodePrompt,
       nodeId,
       selectedNodeIds,
-      rebuildAll
+      rebuildAll,
+      graphDiff,
+      currentGraph
     } = parsed.data;
     // forward auth headers for downstream API calls
     setGraphEditorAuthHeaders({
@@ -57,7 +64,7 @@ export async function POST(req: NextRequest) {
     setGraphEditorBaseUrl(req.nextUrl.origin);
     // As a fallback for environments where headers may be dropped, use a direct save function
     setGraphEditorSaveFn(async (graph) => {
-      const res = await fetch(`${req.nextUrl.origin}/api/graph-api`, {
+      const res = await fetch(`${req.nextUrl.origin}/api/graph-api?graphType=current`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/xml',
@@ -71,100 +78,58 @@ export async function POST(req: NextRequest) {
       try { const data = await res.json(); ok = !!data.success; } catch { ok = true; }
       return ok;
     });
-    let graph = await fetchGraphFromApi(req);
 
-    // If no graph exists, create a completely empty one
-    if (!graph) {
-      const emptyGraph = {
-        nodes: []
-      };
+    // Set up graph state based on agent type
+    if (agentType === 'edit-graph') {
+      let graph = await fetchGraphFromApi(req);
 
-      await storeGraph(emptyGraph, userId);
+      // If no graph exists, create a completely empty one
+      if (!graph) {
+        const emptyGraph = {
+          nodes: []
+        };
 
-      graph = emptyGraph;
-    }
+        await storeGraph(emptyGraph, userId);
 
-    // Always set the current graph (either existing or newly created)
-    await setCurrentGraph(graph);
-
-    // Determine target node IDs for build operations
-    let targetNodeIds: string[] = [];
-    if (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0) {
-      targetNodeIds = selectedNodeIds;
-    } else if (nodeId) {
-      targetNodeIds = [nodeId];
-    } else if (rebuildAll && graph?.nodes?.length) {
-      targetNodeIds = graph.nodes.map((n: any) => n.id);
-    }
-
-    const variables = {
-      GRAPH_DATA: JSON.stringify(graph, null, 2),
-      SELECTED_NODE_ID: selectedNodeId,
-      SELECTED_NODE_TITLE: selectedNodeTitle,
-      SELECTED_NODE_PROMPT: selectedNodePrompt,
-      SELECTED_NODE_IDS: JSON.stringify(targetNodeIds),
-      REBUILD_ALL: rebuildAll ? '1' : '',
-    };
-
-    // Build system message for graph editor
-    const customSystemPrompt = 
-    `You are a graph editor agent.
-
-    Rules:
-    - Use unique IDs for all nodes
-    - Never edit source code - graph changes only
-    - Delete template nodes if request requires different structure
-    - Create CMS-style properties when possible (colors, text, numbers, booleans, selects)
-    - Set new nodes to "unbuilt" state
-
-    Tools: graph_read, graph_node_add, graph_node_edit, graph_node_delete, graph_edge_create
-
-    Keep responses brief, use the tools quickly and efficiently.`;
-
-    let prompt = userMessage.content;
-
-    // Add selected node info if available
-    if (selectedNodeId) {
-      prompt += `\n\nSelected Node: ${selectedNodeTitle} (ID: ${selectedNodeId})`;
-      if (selectedNodePrompt) {
-        prompt += `\nPrompt: ${selectedNodePrompt}`;
+        graph = emptyGraph;
       }
+
+      // Always set the current graph (either existing or newly created)
+      await setCurrentGraph(graph);
+
+    } else if (agentType === 'build-graph') {
+      // Set the current graph for the agent to work with
+      await setCurrentGraph(currentGraph);
     }
 
-    console.log('🔧 Edit-graph: Generated prompt length:', prompt.length);
-    console.log('🔧 Edit-graph: System message length:', customSystemPrompt.length);
+    // Build prompt based on agent type
+    let prompt: string;
 
-    // Get base URL for MCP server tools
-    const baseUrl = getBaseUrl(req);
-    console.log('🌐 Edit-graph: Base URL for MCP tools:', baseUrl);
+    if (agentType === 'edit-graph') {
+      prompt = userMessage.content;
 
-    // Create MCP server configuration that can be serialized
-    const graphToolsServerConfig: McpServerConfig = {
-      name: "graph-tools",
-      baseUrl: baseUrl,
-      tools: EDIT_GRAPH_TOOLS // Tools will be filtered by the claude-code endpoint
-    };
+      // Add selected node info if available
+      if (selectedNodeId) {
+        prompt += `\n\nSelected Node: ${selectedNodeTitle} (ID: ${selectedNodeId})`;
+        if (selectedNodePrompt) {
+          prompt += `\nPrompt: ${selectedNodePrompt}`;
+        }
+      }
 
-    console.log('🎯 Edit-graph: MCP server config created successfully');
+      console.log('🔧 Edit-graph: Generated prompt length:', prompt.length);
 
-    // Build Claude Code options for graph editing
-    const claudeOptions: ClaudeCodeOptions = {
-      appendSystemPrompt: customSystemPrompt,
-      mcpServers: {
-        "graph-tools": graphToolsServerConfig,
-      },
-      allowedTools: EDIT_GRAPH_TOOLS,
-      cwd: projectDir(),
-      includePartialMessages: true, // Enable streaming for real-time updates
-      permissionMode: 'bypassPermissions', // Allow internal operations
-      abortController: new AbortController()
-    };
+    } else if (agentType === 'build-graph') {
+      prompt = userMessage.content;
+      console.log('🔧 Build-graph: Generated prompt length:', prompt.length);
+    } else {
+      throw new Error(`Unknown agent type: ${agentType}`);
+    }
 
-    // Call Claude Code API endpoint
+    // Call Claude Code API endpoint with the built prompt and agent type
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({prompt, options: claudeOptions})
+      body: JSON.stringify({ prompt, agentType })
     });
 
     if (!response.ok) {
@@ -173,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     // If the response is already streaming, pass it through
     if (response.headers.get('content-type')?.includes('text/plain')) {
-      console.log('🔄 Edit-graph: Processing streaming response from Claude Code');
+      console.log(`🔄 ${agentType}: Processing streaming response from Claude Code`);
 
       // Create a new stream that processes the Server-Sent Events from Claude Code
       const reader = response.body?.getReader();
@@ -185,7 +150,7 @@ export async function POST(req: NextRequest) {
 
           try {
             if (!reader) {
-              console.log('❌ Edit-graph: No reader available');
+              console.log(`❌ ${agentType}: No reader available`);
               controller.close();
               return;
             }
@@ -194,12 +159,12 @@ export async function POST(req: NextRequest) {
             let hasStarted = false;
             let totalContent = '';
 
-            console.log('🎬 Edit-graph: Starting stream processing');
+            console.log(`🎬 ${agentType}: Starting stream processing`);
 
             while (true) {
               const { value, done } = await reader.read();
               if (done) {
-                console.log('🏁 Edit-graph: Reader done, total content length:', totalContent.length);
+                console.log(`🏁 ${agentType}: Reader done, total content length:`, totalContent.length);
                 break;
               }
 
@@ -212,45 +177,45 @@ export async function POST(req: NextRequest) {
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6); // Remove 'data: ' prefix
-                  console.log('📦 Edit-graph: Received data:', data);
+                  console.log(`📦 ${agentType}: Received data:`, data);
 
                   if (data === '[STREAM_START]') {
                     if (!hasStarted) {
                       hasStarted = true;
-                      console.log('🎯 Edit-graph: Stream started');
+                      console.log(`🎯 ${agentType}: Stream started`);
                     }
                   } else if (data === '[STREAM_END]') {
-                    console.log('🏁 Edit-graph: Stream ended, total content:', totalContent);
+                    console.log(`🏁 ${agentType}: Stream ended, total content:`, totalContent);
                     controller.close();
                     return;
                   } else {
                     try {
                       const parsed = JSON.parse(data);
-                      console.log('📝 Edit-graph: Parsed content:', parsed);
+                      console.log(`📝 ${agentType}: Parsed content:`, parsed);
 
                       if (parsed.type === 'result' && parsed.content) {
                         // Stream the final result
                         totalContent += parsed.content;
-                        console.log('📤 Edit-graph: Sending final result:', parsed.content);
+                        console.log(`📤 ${agentType}: Sending final result:`, parsed.content);
                         controller.enqueue(enc.encode(parsed.content));
                       } else if (parsed.type === 'trace') {
                         // Stream trace information
                         const traceContent = formatTraceMessage(parsed.trace);
                         totalContent += traceContent;
-                        console.log('📤 Edit-graph: Sending trace:', traceContent.trim());
+                        console.log(`📤 ${agentType}: Sending trace:`, traceContent.trim());
                         controller.enqueue(enc.encode(traceContent));
                       } else if (parsed.content) {
                         // Stream regular content (backward compatibility)
                         totalContent += parsed.content;
-                        console.log('📤 Edit-graph: Sending content:', parsed.content);
+                        console.log(`📤 ${agentType}: Sending content:`, parsed.content);
                         controller.enqueue(enc.encode(parsed.content));
                       } else if (parsed.error) {
-                        console.log('❌ Edit-graph: Error in content:', parsed.error);
+                        console.log(`❌ ${agentType}: Error in content:`, parsed.error);
                         controller.enqueue(enc.encode(`\n\nError: ${parsed.error}\n`));
                       }
                     } catch (e) {
                       // If it's not JSON, treat as plain text
-                      console.log('📝 Edit-graph: Plain text content:', data);
+                      console.log(`📝 ${agentType}: Plain text content:`, data);
                       totalContent += data;
                       controller.enqueue(enc.encode(data + '\n'));
                     }
@@ -259,11 +224,26 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            // Handle build-graph specific completion logic
+            if (agentType === 'build-graph') {
+              console.log('💾 Build-graph: Saving base graph after streaming completion');
+              try {
+                await storeBaseGraph(currentGraph, 'default-user');
+                console.log('✅ Base graph saved after successful build completion');
+                controller.enqueue(enc.encode('\nBase graph updated with current state\n'));
+              } catch (error) {
+                console.error('❌ Failed to save base graph:', error);
+                controller.enqueue(enc.encode('\nWarning: Failed to save base graph\n'));
+              }
+
+              controller.enqueue(enc.encode('\nGraph build completed successfully\n'));
+            }
+
             // Close if we finish without [STREAM_END]
-            console.log('🏁 Edit-graph: Stream completed without [STREAM_END]');
+            console.log(`🏁 ${agentType}: Stream completed without [STREAM_END]`);
             controller.close();
           } catch (error) {
-            console.error('❌ Edit-graph: Streaming error:', error);
+            console.error(`❌ ${agentType}: Streaming error:`, error);
             controller.enqueue(enc.encode(`\n\nError: ${error instanceof Error ? error.message : String(error)}\n`));
             controller.close();
           }

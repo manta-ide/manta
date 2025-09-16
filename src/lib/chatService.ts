@@ -155,12 +155,12 @@ useEffect(() => {
 
     // Route: simple Q&A vs graph editing
     // Always use the full graph agent. It will decide whether to answer, read, or edit.
-    console.log('📡 Chat Service: Making request to /api/agent-request/edit-graph');
+    console.log('📡 Chat Service: Making request to /api/agent-request');
 
-    const response = await fetch('/api/agent-request/edit-graph', {
+    const response = await fetch('/api/agent-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userMessage }),
+      body: JSON.stringify({ agentType: 'edit-graph', userMessage }),
     });
 
     console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));

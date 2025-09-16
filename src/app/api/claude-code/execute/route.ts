@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-code';
-import { ClaudeCodeRequestSchema, McpServerConfig } from '@/app/api/lib/schemas';
+import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
+import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 
 // ---- Logging helpers ----
 const VERBOSE = process.env.VERBOSE_CLAUDE_LOGS !== '0';
@@ -22,10 +23,11 @@ function pretty(obj: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
+    const { prompt, agentType, options } = ClaudeCodeRequestSchema.parse(await req.json());
 
     logHeader('Claude Code Execute');
     logLine('🎯 Claude Code: User asked (full):', prompt);
+    logLine('🎯 Claude Code: Agent type:', agentType);
     logLine('🎯 Claude Code: Options received (full):', pretty(options));
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -43,10 +45,10 @@ export async function POST(req: NextRequest) {
     let thinkingSent = false;
     let streamClosed = false;
     let lastSentIndex = 0;
-
+    let first = true;
     // Note: Hooks are causing type issues, using simplified approach
     // Will rely on message streaming for trace information
-
+    
     // Create a streaming response
     const stream = new ReadableStream({
       async start(controller) {
@@ -66,68 +68,93 @@ export async function POST(req: NextRequest) {
               parent_tool_use_id: null,
               session_id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
             };
+            //if(first)
             //Required for claude code sdk to work
             await new Promise(res => setTimeout(res, 10000))
+            first = false;
           }
 
           logLine('🔧 Claude Code: Starting query iteration');
 
           let messageCount = 0;
           try {
-            // Reconstruct MCP servers from configuration
-            let reconstructedMcpServers: Record<string, any> | undefined;
-            if (options?.mcpServers) {
-              reconstructedMcpServers = {};
-              for (const [serverName, serverConfig] of Object.entries(options.mcpServers)) {
-                const config = serverConfig as McpServerConfig;
-                logLine(`🔧 Claude Code: Reconstructing MCP server "${serverName}" with baseUrl:`, config.baseUrl);
+            // Configure based on agent type
+            const baseUrl = getBaseUrl(req as any);
+            const tools = createGraphTools(baseUrl);
+            logLine('🔧 Claude Code: Registering tools:', tools.map(t => t.name));
+            const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
 
-                // Create tools for this server
-                const toolsArray = createGraphTools(config.baseUrl);
-                logLine(`🔧 Claude Code: Created ${toolsArray.length} tools for MCP server "${serverName}"`);
+            // Choose configuration based on agent type
+            let customSystemPrompt: string;
+            let allowedTools: string[];
+            let disallowedTools: string[];
 
-                // Expose all tools to avoid any filtering mismatches during execution
-                const filteredTools = toolsArray;
+            if (agentType === 'edit-graph') {
+              customSystemPrompt =
+              `You are a graph editor agent.
 
-                logLine(`🔧 Claude Code: Configured tools:`, config.tools);
-                logLine(`🔧 Claude Code: Available tools:`, toolsArray.map(t => t.name));
-                logLine(`🔧 Claude Code: Using ${filteredTools.length} filtered tools for MCP server "${serverName}"`);
+              Rules:
+              - Use unique IDs for all nodes
+              - Never edit source code - graph changes only
+              - Delete template nodes if request requires different structure
+              - Create CMS-style properties when possible (colors, text, numbers, booleans, selects)
+              - Set new nodes to "unbuilt" state
 
-                // Create the actual MCP server instance
-                logLine(`🔧 Claude Code: Registering tools:`, filteredTools.map(t => t.name));
-                const mcpServer = createSdkMcpServer({
-                  name: config.name,
-                  version: "1.0.0",
-                  tools: filteredTools
-                });
+              Tools: read, node_add, node_edit, node_delete, edge_create
 
-                reconstructedMcpServers[serverName] = mcpServer;
-              }
+              Keep responses brief, use the tools quickly and efficiently.
+              Optimization rules:
+              - For read-only queries ("what nodes are on the graph?"), call read once and answer succinctly.
+              - For deletions, call node_delete once per target node and avoid repeated attempts.
+              - Avoid unnecessary thinking or extra tool calls when a single call is sufficient.`;
+
+              allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"];
+              disallowedTools = ["Bash", "Glob", "Grep", "ExitPlanMode", "Read", "Edit", "MultiEdit", "Write", "NotebookEdit", "WebFetch", "TodoWrite", "BashOutput", "KillShell","Task"];
+
+            } else if (agentType === 'build-graph') {
+              customSystemPrompt = `You are the unified Manta code builder agent.
+
+              Goal: Build and implement code based on graph changes, ensuring properties are properly wired.
+
+              Rules:
+              - Use analyze_diff() to understand what changed in the graph since the last build
+              - Focus exclusively on code generation and implementation - no graph structure editing
+              - Implement code based on node prompts and properties, keeping changes minimal and focused
+              - Property IDs must be globally unique and prefixed per node
+              - For nested object fields, use dot notation: e.g., "root-styles.background-color"
+              - Set node states to "built" after successful implementation
+              - Ensure all properties are properly wired and connected in the generated code
+              - When implementation is complete, set node state to "built"
+              - Summarize applied changes at the end
+
+              Available Tools:
+              - read(nodeId?, includeProperties?, includeChildren?) - Read graph or specific nodes
+              - analyze_diff() - Analyze what changed in the graph
+              - node_set_state(nodeId, state) - Update node build state
+
+              Output: Short, single-sentence status updates during work. End with concise summary of what was accomplished.
+
+              This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
+
+              allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__analyze_diff", "mcp__graph-tools__node_set_state"];
+              disallowedTools = []; // Allow all tools for build-graph
+            } else {
+              throw new Error(`Unknown agent type: ${agentType}`);
             }
 
-            // Normalize tool permissions and names
-            // Relax tool gating to avoid permission stream issues
-            const allowedTools: string[] | undefined = undefined;
-            const disallowedTools: string[] | undefined = undefined;
-
-            // Use the options directly as provided by build-graph/edit-graph
-            // Reconstruct AbortController if it was serialized and MCP servers
             const queryOptions: Options = {
-              ...options,
-              permissionMode: (options as any)?.permissionMode || 'bypassPermissions',
-              allowedTools,
-              disallowedTools,
-              abortController: options?.abortController instanceof AbortController
-                ? options.abortController
-                : new AbortController(),
-              mcpServers: reconstructedMcpServers
+              includePartialMessages: true,
+              customSystemPrompt: customSystemPrompt,
+              permissionMode: 'bypassPermissions',
+              mcpServers: { 'graph-tools': mcpServer },
+              allowedTools: allowedTools,
+              disallowedTools: disallowedTools,
+              abortController: new AbortController(),
+              cwd: projectDir(),
+              strictMcpConfig: true,
             } as any;
 
-            logLine('🔐 Permission mode:', (queryOptions as any).permissionMode);
-            logLine('✅ Allowed tools:', allowedTools);
-            logLine('🚫 Disallowed tools:', disallowedTools);
-
-            logLine('🚀 Using Claude Code configuration from build-graph/edit-graph');
+            logLine('🚀 Using simplified Claude Code configuration');
 
             for await (const message of query({
               prompt: generateUserMessage(),
@@ -249,14 +276,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle user messages - don't send to UI to keep it clean
+    // Handle user messages - including tool results
     async function handleUserMessage(message: SDKUserMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
-      // User messages are handled at the chat level, don't clutter the streaming with them
       logHeader('👤 User Message (full)');
       try {
         logLine('', pretty((message as any).message ?? message));
       } catch {
         logLine('', pretty(message));
+      }
+
+      // Check if this is a tool result message
+      const msg = (message as any).message;
+      if (msg && Array.isArray(msg.content)) {
+        const toolResult = msg.content.find((c: any) => c.type === 'tool_result');
+        if (toolResult) {
+          let contentText: string;
+          if (Array.isArray(toolResult.content)) {
+            contentText = toolResult.content.map((c: any) => c.text || c.type).join(' ') || 'no content';
+          } else {
+            contentText = toolResult.content || 'no content';
+          }
+          logLine('🔧 Tool result detected:', `${contentText} (error: ${toolResult.is_error})`);
+
+          // Send tool result to UI
+          const resultData = {
+            type: 'tool_result',
+            tool_result: {
+              content: toolResult.content,
+              is_error: toolResult.is_error,
+              tool_use_id: toolResult.tool_use_id,
+              timestamp: new Date().toISOString()
+            }
+          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
+        }
       }
     }
 
