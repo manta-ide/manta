@@ -1,6 +1,6 @@
 {
   "name": "manta-ide",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": false,
   "type": "module",
   "bin": {
