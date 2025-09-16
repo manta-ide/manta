@@ -11,8 +11,5 @@
   "max-reviews": 6,
   "show-ratings": true,
   "show-avatars": true,
-  "review-source": "internal",
-  "test-text": "Hello World",
-  "test-number": 42,
-  "test-boolean": true
+  "review-source": "internal"
 }

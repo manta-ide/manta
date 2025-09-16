@@ -1,0 +1,809 @@
+[0]  GET /api/graph-api 200 in 219ms
+[0] 
+[0] ====== SDK Message #1 (system) ======
+[0] 📥 Full message payload: {
+[0]   "type": "system",
+[0]   "subtype": "init",
+[0]   "cwd": "/Users/makosst/dev/manta/test-project",
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "tools": [
+[0]     "Task",
+[0]     "Bash",
+[0]     "Glob",
+[0]     "Grep",
+[0]     "ExitPlanMode",
+[0]     "Read",
+[0]     "Edit",
+[0]     "MultiEdit",
+[0]     "Write",
+[0]     "NotebookEdit",
+[0]     "WebFetch",
+[0]     "TodoWrite",
+[0]     "BashOutput",
+[0]     "KillShell",
+[0]     "mcp__graph-tools__graph_read",
+[0]     "mcp__graph-tools__graph_edge_create",
+[0]     "mcp__graph-tools__graph_node_add",
+[0]     "mcp__graph-tools__graph_node_edit",
+[0]     "mcp__graph-tools__graph_node_set_state",
+[0]     "mcp__graph-tools__graph_node_delete",
+[0]     "mcp__graph-tools__graph_analyze_diff"
+[0]   ],
+[0]   "mcp_servers": [
+[0]     {
+[0]       "name": "graph-tools",
+[0]       "status": "connected"
+[0]     }
+[0]   ],
+[0]   "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+[0]   "permissionMode": "bypassPermissions",
+[0]   "slash_commands": [
+[0]     "clear",
+[0]     "compact",
+[0]     "cost",
+[0]     "init",
+[0]     "migrate-installer",
+[0]     "output-style:new",
+[0]     "pr-comments",
+[0]     "release-notes",
+[0]     "statusline",
+[0]     "todos",
+[0]     "review",
+[0]     "security-review",
+[0]     "vim"
+[0]   ],
+[0]   "apiKeySource": "none",
+[0]   "output_style": "default",
+[0]   "uuid": "f1f5247c-06b6-4146-8fdf-84b82e5d916d"
+[0] }
+[0] 
+[0] ====== 📝 System Message (full) ======
+[0]  {
+[0]   "type": "system",
+[0]   "subtype": "init",
+[0]   "cwd": "/Users/makosst/dev/manta/test-project",
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "tools": [
+[0]     "Task",
+[0]     "Bash",
+[0]     "Glob",
+[0]     "Grep",
+[0]     "ExitPlanMode",
+[0]     "Read",
+[0]     "Edit",
+[0]     "MultiEdit",
+[0]     "Write",
+[0]     "NotebookEdit",
+[0]     "WebFetch",
+[0]     "TodoWrite",
+[0]     "BashOutput",
+[0]     "KillShell",
+[0]     "mcp__graph-tools__graph_read",
+[0]     "mcp__graph-tools__graph_edge_create",
+[0]     "mcp__graph-tools__graph_node_add",
+[0]     "mcp__graph-tools__graph_node_edit",
+[0]     "mcp__graph-tools__graph_node_set_state",
+[0]     "mcp__graph-tools__graph_node_delete",
+[0]     "mcp__graph-tools__graph_analyze_diff"
+[0]   ],
+[0]   "mcp_servers": [
+[0]     {
+[0]       "name": "graph-tools",
+[0]       "status": "connected"
+[0]     }
+[0]   ],
+[0]   "model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+[0]   "permissionMode": "bypassPermissions",
+[0]   "slash_commands": [
+[0]     "clear",
+[0]     "compact",
+[0]     "cost",
+[0]     "init",
+[0]     "migrate-installer",
+[0]     "output-style:new",
+[0]     "pr-comments",
+[0]     "release-notes",
+[0]     "statusline",
+[0]     "todos",
+[0]     "review",
+[0]     "security-review",
+[0]     "vim"
+[0]   ],
+[0]   "apiKeySource": "none",
+[0]   "output_style": "default",
+[0]   "uuid": "f1f5247c-06b6-4146-8fdf-84b82e5d916d"
+[0] }
+[0] 🔄 Edit-graph: Processing streaming response from Claude Code
+[0] 🎬 Edit-graph: Starting stream processing
+[0] 📦 Edit-graph: Received data: [STREAM_START]
+[0] 🎯 Edit-graph: Stream started
+[0]  GET /api/graph-api 200 in 228ms
+[0]  GET /api/graph-api 200 in 221ms
+[0] 
+[0] ====== SDK Message #2 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "message_start",
+[0]     "message": {
+[0]       "id": "msg_bdrk_0119wayyKCDG5UwcSbDjpM3S",
+[0]       "type": "message",
+[0]       "role": "assistant",
+[0]       "model": "claude-sonnet-4-20250514",
+[0]       "content": [],
+[0]       "stop_reason": null,
+[0]       "stop_sequence": null,
+[0]       "usage": {
+[0]         "input_tokens": 4,
+[0]         "cache_creation_input_tokens": 281,
+[0]         "cache_read_input_tokens": 16149,
+[0]         "output_tokens": 8
+[0]       }
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "e6a72728-fa5d-459e-9685-54eeaf4aee6e"
+[0] }
+[0] 
+[0] ====== SDK Message #3 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_start",
+[0]     "index": 0,
+[0]     "content_block": {
+[0]       "type": "text",
+[0]       "text": ""
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "3f78d20c-75b7-4fbf-89ae-d830404175a0"
+[0] }
+[0] 🤔 Claude started writing... 
+[0] 
+[0] ====== SDK Message #4 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "text_delta",
+[0]       "text": "I'll delete the test node from the"
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "caf5b21e-a8bd-435a-85f2-8d071be0d7b6"
+[0] }
+[0] 🟡 STREAM Δ I'll delete the test node from the
+[0] 🤔 Claude started thinking... 
+[0] 
+[0] ====== SDK Message #5 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "text_delta",
+[0]       "text": " graph."
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "af06fb75-bb05-45f6-bfca-fda0a21b16cf"
+[0] }
+[0] 🟡 STREAM Δ  graph.
+[0] 
+[0] ====== SDK Message #6 (assistant) ======
+[0] 📥 Full message payload: {
+[0]   "type": "assistant",
+[0]   "message": {
+[0]     "id": "msg_bdrk_0119wayyKCDG5UwcSbDjpM3S",
+[0]     "type": "message",
+[0]     "role": "assistant",
+[0]     "model": "claude-sonnet-4-20250514",
+[0]     "content": [
+[0]       {
+[0]         "type": "text",
+[0]         "text": "I'll delete the test node from the graph."
+[0]       }
+[0]     ],
+[0]     "stop_reason": null,
+[0]     "stop_sequence": null,
+[0]     "usage": {
+[0]       "input_tokens": 4,
+[0]       "cache_creation_input_tokens": 281,
+[0]       "cache_read_input_tokens": 16149,
+[0]       "output_tokens": 54
+[0]     }
+[0]   },
+[0]   "parent_tool_use_id": null,
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "uuid": "fbcf2d5c-4e1a-475a-baf2-02dc57f2f876"
+[0] }
+[0] 
+[0] ====== SDK Message #7 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_stop",
+[0]     "index": 0
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "b3d286fd-0845-413e-a5fc-a1aa5415d24a"
+[0] }
+[0] 
+[0] ====== 🟢 Claude finished thinking (full) ======
+[0]  I'll delete the test node from the graph.
+[0] 📝 Claude Code: Content block completed 
+[0] 
+[0] ====== SDK Message #8 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_start",
+[0]     "index": 1,
+[0]     "content_block": {
+[0]       "type": "tool_use",
+[0]       "id": "toolu_bdrk_01CHBeuFoacD8LUH9jFUwkZC",
+[0]       "name": "mcp__graph-tools__graph_read",
+[0]       "input": {}
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "7bff0a74-f72a-4e08-9d16-520444055361"
+[0] }
+[0] 🤔 Claude started writing... 
+[0] 
+[0] ====== SDK Message #9 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 1,
+[0]     "delta": {
+[0]       "type": "input_json_delta",
+[0]       "partial_json": ""
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "48bf1938-5613-4559-88bc-7494185c93cf"
+[0] }
+[0] 
+[0] ====== SDK Message #10 (assistant) ======
+[0] 📥 Full message payload: {
+[0]   "type": "assistant",
+[0]   "message": {
+[0]     "id": "msg_bdrk_0119wayyKCDG5UwcSbDjpM3S",
+[0]     "type": "message",
+[0]     "role": "assistant",
+[0]     "model": "claude-sonnet-4-20250514",
+[0]     "content": [
+[0]       {
+[0]         "type": "tool_use",
+[0]         "id": "toolu_bdrk_01CHBeuFoacD8LUH9jFUwkZC",
+[0]         "name": "mcp__graph-tools__graph_read",
+[0]         "input": {}
+[0]       }
+[0]     ],
+[0]     "stop_reason": "tool_use",
+[0]     "stop_sequence": null,
+[0]     "usage": {
+[0]       "input_tokens": 4,
+[0]       "cache_creation_input_tokens": 281,
+[0]       "cache_read_input_tokens": 16149,
+[0]       "output_tokens": 54
+[0]     }
+[0]   },
+[0]   "parent_tool_use_id": null,
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "uuid": "d9008669-bfcc-4315-9077-b7b62dba965b"
+[0] }
+[0] 
+[0] ====== SDK Message #11 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_stop",
+[0]     "index": 1
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "e48ec6d3-e83d-493b-b604-5419270bb9b3"
+[0] }
+[0] 📝 Claude Code: Content block completed 
+[0] 
+[0] ====== SDK Message #12 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "message_delta",
+[0]     "delta": {
+[0]       "stop_reason": "tool_use",
+[0]       "stop_sequence": null
+[0]     },
+[0]     "usage": {
+[0]       "output_tokens": 54
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "16edb57b-68fb-4bda-bb0e-788975fd1609"
+[0] }
+[0] 
+[0] ====== SDK Message #13 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "message_stop",
+[0]     "amazon-bedrock-invocationMetrics": {
+[0]       "inputTokenCount": 4,
+[0]       "outputTokenCount": 54,
+[0]       "invocationLatency": 2110,
+[0]       "firstByteLatency": 2101,
+[0]       "cacheReadInputTokenCount": 16149,
+[0]       "cacheWriteInputTokenCount": 281
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "8b5c25bf-e5e4-407a-8bb4-7ef8c2b27938"
+[0] }
+[0] 📝 Claude Code: Message streaming completed 
+[0] 🔍 TOOL: graph_read called { nodeId: undefined }
+[0] 📡 TOOL: graph_read making GET request to /api/graph-api
+[0]  GET /api/graph-api 200 in 219ms
+[0] 📡 TOOL: graph_read response status: 200
+[0] 📄 TOOL: graph_read content-type: application/xml; charset=utf-8
+[0] 📄 TOOL: graph_read received XML, length: 3380
+[0] 🔍 TOOL: graph_read validating graph schema
+[0] ✅ TOOL: graph_read schema validation passed, nodes: 3
+[0] 📋 TOOL: graph_read returning all nodes summary
+[0] 📋 TOOL: graph_read found nodes: 3
+[0] 📤 TOOL: graph_read returning nodes summary
+[0] 
+[0] ====== SDK Message #14 (user) ======
+[0] 📥 Full message payload: {
+[0]   "type": "user",
+[0]   "message": {
+[0]     "role": "user",
+[0]     "content": [
+[0]       {
+[0]         "tool_use_id": "toolu_bdrk_01CHBeuFoacD8LUH9jFUwkZC",
+[0]         "type": "tool_result",
+[0]         "content": [
+[0]           {
+[0]             "type": "text",
+[0]             "text": "{\n  \"nodes\": [\n    {\n      \"id\": \"app\",\n      \"title\": \"Simple App\"\n    },\n    {\n      \"id\": \"user-reviews-section\",\n      \"title\": \"User Reviews Section\"\n    },\n    {\n      \"id\": \"test-node\",\n      \"title\": \"Test Node\"\n    }\n  ]\n}"
+[0]           }
+[0]         ]
+[0]       }
+[0]     ]
+[0]   },
+[0]   "parent_tool_use_id": null,
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "uuid": "d914249b-f7d4-4b11-833b-fc2f02407716"
+[0] }
+[0] 
+[0] ====== 👤 User Message (full) ======
+[0]  {
+[0]   "role": "user",
+[0]   "content": [
+[0]     {
+[0]       "tool_use_id": "toolu_bdrk_01CHBeuFoacD8LUH9jFUwkZC",
+[0]       "type": "tool_result",
+[0]       "content": [
+[0]         {
+[0]           "type": "text",
+[0]           "text": "{\n  \"nodes\": [\n    {\n      \"id\": \"app\",\n      \"title\": \"Simple App\"\n    },\n    {\n      \"id\": \"user-reviews-section\",\n      \"title\": \"User Reviews Section\"\n    },\n    {\n      \"id\": \"test-node\",\n      \"title\": \"Test Node\"\n    }\n  ]\n}"
+[0]         }
+[0]       ]
+[0]     }
+[0]   ]
+[0] }
+[0]  GET /api/graph-api 200 in 236ms
+[0]  GET /api/graph-api 200 in 235ms
+[0] 
+[0] ====== SDK Message #15 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "message_start",
+[0]     "message": {
+[0]       "id": "msg_bdrk_01Pjn5CQcKNQvMwJayZjWULr",
+[0]       "type": "message",
+[0]       "role": "assistant",
+[0]       "model": "claude-sonnet-4-20250514",
+[0]       "content": [],
+[0]       "stop_reason": null,
+[0]       "stop_sequence": null,
+[0]       "usage": {
+[0]         "input_tokens": 6,
+[0]         "cache_creation_input_tokens": 150,
+[0]         "cache_read_input_tokens": 16430,
+[0]         "output_tokens": 32
+[0]       }
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "1d9ef9d0-e3a7-4b98-b9af-019d622bdb5c"
+[0] }
+[0] 
+[0] ====== SDK Message #16 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_start",
+[0]     "index": 0,
+[0]     "content_block": {
+[0]       "type": "tool_use",
+[0]       "id": "toolu_bdrk_016nqBHCRof6SFAoereoJkWW",
+[0]       "name": "mcp__graph-tools__graph_node_delete",
+[0]       "input": {}
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "a4766cfd-b0eb-4710-940e-1b78e34930c0"
+[0] }
+[0] 🤔 Claude started writing... 
+[0] 
+[0] ====== SDK Message #17 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "input_json_delta",
+[0]       "partial_json": ""
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "0788b530-ffbc-4083-b057-caf1d890ae20"
+[0] }
+[0] 
+[0] ====== SDK Message #18 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "input_json_delta",
+[0]       "partial_json": "{\"nod"
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "1c6ee14d-0527-454c-bd32-8a88955ceb16"
+[0] }
+[0] 
+[0] ====== SDK Message #19 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "input_json_delta",
+[0]       "partial_json": "eId\""
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "e495fd62-bb1f-4b87-af62-5e97451b56cf"
+[0] }
+[0] 
+[0] ====== SDK Message #20 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "input_json_delta",
+[0]       "partial_json": ": \"tes"
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "7f6768dd-e11a-43fa-bb8f-b29a58ef1546"
+[0] }
+[0] 
+[0] ====== SDK Message #21 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_delta",
+[0]     "index": 0,
+[0]     "delta": {
+[0]       "type": "input_json_delta",
+[0]       "partial_json": "t-node\"}"
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "a76074f5-dc00-4269-a291-622140e45b72"
+[0] }
+[0] 
+[0] ====== SDK Message #22 (assistant) ======
+[0] 📥 Full message payload: {
+[0]   "type": "assistant",
+[0]   "message": {
+[0]     "id": "msg_bdrk_01Pjn5CQcKNQvMwJayZjWULr",
+[0]     "type": "message",
+[0]     "role": "assistant",
+[0]     "model": "claude-sonnet-4-20250514",
+[0]     "content": [
+[0]       {
+[0]         "type": "tool_use",
+[0]         "id": "toolu_bdrk_016nqBHCRof6SFAoereoJkWW",
+[0]         "name": "mcp__graph-tools__graph_node_delete",
+[0]         "input": {
+[0]           "nodeId": "test-node"
+[0]         }
+[0]       }
+[0]     ],
+[0]     "stop_reason": null,
+[0]     "stop_sequence": null,
+[0]     "usage": {
+[0]       "input_tokens": 6,
+[0]       "cache_creation_input_tokens": 150,
+[0]       "cache_read_input_tokens": 16430,
+[0]       "output_tokens": 65
+[0]     }
+[0]   },
+[0]   "parent_tool_use_id": null,
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "uuid": "5a5ce302-6d3a-469b-906c-81641f03234f"
+[0] }
+[0] 
+[0] ====== SDK Message #23 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "content_block_stop",
+[0]     "index": 0
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "0d7b3102-2e7c-488f-9be1-86b76f648580"
+[0] }
+[0] 📝 Claude Code: Content block completed 
+[0] 
+[0] ====== SDK Message #24 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "message_delta",
+[0]     "delta": {
+[0]       "stop_reason": "tool_use",
+[0]       "stop_sequence": null
+[0]     },
+[0]     "usage": {
+[0]       "output_tokens": 65
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "aa3981a9-32f8-4486-83b0-6bb8123be445"
+[0] }
+[0] 
+[0] ====== SDK Message #25 (stream_event) ======
+[0] 📥 Full message payload: {
+[0]   "type": "stream_event",
+[0]   "event": {
+[0]     "type": "message_stop",
+[0]     "amazon-bedrock-invocationMetrics": {
+[0]       "inputTokenCount": 6,
+[0]       "outputTokenCount": 65,
+[0]       "invocationLatency": 2359,
+[0]       "firstByteLatency": 2351,
+[0]       "cacheReadInputTokenCount": 16430,
+[0]       "cacheWriteInputTokenCount": 150
+[0]     }
+[0]   },
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "parent_tool_use_id": null,
+[0]   "uuid": "fdb7dd6b-f451-46ac-ae50-4cbc7c073e5f"
+[0] }
+[0] 📝 Claude Code: Message streaming completed 
+[0] 🗑️ TOOL: graph_node_delete called { nodeId: 'test-node', recursive: true }
+[0] 📡 TOOL: graph_node_delete making GET request to /api/graph-api
+[0]  GET /api/graph-api 200 in 220ms
+[0] 📡 TOOL: graph_node_delete response status: 200
+[0] 📄 TOOL: graph_node_delete content-type: application/xml; charset=utf-8
+[0] 📄 TOOL: graph_node_delete received XML, length: 3380
+[0] 🔍 TOOL: graph_node_delete validating graph schema
+[0] ✅ TOOL: graph_node_delete schema validation passed, nodes: 3
+[0] 🔍 TOOL: graph_node_delete checking if node exists: test-node
+[0] ✅ TOOL: graph_node_delete node found: Test Node
+[0] 🔄 TOOL: graph_node_delete cleaning up references
+[0] 🗂️ TOOL: graph_node_delete collecting nodes to delete
+[0] 🗑️ TOOL: graph_node_delete will delete nodes: [ 'test-node' ]
+[0] ✅ TOOL: graph_node_delete removed nodes, count changed from 3 to 2
+[0] 💾 TOOL: graph_node_delete saving updated graph
+[0] 💾 TOOL: saveGraph called, nodes: 2 edges: 1
+[0] 📄 TOOL: saveGraph converted graph to XML, length: 3114
+[0] 📡 TOOL: saveGraph making PUT request to /api/graph-api
+[0] 💾 Saving current graph for user default-user...
+[0] ✅ Current graph saved successfully with 2 nodes
+[0]  PUT /api/graph-api 200 in 222ms
+[0] 📡 TOOL: saveGraph PUT response status: 200
+[0] ✅ TOOL: saveGraph graph saved successfully
+[0] ✅ TOOL: graph_node_delete graph saved successfully
+[0] 📤 TOOL: graph_node_delete returning result: Deleted node test-node (recursive)
+[0] 
+[0] ====== SDK Message #26 (user) ======
+[0] 📥 Full message payload: {
+[0]   "type": "user",
+[0]   "message": {
+[0]     "role": "user",
+[0]     "content": [
+[0]       {
+[0]         "tool_use_id": "toolu_bdrk_016nqBHCRof6SFAoereoJkWW",
+[0]         "type": "tool_result",
+[0]         "content": [
+[0]           {
+[0]             "type": "text",
+[0]             "text": "Deleted node test-node (recursive)"
+[0]           }
+[0]         ]
+[0]       }
+[0]     ]
+[0]   },
+[0]   "parent_tool_use_id": null,
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "uuid": "c0627a03-c3cd-435f-a4b5-0dc296449da8"
+[0] }
+[0] 
+[0] ====== 👤 User Message (full) ======
+[0]  {
+[0]   "role": "user",
+[0]   "content": [
+[0]     {
+[0]       "tool_use_id": "toolu_bdrk_016nqBHCRof6SFAoereoJkWW",
+[0]       "type": "tool_result",
+[0]       "content": [
+[0]         {
+[0]           "type": "text",
+[0]           "text": "Deleted node test-node (recursive)"
+[0]         }
+[0]       ]
+[0]     }
+[0]   ]
+[0] }
+[0]  GET /api/graph-api 200 in 227ms
+[0]  GET /api/graph-api 200 in 224ms
+[0]  GET /api/graph-api 200 in 228ms
+[0]  GET /api/graph-api 200 in 225ms
+[0]  GET /api/graph-api 200 in 234ms
+[0]  GET /api/graph-api 200 in 223ms
+[0]  GET /api/graph-api 200 in 233ms
+[0]  GET /api/graph-api 200 in 234ms
+[0]  GET /api/graph-api 200 in 232ms
+[0]  GET /api/graph-api 200 in 222ms
+[0]  GET /api/graph-api 200 in 228ms
+[0]  GET /api/graph-api 200 in 231ms
+[0]  GET /api/graph-api 200 in 227ms
+[0]  GET /api/graph-api 200 in 222ms
+[0]  GET /api/graph-api 200 in 233ms
+[0]  GET /api/graph-api 200 in 235ms
+[0]  GET /api/graph-api 200 in 228ms
+[0]  GET /api/graph-api 200 in 235ms
+[0]  GET /api/graph-api 200 in 225ms
+[0]  GET /api/graph-api 200 in 223ms
+[0]  GET /api/graph-api 200 in 235ms
+[0]  GET /api/graph-api 200 in 231ms
+[0]  GET /api/graph-api 200 in 220ms
+[0]  GET /api/graph-api 200 in 228ms
+[0]  GET /api/graph-api 200 in 229ms
+[0]  GET /api/graph-api 200 in 237ms
+[0]  GET /api/graph-api 200 in 230ms
+[0]  GET /api/graph-api 200 in 233ms
+[0] 
+[0] ====== SDK Message #27 (assistant) ======
+[0] 📥 Full message payload: {
+[0]   "type": "assistant",
+[0]   "message": {
+[0]     "id": "msg_bdrk_01TYS7AbDeHuU4uYQChw8qwd",
+[0]     "type": "message",
+[0]     "role": "assistant",
+[0]     "model": "claude-sonnet-4-20250514",
+[0]     "content": [
+[0]       {
+[0]         "type": "text",
+[0]         "text": "Test node deleted."
+[0]       }
+[0]     ],
+[0]     "stop_reason": "end_turn",
+[0]     "stop_sequence": null,
+[0]     "usage": {
+[0]       "input_tokens": 5,
+[0]       "cache_creation_input_tokens": 86,
+[0]       "cache_read_input_tokens": 16580,
+[0]       "output_tokens": 7
+[0]     }
+[0]   },
+[0]   "parent_tool_use_id": null,
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "uuid": "6681fe78-0f65-4477-9420-f1eb8a030195"
+[0] }
+[0] 
+[0] ====== SDK Message #28 (result) ======
+[0] 📥 Full message payload: {
+[0]   "type": "result",
+[0]   "subtype": "success",
+[0]   "is_error": false,
+[0]   "duration_ms": 48079,
+[0]   "duration_api_ms": 48639,
+[0]   "num_turns": 6,
+[0]   "result": "Test node deleted.",
+[0]   "session_id": "d1bbee8d-eede-4d1b-aab8-41d35ba984f2",
+[0]   "total_cost_usd": 0.013304149999999999,
+[0]   "usage": {
+[0]     "input_tokens": 10,
+[0]     "cache_creation_input_tokens": 431,
+[0]     "cache_read_input_tokens": 32579,
+[0]     "output_tokens": 119,
+[0]     "server_tool_use": {
+[0]       "web_search_requests": 0
+[0]     },
+[0]     "service_tier": "standard",
+[0]     "cache_creation": {
+[0]       "ephemeral_1h_input_tokens": 0,
+[0]       "ephemeral_5m_input_tokens": 0
+[0]     }
+[0]   },
+[0]   "modelUsage": {
+[0]     "us.anthropic.claude-3-5-haiku-20241022-v1:0": {
+[0]       "inputTokens": 84,
+[0]       "outputTokens": 8,
+[0]       "cacheReadInputTokens": 0,
+[0]       "cacheCreationInputTokens": 0,
+[0]       "webSearchRequests": 0,
+[0]       "costUSD": 0.0000992
+[0]     },
+[0]     "us.anthropic.claude-sonnet-4-20250514-v1:0": {
+[0]       "inputTokens": 10,
+[0]       "outputTokens": 119,
+[0]       "cacheReadInputTokens": 32579,
+[0]       "cacheCreationInputTokens": 431,
+[0]       "webSearchRequests": 0,
+[0]       "costUSD": 0.01320495
+[0]     }
+[0]   },
+[0]   "permission_denials": [],
+[0]   "uuid": "ce11f499-539f-465a-8ad7-2c5338e87359"
+[0] }
+[0] 
+[0] ====== 🎯 Claude final response (full) ======
+[0]  Test node deleted.
+[0] ✅ Claude Code: Response generated successfully 
+[0]  POST /api/claude-code/execute 200 in 49238ms
+[0] 📦 Edit-graph: Received data: {"type":"result","content":"Test node deleted."}
+[0] 📝 Edit-graph: Parsed content: { type: 'result', content: 'Test node deleted.' }
+[0] 📤 Edit-graph: Sending final result: Test node deleted.
+[0] 📦 Edit-graph: Received data: [STREAM_END]
+[0] 🏁 Edit-graph: Stream ended, total content: Test node deleted.
+[0]  POST /api/agent-request/edit-graph 200 in 49703ms
+[0] 🏁 Claude Code: Query completed without result
+[0] 🏁 Claude Code: Total messages processed: 28
+[0]  POST /api/chat 200 in 231ms
+[0]  POST /api/chat 200 in 232ms
+[0]  GET /api/graph-api 200 in 238ms
+[0]  GET /api/graph-api 200 in 237ms
+[0]  GET /api/graph-api 200 in 222ms
+[0]  GET /api/graph-api 200 in 232ms
+[0]  GET /api/graph-api 200 in 230ms
+[0]  GET /api/graph-api 200 in 231ms

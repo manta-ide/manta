@@ -93,53 +93,37 @@ interface ProjectStore {
 // Private variable to track the EventSource connection
 let graphEventSource: EventSource | null = null;
 let reconnectTimeout: NodeJS.Timeout | null = null;
-let graphPollInterval: NodeJS.Timeout | null = null;
 
-// Append-only merge: add new nodes/edges and update node content while preserving local positions
-function mergeGraphAppendOnly(current: Graph | null, incoming: Graph | null): Graph | null {
+// Reconcile graphs: apply additions, updates, and deletions from incoming; preserve local positions when possible
+function reconcileGraph(current: Graph | null, incoming: Graph | null): Graph | null {
   if (!incoming) return current;
   if (!current) return incoming;
 
-  const currentNodeMap = new Map<string, any>();
+  const currentNodeMap = new Map<string, any>((current.nodes || []).map(n => [n.id, n]));
   const nextNodes: any[] = [];
-  for (const n of current.nodes || []) {
-    currentNodeMap.set(n.id, n);
-    nextNodes.push({ ...n });
-  }
 
-  for (const inNode of incoming.nodes || []) {
+  for (const inNode of (incoming.nodes || [])) {
     const existing = currentNodeMap.get(inNode.id);
     if (!existing) {
       nextNodes.push({ ...inNode });
     } else {
-      // Merge: preserve current position when available; update other fields from incoming
-      const position = existing.position || inNode.position;
-      const mergedProps = Array.isArray(inNode.properties) ? inNode.properties : existing.properties;
+      // Prefer keeping the current visual position to avoid viewport jumps
       const merged = {
-        ...existing,
         ...inNode,
-        position,
-        properties: mergedProps,
+        position: existing.position || inNode.position,
       } as any;
-      const idx = nextNodes.findIndex(n => n.id === inNode.id);
-      if (idx !== -1) nextNodes[idx] = merged; else nextNodes.push(merged);
+      nextNodes.push(merged);
     }
   }
 
-  // Merge edges (union by id or source-target)
+  // Edges: adopt incoming edges (dedup by id or source-target)
   const ensureEdgeId = (e: any) => e.id || `${e.source}-${e.target}`;
-  const byId = new Set<string>();
+  const edgeSet = new Set<string>();
   const nextEdges: any[] = [];
-  for (const e of (current.edges || [])) {
-    const id = ensureEdgeId(e);
-    if (byId.has(id)) continue;
-    byId.add(id);
-    nextEdges.push({ ...e, id });
-  }
   for (const e of (incoming.edges || [])) {
     const id = ensureEdgeId(e);
-    if (byId.has(id)) continue;
-    byId.add(id);
+    if (edgeSet.has(id)) continue;
+    edgeSet.add(id);
     nextEdges.push({ ...e, id });
   }
 
@@ -614,8 +598,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           // Case 1: plain XML
           if (trimmed.startsWith('<')) {
             const incoming = xmlToGraph(trimmed);
-            const merged = mergeGraphAppendOnly(get().graph, incoming);
-            if (merged) set({ graph: merged, graphLoading: false, graphError: null, graphConnected: true });
+            const reconciled = reconcileGraph(get().graph, incoming);
+            if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
             return;
           }
 
@@ -623,8 +607,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           try {
             const data = JSON.parse(trimmed);
             if (data?.type === 'graph-update' && data.graph) {
-              const merged = mergeGraphAppendOnly(get().graph, data.graph);
-              if (merged) set({ graph: merged, graphLoading: false, graphError: null, graphConnected: true });
+              const reconciled = reconcileGraph(get().graph, data.graph);
+              if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
               return;
             }
           } catch {}
@@ -634,8 +618,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             try {
               const decodedXml = atob(trimmed);
               const incoming = xmlToGraph(decodedXml);
-              const merged = mergeGraphAppendOnly(get().graph, incoming);
-              if (merged) set({ graph: merged, graphLoading: false, graphError: null, graphConnected: true });
+              const reconciled = reconcileGraph(get().graph, incoming);
+              if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
               return;
             } catch (decodeError) {
               console.error('Failed to decode base64 XML:', decodeError);
@@ -650,25 +634,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       };
       // Initial load for good measure
       await get().loadGraph();
-
-      // Fallback polling: periodically fetch graph to ensure UI receives updates
-      if (graphPollInterval) { clearInterval(graphPollInterval); graphPollInterval = null; }
-      graphPollInterval = setInterval(async () => {
-        try {
-          const state = get();
-          const now = Date.now();
-          const suppressed = state.optimisticOperationsActive || (state.sseSuppressedUntil != null && now < (state.sseSuppressedUntil as number));
-          if (suppressed) return;
-          // Manual poll: fetch and append-only merge to avoid full reload
-          const res = await fetch('/api/graph-api', { method: 'GET', headers: { Accept: 'application/xml' } });
-          if (res.ok) {
-            const xml = await res.text();
-            const incoming = xmlToGraph(xml);
-            const merged = mergeGraphAppendOnly(state.graph, incoming);
-            if (merged) set({ graph: merged, graphLoading: false, graphError: null });
-          }
-        } catch {}
-      }, 1500);
     } catch (error) {
       console.error('Error connecting to graph events:', error);
       set({ graphError: 'Failed to connect to graph events' });
@@ -684,10 +649,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       graphEventSource.close();
       graphEventSource = null;
       console.log('🔌 Disconnected from local graph events');
-    }
-    if (graphPollInterval) {
-      clearInterval(graphPollInterval);
-      graphPollInterval = null;
     }
     set({ graphConnected: false, supabaseConnected: false });
   },
