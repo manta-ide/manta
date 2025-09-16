@@ -89,10 +89,10 @@ export async function POST(req: NextRequest) {
                 // Filter tools if specific tools were requested
                 const filteredTools = config.tools
                   ? toolsArray.filter(tool => {
-                      // Strip MCP prefix from tool names for comparison
-                      const toolNameWithPrefix = `mcp__${config.name}__${tool.name}`;
-                      const shouldInclude = config.tools!.includes(toolNameWithPrefix);
-                      logLine(`🔧 Claude Code: Tool "${tool.name}" -> "${toolNameWithPrefix}" ${shouldInclude ? '✓' : '✗'}`);
+                      const bare = tool.name;
+                      const prefixed = `mcp__${config.name}__${bare}`;
+                      const shouldInclude = config.tools!.includes(prefixed) || config.tools!.includes(bare);
+                      logLine(`🔧 Claude Code: Tool "${bare}" match [prefixed|bare]=[${config.tools!.includes(prefixed)}|${config.tools!.includes(bare)}] -> ${shouldInclude ? '✓' : '✗'}`);
                       return shouldInclude;
                     })
                   : toolsArray;
@@ -112,15 +112,30 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            // Normalize tool permissions and names
+            const allowedToolsInput = (options as any)?.allowedTools as string[] | undefined;
+            const disallowedToolsInput = (options as any)?.disallowedTools as string[] | undefined;
+            const expandNames = (arr?: string[]) =>
+              Array.from(new Set((arr || []).flatMap((n) => [n, n.replace(/^mcp__[^_]+__/, '')])));
+            const allowedTools = expandNames(allowedToolsInput);
+            const disallowedTools = expandNames(disallowedToolsInput);
+
             // Use the options directly as provided by build-graph/edit-graph
-            // But reconstruct AbortController if it was serialized and MCP servers
+            // Reconstruct AbortController if it was serialized and MCP servers
             const queryOptions: Options = {
               ...options,
+              permissionMode: (options as any)?.permissionMode || 'bypassPermissions',
+              allowedTools,
+              disallowedTools,
               abortController: options?.abortController instanceof AbortController
                 ? options.abortController
                 : new AbortController(),
               mcpServers: reconstructedMcpServers
-            };
+            } as any;
+
+            logLine('🔐 Permission mode:', (queryOptions as any).permissionMode);
+            logLine('✅ Allowed tools:', allowedTools);
+            logLine('🚫 Disallowed tools:', disallowedTools);
 
             logLine('🚀 Using Claude Code configuration from build-graph/edit-graph');
 
