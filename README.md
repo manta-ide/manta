@@ -10,20 +10,16 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 ## ⚡ Quick Start
 
-1. Obtain your Anthropic API Key:
-   https://console.anthropic.com/settings/keys
+1. Setup Claude Code:
+   https://docs.claude.com/en/docs/claude-code/setup
 
 2. Install Manta CLI:
    ```bash
    npm i -g manta-ide
 
-3. Install the template to an empty folder:
+3. Run the IDE:
    ```bash
-   manta i
-
-4. Run Manta IDE in the same folder:
-   ```bash
-   manta run
+   manta
 
 5. Open [http://localhost:3000](http://localhost:3000)
 
@@ -43,15 +39,15 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    ```bash
    git clone https://github.com/manta-ide/manta.git
   
-3. Install dependencies:
+3. Install dependencies and build:
 
    ```bash
    cd manta
-   npm run i:all
-   npm run build:all
-   npm i -g .
+   npm i
+   npm run build
 
-4. Install the template and run Manta IDE in an empty folder:
+4. Run the solution:
    ```bash
-   manta i
-   manta run
+   npm run dev
+
+   Open [http://localhost:3000](http://localhost:3000)
