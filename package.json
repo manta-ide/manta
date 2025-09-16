@@ -94,7 +94,7 @@
     "typescript": "^5"
   },
   "optionalDependencies": {
-    "manta-mcp": "^0.1.2"
+    "manta-mcp": "npm:null@^0.1.2"
   },
   "files": [
     "packages/manta/dist/bin.js",

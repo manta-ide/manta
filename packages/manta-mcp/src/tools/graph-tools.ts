@@ -731,36 +731,6 @@ export function registerGraphTools(server: McpServer, toolset: Toolset) {
     }
   );
   }
-
-  // graph_node_set_position (convenience tool)
-  server.registerTool(
-    'graph_node_set_position',
-    {
-      title: 'Set Node Position',
-      description: 'Set or update a node\'s position (x,y,z).',
-      inputSchema: {
-        nodeId: z.string().min(1),
-        x: z.number(),
-        y: z.number(),
-        z: z.number().optional().default(0),
-      },
-    },
-    async ({ nodeId, x, y, z = 0 }) => {
-      const origin = resolveBaseUrl();
-      const token = resolveAccessToken();
-      const url = `${origin}/api/graph-api`;
-      const data = await httpGet(url, token);
-      const parsed = GraphSchema.safeParse((data as any).graph ?? data);
-      if (!parsed.success) throw new Error('Graph schema validation failed');
-      const graph = parsed.data as any;
-      const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
-      if (idx === -1) throw new Error(`Node ${nodeId} not found`);
-      graph.nodes[idx] = { ...graph.nodes[idx], position: { x, y, z: typeof z === 'number' ? z : 0 } };
-      await httpPut(url, { graph }, token);
-      return { content: [{ type: 'text', text: `Updated node ${nodeId} position -> (${x}, ${y}, ${typeof z === 'number' ? z : 0})` }] };
-    }
-  );
-
   // graph_node_delete
   if (shouldRegister('graph_node_delete')) {
     server.registerTool(
