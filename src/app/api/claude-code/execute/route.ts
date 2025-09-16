@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
               parent_tool_use_id: null,
               session_id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
             };
+            //Required for claude code sdk to work
             await new Promise(res => setTimeout(res, 10000))
           }
 
@@ -87,9 +88,17 @@ export async function POST(req: NextRequest) {
 
                 // Filter tools if specific tools were requested
                 const filteredTools = config.tools
-                  ? toolsArray.filter(tool => config.tools!.includes(tool.name))
+                  ? toolsArray.filter(tool => {
+                      // Strip MCP prefix from tool names for comparison
+                      const toolNameWithPrefix = `mcp__${config.name}__${tool.name}`;
+                      const shouldInclude = config.tools!.includes(toolNameWithPrefix);
+                      logLine(`🔧 Claude Code: Tool "${tool.name}" -> "${toolNameWithPrefix}" ${shouldInclude ? '✓' : '✗'}`);
+                      return shouldInclude;
+                    })
                   : toolsArray;
 
+                logLine(`🔧 Claude Code: Configured tools:`, config.tools);
+                logLine(`🔧 Claude Code: Available tools:`, toolsArray.map(t => t.name));
                 logLine(`🔧 Claude Code: Using ${filteredTools.length} filtered tools for MCP server "${serverName}"`);
 
                 // Create the actual MCP server instance

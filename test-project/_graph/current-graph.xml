@@ -66,6 +66,25 @@
         </prop>
       </props>
     </node>
+
+    <node id="test-node-1" title="Test Node" x="216.783049296117" y="261.78202241939147" z="0">
+      <description>This is a test node for demonstration purposes</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="test-text" title="Test Text" type="text">Hello World</prop>
+        <prop name="test-number" title="Test Number" type="number">42</prop>
+        <prop name="test-boolean" title="Test Boolean" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="test2" title="test2" x="-86.4243172249942" y="319.6378450064587" z="0">
+      <description>A test node for demonstration purposes</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+    </node>
   </nodes>
 
   <edges>
