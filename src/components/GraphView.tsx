@@ -1315,27 +1315,6 @@ function GraphCanvas() {
     );
   }
 
-  // Show empty state when no nodes are present
-  if (nodes.length === 0) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100%',
-        fontSize: '16px',
-        color: '#6b7280',
-        textAlign: 'center',
-        gap: '12px'
-      }}>
-        <div style={{ fontWeight: '500' }}>No Graph Available</div>
-        <div style={{ fontSize: '14px', maxWidth: '500px' }}>
-          Generate a new app to visualize your project structure
-        </div>
-      </div>
-    );
-  }
 
     return (
     <div

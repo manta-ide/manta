@@ -133,12 +133,44 @@ export async function POST(req: NextRequest) {
               - Use analyze_diff() to understand what changed in the graph since the last build
               - Focus exclusively on code generation and implementation - no graph structure editing
               - Implement code based on node prompts and properties, keeping changes minimal and focused
-              - Property IDs must be globally unique and prefixed per node
+              - Create appropriate properties for the nodes, and add them to nodes by using edit tool
+              - Make sure that all properties of the nodes are wired to the code and IDs match
               - For nested object fields, use dot notation: e.g., "root-styles.background-color"
               - Set node states to "built" after successful implementation
               - Ensure all properties are properly wired and connected in the generated code
               - When implementation is complete, set node state to "built"
               - Summarize applied changes at the end
+
+              Property Guidelines:
+              - Properties should correspond to real component attributes and be wired to the actual code for CMS-style customization
+              - Make sure that all properties have values in the nodes
+              - Use appropriate input types from the schema that make sense for the component's customization needs:
+                * 'text' - for strings like titles, descriptions, labels
+                * 'textarea' - for longer text content, descriptions, or formatted text
+                * 'number' - for numeric values like sizes, padding, font sizes, quantities
+                * 'color' - for color pickers (background-color, text-color, border-color, etc.)
+                * 'boolean' - for true/false values like disabled, visible, required, clickable
+                * 'select' - for predefined options like size scales, layout directions, font families
+                * 'checkbox' - for multiple selections like features or categories
+                * 'radio' - for single selections from mutually exclusive options
+                * 'slider' - for ranged numeric values like opacity, border radius, spacing
+                * 'font' - for font selection with family, size, weight options
+                * 'object' - for nested properties and grouped settings
+                * 'object-list' - for arrays of objects like social links, menu items, testimonials
+              - Each property should have a clear 'title' and appropriate 'type' from the schema above
+              - Properties should be functional and actually affect the component's behavior/appearance
+              - Use CMS-style property categories:
+                * Colors: background-color, text-color, border-color, hover-color, etc.
+                * Sizes: width, height, padding, margin, font-size, border-radius, etc.
+                * Behavior: disabled, visible, clickable, required, readonly, etc.
+                * Content: title, description, placeholder, alt-text, label, etc.
+                * Layout: position, flex-direction, justify-content, align-items, gap, etc.
+                * Interactions: onClick, onHover, onChange handlers, etc.
+              - Properties should use sensible defaults but be customizable through the CMS interface
+              - IMPORTANT: Always use the correct property type - NEVER use "text" type for color properties, always use "color" type, etc.
+              - Group related properties using 'object' type for better organization (e.g., "root-styles" with background-color, text-color, font-family)
+              - Use 'object-list' for repeatable content structures with defined itemFields
+
 
               Available Tools:
               - read(nodeId?, includeProperties?, includeChildren?) - Read graph or specific nodes
@@ -150,7 +182,7 @@ export async function POST(req: NextRequest) {
               This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
 
               //allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__analyze_diff", "mcp__graph-tools__node_set_state"];
-              disallowedTools = ["mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"]; // Allow all tools for build-graph
+              disallowedTools = ["mcp__graph-tools__node_add", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"]; // Allow all tools for build-graph
             
               
               queryOptions = {

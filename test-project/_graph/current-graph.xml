@@ -1,129 +1,244 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="user-reviews-section" title="User Reviews Section" x="-21.41986742585013" y="205.62918697377336" z="0">
-      <description>Create a section that displays user reviews and testimonials. This section should showcase feedback from users, including ratings, comments, and user information. It should be visually appealing and help build trust with potential users.</description>
+    <node id="node-175805901432244" title="Portfolio page" x="568.7932120500121" y="159.18825339565268" z="0">
+      <description>SWE portfolio page, VC-backed startup style</description>
       <state status="active">
         <build status="built"/>
       </state>
       <props>
-        <prop name="section-title" title="Section Title" type="text">What Our Users Say</prop>
-        <prop name="review-layout" title="Review Layout" type="select">
-          <value>grid</value>
-          <options>
-          <option>grid</option>
-          <option>carousel</option>
-          <option>list</option>
-          </options>
-        </prop>
-        <prop name="max-reviews" title="Maximum Reviews to Show" type="number">3</prop>
-        <prop name="show-ratings" title="Show Star Ratings" type="boolean">true</prop>
-        <prop name="show-avatars" title="Show User Avatars" type="boolean">true</prop>
-        <prop name="review-source" title="Review Source" type="select">
-          <value>internal</value>
-          <options>
-          <option>internal</option>
-          <option>google</option>
-          <option>trustpilot</option>
-          <option>mixed</option>
-          </options>
-        </prop>
+        <prop name="root-styles" title="Root Styles" type="object">
+        <field name="background-color" title="Background Color" type="color"></field>
+        <field name="background-gradient" title="Background Gradient" type="text"></field>
+      </prop>
       </props>
     </node>
 
-    <node id="root" title="Portfolio Root" x="0" y="0" z="0">
-      <description>Root container for the entire portfolio website</description>
+    <node id="node-1758059032872246" title="Header" x="39.852666185030074" y="627.4410293087155" z="0">
+      <description>Semi-transparent header with gradient</description>
       <state status="active">
-        <build status="unbuilt"/>
+        <build status="built"/>
       </state>
       <props>
-        <prop name="site-title" title="Site Title" type="text">My Portfolio</prop>
-        <prop name="theme" title="Theme" type="select">
-          <value>light</value>
-          <options>
-          <option>light</option>
-          <option>dark</option>
-          <option>auto</option>
-          </options>
-        </prop>
-      </props>
-    </node>
-
-    <node id="test-node-1" title="Header Component" x="153.64555097409988" y="-11.582746026127765" z="0">
-      <description>Create a responsive header component with navigation menu</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-      <props>
-        <prop name="title-text" title="Title Text" type="text">My Website</prop>
-        <prop name="background-color" title="Background Color" type="color">#2563eb</prop>
-        <prop name="show-navigation" title="Show Navigation" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="test-button-component" title="Button Component" x="300" y="150" z="0">
-      <description>A customizable button component with various styles and states</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-      <props>
-        <prop name="button-text" title="Button Text" type="text">Click Me</prop>
-        <prop name="button-style" title="Button Style" type="select">
-          <value>primary</value>
-          <options>
-          <option>primary</option>
-          <option>secondary</option>
-          <option>outline</option>
-          </options>
-        </prop>
-        <prop name="is-disabled" title="Disabled" type="boolean"></prop>
-        <prop name="button-size" title="Size" type="slider">16</prop>
-      </props>
-    </node>
-
-    <node id="test-card-layout" title="Card Layout" x="500" y="200" z="0">
-      <description>A flexible card layout component for displaying content in organized sections</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-      <props>
-        <prop name="card-title" title="Card Title" type="text">Card Title</prop>
-        <prop name="card-description" title="Description" type="textarea">This is a sample card description.</prop>
-        <prop name="border-radius" title="Border Radius" type="number">8</prop>
-        <prop name="shadow-enabled" title="Enable Shadow" type="boolean">true</prop>
-        <prop name="accent-color" title="Accent Color" type="color">#3b82f6</prop>
-      </props>
-    </node>
-
-    <node id="test-navigation-menu" title="Navigation Menu" x="200" y="350" z="0">
-      <description>A responsive navigation menu with dropdown support and mobile-friendly design</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-      <props>
-        <prop name="menu-items" title="Menu Items" type="object-list">
+        <prop name="header-styles" title="Header Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#000000</field>
+        <field name="border-color" title="Border Color" type="color">#e93838</field>
+        <field name="gradient" title="Background Gradient" type="text"></field>
+        <field name="text-color" title="Text Color" type="color"></field>
+      </prop>
+        <prop name="logo" title="Logo" type="object">
+        <field name="text" title="Logo Text" type="text"></field>
+        <field name="text-color" title="Text Color" type="color"></field>
+        <field name="font-size" title="Font Size" type="text"></field>
+      </prop>
+        <prop name="navigation" title="Navigation Links" type="object-list">
         <item index="0">
-          <field name="name" title="Name" type="text">Home</field>
-          <field name="url" title="URL" type="text">/</field>
+          <field name="label" title="Label" type="text">Home</field>
+          <field name="url" title="URL" type="text">#</field>
+          <field name="text-color" title="Text Color" type="color">#ffffff</field>
+          <field name="font-size" title="Font Size" type="text">0.875rem</field>
         </item>
         <item index="1">
-          <field name="name" title="Name" type="text">About</field>
-          <field name="url" title="URL" type="text">/about</field>
+          <field name="label" title="Label" type="text">About</field>
+          <field name="url" title="URL" type="text">#about</field>
+          <field name="text-color" title="Text Color" type="color">#ffffff</field>
+          <field name="font-size" title="Font Size" type="text">0.875rem</field>
+        </item>
+        <item index="2">
+          <field name="label" title="Label" type="text">Projects</field>
+          <field name="url" title="URL" type="text">#projects</field>
+          <field name="text-color" title="Text Color" type="color">#ffffff</field>
+          <field name="font-size" title="Font Size" type="text">0.875rem</field>
+        </item>
+        <item index="3">
+          <field name="label" title="Label" type="text">Contact</field>
+          <field name="url" title="URL" type="text">#contact</field>
+          <field name="text-color" title="Text Color" type="color">#ffffff</field>
+          <field name="font-size" title="Font Size" type="text">0.875rem</field>
         </item>
       </prop>
-        <prop name="mobile-breakpoint" title="Mobile Breakpoint" type="number">768</prop>
-        <prop name="menu-orientation" title="Orientation" type="radio">
-          <value>horizontal</value>
-          <options>
-          <option>horizontal</option>
-          <option>vertical</option>
-          </options>
-        </prop>
+      </props>
+    </node>
+
+    <node id="node-1758059038555846" title="Hero" x="433.6906269454513" y="631.5012144711941" z="0">
+      <description>Text with gradient</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="hero-styles" title="Hero Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#5ec24a</field>
+        <field name="background-gradient" title="Background Gradient" type="text"></field>
+        <field name="accent-color" title="Accent Color" type="color">#db5d5d</field>
+      </prop>
+        <prop name="hero-content" title="Hero Content" type="object">
+        <field name="title" title="Main Title" type="text"></field>
+        <field name="title-gradient" title="Title Gradient" type="text"></field>
+        <field name="title-font-size" title="Title Font Size" type="text"></field>
+        <field name="title-line-height" title="Title Line Height" type="text"></field>
+        <field name="subtitle" title="Subtitle" type="textarea"></field>
+        <field name="subtitle-color" title="Subtitle Color" type="color"></field>
+        <field name="subtitle-font-size" title="Subtitle Font Size" type="text"></field>
+        <field name="subtitle-max-width" title="Subtitle Max Width" type="text"></field>
+        <field name="show-stats" title="Show Stats" type="boolean"></field>
+        <field name="stat1-number" title="Stat 1 Number" type="text"></field>
+        <field name="stat1-label" title="Stat 1 Label" type="text"></field>
+        <field name="stat2-number" title="Stat 2 Number" type="text"></field>
+        <field name="stat2-label" title="Stat 2 Label" type="text"></field>
+        <field name="stat3-number" title="Stat 3 Number" type="text"></field>
+        <field name="stat3-label" title="Stat 3 Label" type="text"></field>
+        <field name="stat-label-color" title="Stat Label Color" type="color"></field>
+      </prop>
+        <prop name="call-to-action" title="Call to Action" type="object">
+        <field name="primary-text" title="Primary Button Text" type="text">Biba</field>
+        <field name="primary-bg-color" title="Primary Button Background" type="color"></field>
+        <field name="primary-text-color" title="Primary Button Text Color" type="color"></field>
+        <field name="primary-border" title="Primary Button Border" type="text"></field>
+        <field name="secondary-text" title="Secondary Button Text" type="text">Boba</field>
+        <field name="secondary-bg-color" title="Secondary Button Background" type="color"></field>
+        <field name="secondary-text-color" title="Secondary Button Text Color" type="color"></field>
+        <field name="secondary-border-color" title="Secondary Button Border Color" type="color"></field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1758059045174488" title="Metrics" x="744.2947918750618" y="633.5313070524334" z="0">
+      <description>Section with metrics and numbers about the portfolio owner</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="metrics-styles" title="Metrics Styles" type="object">
+        <field name="background-color" title="Background Color" type="color"></field>
+        <field name="background-gradient" title="Background Gradient" type="text"></field>
+        <field name="card-bg-color" title="Card Background Color" type="color"></field>
+        <field name="card-border-color" title="Card Border Color" type="color"></field>
+        <field name="card-shadow" title="Card Shadow" type="text"></field>
+        <field name="number-color" title="Number Color" type="color"></field>
+        <field name="number-font-size" title="Number Font Size" type="text"></field>
+        <field name="number-gradient" title="Number Gradient (optional)" type="text"></field>
+        <field name="label-color" title="Label Color" type="color"></field>
+        <field name="label-font-size" title="Label Font Size" type="text"></field>
+        <field name="description-color" title="Description Color" type="color"></field>
+        <field name="description-font-size" title="Description Font Size" type="text"></field>
+        <field name="icon-size" title="Icon Size" type="text"></field>
+      </prop>
+        <prop name="metrics-content" title="Metrics Content" type="object">
+        <field name="title" title="Section Title" type="text"></field>
+        <field name="title-color" title="Title Color" type="color"></field>
+        <field name="title-font-size" title="Title Font Size" type="text"></field>
+        <field name="subtitle" title="Section Subtitle" type="textarea"></field>
+        <field name="subtitle-color" title="Subtitle Color" type="color"></field>
+        <field name="subtitle-font-size" title="Subtitle Font Size" type="text"></field>
+        <field name="show-cta" title="Show Call to Action" type="boolean"></field>
+        <field name="cta-text" title="CTA Button Text" type="text"></field>
+        <field name="cta-bg-color" title="CTA Background Color" type="color"></field>
+        <field name="cta-text-color" title="CTA Text Color" type="color"></field>
+        <field name="cta-border" title="CTA Border" type="text"></field>
+      </prop>
+        <prop name="metrics-data" title="Custom Metrics" type="object-list">
+        <item index="0">
+          <field name="number" title="Number/Value" type="text">100+</field>
+          <field name="label" title="Label" type="text">Projects Completed</field>
+          <field name="description" title="Description" type="textarea">Successfully delivered projects across various technologies</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð</field>
+        </item>
+        <item index="1">
+          <field name="number" title="Number/Value" type="text">5+</field>
+          <field name="label" title="Label" type="text">Years Experience</field>
+          <field name="description" title="Description" type="textarea">Building scalable applications and leading development teams</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð¼</field>
+        </item>
+        <item index="2">
+          <field name="number" title="Number/Value" type="text">50+</field>
+          <field name="label" title="Label" type="text">Happy Clients</field>
+          <field name="description" title="Description" type="textarea">Satisfied clients from startups to enterprise companies</field>
+          <field name="icon" title="Icon (emoji)" type="text">â­</field>
+        </item>
+        <item index="3">
+          <field name="number" title="Number/Value" type="text">$2M+</field>
+          <field name="label" title="Label" type="text">Value Delivered</field>
+          <field name="description" title="Description" type="textarea">Contributed to products generating significant revenue</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð°</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1758059053606815" title="Footer" x="1103.8293015544086" y="613.8936925045457" z="0">
+      <description>Footer with social media links</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="footer-styles" title="Footer Styles" type="object">
+        <field name="background-color" title="Background Color" type="color"></field>
+        <field name="background-gradient" title="Background Gradient" type="text"></field>
+        <field name="social-bg-color" title="Social Link Background" type="color"></field>
+        <field name="social-border-color" title="Social Link Border" type="color"></field>
+        <field name="social-text-color" title="Social Link Text Color" type="color"></field>
+        <field name="social-icon-size" title="Social Icon Size" type="text"></field>
+        <field name="social-label-size" title="Social Label Size" type="text"></field>
+        <field name="divider-color" title="Divider Color" type="color"></field>
+      </prop>
+        <prop name="footer-content" title="Footer Content" type="object">
+        <field name="brand-text" title="Brand Text" type="text"></field>
+        <field name="brand-color" title="Brand Color" type="color"></field>
+        <field name="brand-font-size" title="Brand Font Size" type="text"></field>
+        <field name="description" title="Brand Description" type="textarea"></field>
+        <field name="description-color" title="Description Color" type="color"></field>
+        <field name="description-font-size" title="Description Font Size" type="text"></field>
+        <field name="section-title-color" title="Section Title Color" type="color"></field>
+        <field name="section-title-font-size" title="Section Title Font Size" type="text"></field>
+        <field name="contact-title" title="Contact Section Title" type="text"></field>
+        <field name="social-title" title="Social Section Title" type="text"></field>
+        <field name="copyright-text" title="Copyright Text" type="text"></field>
+        <field name="copyright-color" title="Copyright Color" type="color"></field>
+        <field name="privacy-text" title="Privacy Link Text" type="text"></field>
+        <field name="terms-text" title="Terms Link Text" type="text"></field>
+        <field name="link-color" title="Link Color" type="color"></field>
+        <field name="link-font-size" title="Link Font Size" type="text"></field>
+      </prop>
+        <prop name="contact-info" title="Contact Information" type="object">
+        <field name="email" title="Email" type="text"></field>
+        <field name="location" title="Location" type="text"></field>
+        <field name="phone" title="Phone" type="text"></field>
+        <field name="text-color" title="Contact Text Color" type="color"></field>
+      </prop>
+        <prop name="social-links" title="Social Media Links" type="object-list">
+        <item index="0">
+          <field name="name" title="Platform Name" type="text">GitHub</field>
+          <field name="url" title="URL" type="text">https://github.com</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð»</field>
+          <field name="color" title="Brand Color" type="color">#e67070</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Platform Name" type="text">LinkedIn</field>
+          <field name="url" title="URL" type="text">https://linkedin.com</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð¼</field>
+          <field name="color" title="Brand Color" type="color">#0077b5</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Platform Name" type="text">Twitter</field>
+          <field name="url" title="URL" type="text">https://twitter.com</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð¦</field>
+          <field name="color" title="Brand Color" type="color">#1da1f2</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Platform Name" type="text">Email</field>
+          <field name="url" title="URL" type="text">mailto:hello@example.com</field>
+          <field name="icon" title="Icon (emoji)" type="text">ð§</field>
+          <field name="color" title="Brand Color" type="color">#ea4335</field>
+        </item>
+      </prop>
       </props>
     </node>
   </nodes>
 
   <edges>
-
+    <edge id="node-175805901432244-node-1758059032872246" source="node-175805901432244" target="node-1758059032872246" role="links-to"/>
+    <edge id="node-175805901432244-node-1758059038555846" source="node-175805901432244" target="node-1758059038555846" role="links-to"/>
+    <edge id="node-175805901432244-node-1758059045174488" source="node-175805901432244" target="node-1758059045174488" role="links-to"/>
+    <edge id="node-175805901432244-node-1758059053606815" source="node-175805901432244" target="node-1758059053606815" role="links-to"/>
   </edges>
 </graph>

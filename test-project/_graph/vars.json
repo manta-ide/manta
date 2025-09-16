@@ -1,34 +1,190 @@
 {
-  "section-title": "What Our Users Say",
-  "review-layout": "grid",
-  "max-reviews": 3,
-  "show-ratings": true,
-  "show-avatars": true,
-  "review-source": "internal",
-  "site-title": "My Portfolio",
-  "theme": "light",
-  "title-text": "My Website",
-  "background-color": "#2563eb",
-  "show-navigation": true,
-  "button-text": "Click Me",
-  "button-style": "primary",
-  "is-disabled": "",
-  "button-size": "16",
-  "card-title": "Card Title",
-  "card-description": "This is a sample card description.",
-  "border-radius": 8,
-  "shadow-enabled": true,
-  "accent-color": "#3b82f6",
-  "menu-items": [
+  "root-styles": {
+    "background-color": "",
+    "background-gradient": ""
+  },
+  "header-styles": {
+    "background-color": "#000000",
+    "border-color": "#e93838",
+    "gradient": "",
+    "text-color": ""
+  },
+  "logo": {
+    "text": "",
+    "text-color": "",
+    "font-size": ""
+  },
+  "navigation": [
     {
-      "name": "Home",
-      "url": "/"
+      "label": "Home",
+      "url": "#",
+      "text-color": "#ffffff",
+      "font-size": "0.875rem"
     },
     {
-      "name": "About",
-      "url": "/about"
+      "label": "About",
+      "url": "#about",
+      "text-color": "#ffffff",
+      "font-size": "0.875rem"
+    },
+    {
+      "label": "Projects",
+      "url": "#projects",
+      "text-color": "#ffffff",
+      "font-size": "0.875rem"
+    },
+    {
+      "label": "Contact",
+      "url": "#contact",
+      "text-color": "#ffffff",
+      "font-size": "0.875rem"
     }
   ],
-  "mobile-breakpoint": 768,
-  "menu-orientation": "horizontal"
+  "hero-styles": {
+    "background-color": "#5ec24a",
+    "background-gradient": "",
+    "accent-color": "#db5d5d"
+  },
+  "hero-content": {
+    "title": "",
+    "title-gradient": "",
+    "title-font-size": "",
+    "title-line-height": "",
+    "subtitle": "",
+    "subtitle-color": "",
+    "subtitle-font-size": "",
+    "subtitle-max-width": "",
+    "show-stats": "",
+    "stat1-number": "",
+    "stat1-label": "",
+    "stat2-number": "",
+    "stat2-label": "",
+    "stat3-number": "",
+    "stat3-label": "",
+    "stat-label-color": ""
+  },
+  "call-to-action": {
+    "primary-text": "Biba",
+    "primary-bg-color": "",
+    "primary-text-color": "",
+    "primary-border": "",
+    "secondary-text": "Boba",
+    "secondary-bg-color": "",
+    "secondary-text-color": "",
+    "secondary-border-color": ""
+  },
+  "metrics-styles": {
+    "background-color": "",
+    "background-gradient": "",
+    "card-bg-color": "",
+    "card-border-color": "",
+    "card-shadow": "",
+    "number-color": "",
+    "number-font-size": "",
+    "number-gradient": "",
+    "label-color": "",
+    "label-font-size": "",
+    "description-color": "",
+    "description-font-size": "",
+    "icon-size": ""
+  },
+  "metrics-content": {
+    "title": "",
+    "title-color": "",
+    "title-font-size": "",
+    "subtitle": "",
+    "subtitle-color": "",
+    "subtitle-font-size": "",
+    "show-cta": "",
+    "cta-text": "",
+    "cta-bg-color": "",
+    "cta-text-color": "",
+    "cta-border": ""
+  },
+  "metrics-data": [
+    {
+      "number": "100+",
+      "label": "Projects Completed",
+      "description": "Successfully delivered projects across various technologies",
+      "icon": "ð"
+    },
+    {
+      "number": "5+",
+      "label": "Years Experience",
+      "description": "Building scalable applications and leading development teams",
+      "icon": "ð¼"
+    },
+    {
+      "number": "50+",
+      "label": "Happy Clients",
+      "description": "Satisfied clients from startups to enterprise companies",
+      "icon": "â­"
+    },
+    {
+      "number": "$2M+",
+      "label": "Value Delivered",
+      "description": "Contributed to products generating significant revenue",
+      "icon": "ð°"
+    }
+  ],
+  "footer-styles": {
+    "background-color": "",
+    "background-gradient": "",
+    "social-bg-color": "",
+    "social-border-color": "",
+    "social-text-color": "",
+    "social-icon-size": "",
+    "social-label-size": "",
+    "divider-color": ""
+  },
+  "footer-content": {
+    "brand-text": "",
+    "brand-color": "",
+    "brand-font-size": "",
+    "description": "",
+    "description-color": "",
+    "description-font-size": "",
+    "section-title-color": "",
+    "section-title-font-size": "",
+    "contact-title": "",
+    "social-title": "",
+    "copyright-text": "",
+    "copyright-color": "",
+    "privacy-text": "",
+    "terms-text": "",
+    "link-color": "",
+    "link-font-size": ""
+  },
+  "contact-info": {
+    "email": "",
+    "location": "",
+    "phone": "",
+    "text-color": ""
+  },
+  "social-links": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com",
+      "icon": "ð»",
+      "color": "#e67070"
+    },
+    {
+      "name": "LinkedIn",
+      "url": "https://linkedin.com",
+      "icon": "ð¼",
+      "color": "#0077b5"
+    },
+    {
+      "name": "Twitter",
+      "url": "https://twitter.com",
+      "icon": "ð¦",
+      "color": "#1da1f2"
+    },
+    {
+      "name": "Email",
+      "url": "mailto:hello@example.com",
+      "icon": "ð§",
+      "color": "#ea4335"
+    }
+  ]
 }
