@@ -1,4 +1,5 @@
 import React from "react";
+import UserReviewsSection from "./components/UserReviewsSection";
 
 interface AppProps {
   vars: Record<string, any>;
@@ -7,7 +8,7 @@ interface AppProps {
 export default function App({ vars }: AppProps) {
   const rootStyles = (vars["root-styles"] as Record<string, any>) || {};
   const cssVars = {
-    "--background-color": rootStyles["background-color"] ?? vars["background-color"] ?? "#ffffff",
+    "--background-color": rootStyles["background-color"] ?? vars["background-color"] ?? "#f6f6f6",
     "--text-color": rootStyles["text-color"] ?? vars["text-color"] ?? "#000000",
     "--font-family": rootStyles["font-family"] ?? vars["font-family"] ?? "Arial",
     "--base-font-size": rootStyles["base-font-size"] ?? vars["base-font-size"] ?? "1rem",
@@ -29,6 +30,8 @@ export default function App({ vars }: AppProps) {
           </p>
         </div>
       </div>
+
+      <UserReviewsSection vars={vars} />
     </main>
   );
 }

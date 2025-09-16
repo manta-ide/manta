@@ -1,46 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="-35.65262949589331" y="-423.2972946378727" z="0">
-      <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
-      <state status="active">
-        <build status="built"/>
-      </state>
-      <props>
-        <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
-        <prop name="root-styles" title="Root Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#f6f6f6</field>
-        <field name="text-color" title="Text Color" type="color">#000000</field>
-        <field name="font-family" title="Font Family" type="select">
-          <value>Arial</value>
-          <options>
-          <option>Arial</option>
-          <option>Helvetica</option>
-          <option>Times New Roman</option>
-          <option>Georgia</option>
-          <option>Verdana</option>
-          <option>Courier New</option>
-          </options>
-        </field>
-        <field name="base-font-size" title="Base Font Size" type="select">
-          <value>1rem</value>
-          <options>
-          <option>0.75rem</option>
-          <option>0.875rem</option>
-          <option>1rem</option>
-          <option>1.125rem</option>
-          <option>1.25rem</option>
-          <option>1.5rem</option>
-          </options>
-        </field>
-      </prop>
-      </props>
-    </node>
-
     <node id="user-reviews-section" title="User Reviews Section" x="-21.41986742585013" y="205.62918697377336" z="0">
       <description>Create a section that displays user reviews and testimonials. This section should showcase feedback from users, including ratings, comments, and user information. It should be visually appealing and help build trust with potential users.</description>
       <state status="active">
-        <build status="unbuilt"/>
+        <build status="built"/>
       </state>
       <props>
         <prop name="section-title" title="Section Title" type="text">What Our Users Say</prop>
@@ -52,7 +16,7 @@
           <option>list</option>
           </options>
         </prop>
-        <prop name="max-reviews" title="Maximum Reviews to Show" type="number">6</prop>
+        <prop name="max-reviews" title="Maximum Reviews to Show" type="number">3</prop>
         <prop name="show-ratings" title="Show Star Ratings" type="boolean">true</prop>
         <prop name="show-avatars" title="Show User Avatars" type="boolean">true</prop>
         <prop name="review-source" title="Review Source" type="select">
@@ -66,9 +30,22 @@
         </prop>
       </props>
     </node>
+
+    <node id="hero-section" title="Hero Section" x="100" y="100" z="0">
+      <description>Create a compelling hero section with headline, subheading, and call-to-action button</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="headline" title="Headline" type="text">Transform Your Business Today</prop>
+        <prop name="subheading" title="Subheading" type="textarea">Discover how our solutions can help you achieve your goals</prop>
+        <prop name="cta-text" title="CTA Button Text" type="text">Get Started</prop>
+        <prop name="background-color" title="Background Color" type="color">#f8f9fa</prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
-    <edge id="app-user-reviews-section" source="app" target="user-reviews-section" role="links-to"/>
+
   </edges>
 </graph>

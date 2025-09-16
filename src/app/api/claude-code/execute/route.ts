@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
             let customSystemPrompt: string;
             let allowedTools: string[];
             let disallowedTools: string[];
+            let queryOptions: Options;
 
             if (agentType === 'edit-graph') {
               customSystemPrompt =
@@ -111,6 +112,18 @@ export async function POST(req: NextRequest) {
               allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"];
               disallowedTools = ["Bash", "Glob", "Grep", "ExitPlanMode", "Read", "Edit", "MultiEdit", "Write", "NotebookEdit", "WebFetch", "TodoWrite", "BashOutput", "KillShell","Task"];
 
+
+              queryOptions = {
+                includePartialMessages: true,
+                customSystemPrompt: customSystemPrompt,
+                permissionMode: 'bypassPermissions',
+                mcpServers: { 'graph-tools': mcpServer },
+                allowedTools: allowedTools,
+                disallowedTools: disallowedTools,
+                abortController: new AbortController(),
+                cwd: projectDir(),
+                strictMcpConfig: true,
+              } as any;
             } else if (agentType === 'build-graph') {
               customSystemPrompt = `You are the unified Manta code builder agent.
 
@@ -136,23 +149,25 @@ export async function POST(req: NextRequest) {
 
               This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
 
-              allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__analyze_diff", "mcp__graph-tools__node_set_state"];
-              disallowedTools = []; // Allow all tools for build-graph
+              //allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__analyze_diff", "mcp__graph-tools__node_set_state"];
+              disallowedTools = ["mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"]; // Allow all tools for build-graph
+            
+              
+              queryOptions = {
+                includePartialMessages: true,
+                customSystemPrompt: customSystemPrompt,
+                permissionMode: 'bypassPermissions',
+                mcpServers: { 'graph-tools': mcpServer },
+                disallowedTools: disallowedTools,
+                abortController: new AbortController(),
+                cwd: projectDir(),
+                strictMcpConfig: true,
+              } as any;
             } else {
               throw new Error(`Unknown agent type: ${agentType}`);
             }
 
-            const queryOptions: Options = {
-              includePartialMessages: true,
-              customSystemPrompt: customSystemPrompt,
-              permissionMode: 'bypassPermissions',
-              mcpServers: { 'graph-tools': mcpServer },
-              allowedTools: allowedTools,
-              disallowedTools: disallowedTools,
-              abortController: new AbortController(),
-              cwd: projectDir(),
-              strictMcpConfig: true,
-            } as any;
+            
 
             logLine('🚀 Using simplified Claude Code configuration');
 

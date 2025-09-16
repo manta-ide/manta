@@ -1,9 +1,39 @@
 import { tool } from '@anthropic-ai/claude-code';
 import { z } from 'zod';
 import { GraphSchema, PropertySchema } from './schemas';
-import { graphToXml, xmlToGraph } from '../../../lib/graph-xml';
-import * as fs from 'fs';
-import * as path from 'path';
+import { loadCurrentGraphFromFile, loadGraphFromFile, loadBaseGraphFromFile, storeCurrentGraph } from './graph-service';
+
+// Helper function to read base graph from filesystem
+const DEFAULT_USER_ID = 'default-user';
+
+const cloneGraph = <T>(value: T): T => {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+};
+
+async function readBaseGraph(): Promise<any | null> {
+  try {
+    console.log('🔍 TOOL: readBaseGraph via graph-service helpers');
+    const baseGraph = await loadBaseGraphFromFile(DEFAULT_USER_ID);
+    if (!baseGraph) {
+      console.log('🔍 TOOL: Base graph file not found');
+      return null;
+    }
+
+    const parsed = GraphSchema.safeParse(baseGraph);
+    if (!parsed.success) {
+      console.error('🔍 TOOL: Base graph schema validation failed:', parsed.error);
+      return null;
+    }
+
+    return { graph: cloneGraph(parsed.data) };
+  } catch (error) {
+    console.error('🔍 TOOL: Error reading base graph:', error);
+    return null;
+  }
+}
 
 // Property normalization function
 const normalizeProperty = (prop: any): any => {
@@ -59,61 +89,33 @@ const normalizeProperties = (properties?: any[]): any[] => {
 };
 
 // Filesystem helpers
-function projectDir(): string {
+async function readLocalGraph(): Promise<any | null> {
   try {
-    const { getDevProjectDir } = require('../../../lib/project-config');
-    const devProjectDir = getDevProjectDir();
-    if (fs.existsSync(devProjectDir)) {
-      return devProjectDir;
+    console.log('🔍 TOOL: readLocalGraph via graph-service helpers');
+    const currentGraph = await loadCurrentGraphFromFile(DEFAULT_USER_ID);
+    const fallbackGraph = currentGraph ?? (await loadGraphFromFile(DEFAULT_USER_ID));
+
+    if (!fallbackGraph) {
+      console.log('🔍 TOOL: No graph files found');
+      return null;
     }
+
+    const parsed = GraphSchema.safeParse(fallbackGraph);
+    if (!parsed.success) {
+      console.error('🔍 TOOL: Graph schema validation failed:', parsed.error);
+      return null;
+    }
+
+    return { graph: cloneGraph(parsed.data) };
   } catch (error) {
-    console.warn('Failed to get dev project directory, falling back to current directory:', error);
-  }
-  try {
-    return process.cwd();
-  } catch {
-    return process.cwd();
-  }
-}
-
-function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.xml'); }
-function currentGraphPath(): string { return path.join(projectDir(), '_graph', 'current-graph.xml'); }
-
-function readLocalGraph(): any | null {
-  try {
-    // Prefer current-graph.xml if present
-    const pc = currentGraphPath();
-    if (fs.existsSync(pc)) {
-      const rawXml = fs.readFileSync(pc, 'utf8');
-      const g = xmlToGraph(rawXml);
-      const parsed = GraphSchema.safeParse(g);
-      return parsed.success ? { graph: parsed.data, rawXml } : null;
-    }
-    // Fallback to graph.xml
-    const p = graphPath();
-    if (fs.existsSync(p)) {
-      const rawXml = fs.readFileSync(p, 'utf8');
-      const g = xmlToGraph(rawXml);
-      const parsed = GraphSchema.safeParse(g);
-      return parsed.success ? { graph: parsed.data, rawXml } : null;
-    }
+    console.error('🔍 TOOL: Error reading local graph:', error);
     return null;
-  } catch { return null; }
+  }
 }
 
 // Tool definitions for Claude Code MCP server
-export const createGraphTools = (baseUrl: string) => {
-  console.log('🔧 Creating graph tools with baseUrl:', baseUrl);
-
-  // Helper function to build request headers
-  const buildHeaders = (additionalHeaders?: Record<string, string>) => {
-    return {
-      'Accept': 'application/xml, application/json',
-      ...additionalHeaders
-    };
-  };
-
-  console.log('🔧 Graph tools created successfully');
+export const createGraphTools = (_baseUrl: string) => {
+  console.log('🔧 Creating graph tools (graph-service backed)');
 
   return [
   // read (rich read)
@@ -128,28 +130,18 @@ export const createGraphTools = (baseUrl: string) => {
     },
     async ({ nodeId }) => {
       console.log('🔍 TOOL: read called', { nodeId });
+      console.log('🔍 TOOL: process.cwd():', process.cwd());
 
       try {
         // Use local filesystem read only
-        const localGraph = readLocalGraph();
+        const localGraph = await readLocalGraph();
         if (!localGraph) {
           console.error('❌ TOOL: read no local graph found');
           const errorMsg = 'No graph data available. Please ensure the graph file exists.';
           console.log('📤 TOOL: read returning error:', errorMsg);
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
-        const graph = localGraph.graph;
-
-        // Parse the graph data
-        console.log('🔍 TOOL: read validating graph schema');
-        const parsed = GraphSchema.safeParse(graph);
-        if (!parsed.success) {
-          console.error('❌ TOOL: read schema validation failed:', parsed.error);
-          const errorMsg = `Graph data validation failed: ${parsed.error.message}`;
-          console.log('📤 TOOL: read returning error:', errorMsg);
-          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
-        }
-        const validatedGraph = parsed.data;
+        const validatedGraph = localGraph.graph;
         console.log('✅ TOOL: read schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
         if (nodeId) {
@@ -157,7 +149,7 @@ export const createGraphTools = (baseUrl: string) => {
           const node = validatedGraph.nodes.find((n: any) => n.id === nodeId);
           if (!node) {
             console.error('❌ TOOL: read node not found:', nodeId);
-            const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map(n => n.id).join(', ')}`;
+            const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
             console.log('📤 TOOL: read returning error:', errorMsg);
             return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
           }
@@ -196,7 +188,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         // Use local FS read only
-        const localGraph = readLocalGraph();
+        const localGraph = await readLocalGraph();
         if (!localGraph) {
           console.error('❌ TOOL: edge_create no local graph found');
           const errorMsg = 'No graph data available. Please ensure the graph file exists.';
@@ -204,16 +196,7 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
         let graph = localGraph.graph;
-
-        console.log('🔍 TOOL: edge_create validating graph schema');
-        const parsed = GraphSchema.safeParse(graph);
-        if (!parsed.success) {
-          console.error('❌ TOOL: edge_create schema validation failed:', parsed.error);
-          const errorMsg = `Graph data validation failed: ${parsed.error.message}`;
-          console.log('📤 TOOL: edge_create returning error:', errorMsg);
-          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
-        }
-        const validatedGraph = parsed.data;
+        const validatedGraph = graph;
         console.log('✅ TOOL: edge_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
         // Validate that both nodes exist
@@ -221,7 +204,7 @@ export const createGraphTools = (baseUrl: string) => {
         const sourceNode = validatedGraph.nodes.find((n: any) => n.id === sourceId);
         if (!sourceNode) {
           console.error('❌ TOOL: edge_create source node not found:', sourceId);
-          const errorMsg = `Source node '${sourceId}' not found. Available nodes: ${validatedGraph.nodes.map(n => n.id).join(', ')}`;
+          const errorMsg = `Source node '${sourceId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
           console.log('📤 TOOL: edge_create returning error:', errorMsg);
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
@@ -231,7 +214,7 @@ export const createGraphTools = (baseUrl: string) => {
         const targetNode = validatedGraph.nodes.find((n: any) => n.id === targetId);
         if (!targetNode) {
           console.error('❌ TOOL: edge_create target node not found:', targetId);
-          const errorMsg = `Target node '${targetId}' not found. Available nodes: ${validatedGraph.nodes.map(n => n.id).join(', ')}`;
+          const errorMsg = `Target node '${targetId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
           console.log('📤 TOOL: edge_create returning error:', errorMsg);
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
@@ -262,7 +245,7 @@ export const createGraphTools = (baseUrl: string) => {
         console.log('✅ TOOL: edge_create added edge, total edges:', validatedGraph.edges.length);
 
         console.log('💾 TOOL: edge_create saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl);
+        const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: edge_create returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -296,7 +279,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         // Use local FS read only
-        const localGraph = readLocalGraph();
+        const localGraph = await readLocalGraph();
         if (!localGraph) {
           console.error('❌ TOOL: node_add no local graph found');
           const errorMsg = 'No graph data available. Please ensure the graph file exists.';
@@ -304,16 +287,7 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
         let graph = localGraph.graph;
-
-        console.log('🔍 TOOL: node_add validating graph schema');
-        const parsed = GraphSchema.safeParse(graph);
-        if (!parsed.success) {
-          console.error('❌ TOOL: node_add schema validation failed:', parsed.error);
-          const errorMsg = `Graph data validation failed: ${parsed.error.message}`;
-          console.log('📤 TOOL: node_add returning error:', errorMsg);
-          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
-        }
-        const validatedGraph = parsed.data;
+        const validatedGraph = graph;
         console.log('✅ TOOL: node_add schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
         console.log('🔍 TOOL: node_add checking if node already exists:', nodeId);
@@ -340,7 +314,7 @@ export const createGraphTools = (baseUrl: string) => {
         console.log('✅ TOOL: node_add added node, total nodes:', validatedGraph.nodes.length);
 
         console.log('💾 TOOL: node_add saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl);
+        const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: node_add returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -378,7 +352,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         // Use local FS read only
-        const localGraph = readLocalGraph();
+        const localGraph = await readLocalGraph();
         if (!localGraph) {
           console.error('❌ TOOL: node_edit no local graph found');
           const errorMsg = 'No graph data available. Please ensure the graph file exists.';
@@ -386,16 +360,7 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
         let graph = localGraph.graph;
-
-        console.log('🔍 TOOL: node_edit validating graph schema');
-        const parsed = GraphSchema.safeParse(graph);
-        if (!parsed.success) {
-          console.error('❌ TOOL: node_edit schema validation failed:', parsed.error);
-          const errorMsg = `Graph data validation failed: ${parsed.error.message}`;
-          console.log('📤 TOOL: node_edit returning error:', errorMsg);
-          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
-        }
-        const validatedGraph = parsed.data;
+        const validatedGraph = graph;
         console.log('✅ TOOL: node_edit schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
         console.log('🔍 TOOL: node_edit looking for node:', nodeId);
@@ -550,7 +515,7 @@ export const createGraphTools = (baseUrl: string) => {
 
         validatedGraph.nodes[idx] = next;
         console.log('💾 TOOL: node_edit saving updated graph (merge mode)');
-        const saveResult = await saveGraph(validatedGraph, baseUrl);
+        const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: node_edit returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -591,7 +556,7 @@ export const createGraphTools = (baseUrl: string) => {
         }
         validatedGraph.nodes[idx] = next;
         console.log('💾 TOOL: node_edit saving updated graph (replace mode)');
-        const saveResult = await saveGraph(validatedGraph, baseUrl);
+        const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: node_edit returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -619,10 +584,11 @@ export const createGraphTools = (baseUrl: string) => {
     },
     async ({ nodeId, state }) => {
       console.log('🏗️ TOOL: node_set_state called', { nodeId, state });
+      console.log('🏗️ TOOL: process.cwd():', process.cwd());
 
       try {
         // Use local FS read only
-        const localGraph = readLocalGraph();
+        const localGraph = await readLocalGraph();
         if (!localGraph) {
           console.error('❌ TOOL: node_set_state no local graph found');
           const errorMsg = 'No graph data available. Please ensure the graph file exists.';
@@ -630,23 +596,14 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
         const graph = localGraph.graph;
-
-        console.log('🔍 TOOL: node_set_state validating graph schema');
-        const parsed = GraphSchema.safeParse(graph);
-        if (!parsed.success) {
-          console.error('❌ TOOL: node_set_state schema validation failed:', parsed.error);
-          const errorMsg = `Graph data validation failed: ${parsed.error.message}`;
-          console.log('📤 TOOL: node_set_state returning error:', errorMsg);
-          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
-        }
-        const validatedGraph = parsed.data;
+        const validatedGraph = graph;
         console.log('✅ TOOL: node_set_state schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
         console.log('🔍 TOOL: node_set_state looking for node:', nodeId);
         const idx = validatedGraph.nodes.findIndex((n: any) => n.id === nodeId);
         if (idx === -1) {
           console.error('❌ TOOL: node_set_state node not found:', nodeId);
-          const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map(n => n.id).join(', ')}`;
+          const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
           console.log('📤 TOOL: node_set_state returning error:', errorMsg);
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
@@ -656,7 +613,7 @@ export const createGraphTools = (baseUrl: string) => {
         validatedGraph.nodes[idx] = { ...validatedGraph.nodes[idx], state };
 
         console.log('💾 TOOL: node_set_state saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl);
+        const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: node_set_state returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -683,7 +640,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         // Use local FS read only
-        const localGraph = readLocalGraph();
+        const localGraph = await readLocalGraph();
         if (!localGraph) {
           console.error('❌ TOOL: node_delete no local graph found');
           const errorMsg = 'No graph data available. Please ensure the graph file exists.';
@@ -691,23 +648,14 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
         let graph = localGraph.graph;
-
-        console.log('🔍 TOOL: node_delete validating graph schema');
-        const parsed = GraphSchema.safeParse(graph);
-        if (!parsed.success) {
-          console.error('❌ TOOL: node_delete schema validation failed:', parsed.error);
-          const errorMsg = `Graph data validation failed: ${parsed.error.message}`;
-          console.log('📤 TOOL: node_delete returning error:', errorMsg);
-          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
-        }
-        const validatedGraph = parsed.data;
+        const validatedGraph = graph;
         console.log('✅ TOOL: node_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
         console.log('🔍 TOOL: node_delete checking if node exists:', nodeId);
         const byId = new Map<string, any>(validatedGraph.nodes.map((n: any) => [n.id, n]));
         if (!byId.has(nodeId)) {
           console.error('❌ TOOL: node_delete node not found:', nodeId);
-          const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map(n => n.id).join(', ')}`;
+          const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
           console.log('📤 TOOL: node_delete returning error:', errorMsg);
           return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
         }
@@ -746,7 +694,7 @@ export const createGraphTools = (baseUrl: string) => {
         }
 
         console.log('💾 TOOL: node_delete saving updated graph');
-        const saveResult = await saveGraph(validatedGraph, baseUrl);
+        const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: node_delete returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
@@ -767,14 +715,15 @@ export const createGraphTools = (baseUrl: string) => {
   tool(
     'analyze_diff',
     'Analyze the differences between base and current graphs to understand what changed.',
-    {},
+    { reason: z.string(),},
     async () => {
       console.log('🔍 TOOL: analyze_diff called');
+      console.log('🔍 TOOL: process.cwd():', process.cwd());
 
       try {
         console.log('📁 TOOL: analyze_diff reading base and current graphs from filesystem');
-        const baseGraph = readLocalGraph();
-        const currentGraph = readLocalGraph();
+        const baseGraph = await readBaseGraph();
+        const currentGraph = await readLocalGraph();
 
         if (!baseGraph) {
           console.error('❌ TOOL: analyze_diff base graph not found');
@@ -787,6 +736,7 @@ export const createGraphTools = (baseUrl: string) => {
 
         console.log('✅ TOOL: analyze_diff successfully loaded both graphs');
         console.log('📊 TOOL: analyze_diff base nodes:', baseGraph.graph?.nodes?.length || 0, 'current nodes:', currentGraph.graph?.nodes?.length || 0);
+        console.log('📊 TOOL: analyze_diff base edges:', baseGraph.graph?.edges?.length || 0, 'current edges:', currentGraph.graph?.edges?.length || 0);
 
         const diff: any = {
           changes: []
@@ -854,16 +804,19 @@ export const createGraphTools = (baseUrl: string) => {
 };
 
 // Helper function to save graph
-async function saveGraph(graph: any, baseUrl: string): Promise<{ success: boolean; error?: string }> {
+async function saveGraph(graph: any): Promise<{ success: boolean; error?: string }> {
   console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0);
 
   try {
-    // Use direct filesystem saving to avoid broadcasting/stream issues
-    console.log('💾 TOOL: saveGraph saving directly to filesystem');
-    const xml = graphToXml(graph);
-    const currentGraphPath = path.join(projectDir(), '_graph', 'current-graph.xml');
-    fs.writeFileSync(currentGraphPath, xml, 'utf8');
-    console.log('✅ TOOL: saveGraph graph saved successfully to filesystem');
+    const parsed = GraphSchema.safeParse(graph);
+    if (!parsed.success) {
+      const errorMsg = parsed.error.message;
+      console.error('💥 TOOL: saveGraph validation error:', errorMsg);
+      return { success: false, error: `Graph validation failed: ${errorMsg}` };
+    }
+
+    await storeCurrentGraph(parsed.data, DEFAULT_USER_ID);
+    console.log('✅ TOOL: saveGraph graph saved successfully via graph service');
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

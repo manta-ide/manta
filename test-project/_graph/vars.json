@@ -1,15 +1,12 @@
 {
-  "is-dark-theme": "",
-  "root-styles": {
-    "background-color": "#f6f6f6",
-    "text-color": "#000000",
-    "font-family": "Arial",
-    "base-font-size": "1rem"
-  },
   "section-title": "What Our Users Say",
   "review-layout": "grid",
-  "max-reviews": 6,
+  "max-reviews": 3,
   "show-ratings": true,
   "show-avatars": true,
-  "review-source": "internal"
+  "review-source": "internal",
+  "headline": "Transform Your Business Today",
+  "subheading": "Discover how our solutions can help you achieve your goals",
+  "cta-text": "Get Started",
+  "background-color": "#f8f9fa"
 }
