@@ -6,7 +6,7 @@
 
 Manta IDE is a graph-based development environment that lets you code by creating and editing natural-language nodes. 
 
-<img width="1907" height="1078" alt="image" src="https://github.com/user-attachments/assets/f4833ccd-b61d-4f42-abff-c449bfffded8" />
+<img width="836" height="469" alt="image" src="https://github.com/user-attachments/assets/85dcf317-6a4e-41b5-a04c-d47a202ae2e8" />
 
 ## ⚡ Quick Start
 
