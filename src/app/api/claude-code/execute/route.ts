@@ -1,7 +1,19 @@
 import { NextRequest } from 'next/server';
-import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options, type HookCallbackMatcher } from '@anthropic-ai/claude-code';
+import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-code';
 import { ClaudeCodeRequestSchema, McpServerConfig } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
+
+// ---- Logging helpers ----
+const VERBOSE = process.env.VERBOSE_CLAUDE_LOGS !== '0';
+function logHeader(title: string) {
+  if (!VERBOSE) return; console.log(`\n====== ${title} ======`);
+}
+function logLine(prefix: string, message?: any) {
+  if (!VERBOSE) return; console.log(prefix, message ?? '');
+}
+function pretty(obj: any) {
+  try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+}
 
 
 
@@ -12,13 +24,12 @@ export async function POST(req: NextRequest) {
   try {
     const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
 
-    console.log('🎯 Claude Code: User asked:', prompt.length > 100 ?
-      `"${prompt.substring(0, 100)}..."` :
-      `"${prompt}"`);
-    console.log('🎯 Claude Code: Options received:', Object.keys(options || {}));
+    logHeader('Claude Code Execute');
+    logLine('🎯 Claude Code: User asked (full):', prompt);
+    logLine('🎯 Claude Code: Options received (full):', pretty(options));
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    console.log('🔑 Claude Code: ANTHROPIC_API_KEY present:', !!apiKey);
+    logLine('🔑 Claude Code: ANTHROPIC_API_KEY present:', !!apiKey);
 
     // if (!apiKey) {
     //   throw new Error('ANTHROPIC_API_KEY environment variable is required');
@@ -42,7 +53,7 @@ export async function POST(req: NextRequest) {
         const encoder = new TextEncoder();
 
         try {
-          console.log('🚀 Starting Claude Code query with prompt length:', prompt.length);
+          logLine('🚀 Starting Claude Code query with prompt length:', prompt.length);
 
           // Create user message generator with the dynamic prompt
           async function* generateUserMessage(): AsyncGenerator<SDKUserMessage> {
@@ -58,7 +69,7 @@ export async function POST(req: NextRequest) {
             await new Promise(res => setTimeout(res, 10000))
           }
 
-          console.log('🔧 Claude Code: Starting query iteration');
+          logLine('🔧 Claude Code: Starting query iteration');
 
           let messageCount = 0;
           try {
@@ -68,18 +79,18 @@ export async function POST(req: NextRequest) {
               reconstructedMcpServers = {};
               for (const [serverName, serverConfig] of Object.entries(options.mcpServers)) {
                 const config = serverConfig as McpServerConfig;
-                console.log(`🔧 Claude Code: Reconstructing MCP server "${serverName}" with baseUrl:`, config.baseUrl);
+                logLine(`🔧 Claude Code: Reconstructing MCP server "${serverName}" with baseUrl:`, config.baseUrl);
 
                 // Create tools for this server
                 const toolsArray = createGraphTools(config.baseUrl);
-                console.log(`🔧 Claude Code: Created ${toolsArray.length} tools for MCP server "${serverName}"`);
+                logLine(`🔧 Claude Code: Created ${toolsArray.length} tools for MCP server "${serverName}"`);
 
                 // Filter tools if specific tools were requested
                 const filteredTools = config.tools
                   ? toolsArray.filter(tool => config.tools!.includes(tool.name))
                   : toolsArray;
 
-                console.log(`🔧 Claude Code: Using ${filteredTools.length} filtered tools for MCP server "${serverName}"`);
+                logLine(`🔧 Claude Code: Using ${filteredTools.length} filtered tools for MCP server "${serverName}"`);
 
                 // Create the actual MCP server instance
                 const mcpServer = createSdkMcpServer({
@@ -102,7 +113,7 @@ export async function POST(req: NextRequest) {
               mcpServers: reconstructedMcpServers
             };
 
-            console.log('🚀 Using Claude Code configuration from build-graph/edit-graph');
+            logLine('🚀 Using Claude Code configuration from build-graph/edit-graph');
 
             for await (const message of query({
               prompt: generateUserMessage(),
@@ -117,10 +128,15 @@ export async function POST(req: NextRequest) {
               }
 
               // Handle different message types with proper typing
+              if (VERBOSE) {
+                logHeader(`SDK Message #${messageCount} (${(message as any).type})`);
+                logLine('📥 Full message payload:', pretty(message));
+              }
               await handleMessage(message as SDKMessage, controller, encoder);
             }
           } catch (queryError) {
-            console.error('❌ Claude Code: Query error:', queryError);
+            logHeader('❌ Claude Code: Query error');
+            logLine('', pretty(queryError));
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Query failed: ' + (queryError as Error).message })}\n\n`));
             controller.close();
             return;
@@ -192,10 +208,10 @@ export async function POST(req: NextRequest) {
     async function handleAssistantMessage(message: SDKAssistantMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
       // Handle tool calls - send to UI for visibility
       if ((message as any).tool_calls) {
-        console.log('🔧 Claude wants to execute tools:', (message as any).tool_calls.length);
+        logLine('🔧 Claude wants to execute tools:', (message as any).tool_calls.length);
         (message as any).tool_calls.forEach((call: any, index: number) => {
           const toolName = call.function?.name?.replace('mcp__graph-tools__', '');
-          console.log(`🔧 Claude: "${toolName}" with args:`, call.function?.arguments);
+          logLine(`🔧 Claude tool call #${index + 1}: ${toolName} args:`, pretty(call.function?.arguments));
 
           // Send tool call to UI for visibility
           const traceData = {
@@ -213,24 +229,27 @@ export async function POST(req: NextRequest) {
 
       // Handle assistant content/thinking - log what Claude is saying
       if ((message as any).content) {
-        const content = (message as any).content.trim();
-        if (content.length > 10) {
-          console.log(`🤔 Claude: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`);
-        } else {
-          console.log(`🤔 Claude: "${content}"`);
-        }
+        const content = (message as any).content;
+        logHeader('🤖 Assistant Message Content (full)');
+        logLine('', content);
       }
     }
 
     // Handle user messages - don't send to UI to keep it clean
     async function handleUserMessage(message: SDKUserMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
       // User messages are handled at the chat level, don't clutter the streaming with them
-      console.log('👤 Claude Code: User message received');
+      logHeader('👤 User Message (full)');
+      try {
+        logLine('', pretty((message as any).message ?? message));
+      } catch {
+        logLine('', pretty(message));
+      }
     }
 
     // Handle system messages - don't send to UI, just log
     async function handleSystemMessage(message: SDKSystemMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
-      console.log('📝 Claude Code: System message received');
+      logHeader('📝 System Message (full)');
+      logLine('', pretty(message));
     }
 
     // Handle partial assistant messages for real-time streaming
@@ -244,33 +263,32 @@ export async function POST(req: NextRequest) {
         if (content) {
           accumulatedThinking += content;
 
-          // Show Claude's thinking in console (but not in UI)
-          if (accumulatedThinking.length % 50 === 0) { // Log every ~50 chars to avoid spam
-            console.log(`🤔 Claude thinking: "...${accumulatedThinking.substring(-100)}"`);
-          }
+          // Stream raw delta for full visibility
+          logLine('🟡 STREAM Δ', content);
 
           // Mark that thinking has started (but don't send UI message - let chat handle it)
           if (!thinkingSent && accumulatedThinking.length > 5) {
             thinkingSent = true;
-            console.log('🤔 Claude started thinking...');
+            logLine('🤔 Claude started thinking...');
           }
 
           // Don't send thinking content to UI - let chat handle its own thinking animation
           lastSentIndex = accumulatedThinking.length;
         }
       } else if (event?.type === 'content_block_start') {
-        console.log('🤔 Claude started writing...');
+        logLine('🤔 Claude started writing...');
       } else if (event?.type === 'content_block_stop') {
         // Show what Claude finished thinking
         if (accumulatedThinking.length > 0) {
-          console.log(`🤔 Claude finished thinking: "${accumulatedThinking.substring(0, 200)}${accumulatedThinking.length > 200 ? '...' : ''}"`);
+          logHeader('🟢 Claude finished thinking (full)');
+          logLine('', accumulatedThinking);
         }
-        console.log('📝 Claude Code: Content block completed');
+        logLine('📝 Claude Code: Content block completed');
         accumulatedThinking = ''; // Reset for next message
         lastSentIndex = 0;
       } else if (event?.type === 'message_stop') {
         // Message is complete
-        console.log('📝 Claude Code: Message streaming completed');
+        logLine('📝 Claude Code: Message streaming completed');
         accumulatedThinking = ''; // Reset accumulated content
         thinkingSent = false; // Reset thinking flag
         lastSentIndex = 0;
@@ -282,11 +300,10 @@ export async function POST(req: NextRequest) {
       if ((message as any).result) {
         fullResponse = String((message as any).result);
 
-        // Log Claude's final response
-        console.log('🎯 Claude final response:', fullResponse.length > 200 ?
-          `"${fullResponse.substring(0, 200)}..."` :
-          `"${fullResponse}"`);
-        console.log('✅ Claude Code: Response generated successfully');
+        // Log Claude's final response (full)
+        logHeader('🎯 Claude final response (full)');
+        logLine('', fullResponse);
+        logLine('✅ Claude Code: Response generated successfully');
 
         // Only close stream if not already closed
         if (!streamClosed) {
