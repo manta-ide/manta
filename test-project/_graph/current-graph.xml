@@ -36,8 +36,81 @@
       </prop>
       </props>
     </node>
+
+    <node id="node-1758061078838971" title="Header" x="-8.166052567882076" y="297.53670741381717" z="0">
+      <description>Black header bar with nav links</description>
+      <state status="active">
+        <build status="built"/>
+      </state>
+      <props>
+        <prop name="header-styles" title="Header Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#000000</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="height" title="Header Height" type="select">
+          <value>4rem</value>
+          <options>
+          <option>3rem</option>
+          <option>4rem</option>
+          <option>5rem</option>
+          <option>6rem</option>
+          </options>
+        </field>
+        <field name="padding-x" title="Horizontal Padding" type="select">
+          <value>1rem</value>
+          <options>
+          <option>0.5rem</option>
+          <option>1rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="nav-links" title="Navigation Links" type="object-list">
+        <item index="0">
+          <field name="label" title="Link Text" type="text">Home</field>
+          <field name="href" title="Link URL" type="text">#home</field>
+        </item>
+        <item index="1">
+          <field name="label" title="Link Text" type="text">About</field>
+          <field name="href" title="Link URL" type="text">#about</field>
+        </item>
+        <item index="2">
+          <field name="label" title="Link Text" type="text">Services</field>
+          <field name="href" title="Link URL" type="text">#services</field>
+        </item>
+        <item index="3">
+          <field name="label" title="Link Text" type="text">Contact</field>
+          <field name="href" title="Link URL" type="text">#contact</field>
+        </item>
+      </prop>
+        <prop name="logo" title="Logo Settings" type="object">
+        <field name="text" title="Logo Text" type="text">MyApp</field>
+        <field name="font-size" title="Logo Font Size" type="select">
+          <value>1.5rem</value>
+          <options>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>1.75rem</option>
+          <option>2rem</option>
+          </options>
+        </field>
+        <field name="font-weight" title="Logo Font Weight" type="select">
+          <value>bold</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          <option>extrabold</option>
+          </options>
+        </field>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
+    <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
   </edges>
 </graph>

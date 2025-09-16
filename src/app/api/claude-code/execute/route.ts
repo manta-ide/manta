@@ -219,8 +219,8 @@ export async function POST(req: NextRequest) {
 
               // Handle different message types with proper typing
               if (VERBOSE && (message as any).type !== 'stream_event') {
-                logHeader(`SDK Message #${messageCount} (${(message as any).type})`);
-                logLine('📥 Full message payload:', pretty(message));
+                //logHeader(`SDK Message #${messageCount} (${(message as any).type})`);
+                //logLine('📥 Full message payload:', pretty(message));
               }
               await handleMessage(message as SDKMessage, controller, encoder);
             }

@@ -1,9 +1,38 @@
 {
-  "is-dark-theme": false,
+  "is-dark-theme": "",
   "root-styles": {
     "background-color": "#ffffff",
     "text-color": "#000000",
     "font-family": "Arial",
     "base-font-size": "1rem"
+  },
+  "header-styles": {
+    "background-color": "#000000",
+    "text-color": "#ffffff",
+    "height": "4rem",
+    "padding-x": "1rem"
+  },
+  "nav-links": [
+    {
+      "label": "Home",
+      "href": "#home"
+    },
+    {
+      "label": "About",
+      "href": "#about"
+    },
+    {
+      "label": "Services",
+      "href": "#services"
+    },
+    {
+      "label": "Contact",
+      "href": "#contact"
+    }
+  ],
+  "logo": {
+    "text": "MyApp",
+    "font-size": "1.5rem",
+    "font-weight": "bold"
   }
 }
