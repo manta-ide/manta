@@ -5,8 +5,30 @@
   "show-ratings": true,
   "show-avatars": true,
   "review-source": "internal",
-  "headline": "Transform Your Business Today",
-  "subheading": "Discover how our solutions can help you achieve your goals",
-  "cta-text": "Get Started",
-  "background-color": "#f8f9fa"
+  "site-title": "My Portfolio",
+  "theme": "light",
+  "title-text": "My Website",
+  "background-color": "#2563eb",
+  "show-navigation": true,
+  "button-text": "Click Me",
+  "button-style": "primary",
+  "is-disabled": "",
+  "button-size": "16",
+  "card-title": "Card Title",
+  "card-description": "This is a sample card description.",
+  "border-radius": 8,
+  "shadow-enabled": true,
+  "accent-color": "#3b82f6",
+  "menu-items": [
+    {
+      "name": "Home",
+      "url": "/"
+    },
+    {
+      "name": "About",
+      "url": "/about"
+    }
+  ],
+  "mobile-breakpoint": 768,
+  "menu-orientation": "horizontal"
 }

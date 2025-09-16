@@ -31,16 +31,94 @@
       </props>
     </node>
 
-    <node id="hero-section" title="Hero Section" x="100" y="100" z="0">
-      <description>Create a compelling hero section with headline, subheading, and call-to-action button</description>
+    <node id="root" title="Portfolio Root" x="0" y="0" z="0">
+      <description>Root container for the entire portfolio website</description>
       <state status="active">
         <build status="unbuilt"/>
       </state>
       <props>
-        <prop name="headline" title="Headline" type="text">Transform Your Business Today</prop>
-        <prop name="subheading" title="Subheading" type="textarea">Discover how our solutions can help you achieve your goals</prop>
-        <prop name="cta-text" title="CTA Button Text" type="text">Get Started</prop>
-        <prop name="background-color" title="Background Color" type="color">#f8f9fa</prop>
+        <prop name="site-title" title="Site Title" type="text">My Portfolio</prop>
+        <prop name="theme" title="Theme" type="select">
+          <value>light</value>
+          <options>
+          <option>light</option>
+          <option>dark</option>
+          <option>auto</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="test-node-1" title="Header Component" x="153.64555097409988" y="-11.582746026127765" z="0">
+      <description>Create a responsive header component with navigation menu</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="title-text" title="Title Text" type="text">My Website</prop>
+        <prop name="background-color" title="Background Color" type="color">#2563eb</prop>
+        <prop name="show-navigation" title="Show Navigation" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="test-button-component" title="Button Component" x="300" y="150" z="0">
+      <description>A customizable button component with various styles and states</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="button-text" title="Button Text" type="text">Click Me</prop>
+        <prop name="button-style" title="Button Style" type="select">
+          <value>primary</value>
+          <options>
+          <option>primary</option>
+          <option>secondary</option>
+          <option>outline</option>
+          </options>
+        </prop>
+        <prop name="is-disabled" title="Disabled" type="boolean"></prop>
+        <prop name="button-size" title="Size" type="slider">16</prop>
+      </props>
+    </node>
+
+    <node id="test-card-layout" title="Card Layout" x="500" y="200" z="0">
+      <description>A flexible card layout component for displaying content in organized sections</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="card-title" title="Card Title" type="text">Card Title</prop>
+        <prop name="card-description" title="Description" type="textarea">This is a sample card description.</prop>
+        <prop name="border-radius" title="Border Radius" type="number">8</prop>
+        <prop name="shadow-enabled" title="Enable Shadow" type="boolean">true</prop>
+        <prop name="accent-color" title="Accent Color" type="color">#3b82f6</prop>
+      </props>
+    </node>
+
+    <node id="test-navigation-menu" title="Navigation Menu" x="200" y="350" z="0">
+      <description>A responsive navigation menu with dropdown support and mobile-friendly design</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="menu-items" title="Menu Items" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Home</field>
+          <field name="url" title="URL" type="text">/</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">About</field>
+          <field name="url" title="URL" type="text">/about</field>
+        </item>
+      </prop>
+        <prop name="mobile-breakpoint" title="Mobile Breakpoint" type="number">768</prop>
+        <prop name="menu-orientation" title="Orientation" type="radio">
+          <value>horizontal</value>
+          <options>
+          <option>horizontal</option>
+          <option>vertical</option>
+          </options>
+        </prop>
       </props>
     </node>
   </nodes>

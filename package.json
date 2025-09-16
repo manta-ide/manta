@@ -18,7 +18,7 @@
     "start:both": "concurrently \"npm run start\" \"npm run start:app\""
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^1.0.113",
+    "@anthropic-ai/claude-code": "^1.0.115",
     "@blaxel/core": "^0.2.38",
     "@headless-tree/core": "^1.2.1",
     "@headless-tree/react": "^1.2.1",

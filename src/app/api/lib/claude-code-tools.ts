@@ -123,7 +123,6 @@ export const createGraphTools = (_baseUrl: string) => {
     'read',
     'Read the current graph or a specific node.',
     {
-      reason: z.string(),
       nodeId: z.string().optional(),
       includeProperties: z.boolean().optional(),
       includeChildren: z.boolean().optional(),
@@ -715,7 +714,7 @@ export const createGraphTools = (_baseUrl: string) => {
   tool(
     'analyze_diff',
     'Analyze the differences between base and current graphs to understand what changed.',
-    { reason: z.string(),},
+    {},
     async () => {
       console.log('🔍 TOOL: analyze_diff called');
       console.log('🔍 TOOL: process.cwd():', process.cwd());

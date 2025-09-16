@@ -69,8 +69,8 @@ export async function POST(req: NextRequest) {
               session_id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
             };
             //if(first)
-            //Required for claude code sdk to work
-            await new Promise(res => setTimeout(res, 10000))
+            //Required for claude code sdk to work. 1800000 = 30 minutes for max task length
+            await new Promise(res => setTimeout(res, 1800000))
             first = false;
           }
 
@@ -193,8 +193,17 @@ export async function POST(req: NextRequest) {
           } catch (queryError) {
             logHeader('❌ Claude Code: Query error');
             logLine('', pretty(queryError));
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Query failed: ' + (queryError as Error).message })}\n\n`));
-            controller.close();
+
+            // Only send error and close if stream is still open
+            if (!streamClosed) {
+              streamClosed = true;
+              try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Query failed: ' + (queryError as Error).message })}\n\n`));
+              } catch (enqueueError) {
+                logLine('⚠️ Failed to enqueue error - stream may be closed:', enqueueError);
+              }
+              controller.close();
+            }
             return;
           }
 
@@ -222,7 +231,11 @@ export async function POST(req: NextRequest) {
           // Only close stream if not already closed
           if (!streamClosed) {
             streamClosed = true;
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n\n`));
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n\n`));
+            } catch (enqueueError) {
+              console.error('⚠️ Failed to enqueue final error - stream may be closed:', enqueueError);
+            }
             controller.close();
           }
         }
@@ -269,17 +282,26 @@ export async function POST(req: NextRequest) {
           const toolName = call.function?.name?.replace('mcp__graph-tools__', '');
           logLine(`🔧 Claude tool call #${index + 1}: ${toolName} args:`, pretty(call.function?.arguments));
 
-          // Send tool call to UI for visibility
-          const traceData = {
-            type: 'trace',
-            trace: {
-              type: 'tool_call',
-              tool: toolName,
-              arguments: call.function?.arguments,
-              timestamp: new Date().toISOString()
+          // Send tool call to UI for visibility only if stream is still open
+          if (!streamClosed) {
+            const traceData = {
+              type: 'trace',
+              trace: {
+                type: 'tool_call',
+                tool: toolName,
+                arguments: call.function?.arguments,
+                timestamp: new Date().toISOString()
+              }
+            };
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(traceData)}\n\n`));
+            } catch (enqueueError) {
+              logLine('⚠️ Failed to enqueue tool call trace - stream may be closed:', enqueueError);
+              streamClosed = true;
             }
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(traceData)}\n\n`));
+          } else {
+            logLine('⚠️ Skipping tool call trace enqueue - stream already closed');
+          }
         });
       }
 
@@ -313,17 +335,26 @@ export async function POST(req: NextRequest) {
           }
           logLine('🔧 Tool result detected:', `${contentText} (error: ${toolResult.is_error})`);
 
-          // Send tool result to UI
-          const resultData = {
-            type: 'tool_result',
-            tool_result: {
-              content: toolResult.content,
-              is_error: toolResult.is_error,
-              tool_use_id: toolResult.tool_use_id,
-              timestamp: new Date().toISOString()
+          // Send tool result to UI only if stream is still open
+          if (!streamClosed) {
+            const resultData = {
+              type: 'tool_result',
+              tool_result: {
+                content: toolResult.content,
+                is_error: toolResult.is_error,
+                tool_use_id: toolResult.tool_use_id,
+                timestamp: new Date().toISOString()
+              }
+            };
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
+            } catch (enqueueError) {
+              logLine('⚠️ Failed to enqueue tool result - stream may be closed:', enqueueError);
+              streamClosed = true;
             }
-          };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
+          } else {
+            logLine('⚠️ Skipping tool result enqueue - stream already closed');
+          }
         }
       }
     }
