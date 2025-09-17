@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { resolve as pathResolve } from 'path';
 import fsp from 'fs/promises';
 
-// (no compile-time vars injection; vars are sourced from Supabase at runtime)
+// (no compile-time vars injection; vars are sourced at runtime)
 
 /** Dev+Preview: set frame-ancestors so you can embed in the parent iframe */
 function frameHeaders(): Plugin {

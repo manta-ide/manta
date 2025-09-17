@@ -189,18 +189,52 @@
       </props>
     </node>
 
-    <node id="node-1758062731672417" title="New Node" x="358.8473122233024" y="-3.8993238216322865" z="0">
-      <description>Test node</description>
-      <state status="active">
-        <build status="unbuilt"/>
-      </state>
-    </node>
-
     <node id="test-node-1" title="Test Node" x="188.40637400921653" y="-254.50080667062082" z="0">
       <description>This is a test node for demonstration purposes</description>
       <state status="active">
         <build status="unbuilt"/>
       </state>
+    </node>
+
+    <node id="review-section" title="Review Section" x="358.9982128802377" y="-25.71080341023604" z="0">
+      <description>Create a review section that displays customer reviews and testimonials. Include star ratings, customer photos, review text, and customer names.</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+      <props>
+        <prop name="section-title" title="Section Title" type="text">What Our Customers Say</prop>
+        <prop name="background-color" title="Background Color" type="color">#f8f9fa</prop>
+        <prop name="show-ratings" title="Show Star Ratings" type="boolean">true</prop>
+        <prop name="reviews-per-row" title="Reviews Per Row" type="number">3</prop>
+        <prop name="review-style" title="Review Style" type="select">
+          <value>card</value>
+          <options>
+          <option>card</option>
+          <option>minimal</option>
+          <option>detailed</option>
+          </options>
+        </prop>
+        <prop name="reviews" title="Customer Reviews" type="object-list">
+        <item index="0">
+          <field name="name" title="Customer Name" type="text">Sarah Johnson</field>
+          <field name="rating" title="Star Rating" type="number">5</field>
+          <field name="review" title="Review Text" type="textarea">Absolutely love this product! It exceeded my expectations.</field>
+          <field name="photo" title="Customer Photo URL" type="text">https://via.placeholder.com/60</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Customer Name" type="text">Mike Chen</field>
+          <field name="rating" title="Star Rating" type="number">5</field>
+          <field name="review" title="Review Text" type="textarea">Great quality and fast delivery. Highly recommend!</field>
+          <field name="photo" title="Customer Photo URL" type="text">https://via.placeholder.com/60</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Customer Name" type="text">Emma Davis</field>
+          <field name="rating" title="Star Rating" type="number">4</field>
+          <field name="review" title="Review Text" type="textarea">Really happy with my purchase. Good value for money.</field>
+          <field name="photo" title="Customer Photo URL" type="text">https://via.placeholder.com/60</field>
+        </item>
+      </prop>
+      </props>
     </node>
   </nodes>
 

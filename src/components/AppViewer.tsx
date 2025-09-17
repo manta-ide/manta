@@ -268,7 +268,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
             title="Demo App"
             onLoad={handleIframeLoad}
             onError={handleIframeError}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
 
           {/* All overlay UI is portalled INTO the iframe’s document */}

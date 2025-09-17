@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.115",
-    "@blaxel/core": "^0.2.38",
     "@headless-tree/core": "^1.2.1",
     "@headless-tree/react": "^1.2.1",
     "@internationalized/date": "^3.8.2",

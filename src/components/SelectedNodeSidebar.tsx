@@ -21,10 +21,9 @@ export default function SelectedNodeSidebar() {
 		selectedNodeIds,
 		triggerRefresh,
 		refreshGraph,
-		updateNodeInSupabase,
-		updatePropertyInSupabase,
+		updateNode,
+		updateProperty,
 		updatePropertyLocal,
-		supabaseConnected,
 		connectToGraphEvents,
 		graph
 	} = useProjectStore();
@@ -63,18 +62,7 @@ export default function SelectedNodeSidebar() {
 			}
 		}, [selectedNodeId, updatePropertyLocal]);
 
-	// Monitor connection status
-	useEffect(() => {
-		console.log('👤 SelectedNodeSidebar: Connection status check:', {
-			supabaseConnected
-		});
-		
-		if (supabaseConnected) {
-			console.log('✅ SelectedNodeSidebar: Supabase connected');
-		} else {
-			console.log('🔄 SelectedNodeSidebar: Waiting for Supabase connection');
-		}
-	}, [supabaseConnected]);
+	// Connection status monitoring removed (no external DB)
 
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change
@@ -177,7 +165,7 @@ export default function SelectedNodeSidebar() {
       const last = lastPropertyUpdate.current[propertyId] || 0;
       if (now - last >= 200) { // Increased throttle from 120ms to 200ms
         lastPropertyUpdate.current[propertyId] = now;
-        updatePropertyInSupabase(selectedNodeId, propertyId, value).catch(() => {});
+        updateProperty(selectedNodeId, propertyId, value).catch(() => {});
       }
     }
 
@@ -185,34 +173,34 @@ export default function SelectedNodeSidebar() {
 		if (DEBOUNCE_PROPERTY_CHANGES) {
 			if (propertyChangeTimeoutRef.current) clearTimeout(propertyChangeTimeoutRef.current);
 			propertyChangeTimeoutRef.current = setTimeout(() => {
-				// Persist the latest staged values for all changed properties
-				applyPropertyChangesToSupabase(nextValues);
+            // Persist the latest staged values for all changed properties
+            applyPropertyChanges(nextValues);
 			}, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
-		} else {
-			if (selectedNodeId) updatePropertyInSupabase(selectedNodeId, propertyId, value);
-		}
-		if (!DEBOUNCE_PROPERTY_CHANGES) {
-			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
-			applyPropertyChangesToSupabase(payloadValues).catch(() => {});
-			return;
-		}
+      } else {
+        if (selectedNodeId) updateProperty(selectedNodeId, propertyId, value);
+      }
+      if (!DEBOUNCE_PROPERTY_CHANGES) {
+        const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
+        applyPropertyChanges(payloadValues).catch(() => {});
+        return;
+      }
 
 		// Clear any existing timeout
 		if (propertyChangeTimeoutRef.current) {
 			clearTimeout(propertyChangeTimeoutRef.current);
 		}
 
-		// Debounce the Supabase database update only
-		propertyChangeTimeoutRef.current = setTimeout(async () => {
-			const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
-			await applyPropertyChangesToSupabase(payloadValues);
-		}, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
-	}, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, supabaseConnected, updatePropertyInSupabase]);
+    // Debounce the persistence update only
+    propertyChangeTimeoutRef.current = setTimeout(async () => {
+      const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
+      await applyPropertyChanges(payloadValues);
+    }, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
+  }, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, updateProperty]);
 
 		// (preview handler defined above)
 
-	// Helper function to apply property changes to Supabase database only
-	const applyPropertyChangesToSupabase = useCallback(async (newPropertyValues: Record<string, any>) => {
+  // Helper function to apply property changes (persist via API)
+  const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
 		if (selectedNode?.properties) {
 			try {
 				// Track which properties actually changed
@@ -233,16 +221,16 @@ export default function SelectedNodeSidebar() {
 					return;
 				}
 
-				console.log('🔄 Updating properties via Supabase:', changedProperties);
+        console.log('🔄 Updating properties:', changedProperties);
 
-				// Save properties to Supabase database only
-				const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
-					console.log(`🔄 Saving property ${propertyId} to Supabase database`);
+        // Save properties via API
+        const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
+          console.log(`🔄 Saving property ${propertyId}`);
 
-					// Save to Supabase database for persistence
-					try {
-						await updatePropertyInSupabase(selectedNodeId!, propertyId, newValue);
-						console.log(`✅ Property ${propertyId} persisted to Supabase database`);
+          // Persist
+          try {
+            await updateProperty(selectedNodeId!, propertyId, newValue);
+            console.log(`✅ Property ${propertyId} persisted`);
 
 						return {
 							propertyId,
@@ -250,28 +238,25 @@ export default function SelectedNodeSidebar() {
 							newValue,
 							success: true
 						};
-					} catch (supabaseError) {
-						console.warn(`⚠️ Failed to persist property ${propertyId} to Supabase:`, supabaseError);
-						return {
-							propertyId,
-							oldValue,
-							newValue,
-							success: false,
-							error: supabaseError
-						};
-					}
-				});
+          } catch (persistError) {
+            console.warn(`⚠️ Failed to persist property ${propertyId}:`, persistError);
+            return {
+              propertyId,
+              oldValue,
+              newValue,
+              success: false,
+              error: persistError
+            };
+          }
+        });
 
 				const results = await Promise.all(updatePromises);
 				const successfulUpdates = results.filter(r => r.success);
 				const failedUpdates = results.filter(r => !r.success);
 
-				if (successfulUpdates.length > 0) {
-					console.log('✅ Successfully saved properties to Supabase:', successfulUpdates);
-
-					// Property changes are now handled via Supabase realtime sync
-					// No automatic refresh needed - changes will propagate via realtime events
-				}
+        if (successfulUpdates.length > 0) {
+          console.log('✅ Successfully saved properties:', successfulUpdates);
+        }
 
 				if (failedUpdates.length > 0) {
 					console.warn('⚠️ Some property updates failed:', failedUpdates);
@@ -305,7 +290,7 @@ export default function SelectedNodeSidebar() {
 				setSelectedNode(selectedNodeId, updatedNode);
 
 				if (selectedNodeId) {
-					updateNodeInSupabase(selectedNodeId!, { title: newTitle }).catch((error) => {
+					updateNode(selectedNodeId!, { title: newTitle }).catch((error) => {
 						console.error('Failed to save title:', error);
 						setRebuildError('Failed to save title');
 						setTimeout(() => setRebuildError(null), 3000);
@@ -313,7 +298,7 @@ export default function SelectedNodeSidebar() {
 				}
 			}
 		}, TITLE_DEBOUNCE_DELAY);
-	}, [selectedNode, selectedNodeId, setSelectedNode, updateNodeInSupabase]);
+	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 	const debouncedUpdateDescription = useCallback((newDescription: string) => {
 		// Clear any existing timeout
@@ -329,7 +314,7 @@ export default function SelectedNodeSidebar() {
 				setSelectedNode(selectedNodeId, updatedNode);
 
 				if (selectedNodeId) {
-					updateNodeInSupabase(selectedNodeId!, { prompt: newDescription }).catch((error) => {
+					updateNode(selectedNodeId!, { prompt: newDescription }).catch((error) => {
 						console.error('Failed to save description:', error);
 						setRebuildError('Failed to save description');
 						setTimeout(() => setRebuildError(null), 3000);
@@ -337,7 +322,7 @@ export default function SelectedNodeSidebar() {
 				}
 			}
 		}, DESCRIPTION_DEBOUNCE_DELAY);
-	}, [selectedNode, selectedNodeId, setSelectedNode, updateNodeInSupabase]);
+	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">

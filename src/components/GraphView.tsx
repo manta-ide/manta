@@ -399,7 +399,7 @@ function GraphCanvas() {
   const [isRebuilding, setIsRebuilding] = useState(false);
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
-  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNodeInSupabase } = useProjectStore();
+  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
     setSelectedNode,
@@ -417,7 +417,7 @@ function GraphCanvas() {
   const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
-  // Use the store for graph data with Supabase integration
+  // Use the store for graph data
   const {
     graph,
     graphLoading: loading,
@@ -426,7 +426,7 @@ function GraphCanvas() {
     reconcileGraphRefresh,
     connectToGraphEvents,
     disconnectFromGraphEvents,
-    deleteNodeFromSupabase
+    deleteNode
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
 
@@ -487,8 +487,8 @@ function GraphCanvas() {
 
       console.log('➕ Optimistically created new node:', newNodeId);
 
-      // Persist to Supabase (this will trigger real-time updates that will sync everything)
-      await updateNodeInSupabase(newNodeId, newNode);
+      // Persist update via API (real-time updates will sync)
+      await updateNode(newNodeId, newNode);
 
       // Switch back to select tool after creating node
       setCurrentTool('select');
@@ -513,7 +513,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNodeInSupabase, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive]);
+  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -1203,7 +1203,7 @@ function GraphCanvas() {
     } catch {}
   }, []);
 
-  // Handle final node position changes (drag stop) - ensure final Supabase update
+  // Handle final node position changes (drag stop) - ensure final persistence
   const onNodeDragStop = useCallback(async (event: any, node: Node) => {
     try {
       const graphNode = node.data?.node as GraphNode;
@@ -1211,7 +1211,7 @@ function GraphCanvas() {
 
       // Persist final position via graph API
       try {
-        await updateNodeInSupabase(graphNode.id, {
+        await updateNode(graphNode.id, {
           position: { x: node.position.x, y: node.position.y, z: 0 }
         });
         // Node position saved
@@ -1224,7 +1224,7 @@ function GraphCanvas() {
     // Release drag lock after persistence
     const graphNode = node.data?.node as GraphNode;
     if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
-  }, [updateNodeInSupabase]);
+  }, [updateNode]);
 
   // Handle background mouse down for node creation
   const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
