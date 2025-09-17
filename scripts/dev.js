@@ -123,9 +123,14 @@ if (command === 'i' || command === 'install') {
   if (isInMantaProject) {
     // Running from a manta project directory - run Manta IDE with this project as child
     console.log('Running Manta IDE with current directory as child project...');
+
+    // Set environment variable to indicate we're in user project mode
+    const env = { ...process.env, MANTA_MODE: 'user-project', MANTA_PROJECT_DIR: currentDir };
+
     const ideChild = spawn('npm', ['run', 'dev:ide'], {
       stdio: 'inherit',
       cwd: packageRoot,
+      env,
       shell: true,
     });
 

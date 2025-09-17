@@ -4,6 +4,13 @@ import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 
+// Claude Code Execute Route
+// This route handles Claude Code execution for different agent types.
+// Working Directory Setup:
+// - Development mode: Works in test-project directory (when developing Manta itself)
+// - Production/User project mode: Works in the current user project directory
+// The working directory is determined by MANTA_MODE and MANTA_PROJECT_DIR env vars
+
 // ---- Logging helpers ----
 const VERBOSE = process.env.VERBOSE_CLAUDE_LOGS !== '0';
 function logHeader(title: string) {
@@ -85,6 +92,11 @@ export async function POST(req: NextRequest) {
             logLine('🔧 Claude Code: Registering tools:', tools.map(t => t.name));
             const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
 
+            // Log the working directory for the agent
+            const workingDirectory = projectDir();
+            const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
+            logLine(`📁 Claude Code: Working directory for ${agentType} (${mode} mode): ${workingDirectory}`);
+
             // Choose configuration based on agent type
             let customSystemPrompt: string;
             let allowedTools: string[];
@@ -113,6 +125,8 @@ export async function POST(req: NextRequest) {
               allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"];
               disallowedTools = ["Bash", "Glob", "Grep", "ExitPlanMode", "Read", "Edit", "MultiEdit", "Write", "NotebookEdit", "WebFetch", "TodoWrite", "BashOutput", "KillShell","Task"];
 
+              // Edit operations work in the configured project directory (dev: test-project, prod: user project)
+              const editGraphCwd = projectDir();
 
               queryOptions = {
                 includePartialMessages: true,
@@ -122,7 +136,7 @@ export async function POST(req: NextRequest) {
                 allowedTools: allowedTools,
                 disallowedTools: disallowedTools,
                 abortController: new AbortController(),
-                cwd: projectDir(),
+                cwd: editGraphCwd,
                 strictMcpConfig: true,
               } as any;
             } else if (agentType === 'build-graph') {
@@ -185,8 +199,10 @@ export async function POST(req: NextRequest) {
 
               //allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__analyze_diff", "mcp__graph-tools__node_set_state"];
               disallowedTools = ["mcp__graph-tools__node_add", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"]; // Allow all tools for build-graph
-            
-              
+
+              // Build operations work in the configured project directory (dev: test-project, prod: user project)
+              const buildGraphCwd = projectDir();
+
               queryOptions = {
                 includePartialMessages: true,
                 customSystemPrompt: customSystemPrompt,
@@ -194,7 +210,7 @@ export async function POST(req: NextRequest) {
                 mcpServers: { 'graph-tools': mcpServer },
                 disallowedTools: disallowedTools,
                 abortController: new AbortController(),
-                cwd: projectDir(),
+                cwd: buildGraphCwd,
                 strictMcpConfig: true,
               } as any;
             } else {
