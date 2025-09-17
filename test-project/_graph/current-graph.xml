@@ -184,7 +184,7 @@
       <description>Create a counter section with a number display and increment/decrement buttons. Include the current count value prominently displayed.</description>
       <props>
         <prop name="initial-count" title="Initial Count" type="number">0</prop>
-        <prop name="increment-step" title="Increment Step" type="number">3</prop>
+        <prop name="increment-step" title="Increment Step" type="number">1</prop>
         <prop name="counter-styles" title="Counter Styles" type="object">
         <field name="background-color" title="Background Color" type="color"></field>
         <field name="number-color" title="Number Color" type="color"></field>
@@ -217,7 +217,7 @@
         <field name="show-title" title="Show Section Title" type="boolean"></field>
         <field name="enable-keyboard" title="Enable Keyboard Controls" type="boolean"></field>
         <field name="min-value" title="Minimum Value" type="number">0</field>
-        <field name="max-value" title="Maximum Value" type="number">0</field>
+        <field name="max-value" title="Maximum Value" type="number">17</field>
       </prop>
       </props>
     </node>

@@ -134,20 +134,21 @@ export default function SelectedNodeSidebar() {
 		// Update local state immediately for responsive UI
     const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
     // Only treat truly high-frequency primitives as high-frequency; complex objects should re-render immediately
-    const isHighFrequency = ['color','number','slider'].includes((propMeta?.type as any) || '');
+    const isHighFrequency = ['color','slider'].includes((propMeta?.type as any) || '');
 
-		// For high-frequency properties, avoid re-rendering the sidebar on every tick
+		// Always update propertyValues for UI responsiveness, even for high-frequency properties
+    const newPropertyValues = {
+      ...propertyValues,
+      [propertyId]: value
+    };
+    setPropertyValues(newPropertyValues);
+
+    // For high-frequency properties, also update staged values for batch processing
     if (isHighFrequency) {
       stagedPropertyValuesRef.current = {
         ...stagedPropertyValuesRef.current,
         [propertyId]: value
       };
-    } else {
-      const newPropertyValues = {
-        ...propertyValues,
-        [propertyId]: value
-      };
-      setPropertyValues(newPropertyValues);
     }
 
 		// Skip heavy tracking to avoid lag

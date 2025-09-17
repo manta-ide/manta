@@ -55,13 +55,11 @@
     "text-align": "center"
   },
   "initial-count": 0,
-  "increment-step": 3,
+  "increment-step": 1,
   "counter-styles": {
     "background-color": "",
     "number-color": "",
-    "number-size": [
-      100
-    ],
+    "number-size": "[100]",
     "padding": "",
     "border-radius": ""
   },
@@ -83,6 +81,6 @@
     "show-title": "",
     "enable-keyboard": "",
     "min-value": 0,
-    "max-value": 0
+    "max-value": 17
   }
 }
