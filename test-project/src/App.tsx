@@ -1,6 +1,7 @@
 import React from "react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
+import CounterSection from "./components/CounterSection";
 
 interface AppProps {
   vars: Record<string, any>;
@@ -23,6 +24,7 @@ export default function App({ vars }: AppProps) {
     >
       <Header vars={vars} />
       <Hero vars={vars} />
+      <CounterSection vars={vars} />
     </main>
   );
 }

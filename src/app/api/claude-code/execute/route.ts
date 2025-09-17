@@ -111,19 +111,21 @@ export async function POST(req: NextRequest) {
               - Use unique IDs for all nodes
               - Never edit source code - graph changes only
               - Delete template nodes if request requires different structure
-              - Create CMS-style properties when possible (colors, text, numbers, booleans, selects)
-              - Set new nodes to "unbuilt" state
+              - Create nodes WITHOUT properties (properties are handled by graph builders)
+              - Use clear, descriptive titles and prompts for nodes
 
-              Tools: read, node_add, node_edit, node_delete, edge_create
+              Tools: read(graphType="current"), node_create, node_edit, node_delete, edge_create, edge_delete
+
+              IMPORTANT: Always use read(graphType="current") to work with the current graph structure.
 
               Keep responses brief, use the tools quickly and efficiently.
               Optimization rules:
-              - For read-only queries ("what nodes are on the graph?"), call read once and answer succinctly.
+              - For read-only queries ("what nodes are on the graph?"), call read(graphType="current") once and answer succinctly.
               - For deletions, call node_delete once per target node and avoid repeated attempts.
               - Avoid unnecessary thinking or extra tool calls when a single call is sufficient.`;
 
-              allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"];
-              disallowedTools = ["Bash", "Glob", "Grep", "ExitPlanMode", "Read", "Edit", "MultiEdit", "Write", "NotebookEdit", "WebFetch", "TodoWrite", "BashOutput", "KillShell","Task"];
+              allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create", "mcp__graph-tools__edge_delete"];
+              // No disallowedTools - only allowedTools are permitted
 
               // Edit operations work in the configured project directory (dev: test-project, prod: user project)
               const editGraphCwd = projectDir();
@@ -134,27 +136,24 @@ export async function POST(req: NextRequest) {
                 permissionMode: 'bypassPermissions',
                 mcpServers: { 'graph-tools': mcpServer },
                 allowedTools: allowedTools,
-                disallowedTools: disallowedTools,
                 abortController: new AbortController(),
                 cwd: editGraphCwd,
                 strictMcpConfig: true,
               } as any;
             } else if (agentType === 'build-graph') {
-              customSystemPrompt = `You are the unified Manta code builder agent.
+              customSystemPrompt = `You are the Manta code builder agent. Follow this 3-step pipeline:
 
-              Goal: Build and implement code based on graph changes, ensuring properties are properly wired.
+              PIPELINE:
+              1. GET DIFF - Use analyze_diff() to see what nodes need to be built or updated
+              2. GENERATE PROPERTIES - Create/edit properties for new nodes and regenerate where changes are needed
+              3. GENERATE CODE - Implement code and wire all properties to actual functionality
 
               Rules:
-              - Use analyze_diff() to understand what changed in the graph since the last build
-              - Focus exclusively on code generation and implementation - no graph structure editing
-              - Implement code based on node prompts and properties, keeping changes minimal and focused
-              - Create appropriate properties for the nodes, and add them to nodes by using edit tool
-              - Make sure that all properties of the nodes are wired to the code and IDs match
-              - For nested object fields, use dot notation: e.g., "root-styles.background-color"
-              - Set node states to "built" after successful implementation
-              - Ensure all properties are properly wired and connected in the generated code
-              - When implementation is complete, set node state to "built"
-              - Summarize applied changes at the end
+              - Always start with analyze_diff() to understand what work is needed
+              - Use read(graphType="current") and read(graphType="base") to examine specific nodes that need building
+              - Focus on properties first, then code implementation
+              - Use node_edit() to add/modify properties on existing nodes
+              - Only use update_base_graph() when implementation is complete and tested
 
               Property Guidelines:
               - Properties should correspond to real component attributes and be wired to the actual code for CMS-style customization
@@ -187,18 +186,26 @@ export async function POST(req: NextRequest) {
               - Use 'object-list' for repeatable content structures with defined itemFields
               - Make sure that all properties are editable by a normal user without programming/css knowledge, for a gradient do an object with a few colors, etc.
 
-
               Available Tools:
-              - read(nodeId?, includeProperties?, includeChildren?) - Read graph or specific nodes
-              - analyze_diff() - Analyze what changed in the graph
-              - node_set_state(nodeId, state) - Update node build state
+              - analyze_diff() - Step 1: Get differences between current and base graphs
+              - read(graphType, nodeId?) - Read from current or base graph, or specific nodes
+              - node_edit(mode, properties) - Step 2: Generate/edit properties for nodes
+              - node_add(nodeId, title, prompt) - Add new nodes to the graph
+              - edge_delete(sourceId, targetId) - Delete edges between nodes
+              - update_base_graph(nodes) - Step 3: Save completed implementations to base graph
 
               Output: Short, single-sentence status updates during work. End with concise summary of what was accomplished.
 
               This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
 
-              //allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__analyze_diff", "mcp__graph-tools__node_set_state"];
-              disallowedTools = ["mcp__graph-tools__node_add", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create"]; // Allow all tools for build-graph
+              // Graph builders follow a 3-step pipeline:
+              // 1. Get diff to see what needs to be built
+              // 2. Generate properties for new nodes, regenerate where they need changes
+              // 3. Generate code and wire properties
+
+              // Use disallowedTools only - all tools allowed except these specific ones
+              disallowedTools = ["mcp__graph-tools__node_create", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create", "mcp__graph-tools__edge_delete",];
+              // No allowedTools - using disallowedTools approach
 
               // Build operations work in the configured project directory (dev: test-project, prod: user project)
               const buildGraphCwd = projectDir();
