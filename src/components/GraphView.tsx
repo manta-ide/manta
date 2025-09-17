@@ -694,6 +694,9 @@ function GraphCanvas() {
   const latestNodesRef = useRef<Node[]>([]);
   // Keep a ref of latest edges to preserve selection state across rebuilds
   const latestEdgesRef = useRef<Edge[]>([]);
+  // Track previous graph structure to detect property-only changes
+  const prevGraphStructureRef = useRef<string>('');
+
   useEffect(() => {
     latestNodesRef.current = nodes;
   }, [nodes]);
@@ -873,6 +876,45 @@ function GraphCanvas() {
         setEdges([]);
         return;
       }
+
+      // Check if only properties changed (more efficient update)
+      const currentStructure = JSON.stringify({
+        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position, state: n.state })),
+        edges: graph.edges || []
+      });
+
+      const isPropertyOnlyChange = prevGraphStructureRef.current === currentStructure && latestNodesRef.current.length > 0;
+
+      if (isPropertyOnlyChange) {
+        // Only properties changed - update existing nodes without full rebuild
+        console.log('🔄 Updating node properties without full rebuild');
+        setNodes(currentNodes =>
+          currentNodes.map(node => {
+            const graphNode = graph.nodes.find(n => n.id === node.id);
+            if (graphNode) {
+              // Preserve selection state and other node properties
+              const shouldBeSelected = (selectedNodeIds && selectedNodeIds.length > 0)
+                ? selectedNodeIds.includes(node.id)
+                : selectedNodeId === node.id;
+
+              return {
+                ...node,
+                selected: shouldBeSelected,
+                data: {
+                  ...node.data,
+                  node: graphNode,
+                  properties: graphNode.properties || []
+                }
+              };
+            }
+            return node;
+          })
+        );
+        return;
+      }
+
+      // Full structure changed - proceed with full rebuild
+      prevGraphStructureRef.current = currentStructure;
 
       // Collect positions from database if present
       let nodePositions = new Map<string, { x: number; y: number }>();

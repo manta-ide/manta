@@ -195,6 +195,13 @@
         <build status="unbuilt"/>
       </state>
     </node>
+
+    <node id="test-node-1" title="Test Node" x="188.40637400921653" y="-254.50080667062082" z="0">
+      <description>This is a test node for demonstration purposes</description>
+      <state status="active">
+        <build status="unbuilt"/>
+      </state>
+    </node>
   </nodes>
 
   <edges>
