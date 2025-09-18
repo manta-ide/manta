@@ -6,7 +6,7 @@
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
         <prop name="root-styles" title="Root Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#efefef</field>
+        <field name="background-color" title="Background Color" type="color">#e8dede</field>
         <field name="text-color" title="Text Color" type="color">#000000</field>
         <field name="font-family" title="Font Family" type="select">
           <value>Arial</value>
@@ -38,7 +38,7 @@
       <description>One color header bar with nav links</description>
       <props>
         <prop name="header-styles" title="Header Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#be3535</field>
+        <field name="background-color" title="Background Color" type="color">#b64646</field>
         <field name="text-color" title="Text Color" type="color">#ffffff</field>
         <field name="height" title="Header Height" type="select">
           <value>6rem</value>
@@ -107,7 +107,7 @@
       <description>Hero section with a few texts and a gradient</description>
       <props>
         <prop name="hero-styles" title="Hero Styles" type="object">
-        <field name="background-gradient-start" title="Gradient Start Color" type="color">#e1e3ee</field>
+        <field name="background-gradient-start" title="Gradient Start Color" type="color">#e6e6e6</field>
         <field name="background-gradient-end" title="Gradient End Color" type="color">#764ba2</field>
         <field name="text-color" title="Text Color" type="color">#ffffff</field>
         <field name="padding-y" title="Vertical Padding" type="select">
@@ -221,14 +221,10 @@
       </prop>
       </props>
     </node>
-
-    <node id="node-1758193394547217" title="New Node" x="-33.36292105771797" y="-490.2658229516586" z="0">
-    </node>
   </nodes>
 
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
-    <edge id="node-1758193394547217-app" source="node-1758193394547217" target="app" role="links-to"/>
   </edges>
 </graph>

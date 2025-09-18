@@ -1,13 +1,10 @@
-import React from "react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import CounterSection from "./components/CounterSection";
+import { useVars } from "./lib/varsHmr";
 
-interface AppProps {
-  vars: Record<string, any>;
-}
-
-export default function App({ vars }: AppProps) {
+export default function App() {
+  const [vars] = useVars();
   const rootStyles = (vars["root-styles"] as Record<string, any>) || {};
   const cssVars = {
     "--background-color": rootStyles["background-color"] ?? vars["background-color"] ?? "#ffffff",
@@ -22,9 +19,9 @@ export default function App({ vars }: AppProps) {
       style={cssVars}
       className="min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased"
     >
-      <Header vars={vars} />
-      <Hero vars={vars} />
-      <CounterSection vars={vars} />
+      <Header />
+      <Hero />
+      <CounterSection />
     </main>
   );
 }

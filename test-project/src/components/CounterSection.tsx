@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from './ui/button';
+import { useVars } from '../lib/varsHmr';
 
-interface CounterSectionProps {
-  vars: Record<string, any>;
-}
-
-export default function CounterSection({ vars }: CounterSectionProps) {
+export default function CounterSection() {
+  const [vars] = useVars();
   // Extract properties from vars
   const initialCount = vars['initial-count'] ?? 0;
   const incrementStep = vars['increment-step'] ?? 1;
@@ -46,14 +43,14 @@ export default function CounterSection({ vars }: CounterSectionProps) {
 
   // Handlers
   const handleIncrement = () => {
-    setCount((prev) => {
+    setCount((prev: number) => {
       const newValue = prev + incrementStep;
       return newValue <= maxValue ? newValue : prev;
     });
   };
 
   const handleDecrement = () => {
-    setCount((prev) => {
+    setCount((prev: number) => {
       const newValue = prev - incrementStep;
       return newValue >= minValue ? newValue : prev;
     });
@@ -64,11 +61,13 @@ export default function CounterSection({ vars }: CounterSectionProps) {
   };
 
   // Button size mapping
-  const buttonSizeClass = {
+  type ButtonSize = 'small' | 'medium' | 'large';
+  const buttonSizeMap = {
     small: 'h-8 px-3 text-sm',
     medium: 'h-10 px-4 text-base',
     large: 'h-12 px-6 text-lg'
-  }[buttonStyles['button-size'] || 'medium'];
+  };
+  const buttonSizeClass = buttonSizeMap[(buttonStyles['button-size'] as ButtonSize) || 'medium'];
 
   // Dynamic styles
   const sectionStyle = {
