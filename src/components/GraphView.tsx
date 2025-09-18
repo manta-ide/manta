@@ -18,6 +18,7 @@ import {
   useViewport,
   ColorMode,
   PanOnScrollMode,
+  ConnectionMode,
   useReactFlow,
   ReactFlowProvider,
   applyEdgeChanges,
@@ -29,7 +30,7 @@ import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/app/api/lib/schemas';
 import { Button } from '@/components/ui/button';
-import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, Trash2, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
 
 
 // Custom node component
@@ -37,14 +38,36 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
   const { zoom } = useViewport();
+  
+  // Disallow duplicate connections (in either direction) and self-loops
+  const isValidConnection = useCallback((conn: Connection) => {
+    try {
+      const g: Graph | undefined = data.graph;
+      if (!g) return true;
+      const s = conn.source;
+      const t = conn.target;
+      if (!s || !t) return true; // allow hover previews
+      if (s === t) return false; // no self-loop
+      const exists = (g.edges || []).some((e: any) =>
+        (e.source === s && e.target === t) || (e.source === t && e.target === s)
+      );
+      return !exists;
+    } catch {
+      return true;
+    }
+  }, [data.graph]);
 
-  // Helper function to get children from edges
-  const getNodeChildren = (nodeId: string) => {
+  // Helper: get all connected neighbors (incoming + outgoing)
+  const getNodeConnections = (nodeId: string) => {
     const graph = data.graph;
     if (!graph?.edges) return [];
-    return graph.edges
-      .filter((edge: any) => edge.source === nodeId)
-      .map((edge: any) => graph.nodes.find((n: any) => n.id === edge.target))
+    const neighbors = new Set<string>();
+    for (const edge of graph.edges as any[]) {
+      if (edge.source === nodeId) neighbors.add(edge.target);
+      if (edge.target === nodeId) neighbors.add(edge.source);
+    }
+    return Array.from(neighbors)
+      .map((id) => graph.nodes.find((n: any) => n.id === id))
       .filter(Boolean);
   };
 
@@ -190,11 +213,11 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           alignItems: 'center'
         }}>
           {(() => {
-            const children = getNodeChildren(node.id);
-            return children.length > 0 && (
+            const connections = getNodeConnections(node.id);
+            return connections.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Folder size={14} />
-                <span>{children.length}</span>
+                <Link size={14} />
+                <span>{connections.length}</span>
               </div>
             );
           })()}
@@ -206,31 +229,27 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           )}
         </div>
 
-        {/* Handles for connections */}
-        <Handle
-          type="target"
-          position={Position.Top}
-          style={{
-            background: '#ffffff',
-            width: handleSize,
-            height: handleSize,
-            border: '1px solid #9ca3af',
-            borderRadius: '50%',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-          }}
-        />
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          style={{
-            background: '#ffffff',
-            width: handleSize,
-            height: handleSize,
-            border: '1px solid #9ca3af',
-            borderRadius: '50%',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-          }}
-        />
+        {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
+        {/* Top */}
+        <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        {/* Right */}
+        <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        {/* Bottom */}
+        <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        {/* Left */}
+        <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
       </div>
     );
   }
@@ -313,10 +332,10 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         paddingTop: '12px',
         marginTop: '12px'
       }}>
-        {/* Children count */}
+        {/* Connections count */}
         {(() => {
-          const children = getNodeChildren(node.id);
-          return children.length > 0 && (
+          const connections = getNodeConnections(node.id);
+          return connections.length > 0 && (
             <div
               style={{
                 fontSize: '12px',
@@ -327,8 +346,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
                 marginBottom: '6px',
               }}
             >
-              <Folder size={12} />
-              {children.length} child{children.length !== 1 ? 'ren' : ''}
+              <Link size={12} />
+              {connections.length} connection{connections.length !== 1 ? 's' : ''}
             </div>
           );
         })()}
@@ -350,31 +369,27 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         )}
       </div>
 
-      {/* Handles for connections */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          background: '#ffffff',
-          width: handleSize,
-          height: handleSize,
-          border: '1px solid #9ca3af',
-          borderRadius: '50%',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-        }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: '#ffffff',
-          width: handleSize,
-          height: handleSize,
-          border: '1px solid #9ca3af',
-          borderRadius: '50%',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-        }}
-      />
+      {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
+      {/* Top */}
+      <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+      <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+      {/* Right */}
+      <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+      <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+      {/* Bottom */}
+      <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+      <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+      {/* Left */}
+      <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+      <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
     </div>
   );
 }, (prevProps, nextProps) => {
@@ -385,7 +400,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
          prevProps.data?.node?.prompt === nextProps.data?.node?.prompt &&
          prevProps.data?.node?.state === nextProps.data?.node?.state &&
          JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties) &&
-         prevProps.data?.baseGraph === nextProps.data?.baseGraph;
+         prevProps.data?.baseGraph === nextProps.data?.baseGraph &&
+         prevProps.data?.graph === nextProps.data?.graph;
 });
 
 function GraphCanvas() {
@@ -1089,9 +1105,11 @@ function GraphCanvas() {
         };
       });
 
-      // Create edges from both the edges array and children relationships
+      // Create edges from graph data
       const reactFlowEdges: Edge[] = [];
-      const addedEdges = new Set<string>();
+      // Deduplicate edges regardless of direction (A-B equals B-A),
+      // but keep the original orientation and handle anchors of the first occurrence.
+      const addedSymmetric = new Set<string>();
 
       if ((graph as any).edges && (graph as any).edges.length > 0) {
         const previouslySelectedEdges = new Set(
@@ -1099,22 +1117,54 @@ function GraphCanvas() {
             .filter((e) => e.selected)
             .map((e) => e.id)
         );
+        // Build a quick position map for fallback handle inference
+        const posMap = new Map<string, { x: number; y: number }>();
+        (reactFlowNodes || []).forEach((n) => posMap.set(n.id, { x: n.position.x, y: n.position.y }));
+
         (graph as any).edges.forEach((edge: any) => {
-          const edgeId = `${edge.source}-${edge.target}`;
-          if (!addedEdges.has(edgeId)) {
+          const src = String(edge.source);
+          const tgt = String(edge.target);
+          const symKey = [src, tgt].sort().join('~');
+          if (!addedSymmetric.has(symKey)) {
+            // Infer handle anchors if missing, based on node relative positions (one-time for legacy edges)
+            let sourceHandle = (edge as any).sourceHandle as string | undefined;
+            let targetHandle = (edge as any).targetHandle as string | undefined;
+            if (!sourceHandle || !targetHandle) {
+              const sp = posMap.get(src);
+              const tp = posMap.get(tgt);
+              if (sp && tp) {
+                const dx = tp.x - sp.x;
+                const dy = tp.y - sp.y;
+                if (!sourceHandle) {
+                  if (Math.abs(dx) >= Math.abs(dy)) {
+                    sourceHandle = dx >= 0 ? 'right' : 'left';
+                  } else {
+                    sourceHandle = dy >= 0 ? 'bottom' : 'top';
+                  }
+                }
+                if (!targetHandle) {
+                  if (Math.abs(dx) >= Math.abs(dy)) {
+                    targetHandle = dx >= 0 ? 'left' : 'right';
+                  } else {
+                    targetHandle = dy >= 0 ? 'top' : 'bottom';
+                  }
+                }
+              }
+            }
             reactFlowEdges.push({
               id: edge.id,
-              source: edge.source,
-              target: edge.target,
+              source: src,
+              target: tgt,
+              sourceHandle,
+              targetHandle,
               type: 'default',
               style: previouslySelectedEdges.has(edge.id)
                 ? selectedEdgeStyle
                 : defaultEdgeStyle,
-              // Standard interaction width since handles are now visually large
               interactionWidth: 24,
               selected: previouslySelectedEdges.has(edge.id),
             });
-            addedEdges.add(edgeId);
+            addedSymmetric.add(symKey);
           }
         });
       }
@@ -1154,9 +1204,11 @@ function GraphCanvas() {
     // Store the new edge for potential rollback
     const newEdge = {
       id: `${params.source}-${params.target}`,
-      source: params.source,
-      target: params.target,
-      type: 'default',
+      source: params.source!,
+      target: params.target!,
+      sourceHandle: params.sourceHandle || undefined,
+      targetHandle: params.targetHandle || undefined,
+      type: 'default' as const,
       style: defaultEdgeStyle,
       interactionWidth: 24,
       selected: false,
@@ -1169,17 +1221,34 @@ function GraphCanvas() {
       // Mark optimistic operation as in progress
       setOptimisticOperationsActive(true);
 
+    // Prevent duplicates (either direction)
+    const existsLocally = (latestEdgesRef.current || []).some(e =>
+      (e.source === newEdge.source && e.target === newEdge.target) ||
+      (e.source === newEdge.target && e.target === newEdge.source)
+    );
+    if (existsLocally || newEdge.source === newEdge.target) {
+      setOptimisticOperationsActive(false);
+      return;
+    }
+
     // First add the edge to local ReactFlow state for immediate feedback with correct styling
     const customEdge: Edge = {
       id: newEdge.id,
       source: newEdge.source,
       target: newEdge.target,
+      sourceHandle: newEdge.sourceHandle,
+      targetHandle: newEdge.targetHandle,
       type: 'default',
       style: newEdge.style,
       interactionWidth: newEdge.interactionWidth,
       selected: false,
     };
-    setEdges((eds) => [...eds, customEdge]);
+    setEdges((eds) => {
+      if (eds.some(e => (e.source === customEdge.source && e.target === customEdge.target) || (e.source === customEdge.target && e.target === customEdge.source))) {
+        return eds;
+      }
+      return [...eds, customEdge];
+    });
 
       console.log('🔗 Optimistically connected nodes:', params.source, '->', params.target);
 
@@ -1211,12 +1280,20 @@ function GraphCanvas() {
         id: `${params.source}-${params.target}`,
         source: params.source,
         target: params.target,
-        role: 'links-to'
+        role: 'links-to',
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
       };
 
-      // Add edge to graph
+      // Add edge to graph if not existing (either direction)
       if (!currentGraph.edges) currentGraph.edges = [];
-      currentGraph.edges.push(serverEdge);
+      const existsOnServer = currentGraph.edges.some((e: any) =>
+        (e.source === serverEdge.source && e.target === serverEdge.target) ||
+        (e.source === serverEdge.target && e.target === serverEdge.source)
+      );
+      if (!existsOnServer) {
+        currentGraph.edges.push(serverEdge);
+      }
 
       // Persist to API
       await fetch(url, {
@@ -1398,6 +1475,7 @@ function GraphCanvas() {
         attributionPosition="bottom-left"
         minZoom={0.1}
         maxZoom={2}
+        connectionMode={ConnectionMode.Loose}
         edgesFocusable={true}
         /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
         panOnScroll={true}
