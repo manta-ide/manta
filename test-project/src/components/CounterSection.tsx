@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useVars } from '../lib/varsHmr';
+import { useVars } from '@config';
 
 export default function CounterSection() {
   const [vars] = useVars();

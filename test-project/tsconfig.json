@@ -20,7 +20,9 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@config": ["../_graph/varsHmr.ts"],
+      "@/*": ["src/*"],
+
     }
   },
   "include": ["src", "vite-env.d.ts"],

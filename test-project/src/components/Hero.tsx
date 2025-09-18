@@ -1,5 +1,5 @@
 import React from "react";
-import { useVars } from '../lib/varsHmr';
+import { useVars } from '@config';
 
 export default function Hero() {
   const [vars] = useVars();

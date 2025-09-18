@@ -1,7 +1,7 @@
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import CounterSection from "./components/CounterSection";
-import { useVars } from "./lib/varsHmr";
+import { useVars } from "@config";
 
 export default function App() {
   const [vars] = useVars();
