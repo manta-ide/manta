@@ -12,6 +12,7 @@ import {
   Connection,
   NodeMouseHandler,
   EdgeMouseHandler,
+  OnEdgesChange,
   Handle,
   Position,
   useViewport,
@@ -19,6 +20,7 @@ import {
   PanOnScrollMode,
   useReactFlow,
   ReactFlowProvider,
+  applyEdgeChanges,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
@@ -426,6 +428,18 @@ function GraphCanvas() {
     loadGraphs
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
+
+  // Edge visual styles
+  const defaultEdgeStyle = {
+    stroke: '#9ca3af',
+    strokeWidth: 2,
+    opacity: 0.8,
+  } as const;
+  const selectedEdgeStyle = {
+    stroke: '#3b82f6',
+    strokeWidth: 4,
+    opacity: 1,
+  } as const;
 
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
@@ -908,6 +922,17 @@ function GraphCanvas() {
     }
   }, [setSelectedNode, setSelectedNodeIds]);
 
+  // Ensure edge selection visually updates immediately when selection state changes
+  const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
+    setEdges((eds) => {
+      const updated = applyEdgeChanges(changes, eds);
+      return updated.map((e) => ({
+        ...e,
+        style: e.selected ? selectedEdgeStyle : defaultEdgeStyle,
+      }));
+    });
+  }, [setEdges]);
+
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
@@ -1083,16 +1108,8 @@ function GraphCanvas() {
               target: edge.target,
               type: 'default',
               style: previouslySelectedEdges.has(edge.id)
-                ? {
-                    stroke: '#3b82f6',
-                    strokeWidth: 3,
-                    opacity: 1,
-                  }
-                : {
-                    stroke: '#9ca3af',
-                    strokeWidth: 2,
-                    opacity: 0.8,
-                  },
+                ? selectedEdgeStyle
+                : defaultEdgeStyle,
               // Standard interaction width since handles are now visually large
               interactionWidth: 24,
               selected: previouslySelectedEdges.has(edge.id),
@@ -1140,11 +1157,7 @@ function GraphCanvas() {
       source: params.source,
       target: params.target,
       type: 'default',
-      style: {
-        stroke: '#9ca3af',
-        strokeWidth: 2,
-        opacity: 0.8,
-      },
+      style: defaultEdgeStyle,
       interactionWidth: 24,
       selected: false,
     };
@@ -1354,7 +1367,7 @@ function GraphCanvas() {
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={onEdgesChangeWithStyle}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
