@@ -422,7 +422,7 @@ function GraphCanvas() {
     reconcileGraphRefresh,
     connectToGraphEvents,
     disconnectFromGraphEvents,
-    deleteNode
+    deleteNode,
     loadGraphs
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();

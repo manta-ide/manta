@@ -6,7 +6,7 @@
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
         <prop name="root-styles" title="Root Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#fcfcfc</field>
+        <field name="background-color" title="Background Color" type="color">#efefef</field>
         <field name="text-color" title="Text Color" type="color">#000000</field>
         <field name="font-family" title="Font Family" type="select">
           <value>Arial</value>
