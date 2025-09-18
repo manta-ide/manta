@@ -31,7 +31,7 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
-	// Building state is now tracked in node.state instead of local state
+	// Building state is tracked locally since node.state was removed
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 
 	// Helper function to get children from edges
@@ -68,13 +68,46 @@ export default function SelectedNodeSidebar() {
 		console.log('👤 SelectedNodeSidebar: Connection status check:', {
 			supabaseConnected
 		});
-		
+
 		if (supabaseConnected) {
 			console.log('✅ SelectedNodeSidebar: Supabase connected');
 		} else {
 			console.log('🔄 SelectedNodeSidebar: Waiting for Supabase connection');
 		}
 	}, [supabaseConnected]);
+
+	// Monitor iframe connection and reconnect when needed
+	useEffect(() => {
+		const checkIframeConnection = () => {
+			const childWindow = (window as any).__mantaChildWindow;
+			if (!childWindow) {
+				console.log('👤 SelectedNodeSidebar: No child window connection, iframe may not be ready');
+			} else {
+				console.log('👤 SelectedNodeSidebar: Child window connection established');
+			}
+		};
+
+		// Check immediately
+		checkIframeConnection();
+
+		// Listen for iframe ready events
+		const handleIframeReady = (event: MessageEvent) => {
+			if (event.data?.type === 'manta:child:ready') {
+				console.log('👤 SelectedNodeSidebar: Detected iframe ready signal');
+				setTimeout(checkIframeConnection, 100); // Small delay to ensure setup is complete
+			}
+		};
+
+		window.addEventListener('message', handleIframeReady);
+
+		// Also check periodically in case of missed events
+		const interval = setInterval(checkIframeConnection, 2000);
+
+		return () => {
+			window.removeEventListener('message', handleIframeReady);
+			clearInterval(interval);
+		};
+	}, []);
 
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change
@@ -134,20 +167,21 @@ export default function SelectedNodeSidebar() {
 		// Update local state immediately for responsive UI
     const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
     // Only treat truly high-frequency primitives as high-frequency; complex objects should re-render immediately
-    const isHighFrequency = ['color','number','slider'].includes((propMeta?.type as any) || '');
+    const isHighFrequency = ['color','slider'].includes((propMeta?.type as any) || '');
 
-		// For high-frequency properties, avoid re-rendering the sidebar on every tick
+		// Always update propertyValues for UI responsiveness, even for high-frequency properties
+    const newPropertyValues = {
+      ...propertyValues,
+      [propertyId]: value
+    };
+    setPropertyValues(newPropertyValues);
+
+    // For high-frequency properties, also update staged values for batch processing
     if (isHighFrequency) {
       stagedPropertyValuesRef.current = {
         ...stagedPropertyValuesRef.current,
         [propertyId]: value
       };
-    } else {
-      const newPropertyValues = {
-        ...propertyValues,
-        [propertyId]: value
-      };
-      setPropertyValues(newPropertyValues);
     }
 
 		// Skip heavy tracking to avoid lag

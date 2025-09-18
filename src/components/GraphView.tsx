@@ -33,6 +33,7 @@ import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDash
 // Custom node component
 const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
+  const baseGraph = data.baseGraph;
   const { zoom } = useViewport();
 
   // Helper function to get children from edges
@@ -44,32 +45,49 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       .map((edge: any) => graph.nodes.find((n: any) => n.id === edge.target))
       .filter(Boolean);
   };
-  
+
   // Show simplified view when zoomed out
   const isZoomedOut = zoom < 0.8;
   // Calculate handle size based on zoom level
   const handleSize = isZoomedOut ? (selected ? '24px' : '20px') : (selected ? '16px' : '12px');
   // Calculate indicator dot size based on zoom level
   const indicatorSize = isZoomedOut ? '16px' : '12px';
-  
-  // Derive effective visual state:
-  // - If explicitly building, show building even if built flag is true
-  // - Otherwise built if either state says built or built flag is true
-  // - Else unbuilt
-  const effectiveState =
-    node.state === 'building'
-      ? 'building'
-      : node.state === 'built'
-        ? 'built'
-        : 'unbuilt';
-  
-  // Determine styling based on node state (built/unbuilt/building)
+
+  // Derive effective visual state based on base graph comparison
+  const effectiveState = (() => {
+    console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
+
+    if (!baseGraph) {
+      console.log(`   ❌ No base graph available`);
+      return 'unbuilt'; // No base graph, consider unbuilt
+    }
+
+    const baseNode = baseGraph.nodes.find((n: any) => n.id === node.id);
+    if (!baseNode) {
+      console.log(`   ❌ No matching base node found`);
+      return 'unbuilt'; // New node, consider unbuilt
+    }
+
+    // Compare only title and prompt (not properties)
+    const titleSame = node.title === baseNode.title;
+    const promptSame = node.prompt === baseNode.prompt;
+
+    console.log(`   📊 Comparisons: title=${titleSame}, prompt=${promptSame}`);
+
+    const isSame = titleSame && promptSame;
+    const result = isSame ? 'built' : 'unbuilt';
+    console.log(`   ✅ Result: ${result}`);
+
+    return result;
+  })();
+
+  // Determine styling based on node state (built/unbuilt)
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '3px' : '0px';
 
     switch (effectiveState) {
       case 'built':
-      case 'unbuilt': // Unbuilt nodes now look exactly like built nodes
+      case 'unbuilt': // Unbuilt nodes look the same as built nodes visually
         return {
           background: selected ? '#f8fafc' : '#ffffff',
           border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
@@ -79,17 +97,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           borderRadius: '8px',
         };
 
-      case 'building':
-        return {
-          background: '#fef3c7', // Yellow background like unbuilt
-          border: selected ? `${borderWidth} solid #ea580c` : '1px dashed #ea580c', // Dashed border to indicate processing
-          boxShadow: selected
-            ? '0 0 0 2px #ea580c'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
-        };
-
-      default: // Any other state - also treat as built-like
+      default: // Any other state - treat as unbuilt
         return {
           background: selected ? '#f8fafc' : '#ffffff',
           border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
@@ -120,18 +128,17 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           alignItems: 'center',
         }}
       >
-        {/* State indicators */}
-        {effectiveState === 'building' && (
+        {/* State indicators - only show for unbuilt nodes */}
+        {effectiveState === 'unbuilt' && (
           <div style={{
             position: 'absolute',
             top: '10px',
             right: '10px',
-            width: '16px',
-            height: '16px',
+            width: indicatorSize,
+            height: indicatorSize,
             borderRadius: '50%',
-            border: '2px solid #ea580c',
-            borderTopColor: 'transparent',
-            animation: 'spin 1s linear infinite',
+            background: '#ef4444',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
           }} />
         )}
         {effectiveState === 'unbuilt' && (
@@ -244,20 +251,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
-      {/* State indicators */}
-      {effectiveState === 'building' && (
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          width: '16px',
-          height: '16px',
-          borderRadius: '50%',
-          border: '2px solid #ea580c',
-          borderTopColor: 'transparent',
-          animation: 'spin 1s linear infinite',
-        }} />
-      )}
+      {/* State indicators - only show for unbuilt nodes */}
       {effectiveState === 'unbuilt' && (
         <div style={{
           position: 'absolute',
@@ -388,7 +382,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
          prevProps.data?.node?.title === nextProps.data?.node?.title &&
          prevProps.data?.node?.prompt === nextProps.data?.node?.prompt &&
          prevProps.data?.node?.state === nextProps.data?.node?.state &&
-         JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties);
+         JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties) &&
+         prevProps.data?.baseGraph === nextProps.data?.baseGraph;
 });
 
 function GraphCanvas() {
@@ -423,10 +418,12 @@ function GraphCanvas() {
     graphLoading: loading,
     graphError: error,
     refreshGraph,
+    refreshGraphStates,
     reconcileGraphRefresh,
     connectToGraphEvents,
     disconnectFromGraphEvents,
-    deleteNodeFromSupabase
+    deleteNodeFromSupabase,
+    loadGraphs
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
 
@@ -451,7 +448,6 @@ function GraphCanvas() {
       id: newNodeId,
       title: 'New Node',
       prompt: '',
-      state: 'unbuilt',
       position: { x: position.x, y: position.y, z: 0 }
     };
 
@@ -477,8 +473,9 @@ function GraphCanvas() {
         data: {
           label: newNode.title,
           node: newNode,
-          state: newNode.state,
-          properties: newNode.properties
+          properties: newNode.properties,
+          baseGraph: baseGraph,
+          graph: graph
         },
         type: 'custom',
         selected: true, // Node is already selected
@@ -640,22 +637,43 @@ function GraphCanvas() {
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
+  // Listen for iframe selection events
+  useEffect(() => {
+    const handleIframeSelection = (event: MessageEvent) => {
+      if (event.data?.source === 'iframe') {
+        if (event.data?.type === 'manta:iframe:selection') {
+          const { nodeId, nodeData } = event.data;
+          console.log('GraphView received iframe selection:', nodeId);
+          setSelectedNode(nodeId, nodeData);
+          setSelectedNodeIds([nodeId]);
+        } else if (event.data?.type === 'manta:iframe:deselection') {
+          console.log('GraphView received iframe deselection');
+          setSelectedNode(null, null);
+          setSelectedNodeIds([]);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleIframeSelection);
+    return () => window.removeEventListener('message', handleIframeSelection);
+  }, [setSelectedNode, setSelectedNodeIds]);
+
   // No polling - rely on SSE for agent-initiated updates only
 
-  // Initialize base graph when graph is first loaded
+  // Track when graphs are loaded
+  const [graphsLoaded, setGraphsLoaded] = useState(false);
+
+  // Initialize graphs when component mounts
   useEffect(() => {
-    if (graph && !baseGraph) {
-      // Try to load base graph from file, or initialize with current graph
-      loadBaseGraph().then((loadedBaseGraph) => {
-        if (!loadedBaseGraph) {
-          // No base graph exists yet, use current graph as base
-          const graphCopy = JSON.parse(JSON.stringify(graph));
-          setBaseGraph(graphCopy);
-          // Don't save it yet - wait for first build
-        }
-      });
-    }
-  }, [graph, baseGraph, setBaseGraph, loadBaseGraph]);
+    console.log('🏁 GraphView component mounted, calling loadGraphs...');
+    loadGraphs().then(() => {
+      console.log('🏁 loadGraphs completed, setting graphsLoaded to true');
+      setGraphsLoaded(true);
+    }).catch(error => {
+      console.error('❌ loadGraphs failed:', error);
+      setGraphsLoaded(true); // Still set to true to avoid infinite loading
+    });
+  }, [loadGraphs]);
 
   // Handle keyboard shortcuts for deletion
   useEffect(() => {
@@ -846,6 +864,21 @@ function GraphCanvas() {
       // Single selection - clear multi-selection and select only this node
       setSelectedNodeIds([node.id]);
       setSelectedNode(node.id, freshGraphNode);
+
+      // Communicate selection to iframe
+      const childWindow = (window as any).__mantaChildWindow;
+      if (childWindow && typeof childWindow.postMessage === 'function') {
+        try {
+          childWindow.postMessage({
+            type: 'manta:graph:selection',
+            nodeId: node.id,
+            nodeData: freshGraphNode,
+            source: 'graph'
+          }, '*');
+        } catch (error) {
+          console.warn('Failed to communicate selection to iframe:', error);
+        }
+      }
     }
   }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
 
@@ -859,27 +892,47 @@ function GraphCanvas() {
       // Clear node selection when focusing an edge; let React Flow handle edge selection
       setSelectedNode(null, null);
       setSelectedNodeIds([]);
+
+      // Communicate deselection to iframe
+      const childWindow = (window as any).__mantaChildWindow;
+      if (childWindow && typeof childWindow.postMessage === 'function') {
+        try {
+          childWindow.postMessage({
+            type: 'manta:graph:deselection',
+            source: 'graph'
+          }, '*');
+        } catch (error) {
+          console.warn('Failed to communicate deselection to iframe:', error);
+        }
+      }
     }
   }, [setSelectedNode, setSelectedNodeIds]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
+      console.log('🔄 Graph rebuild triggered:', { hasGraph: !!graph, hasBaseGraph: !!baseGraph, loading });
+
       // Skip rebuild if optimistic operations are in progress to prevent overriding local changes
       if (optimisticOperationsActive) {
         console.log('⏭️ Skipping graph rebuild due to active optimistic operations');
         return;
       }
 
-      if (!graph || !graph.nodes) {
+      // Wait for both graphs to be loaded and not loading
+      if (!graphsLoaded || !graph || !graph.nodes || loading) {
+        console.log('⏳ Waiting for graphs to load...', { graphsLoaded, graph: !!graph, loading });
         setNodes([]);
         setEdges([]);
         return;
       }
 
+      // Both graphs are loaded together synchronously
+      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, baseGraph: !!baseGraph });
+
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
-        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position, state: n.state })),
+        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position })),
         edges: graph.edges || []
       });
 
@@ -1002,8 +1055,9 @@ function GraphCanvas() {
           data: {
             label: node.title,
             node: node,
-            state: node.state || "unbuilt",
-            properties: node.properties || []
+            properties: node.properties || [],
+            baseGraph: baseGraph,
+            graph: graph
           },
           type: 'custom',
           selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
@@ -1064,7 +1118,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
+  }, [graphsLoaded, graph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -1326,16 +1380,23 @@ function GraphCanvas() {
         nodesConnectable={currentTool === 'select'}
         elementsSelectable={true}
       >
-        <MiniMap 
+        <MiniMap
           nodeColor={(node: any) => {
             const nd = node.data?.node;
-            const nodeState = nd?.state === 'building'
-              ? 'building'
-              : nd?.state === 'built'
-                ? 'built'
-                : 'unbuilt';
+            const baseGraph = node.data?.baseGraph;
+
+            // Compute state dynamically
+            let nodeState = 'unbuilt';
+            if (baseGraph && nd) {
+              const baseNode = baseGraph.nodes.find((n: any) => n.id === nd.id);
+              if (baseNode) {
+                // Compare only title and prompt (not properties)
+                const isSame = nd.title === baseNode.title && nd.prompt === baseNode.prompt;
+                nodeState = isSame ? 'built' : 'unbuilt';
+              }
+            }
+
             if (nodeState === 'built') return '#9ca3af';
-            if (nodeState === 'building') return '#ea580c';
             return '#fbbf24'; // unbuilt
           }}
         />

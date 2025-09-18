@@ -302,7 +302,17 @@ export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: st
 export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   await saveBaseGraphToFs(normalized);
-  // Don't update current graph or broadcast for base graph changes
+
+  // Broadcast base graph update to all SSE clients
+  try {
+    import('./vars-bus').then(({ broadcastGraphUpdate }) => {
+      broadcastGraphUpdate({ type: 'base-graph-update', baseGraph: normalized });
+    }).catch(error => {
+      console.warn('Failed to broadcast base graph update:', error);
+    });
+  } catch (error) {
+    console.warn('Failed to broadcast base graph update:', error);
+  }
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {

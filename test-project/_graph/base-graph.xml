@@ -3,9 +3,6 @@
   <nodes>
     <node id="app" title="Simple App" x="0" y="0" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
-      <state status="active">
-        <build status="built"/>
-      </state>
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
         <prop name="root-styles" title="Root Styles" type="object">
@@ -36,8 +33,198 @@
       </prop>
       </props>
     </node>
+
+    <node id="node-1758061078838971" title="Header" x="3.919447171651356" y="295.11960746591046" z="0">
+      <description>One color header bar with nav links</description>
+      <props>
+        <prop name="header-styles" title="Header Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#000000</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="height" title="Header Height" type="select">
+          <value>6rem</value>
+          <options>
+          <option>3rem</option>
+          <option>4rem</option>
+          <option>5rem</option>
+          <option>6rem</option>
+          </options>
+        </field>
+        <field name="padding-x" title="Horizontal Padding" type="select">
+          <value>2rem</value>
+          <options>
+          <option>0.5rem</option>
+          <option>1rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="nav-links" title="Navigation Links" type="object-list">
+        <item index="0">
+          <field name="label" title="Link Text" type="text">Home</field>
+          <field name="href" title="Link URL" type="text">#home</field>
+        </item>
+        <item index="1">
+          <field name="label" title="Link Text" type="text">About</field>
+          <field name="href" title="Link URL" type="text">#about</field>
+        </item>
+        <item index="2">
+          <field name="label" title="Link Text" type="text">Services</field>
+          <field name="href" title="Link URL" type="text">#services</field>
+        </item>
+        <item index="3">
+          <field name="label" title="Link Text" type="text">Contact</field>
+          <field name="href" title="Link URL" type="text">#contact</field>
+        </item>
+      </prop>
+        <prop name="logo" title="Logo Settings" type="object">
+        <field name="text" title="Logo Text" type="text">MyApp</field>
+        <field name="font-size" title="Logo Font Size" type="select">
+          <value>1.5rem</value>
+          <options>
+          <option>1rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>1.75rem</option>
+          <option>2rem</option>
+          </options>
+        </field>
+        <field name="font-weight" title="Logo Font Weight" type="select">
+          <value>bold</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          <option>extrabold</option>
+          </options>
+        </field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1758061687539528" title="Hero section" x="362.3458605995344" y="301.4403549446807" z="0">
+      <description>Hero section with a few texts and a gradient</description>
+      <props>
+        <prop name="hero-styles" title="Hero Styles" type="object">
+        <field name="background-gradient-start" title="Gradient Start Color" type="color">#e1e3ee</field>
+        <field name="background-gradient-end" title="Gradient End Color" type="color">#764ba2</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="padding-y" title="Vertical Padding" type="select">
+          <value>5rem</value>
+          <options>
+          <option>3rem</option>
+          <option>4rem</option>
+          <option>5rem</option>
+          <option>6rem</option>
+          <option>8rem</option>
+          </options>
+        </field>
+        <field name="padding-x" title="Horizontal Padding" type="select">
+          <value>3rem</value>
+          <options>
+          <option>1rem</option>
+          <option>1.5rem</option>
+          <option>2rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="hero-content" title="Hero Content" type="object">
+        <field name="headline" title="Main Headline" type="text">Welcome to Our Platform</field>
+        <field name="subheadline" title="Subheadline" type="textarea">Build amazing experiences with our powerful tools</field>
+        <field name="cta-text" title="Call-to-Action Text" type="text">Get Started</field>
+        <field name="cta-href" title="Call-to-Action Link" type="text">#start</field>
+      </prop>
+        <prop name="hero-typography" title="Typography" type="object">
+        <field name="headline-size" title="Headline Font Size" type="select">
+          <value>3.5rem</value>
+          <options>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          <option>3.5rem</option>
+          <option>4rem</option>
+          <option>4.5rem</option>
+          </options>
+        </field>
+        <field name="subheadline-size" title="Subheadline Font Size" type="select">
+          <value>1.25rem</value>
+          <options>
+          <option>1rem</option>
+          <option>1.125rem</option>
+          <option>1.25rem</option>
+          <option>1.5rem</option>
+          <option>1.75rem</option>
+          </options>
+        </field>
+        <field name="headline-weight" title="Headline Font Weight" type="select">
+          <value>bold</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          <option>extrabold</option>
+          </options>
+        </field>
+        <field name="text-align" title="Text Alignment" type="select">
+          <value>center</value>
+          <options>
+          <option>left</option>
+          <option>center</option>
+          <option>right</option>
+          </options>
+        </field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="counter-section" title="Counter Section" x="821.7695891481648" y="292.3487322705142" z="0">
+      <description>Create a counter section with a number display and increment/decrement buttons. Include the current count value prominently displayed.</description>
+      <props>
+        <prop name="initial-count" title="Initial Count" type="number">0</prop>
+        <prop name="increment-step" title="Increment Step" type="number">1</prop>
+        <prop name="counter-styles" title="Counter Styles" type="object">
+        <field name="background-color" title="Background Color" type="color"></field>
+        <field name="number-color" title="Number Color" type="color"></field>
+        <field name="number-size" title="Number Size" type="slider"></field>
+        <field name="padding" title="Padding" type="slider"></field>
+        <field name="border-radius" title="Border Radius" type="slider"></field>
+      </prop>
+        <prop name="button-styles" title="Button Styles" type="object">
+        <field name="button-color" title="Button Color" type="color"></field>
+        <field name="button-hover-color" title="Button Hover Color" type="color"></field>
+        <field name="button-text-color" title="Button Text Color" type="color"></field>
+        <field name="button-size" title="Button Size" type="select">
+          <value></value>
+          <options>
+          <option>small</option>
+          <option>medium</option>
+          <option>large</option>
+          </options>
+        </field>
+        <field name="button-spacing" title="Button Spacing" type="slider"></field>
+      </prop>
+        <prop name="labels" title="Labels" type="object">
+        <field name="section-title" title="Section Title" type="text"></field>
+        <field name="increment-label" title="Increment Button Label" type="text"></field>
+        <field name="decrement-label" title="Decrement Button Label" type="text"></field>
+        <field name="reset-label" title="Reset Button Label" type="text"></field>
+      </prop>
+        <prop name="features" title="Features" type="object">
+        <field name="show-reset" title="Show Reset Button" type="boolean"></field>
+        <field name="show-title" title="Show Section Title" type="boolean"></field>
+        <field name="enable-keyboard" title="Enable Keyboard Controls" type="boolean"></field>
+        <field name="min-value" title="Minimum Value" type="number"></field>
+        <field name="max-value" title="Maximum Value" type="number"></field>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
+    <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
+    <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
   </edges>
 </graph>
