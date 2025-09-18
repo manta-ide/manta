@@ -59,7 +59,9 @@
   "counter-styles": {
     "background-color": "",
     "number-color": "",
-    "number-size": "[100]",
+    "number-size": [
+      100
+    ],
     "padding": "",
     "border-radius": ""
   },
