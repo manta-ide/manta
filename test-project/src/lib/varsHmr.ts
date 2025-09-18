@@ -221,11 +221,40 @@ export function enableParentVarBridge() {
     clearTimeout(pollTimer as any);
     pollTimer = null;
   }
+
+  // Signal to parent that child is ready for connection
+  const signalReady = () => {
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage({
+          type: 'manta:child:ready',
+          source: 'child'
+        }, '*');
+        console.log('[varsHmr] Signaled ready to parent');
+      } catch (error) {
+        console.warn('[varsHmr] Failed to signal ready to parent:', error);
+      }
+    }
+  };
+
+  // Signal immediately and retry periodically until acknowledged
+  signalReady();
+  const readyInterval = setInterval(signalReady, 1000);
+
   const handler = (ev: MessageEvent) => {
     const data: any = ev?.data || {};
     console.log('[varsHmr] Received message:', data.type, data);
 
-    if (!data || (data.type !== 'manta:vars' && data.type !== 'manta:vars:update')) {
+    if (!data) return;
+
+    // Handle child ready signal from parent
+    if (data.type === 'manta:parent:ready') {
+      console.log('[varsHmr] Parent acknowledged ready signal');
+      clearInterval(readyInterval);
+      return;
+    }
+
+    if (data.type !== 'manta:vars' && data.type !== 'manta:vars:update') {
       console.log('[varsHmr] Ignoring message - wrong type:', data.type);
       return;
     }

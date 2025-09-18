@@ -1,7 +1,7 @@
 // SelectionBox.tsx
 'use client';
 
-import React, { useRef, MouseEvent } from 'react';
+import React, { useRef, useEffect, MouseEvent } from 'react';
 import { useProjectStore } from '@/lib/store';
 
 interface SelectionBoxProps {
@@ -14,6 +14,25 @@ interface SelectionBoxProps {
 export default function SelectionBox({ isEditMode, document: doc, window: win }: SelectionBoxProps) {
   const { selection, setSelection, setSelectedNode } = useProjectStore();
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Listen for graph selection messages from parent
+  useEffect(() => {
+    const handleGraphSelection = (event: MessageEvent) => {
+      if (event.data?.source === 'graph') {
+        if (event.data?.type === 'manta:graph:selection') {
+          const { nodeId, nodeData } = event.data;
+          console.log('SelectionBox received graph selection:', nodeId);
+          setSelectedNode(nodeId, nodeData);
+        } else if (event.data?.type === 'manta:graph:deselection') {
+          console.log('SelectionBox received graph deselection');
+          setSelectedNode(null, null);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleGraphSelection);
+    return () => window.removeEventListener('message', handleGraphSelection);
+  }, [setSelectedNode]);
 
   // Selection state
   const [startPt, setStartPt] = React.useState<{ x: number; y: number } | null>(null);
@@ -133,8 +152,34 @@ export default function SelectionBox({ isEditMode, document: doc, window: win }:
           const { graph } = useProjectStore.getState();
           const nodeData = graph?.nodes.find(n => n.id === nodeId) || null;
           setSelectedNode(nodeId, nodeData);
+
+          // Communicate selection to parent window
+          if (window.parent && window.parent !== window) {
+            try {
+              window.parent.postMessage({
+                type: 'manta:iframe:selection',
+                nodeId: nodeId,
+                nodeData: nodeData,
+                source: 'iframe'
+              }, '*');
+            } catch (error) {
+              console.warn('Failed to communicate selection to parent:', error);
+            }
+          }
         } else {
           setSelectedNode(null, null);
+
+          // Communicate deselection to parent window
+          if (window.parent && window.parent !== window) {
+            try {
+              window.parent.postMessage({
+                type: 'manta:iframe:deselection',
+                source: 'iframe'
+              }, '*');
+            } catch (error) {
+              console.warn('Failed to communicate deselection to parent:', error);
+            }
+          }
         }
       } finally {
         setSelection(null);

@@ -637,6 +637,27 @@ function GraphCanvas() {
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
+  // Listen for iframe selection events
+  useEffect(() => {
+    const handleIframeSelection = (event: MessageEvent) => {
+      if (event.data?.source === 'iframe') {
+        if (event.data?.type === 'manta:iframe:selection') {
+          const { nodeId, nodeData } = event.data;
+          console.log('GraphView received iframe selection:', nodeId);
+          setSelectedNode(nodeId, nodeData);
+          setSelectedNodeIds([nodeId]);
+        } else if (event.data?.type === 'manta:iframe:deselection') {
+          console.log('GraphView received iframe deselection');
+          setSelectedNode(null, null);
+          setSelectedNodeIds([]);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleIframeSelection);
+    return () => window.removeEventListener('message', handleIframeSelection);
+  }, [setSelectedNode, setSelectedNodeIds]);
+
   // No polling - rely on SSE for agent-initiated updates only
 
   // Track when graphs are loaded
@@ -843,6 +864,21 @@ function GraphCanvas() {
       // Single selection - clear multi-selection and select only this node
       setSelectedNodeIds([node.id]);
       setSelectedNode(node.id, freshGraphNode);
+
+      // Communicate selection to iframe
+      const childWindow = (window as any).__mantaChildWindow;
+      if (childWindow && typeof childWindow.postMessage === 'function') {
+        try {
+          childWindow.postMessage({
+            type: 'manta:graph:selection',
+            nodeId: node.id,
+            nodeData: freshGraphNode,
+            source: 'graph'
+          }, '*');
+        } catch (error) {
+          console.warn('Failed to communicate selection to iframe:', error);
+        }
+      }
     }
   }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
 
@@ -856,6 +892,19 @@ function GraphCanvas() {
       // Clear node selection when focusing an edge; let React Flow handle edge selection
       setSelectedNode(null, null);
       setSelectedNodeIds([]);
+
+      // Communicate deselection to iframe
+      const childWindow = (window as any).__mantaChildWindow;
+      if (childWindow && typeof childWindow.postMessage === 'function') {
+        try {
+          childWindow.postMessage({
+            type: 'manta:graph:deselection',
+            source: 'graph'
+          }, '*');
+        } catch (error) {
+          console.warn('Failed to communicate deselection to iframe:', error);
+        }
+      }
     }
   }, [setSelectedNode, setSelectedNodeIds]);
 

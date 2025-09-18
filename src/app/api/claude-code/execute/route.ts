@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
               - Never edit source code - graph changes only
               - Delete template nodes if request requires different structure
               - Create nodes WITHOUT properties (properties are handled by graph builders)
+              - You can edit property values for existing nodes
               - Use clear, descriptive titles and prompts for nodes
 
               Tools: read(graphType="current"), node_create, node_edit, node_delete, edge_create, edge_delete

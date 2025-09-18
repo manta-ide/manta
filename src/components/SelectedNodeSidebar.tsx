@@ -68,13 +68,46 @@ export default function SelectedNodeSidebar() {
 		console.log('👤 SelectedNodeSidebar: Connection status check:', {
 			supabaseConnected
 		});
-		
+
 		if (supabaseConnected) {
 			console.log('✅ SelectedNodeSidebar: Supabase connected');
 		} else {
 			console.log('🔄 SelectedNodeSidebar: Waiting for Supabase connection');
 		}
 	}, [supabaseConnected]);
+
+	// Monitor iframe connection and reconnect when needed
+	useEffect(() => {
+		const checkIframeConnection = () => {
+			const childWindow = (window as any).__mantaChildWindow;
+			if (!childWindow) {
+				console.log('👤 SelectedNodeSidebar: No child window connection, iframe may not be ready');
+			} else {
+				console.log('👤 SelectedNodeSidebar: Child window connection established');
+			}
+		};
+
+		// Check immediately
+		checkIframeConnection();
+
+		// Listen for iframe ready events
+		const handleIframeReady = (event: MessageEvent) => {
+			if (event.data?.type === 'manta:child:ready') {
+				console.log('👤 SelectedNodeSidebar: Detected iframe ready signal');
+				setTimeout(checkIframeConnection, 100); // Small delay to ensure setup is complete
+			}
+		};
+
+		window.addEventListener('message', handleIframeReady);
+
+		// Also check periodically in case of missed events
+		const interval = setInterval(checkIframeConnection, 2000);
+
+		return () => {
+			window.removeEventListener('message', handleIframeReady);
+			clearInterval(interval);
+		};
+	}, []);
 
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change
