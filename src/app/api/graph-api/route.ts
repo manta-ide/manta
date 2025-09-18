@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars, registerStreamController, unregisterStreamController, storeCurrentGraph, storeBaseGraph, loadCurrentGraphFromFile, loadBaseGraphFromFile } from '../lib/graph-service';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
+import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     const isSSE = url.searchParams.get('sse') === 'true';
     const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
     const fresh = url.searchParams.get('fresh') === 'true'; // Force fresh read from filesystem
-    const graphType = url.searchParams.get('type') || url.searchParams.get('graphType'); // 'current', 'base', or undefined for default
+    const graphType = url.searchParams.get('type') || url.searchParams.get('graphType'); // 'current', 'base', 'diff', or undefined for default
     const accept = (req.headers.get('accept') || '').toLowerCase();
     const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
@@ -85,17 +86,111 @@ export async function GET(req: NextRequest) {
 
     // Check if requesting unbuilt nodes only
     if (getUnbuiltNodes) {
-      // Always try to load from file first to ensure we have the latest data
-      let graph = getGraphSession();
-      if (!graph) {
+      // Load both current and base graphs to compare
+      const currentGraph = await loadCurrentGraphFromFile(user.id);
+      const baseGraph = await loadBaseGraphFromFile(user.id);
+
+      if (!currentGraph) {
+        console.log('ℹ️ No current graph found in file system');
+        return NextResponse.json(
+          { error: 'Current graph not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!baseGraph) {
+        console.log('ℹ️ No base graph found - all nodes considered unbuilt');
+        // If no base graph exists, all nodes are unbuilt
+        const unbuiltNodeIds = currentGraph.nodes.map(node => node.id);
+        return NextResponse.json({
+          success: true,
+          unbuiltNodeIds: unbuiltNodeIds,
+          count: unbuiltNodeIds.length
+        });
+      }
+
+      // Use graph diff to find unbuilt nodes (added or modified)
+      const diff = analyzeGraphDiff(baseGraph, currentGraph);
+      const unbuiltNodeIds = [...diff.addedNodes, ...diff.modifiedNodes];
+
+      console.log(`✅ Returning ${unbuiltNodeIds.length} unbuilt node IDs (${diff.addedNodes.length} added, ${diff.modifiedNodes.length} modified)`);
+
+      return NextResponse.json({
+        success: true,
+        unbuiltNodeIds: unbuiltNodeIds,
+        count: unbuiltNodeIds.length
+      });
+    }
+
+    // Handle diff request
+    if (graphType === 'diff') {
+      console.log('📊 Getting graph diff...');
+
+      // Load both current and base graphs to compare
+      const currentGraph = await loadCurrentGraphFromFile(user.id);
+      const baseGraph = await loadBaseGraphFromFile(user.id);
+
+      if (!currentGraph) {
+        console.log('ℹ️ No current graph found');
+        return NextResponse.json(
+          { error: 'Current graph not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!baseGraph) {
+        console.log('ℹ️ No base graph found - all current nodes are new');
+        // If no base graph exists, all current nodes are considered "added"
+        const diff = {
+          addedNodes: currentGraph.nodes.map(n => n.id),
+          modifiedNodes: [],
+          deletedNodes: [],
+          addedEdges: [],
+          deletedEdges: []
+        };
+        return NextResponse.json({
+          success: true,
+          diff,
+          summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted`
+        });
+      }
+
+      // Use graph diff to find differences
+      const diff = analyzeGraphDiff(baseGraph, currentGraph);
+
+      console.log(`✅ Diff calculated: ${diff.addedNodes.length} added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted`);
+
+      return NextResponse.json({
+        success: true,
+        diff,
+        summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted`
+      });
+    }
+
+    // Regular GET request
+    // Always try to load from file first to ensure we have the latest data
+    let graph = null;
+      if (fresh) {
+        // Force fresh read from filesystem, bypass session cache
         if (graphType === 'base') {
           graph = await loadBaseGraphFromFile(user.id);
         } else {
-          await loadGraphFromFile(user.id);
+          graph = await loadCurrentGraphFromFile(user.id);
+        }
+      } else {
+        // For base graphs, always load from file (don't use session cache)
+        if (graphType === 'base') {
+          graph = await loadBaseGraphFromFile(user.id);
+        } else {
+          // Use session cache with fallback to filesystem for current graphs
           graph = getGraphSession();
+          if (!graph) {
+            await loadGraphFromFile(user.id);
+            graph = getGraphSession();
+          }
         }
       }
-      
+
       if (!graph) {
         console.log('ℹ️ No graph found in file system');
         return NextResponse.json(
@@ -103,52 +198,6 @@ export async function GET(req: NextRequest) {
           { status: 404 }
         );
       }
-
-      // Get unbuilt node IDs
-      const unbuiltNodeIds = graph.nodes
-        .filter(node => node.state !== 'built')
-        .map(node => node.id);
-
-      console.log(`✅ Returning ${unbuiltNodeIds.length} unbuilt node IDs`);
-
-      return NextResponse.json({ 
-        success: true,
-        unbuiltNodeIds: unbuiltNodeIds,
-        count: unbuiltNodeIds.length
-      });
-    }
-
-    // Regular GET request
-    // Always try to load from file first to ensure we have the latest data
-    let graph = null;
-    if (fresh) {
-      // Force fresh read from filesystem, bypass session cache
-      if (graphType === 'base') {
-        graph = await loadBaseGraphFromFile(user.id);
-      } else {
-        graph = await loadCurrentGraphFromFile(user.id);
-      }
-    } else {
-      // Use session cache with fallback to filesystem
-      graph = getGraphSession();
-      if (!graph) {
-        if (graphType === 'base') {
-          graph = await loadBaseGraphFromFile(user.id);
-        } else {
-         console.log('ℹ️ Loading graph from file system');
-          await loadGraphFromFile(user.id);
-          graph = getGraphSession();
-        }
-      }
-    }
-    
-    if (!graph) {
-      console.log('ℹ️ No graph found in file system');
-      return NextResponse.json(
-        { error: 'Graph not found' },
-        { status: 404 }
-      );
-    }
 
     if (!wantsJson) {
       const xml = graphToXml(graph);

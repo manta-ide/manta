@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
+import { autoMarkUnbuiltFromBaseGraph } from './graph-diff';
+
+// Utility function to update graph states without reloading
+const updateGraphStates = (graph: Graph, baseGraph: Graph | null): Graph => {
+  return autoMarkUnbuiltFromBaseGraph(graph, baseGraph);
+};
 
 // Utility function to determine if we're in local mode
 const isLocalMode = (): boolean => {
@@ -61,6 +67,7 @@ interface ProjectStore {
   setSelectedNodeIds: (ids: string[]) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
+  refreshGraphStates: () => void;
   reconcileGraphRefresh: () => Promise<void>;
   updateGraph: (graph: Graph) => void;
   setGraphLoading: (loading: boolean) => void;
@@ -72,6 +79,7 @@ interface ProjectStore {
   buildEntireGraph: () => Promise<void>;
   calculateGraphDiff: () => any;
   loadBaseGraph: () => Promise<Graph | null>;
+  loadGraphs: () => Promise<{ currentGraph: Graph; baseGraph: Graph | null } | null>;
   saveBaseGraph: (graph: Graph) => Promise<void>;
   
   // Graph mutations (local + persist via API)
@@ -293,7 +301,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const res = await fetch('/api/graph-api?graphType=current', { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
       const xml = await res.text();
-      const graph = xmlToGraph(xml);
+      let graph = xmlToGraph(xml);
+
+      // Automatically mark nodes as unbuilt based on differences from base graph
+      const state = get();
+      graph = autoMarkUnbuiltFromBaseGraph(graph, state.baseGraph);
+
       set({ graph, graphLoading: false, graphError: null });
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });
@@ -331,9 +344,74 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return null;
     }
   },
+
+  loadGraphs: async () => {
+    try {
+      console.log('🔄 Loading both current and base graphs...');
+      set({ graphLoading: true, graphError: null });
+
+      // Load both graphs in parallel
+      const [currentRes, baseRes] = await Promise.all([
+        fetch('/api/graph-api?type=current', { method: 'GET', headers: { Accept: 'application/xml' } }),
+        fetch('/api/graph-api?type=base', { method: 'GET', headers: { Accept: 'application/xml' } })
+      ]);
+
+      if (!currentRes.ok) {
+        throw new Error(`Failed to load current graph: ${currentRes.status}`);
+      }
+
+      const currentXml = await currentRes.text();
+      let currentGraph = xmlToGraph(currentXml);
+      console.log('📄 Current graph parsed:', currentGraph.nodes?.length || 0, 'nodes');
+
+      let baseGraph = null;
+      if (baseRes.ok) {
+        const baseXml = await baseRes.text();
+        baseGraph = xmlToGraph(baseXml);
+        console.log('📄 Base graph parsed:', baseGraph.nodes?.length || 0, 'nodes');
+      } else {
+        console.log('ℹ️ No base graph found, using current graph as base');
+        baseGraph = JSON.parse(JSON.stringify(currentGraph));
+      }
+
+      console.log('🔍 Computing built/unbuilt states...');
+      // Apply built/unbuilt state based on comparison
+      const originalStates = currentGraph.nodes.map(n => ({ id: n.id, title: n.title, hasState: 'state' in n }));
+      currentGraph = autoMarkUnbuiltFromBaseGraph(currentGraph, baseGraph);
+
+      // Log state computation results
+      currentGraph.nodes.forEach((node, i) => {
+        const original = originalStates[i];
+        console.log(`   ${node.id} (${node.title}): ${'state' in node ? 'has computed state' : 'no state field'}`);
+      });
+
+      console.log('✅ Graphs loaded and states computed');
+
+      set({
+        graph: currentGraph,
+        baseGraph,
+        graphLoading: false,
+        graphError: null
+      });
+
+      return { currentGraph, baseGraph };
+    } catch (error) {
+      set({ graphError: 'Failed to load graphs', graphLoading: false });
+      console.error('❌ Error loading graphs:', error);
+      return null;
+    }
+  },
   
   refreshGraph: async () => {
     await get().loadGraph();
+  },
+
+  refreshGraphStates: () => {
+    const state = get();
+    if (state.graph) {
+      const updatedGraph = updateGraphStates(state.graph, state.baseGraph);
+      set({ graph: updatedGraph });
+    }
   },
 
   // Reconcile-based graph refresh for polling (preserves UI state)
@@ -344,11 +422,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (!res.ok) return; // Silently fail for polling
 
       const xml = await res.text();
-      const incoming = xmlToGraph(xml);
+      let incoming = xmlToGraph(xml);
       const current = get().graph;
-      const reconciled = reconcileGraph(current, incoming);
+      let reconciled = reconcileGraph(current, incoming);
 
       if (reconciled) {
+        // Automatically mark nodes as unbuilt based on differences from base graph
+        const state = get();
+        reconciled = autoMarkUnbuiltFromBaseGraph(reconciled, state.baseGraph);
+
         set({ graph: reconciled, graphError: null });
       }
     } catch (error) {
@@ -357,7 +439,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
   
-  updateGraph: (graph) => { set({ graph }); },
+  updateGraph: (graph) => {
+    // Automatically apply diff logic to update node states
+    const state = get();
+    const graphWithCorrectStates = autoMarkUnbuiltFromBaseGraph(graph, state.baseGraph);
+    set({ graph: graphWithCorrectStates });
+  },
   
   setGraphLoading: (loading) => set({ graphLoading: loading }),
 
@@ -629,6 +716,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             if (data?.type === 'graph-update' && data.graph) {
               const reconciled = reconcileGraph(get().graph, data.graph);
               if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
+              return;
+            }
+            // Handle base graph updates
+            if (data?.type === 'base-graph-update' && data.baseGraph) {
+              console.log('📊 SSE: Received base graph update');
+              set({ baseGraph: data.baseGraph, graphLoading: false, graphError: null, graphConnected: true });
               return;
             }
           } catch {}

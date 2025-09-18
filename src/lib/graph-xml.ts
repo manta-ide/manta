@@ -273,8 +273,6 @@ export function graphToXml(graph: Graph): string {
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
-    const buildStatus = (n.state as any) || 'unbuilt';
-    const state = `\n      <state status="active">\n        <build status="${escapeXml(String(buildStatus))}"/>\n      </state>`;
     const props = Array.isArray((n as any).properties) && (n as any).properties.length > 0
       ? `\n      <props>\n${((n as any).properties as Property[]).map((p) => {
           const propType = (p as any)?.type;
@@ -306,7 +304,7 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${state}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string }>;
@@ -369,18 +367,6 @@ export function xmlToGraph(xml: string): Graph {
       }
 
       const description = repairTextEncoding((nodeData.description?.['#text'] || nodeData.description || '').trim());
-      const stateData = nodeData.state;
-      let buildStatus: string | undefined;
-
-      // Extract build status from parsed state data
-      if (stateData?.build) {
-        buildStatus = stateData.build['@_status'] || stateData.build['#text'] || 'built';
-      }
-
-      // Default to 'built' if status is missing but state block exists
-      if (!buildStatus && stateData) {
-        buildStatus = 'built';
-      }
 
       // Parse properties using fast-xml-parser
       const propsData = nodeData.props;
@@ -599,7 +585,6 @@ export function xmlToGraph(xml: string): Graph {
         id,
         title,
         prompt: description,
-        state: (buildStatus as any) || 'unbuilt',
         properties,
         ...(position ? { position } : {})
       } as GraphNode;

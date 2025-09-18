@@ -75,6 +75,61 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
   const [overlayHost, setOverlayHost] = useState<HTMLElement | null>(null);
 
   /* ── handle iframe errors ── */
+  // Ensure overlay host exists and is properly set up
+  const ensureOverlayHost = useCallback(() => {
+    if (!iframeRef.current) return;
+
+    try {
+      const doc = iframeRef.current?.contentDocument ?? iframeRef.current?.contentWindow?.document ?? null;
+      if (!doc) {
+        console.warn('Cannot access iframe document for overlay host setup');
+        return;
+      }
+
+      // Check if overlay host already exists
+      let host = doc.getElementById('selection-overlay-root') as HTMLElement;
+      if (host) {
+        console.log('Overlay host already exists, updating styles');
+        // Update styles in case they changed
+        Object.assign(host.style, {
+          position: 'absolute',
+          inset: '0',
+          zIndex: '9999',
+          pointerEvents: isEditMode ? 'auto' : 'none',
+        });
+        setOverlayHost(host);
+        return;
+      }
+
+      // Create new overlay host
+      console.log('Creating new overlay host');
+      host = doc.createElement('div');
+      host.id = 'selection-overlay-root';
+      Object.assign(host.style, {
+        position: 'absolute',
+        inset: '0',
+        zIndex: '9999',
+        pointerEvents: isEditMode ? 'auto' : 'none',
+      });
+
+      // Find container and ensure proper positioning
+      const appRoot = (doc.getElementById('app-root') as HTMLElement) || doc.body;
+      if (getComputedStyle(appRoot).position === 'static') {
+        appRoot.style.position = 'relative';
+      }
+
+      try {
+        appRoot.appendChild(host);
+        setOverlayHost(host);
+        console.log('Overlay host created successfully');
+      } catch (error) {
+        console.error('Failed to append overlay host:', error);
+      }
+    } catch (error) {
+      console.error('Error ensuring overlay host:', error);
+    }
+  }, [isEditMode]);
+
   const handleIframeError = useCallback(() => {
     console.error('Iframe failed to load - child app may not be running');
 
@@ -158,19 +213,8 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
           appRoot.style.position = 'relative';
         }
 
-        // (re)-create host that scrolls with content
-        const host = doc.createElement('div');
-        host.id = 'selection-overlay-root';
-        Object.assign(host.style, {
-          position: 'absolute',  // <- NOT fixed
-          inset: '0',
-          zIndex: '9999',
-          // Let the child overlay layer decide whether to capture events.
-          pointerEvents: isEditMode ? 'auto' : 'none',
-        });
-        try { appRoot.appendChild(host); } catch {}
-
-        setOverlayHost(host);
+        // Ensure overlay host exists (this will create or update it)
+        ensureOverlayHost();
       }, 100); // Additional delay for iframe hydration
     }, 0);
   }, [isEditMode]);
@@ -223,6 +267,59 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
     };
   }, []);
 
+  // Listen for child ready signals and establish connection
+  useEffect(() => {
+    const handleChildReady = (event: MessageEvent) => {
+      if (event.data?.type === 'manta:child:ready' && event.data?.source === 'child') {
+        console.log('Parent received child ready signal, establishing connection');
+
+        // Set up the child window reference for the bridge
+        if (iframeRef.current?.contentWindow) {
+          (window as any).__mantaChildWindow = iframeRef.current.contentWindow;
+          (window as any).__mantaChildOrigin = window.location.origin;
+
+          // Acknowledge the ready signal to stop child retrying
+          try {
+            iframeRef.current.contentWindow.postMessage({
+              type: 'manta:parent:ready',
+              source: 'parent'
+            }, '*');
+            console.log('Parent acknowledged child ready signal');
+          } catch (error) {
+            console.warn('Failed to acknowledge child ready signal:', error);
+          }
+
+          // Send current vars to establish initial state
+          const currentVars = useProjectStore.getState().vars;
+          if (currentVars && Object.keys(currentVars).length > 0) {
+            const handleChildReadyVars = (updates: any) => {
+              if (iframeRef.current?.contentWindow && updates) {
+                try {
+                  iframeRef.current.contentWindow.postMessage({
+                    type: 'manta:vars:update',
+                    updates,
+                    source: 'parent'
+                  }, '*');
+                  console.log('Sent initial vars to child on connection');
+                } catch (error) {
+                  console.warn('Failed to send initial vars to child:', error);
+                }
+              }
+            };
+            handleChildReadyVars(currentVars);
+          }
+
+          // Now that child is ready, ensure overlay host is created/updated
+          setTimeout(() => {
+            ensureOverlayHost();
+          }, 500); // Give child time to fully hydrate
+        }
+      }
+    };
+
+    window.addEventListener('message', handleChildReady);
+    return () => window.removeEventListener('message', handleChildReady);
+  }, []);
 
   /* ── cleanup overlay host on unmount ───────────────────────── */
   useEffect(() => {
@@ -241,6 +338,30 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
       overlayHost.style.pointerEvents = isEditMode ? 'auto' : 'none';
     }
   }, [overlayHost, isEditMode]);
+
+  // Periodically ensure overlay host persists (in case iframe content changes)
+  useEffect(() => {
+    if (!iframeRef.current) return;
+
+    const checkOverlayHost = () => {
+      try {
+        const doc = iframeRef.current?.contentDocument ?? iframeRef.current?.contentWindow?.document ?? null;
+        if (doc) {
+          const host = doc.getElementById('selection-overlay-root');
+          if (!host) {
+            console.log('Overlay host missing, recreating...');
+            ensureOverlayHost();
+          }
+        }
+      } catch (error) {
+        // Silently ignore cross-origin errors
+      }
+    };
+
+    // Check every 2 seconds
+    const interval = setInterval(checkOverlayHost, 2000);
+    return () => clearInterval(interval);
+  }, [ensureOverlayHost]);
 
   // Reload iframe when refreshTrigger changes
   useEffect(() => {
