@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Edit3, Eye, Monitor, Network } from 'lucide-react';
-// Remove SandboxService import - using direct API calls now
 import { useProjectStore } from '@/lib/store';
 
 interface TopBarProps {
   panels: {
     viewer: boolean;
     graph: boolean;
-    sandbox: boolean;
   };
   onTogglePanel: (panel: keyof TopBarProps['panels']) => void;
   isEditMode: boolean;

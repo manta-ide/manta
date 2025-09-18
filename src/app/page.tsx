@@ -14,7 +14,6 @@ export default function Home() {
     files: false,
     viewer: true,
     graph: true,
-    sandbox: false,
   });
   const [panelsLoaded, setPanelsLoaded] = useState(false);
   
@@ -40,7 +39,6 @@ export default function Home() {
           files: typeof parsed?.files === 'boolean' ? parsed.files : panels.files,
           viewer: typeof parsed?.viewer === 'boolean' ? parsed.viewer : panels.viewer,
           graph: typeof parsed?.graph === 'boolean' ? parsed.graph : panels.graph,
-          sandbox: typeof parsed?.sandbox === 'boolean' ? parsed.sandbox : panels.sandbox,
         };
         setPanels(next);
       }
@@ -49,7 +47,7 @@ export default function Home() {
     } finally {
       setPanelsLoaded(true);
     }
-  }, [panelsLoaded, panels.files, panels.viewer, panels.graph, panels.sandbox]);
+  }, [panelsLoaded, panels.files, panels.viewer, panels.graph]);
 
   // Persist panel layout on change
   useEffect(() => {
@@ -156,7 +154,7 @@ export default function Home() {
           </ResizablePanelGroup>
         </ResizablePanel>
 
-        {/* Sandbox Panel removed */}
+        
         
       </ResizablePanelGroup>
       

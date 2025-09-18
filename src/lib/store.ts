@@ -37,7 +37,6 @@ interface ProjectStore {
   graphLoading: boolean;
   graphError: string | null;
   graphConnected: boolean;
-  supabaseConnected: boolean;
   iframeReady: boolean;
   resetting: boolean;
   isBuildingGraph: boolean;
@@ -83,13 +82,13 @@ interface ProjectStore {
   loadGraphs: () => Promise<{ currentGraph: Graph; baseGraph: Graph | null } | null>;
   saveBaseGraph: (graph: Graph) => Promise<void>;
   
-  // Graph mutations (local)
-  saveNodeToSupabase: (node: GraphNode) => Promise<void>;
-  updateNodeInSupabase: (nodeId: string, updates: Partial<GraphNode>) => Promise<void>;
-  updatePropertyInSupabase: (nodeId: string, propertyId: string, value: any) => Promise<void>;
+  // Graph mutations (local + persist via API)
+  saveNode: (node: GraphNode) => Promise<void>;
+  updateNode: (nodeId: string, updates: Partial<GraphNode>) => Promise<void>;
+  updateProperty: (nodeId: string, propertyId: string, value: any) => Promise<void>;
   updatePropertyLocal: (nodeId: string, propertyId: string, value: any) => void;
-  deleteNodeFromSupabase: (nodeId: string) => Promise<void>;
-  syncGraphToSupabase: (graph: Graph) => Promise<void>;
+  deleteNode: (nodeId: string) => Promise<void>;
+  syncGraph: (graph: Graph) => Promise<void>;
   
   // Graph event handling
   connectToGraphEvents: (userId?: string) => Promise<void>;
@@ -160,7 +159,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   graphLoading: true,
   graphError: null,
   graphConnected: false,
-  supabaseConnected: isLocalMode(), // In local mode, we don't need Supabase so consider it "connected"
   iframeReady: false,
   resetting: false,
   isBuildingGraph: false,
@@ -181,7 +179,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     graphLoading: true,
     graphError: null,
     graphConnected: false,
-    supabaseConnected: isLocalMode(), // In local mode, we don't need Supabase so consider it "connected"
     iframeReady: false,
     resetting: false,
     isBuildingGraph: false,
@@ -193,7 +190,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       console.log('📊 Loading project (graph + files)...');
 
-      // Load graph data directly from Supabase (non-blocking for files)
+      // Load graph data (non-blocking for files)
       try {
         await get().loadGraph();
         console.log('✅ Graph load initiated');
@@ -224,7 +221,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
       console.log('✅ Project load completed');
     } catch (error) {
-      console.error('❌ Error loading project from Supabase:', error);
+      console.error('❌ Error loading project:', error);
     }
   },
   
@@ -253,13 +250,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   deleteFile: async (filePath) => {
-    // File operations disabled - using Supabase only
-    console.log(`🗑️ File deletion skipped (Supabase only mode): ${filePath}`);
+    // File operations disabled in this environment
+    console.log(`🗑️ File deletion skipped: ${filePath}`);
   },
   
   createFile: async (filePath, content) => {
-    // File operations disabled - using Supabase only
-    console.log(`➕ File creation skipped (Supabase only mode): ${filePath}`);
+    // File operations disabled in this environment
+    console.log(`➕ File creation skipped: ${filePath}`);
   },
   
   setCurrentFile: (path) => set({ currentFile: path }),
@@ -594,8 +591,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     return diff;
   },
   
-  // Supabase graph operations (priority)
-  saveNodeToSupabase: async (node: GraphNode) => {
+  // Graph operations (persist via API)
+  saveNode: async (node: GraphNode) => {
     const state = get();
     const next = state.graph ? { ...state.graph } : ({ nodes: [] } as Graph);
     const i = next.nodes.findIndex(n => n.id === node.id);
@@ -610,7 +607,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml; charset=utf-8' }, body: xml });
   },
 
-  updateNodeInSupabase: async (nodeId: string, updates: Partial<GraphNode>) => {
+  updateNode: async (nodeId: string, updates: Partial<GraphNode>) => {
     const state = get();
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
@@ -620,7 +617,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
-  updatePropertyInSupabase: async (nodeId: string, propertyId: string, value: any) => {
+  updateProperty: async (nodeId: string, propertyId: string, value: any) => {
     const state = get();
     if (state.graph) {
       const updatedGraph = {
@@ -658,7 +655,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ graph: updatedGraph });
   },
 
-  deleteNodeFromSupabase: async (nodeId: string) => {
+  deleteNode: async (nodeId: string) => {
     const state = get();
     if (!state.graph) return;
     const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
@@ -668,7 +665,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
-  syncGraphToSupabase: async (graph: Graph) => {
+  syncGraph: async (graph: Graph) => {
     const state = get();
     set({ graph });
 
@@ -766,7 +763,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       graphEventSource = null;
       console.log('🔌 Disconnected from local graph events');
     }
-    set({ graphConnected: false, supabaseConnected: false });
+    set({ graphConnected: false });
   },
 
   setOptimisticOperationsActive: (active: boolean) => {
@@ -784,3 +781,5 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }, Math.max(0, ms || 0) + 5);
   },
 })); 
+
+
