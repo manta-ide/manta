@@ -1,5 +1,5 @@
 import React from "react";
-import { useVars } from '@config';
+import { useVars } from '../../_graph/varsHmr.ts';
 
 export default function Header() {
   const [vars] = useVars();
