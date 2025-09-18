@@ -290,24 +290,30 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
           }
 
           // Send current vars to establish initial state
-          const currentVars = useProjectStore.getState().vars;
-          if (currentVars && Object.keys(currentVars).length > 0) {
-            const handleChildReadyVars = (updates: any) => {
-              if (iframeRef.current?.contentWindow && updates) {
-                try {
-                  iframeRef.current.contentWindow.postMessage({
-                    type: 'manta:vars:update',
-                    updates,
-                    source: 'parent'
-                  }, '*');
-                  console.log('Sent initial vars to child on connection');
-                } catch (error) {
-                  console.warn('Failed to send initial vars to child:', error);
+          try {
+            fetch('/api/vars')
+              .then(res => res.json())
+              .then((currentVars) => {
+                if (currentVars && Object.keys(currentVars || {}).length > 0) {
+                  const handleChildReadyVars = (updates: any) => {
+                    if (iframeRef.current?.contentWindow && updates) {
+                      try {
+                        iframeRef.current.contentWindow.postMessage({
+                          type: 'manta:vars:update',
+                          updates,
+                          source: 'parent'
+                        }, '*');
+                        console.log('Sent initial vars to child on connection');
+                      } catch (error) {
+                        console.warn('Failed to send initial vars to child:', error);
+                      }
+                    }
+                  };
+                  handleChildReadyVars(currentVars);
                 }
-              }
-            };
-            handleChildReadyVars(currentVars);
-          }
+              })
+              .catch(() => {});
+          } catch {}
 
           // Now that child is ready, ensure overlay host is created/updated
           setTimeout(() => {

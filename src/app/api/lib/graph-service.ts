@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { publishVarsUpdate } from './vars-bus';
+import { analyzeGraphDiff } from '@/lib/graph-diff';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
@@ -158,6 +159,23 @@ function broadcastGraphUpdate(graph: Graph) {
   }
 }
 
+// Broadcast arbitrary JSON payloads to graph SSE subscribers
+export function broadcastGraphJson(payload: any) {
+  if (activeStreams.size === 0) return;
+  try {
+    const data = new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
+    for (const controller of activeStreams) {
+      try {
+        controller.enqueue(data);
+      } catch {
+        activeStreams.delete(controller);
+      }
+    }
+  } catch (error) {
+    console.error('Error broadcasting JSON graph event:', error);
+  }
+}
+
 export function registerStreamController(controller: ReadableStreamDefaultController<Uint8Array>) {
   activeStreams.add(controller);
 }
@@ -305,11 +323,7 @@ export async function storeBaseGraph(graph: Graph, userId: string): Promise<void
 
   // Broadcast base graph update to all SSE clients
   try {
-    import('./vars-bus').then(({ broadcastGraphUpdate }) => {
-      broadcastGraphUpdate({ type: 'base-graph-update', baseGraph: normalized });
-    }).catch(error => {
-      console.warn('Failed to broadcast base graph update:', error);
-    });
+    broadcastGraphJson({ type: 'base-graph-update', baseGraph: normalized });
   } catch (error) {
     console.warn('Failed to broadcast base graph update:', error);
   }
@@ -360,7 +374,13 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
 
 export function getUnbuiltNodeIds(): string[] {
   if (!currentGraph) return [];
-  return currentGraph.nodes.filter(n => (n.state || 'unbuilt') !== 'built').map(n => n.id);
+  const baseGraph = readBaseGraphFromFs();
+  if (!baseGraph) {
+    // If no base graph exists, consider all nodes unbuilt
+    return currentGraph.nodes.map(n => n.id);
+  }
+  const diff = analyzeGraphDiff(baseGraph as any, currentGraph as any);
+  return [...diff.addedNodes, ...diff.modifiedNodes];
 }
 
 export async function markNodesBuilt(nodeIds: string[], _userId: string): Promise<void> {

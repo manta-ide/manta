@@ -34,7 +34,7 @@
       </props>
     </node>
 
-    <node id="node-1758061078838971" title="Header" x="5.278280928418923" y="296.478441222678" z="0">
+    <node id="node-1758061078838971" title="Header" x="5.278280928418923" y="300.64019797256145" z="0">
       <description>One color header bar with nav links</description>
       <props>
         <prop name="header-styles" title="Header Styles" type="object">
