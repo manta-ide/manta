@@ -228,6 +228,7 @@
 
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
-    <edge id="app-counter-section" source="app" target="counter-section" role="links-to"/>
+    <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
+    <edge id="node-1758193394547217-app" source="node-1758193394547217" target="app" role="links-to"/>
   </edges>
 </graph>

@@ -49,6 +49,7 @@ export const GraphNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
+  state: z.enum(['built', 'unbuilt']).optional(),
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 

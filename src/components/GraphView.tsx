@@ -28,6 +28,7 @@ import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/app/api/lib/schemas';
+import { isEdgeUnbuilt } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCcw, Trash2, Folder, Settings, StickyNote, Hand, SquareDashed, Loader2 } from 'lucide-react';
 
@@ -439,6 +440,13 @@ function GraphCanvas() {
     stroke: '#3b82f6',
     strokeWidth: 4,
     opacity: 1,
+  } as const;
+  const unbuiltEdgeStyle = {
+    stroke: '#ef4444',  // Red dashes
+    strokeWidth: 3,
+    strokeDasharray: '20,30',  // 20px red dash, 30px gap (longer dashes, fewer)
+    opacity: 0.9,
+    strokeLinecap: 'round' as const,
   } as const;
 
   // Access React Flow instance for programmatic viewport control
@@ -926,12 +934,16 @@ function GraphCanvas() {
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => {
       const updated = applyEdgeChanges(changes, eds);
-      return updated.map((e) => ({
-        ...e,
-        style: e.selected ? selectedEdgeStyle : defaultEdgeStyle,
-      }));
+      return updated.map((e) => {
+        // Check if edge is unbuilt
+        const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+        return {
+          ...e,
+          style: e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+        };
+      });
     });
-  }, [setEdges]);
+  }, [setEdges, baseGraph]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -1102,6 +1114,8 @@ function GraphCanvas() {
         (graph as any).edges.forEach((edge: any) => {
           const edgeId = `${edge.source}-${edge.target}`;
           if (!addedEdges.has(edgeId)) {
+            // Check if edge is unbuilt
+            const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
             reactFlowEdges.push({
               id: edge.id,
               source: edge.source,
@@ -1109,7 +1123,7 @@ function GraphCanvas() {
               type: 'default',
               style: previouslySelectedEdges.has(edge.id)
                 ? selectedEdgeStyle
-                : defaultEdgeStyle,
+                : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
               // Standard interaction width since handles are now visually large
               interactionWidth: 24,
               selected: previouslySelectedEdges.has(edge.id),
@@ -1157,7 +1171,7 @@ function GraphCanvas() {
       source: params.source,
       target: params.target,
       type: 'default',
-      style: defaultEdgeStyle,
+      style: unbuiltEdgeStyle, // New edges are always unbuilt
       interactionWidth: 24,
       selected: false,
     };
