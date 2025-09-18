@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="0" y="0" z="0">
+    <node id="app" title="Simple App" x="-103.41327031672394" y="-173.58656088878664" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
@@ -103,7 +103,7 @@
       </props>
     </node>
 
-    <node id="node-1758061687539528" title="Hero section" x="439.7993847352843" y="354.25134939091487" z="0">
+    <node id="node-1758061687539528" title="Hero section" x="363.72469911434166" y="306.70467087782583" z="0">
       <description>Hero section with a few texts and a gradient</description>
       <props>
         <prop name="hero-styles" title="Hero Styles" type="object">
@@ -180,7 +180,7 @@
       </props>
     </node>
 
-    <node id="counter-section" title="Counter Section" x="821.7695891481648" y="292.3487322705142" z="0">
+    <node id="counter-section" title="Counter Section" x="745.6949035272221" y="244.80205375742514" z="0">
       <description>Create a counter section with a number display and increment/decrement buttons. Include the current count value prominently displayed.</description>
       <props>
         <prop name="initial-count" title="Initial Count" type="number">0</prop>
@@ -222,7 +222,7 @@
       </props>
     </node>
 
-    <node id="node-1758193394547217" title="New Node" x="70.05034925900597" y="-316.679262062872" z="0">
+    <node id="node-1758193394547217" title="New Node" x="-33.36292105771797" y="-490.2658229516586" z="0">
     </node>
   </nodes>
 

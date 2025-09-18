@@ -1254,7 +1254,15 @@ function GraphCanvas() {
   const onNodeDragStart = useCallback((event: any, node: Node) => {
     const graphNode = node.data?.node as GraphNode;
     if (!graphNode) return;
-    draggingNodeIdsRef.current.add(graphNode.id);
+    // Mark all currently selected nodes as dragging to preserve their live positions
+    const selectedIds = (latestNodesRef.current || [])
+      .filter((n) => n.selected)
+      .map((n) => n.id);
+    if (selectedIds.length > 0) {
+      for (const id of selectedIds) draggingNodeIdsRef.current.add(id);
+    } else {
+      draggingNodeIdsRef.current.add(graphNode.id);
+    }
   }, []);
 
   const onNodeDrag = useCallback((event: any, node: Node) => {
@@ -1276,21 +1284,33 @@ function GraphCanvas() {
       const graphNode = node.data?.node as GraphNode;
       if (!graphNode) return;
 
-      // Persist final position via graph API
-      try {
-        await updateNode(graphNode.id, {
-          position: { x: node.position.x, y: node.position.y, z: 0 }
-        });
-        // Node position saved
-      } catch (e) {
-        console.warn(`⚠️ Final position update failed for ${graphNode.id}:`, e);
+      // Determine which nodes to persist: all currently selected, or the dragged node as a fallback
+      const selectedIds = (latestNodesRef.current || [])
+        .filter((n) => n.selected)
+        .map((n) => n.id);
+      const idsToPersist = selectedIds.length > 0 ? selectedIds : [graphNode.id];
+
+      // Persist positions for all affected nodes based on their current ReactFlow positions
+      for (const id of idsToPersist) {
+        const rfNode = latestNodesRef.current.find((n) => n.id === id);
+        if (!rfNode) continue;
+        try {
+          await updateNode(id, {
+            position: { x: rfNode.position.x, y: rfNode.position.y, z: 0 },
+          });
+        } catch (e) {
+          console.warn(`⚠️ Final position update failed for ${id}:`, e);
+        }
       }
     } catch (error) {
-      console.error('Error saving final node position:', error);
+      console.error('Error saving final node position(s):', error);
     }
-    // Release drag lock after persistence
-    const graphNode = node.data?.node as GraphNode;
-    if (graphNode) draggingNodeIdsRef.current.delete(graphNode.id);
+    // Release drag locks for all selected nodes (or the primary as fallback)
+    const selectedIds = (latestNodesRef.current || [])
+      .filter((n) => n.selected)
+      .map((n) => n.id);
+    const idsToClear = selectedIds.length > 0 ? selectedIds : [node.id];
+    for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
   }, [updateNode]);
 
   // Handle background mouse down for node creation
