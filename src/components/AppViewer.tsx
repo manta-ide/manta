@@ -314,7 +314,6 @@ export default function AppViewer({ isEditMode }: AppViewerProps) {
               })
               .catch(() => {});
           } catch {}
-
           // Now that child is ready, ensure overlay host is created/updated
           setTimeout(() => {
             ensureOverlayHost();

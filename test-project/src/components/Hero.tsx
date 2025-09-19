@@ -1,10 +1,8 @@
 import React from "react";
+import { useVars } from '../../_graph/varsHmr.ts';
 
-interface HeroProps {
-  vars: Record<string, any>;
-}
-
-export default function Hero({ vars }: HeroProps) {
+export default function Hero() {
+  const [vars] = useVars();
   const heroStyles = (vars["hero-styles"] as Record<string, any>) || {};
   const heroContent = (vars["hero-content"] as Record<string, any>) || {};
   const heroTypography = (vars["hero-typography"] as Record<string, any>) || {};
@@ -31,7 +29,12 @@ export default function Hero({ vars }: HeroProps) {
       className="relative w-full text-[var(--hero-text-color)] py-[var(--hero-padding-y)] px-[var(--hero-padding-x)]"
     >
       <div className="max-w-4xl mx-auto">
-        <div style={{ textAlign: "var(--hero-text-align)" }}>
+        <div
+          className="text-center"
+          style={{
+            textAlign: heroTypography["text-align"] as React.CSSProperties['textAlign'] || 'center'
+          }}
+        >
           <h1
             className="mb-6 font-[var(--hero-headline-weight)]"
             style={{

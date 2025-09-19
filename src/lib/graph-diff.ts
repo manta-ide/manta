@@ -11,6 +11,7 @@ export interface GraphDiff {
   deletedNodes: string[];
   addedEdges: string[];
   deletedEdges: string[];
+  unbuiltEdges: string[];
 }
 
 /**
@@ -24,7 +25,8 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
     modifiedNodes: [],
     deletedNodes: [],
     addedEdges: [],
-    deletedEdges: []
+    deletedEdges: [],
+    unbuiltEdges: []
   };
 
   // Compare nodes
@@ -64,6 +66,7 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
   for (const [edgeKey] of Array.from(currentEdgeMap.entries())) {
     if (!baseEdgeMap.has(edgeKey)) {
       diff.addedEdges.push(edgeKey);
+      diff.unbuiltEdges.push(edgeKey);
     }
   }
 
@@ -115,6 +118,16 @@ export function markUnbuiltNodesFromDiff(graph: Graph, diff: GraphDiff): Graph {
 }
 
 /**
+ * Determines if an edge is unbuilt by checking if it exists in the base graph
+ */
+export function isEdgeUnbuilt(edge: { source: string; target: string }, baseGraph: Graph | null): boolean {
+  if (!baseGraph || !baseGraph.edges) return true; // No base graph means all edges are unbuilt
+
+  const edgeKey = `${edge.source}-${edge.target}`;
+  return !baseGraph.edges.some(baseEdge => `${baseEdge.source}-${baseEdge.target}` === edgeKey);
+}
+
+/**
  * Automatically marks nodes as unbuilt based on differences from base graph
  */
 export function autoMarkUnbuiltFromBaseGraph(currentGraph: Graph, baseGraph: Graph | null): Graph {
@@ -129,11 +142,11 @@ export function autoMarkUnbuiltFromBaseGraph(currentGraph: Graph, baseGraph: Gra
 
   const diff = analyzeGraphDiff(baseGraph, currentGraph);
 
-  console.log(`   🔍 Diff results: Added=${diff.addedNodes.length}, Modified=${diff.modifiedNodes.length}, Deleted=${diff.deletedNodes.length}`);
+  console.log(`   🔍 Diff results: Added=${diff.addedNodes.length}, Modified=${diff.modifiedNodes.length}, Deleted=${diff.deletedNodes.length}, AddedEdges=${diff.addedEdges.length}, UnbuiltEdges=${diff.unbuiltEdges.length}`);
 
   const result = markUnbuiltNodesFromDiff(currentGraph, diff);
 
-  console.log('   ✅ State marking completed');
+  console.log(`   📈 Final state summary: ${result.nodes.filter((n: any) => n.state === 'built').length} built nodes, ${result.nodes.filter((n: any) => n.state === 'unbuilt').length} unbuilt nodes, ${diff.unbuiltEdges.length} unbuilt edges`);
 
   return result;
 }

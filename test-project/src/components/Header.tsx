@@ -1,10 +1,8 @@
 import React from "react";
+import { useVars } from '../../_graph/varsHmr.ts';
 
-interface HeaderProps {
-  vars: Record<string, any>;
-}
-
-export default function Header({ vars }: HeaderProps) {
+export default function Header() {
+  const [vars] = useVars();
   const headerStyles = (vars["header-styles"] as Record<string, any>) || {};
   const navLinks = (vars["nav-links"] as Array<{ label: string; href: string }>) || [];
   const logo = (vars["logo"] as Record<string, any>) || {};

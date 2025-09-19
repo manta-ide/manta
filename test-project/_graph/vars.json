@@ -1,13 +1,13 @@
 {
   "is-dark-theme": "",
   "root-styles": {
-    "background-color": "#efefef",
+    "background-color": "#e8dede",
     "text-color": "#000000",
     "font-family": "Arial",
     "base-font-size": "1rem"
   },
   "header-styles": {
-    "background-color": "#be3535",
+    "background-color": "#b64646",
     "text-color": "#ffffff",
     "height": "6rem",
     "padding-x": "2rem"
@@ -36,7 +36,7 @@
     }
   ],
   "hero-styles": {
-    "background-gradient-start": "#e1e3ee",
+    "background-gradient-start": "#e6e6e6",
     "background-gradient-end": "#764ba2",
     "text-color": "#ffffff",
     "padding-y": "5rem",

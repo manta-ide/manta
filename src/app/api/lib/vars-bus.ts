@@ -63,6 +63,13 @@ export function publishVarsUpdate(updates: Record<string, any>) {
   }
 }
 
+export function broadcastGraphUpdate(update: Record<string, any>) {
+  // Notify listeners with graph update message
+  for (const l of Array.from(listeners)) {
+    try { l(update); } catch {}
+  }
+}
+
 function buildNestedVars(properties: any[], prefix: string = ''): Record<string, any> {
   const result: Record<string, any> = {};
 

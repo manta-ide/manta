@@ -17,9 +17,10 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    ```bash
    npm i -g manta-ide
 
-3. Run the IDE:
+3. Install the template and run the IDE:
    ```bash
-   manta
+   manta i
+   manta run
 
 5. Open [http://localhost:3000](http://localhost:3000)
 
@@ -45,6 +46,9 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    cd manta
    npm i
    npm run build
+   cd test-project
+   npm i
+   cd ../
 
 4. Run the solution:
    ```bash
