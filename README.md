@@ -28,7 +28,7 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 - **Node-based creation**: Create nodes and direct AI to build them, and get a stateful editable system
 - **MCP compatibility**: Use any MCPs you like to make the agent better
-- **Properties**: Each node has properties that you can edit in real-time for quick updates
+- **Properties**: Each node has properties that you can edit to add content or change behaviour or look of the components
 
 ## 🧑‍💻 Developers
 
