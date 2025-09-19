@@ -4,12 +4,11 @@ import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Edit3, Eye, Monitor, Network } from 'lucide-react';
+import { Edit3, Eye, Network } from 'lucide-react';
 import { useProjectStore } from '@/lib/store';
 
 interface TopBarProps {
   panels: {
-    viewer: boolean;
     graph: boolean;
   };
   onTogglePanel: (panel: keyof TopBarProps['panels']) => void;
@@ -56,18 +55,6 @@ export default function TopBar({ panels, onTogglePanel, isEditMode, setIsEditMod
 
           {/* Panel Toggle Buttons */}
           <div className="flex items-center gap-1">
-             <Button
-               variant={panels.viewer ? "default" : "outline"}
-               size="sm"
-               onClick={() => onTogglePanel('viewer')}
-               className={panels.viewer
-                 ? "bg-zinc-700 text-white border-0 h-6 w-6 p-0 rounded-sm"
-                : "bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 h-6 w-6 p-0 rounded-sm"
-               }
-             >
-               <Monitor className="w-3.5 h-3.5" />
-             </Button>
-
              <Button
                variant={panels.graph ? "default" : "outline"}
                size="sm"

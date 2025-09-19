@@ -8,7 +8,6 @@ import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { postVarsUpdate } from '@/lib/child-bridge';
 
 export default function SelectedNodeSidebar() {
 	// Set to false to disable debouncing and apply property changes immediately
@@ -53,47 +52,15 @@ export default function SelectedNodeSidebar() {
 	const TITLE_DEBOUNCE_DELAY = 300; // Wait 300ms after last change before saving title
 	const DESCRIPTION_DEBOUNCE_DELAY = 500; // Wait 500ms after last change before saving description
 
-		const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
-			// Lightweight preview: update local state and in-memory graph without saving
-			setPropertyValues(prev => ({ ...prev, [propertyId]: value }));
-			if (selectedNodeId) {
-				updatePropertyLocal(selectedNodeId, propertyId, value);
-				postVarsUpdate({ [propertyId]: value });
-			}
-		}, [selectedNodeId, updatePropertyLocal]);
+    const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
+        // Lightweight preview: update local state and in-memory graph without saving
+        setPropertyValues(prev => ({ ...prev, [propertyId]: value }));
+        if (selectedNodeId) {
+            updatePropertyLocal(selectedNodeId, propertyId, value);
+        }
+    }, [selectedNodeId, updatePropertyLocal]);
 
-	// Monitor iframe connection and reconnect when needed
-	useEffect(() => {
-		const checkIframeConnection = () => {
-			const childWindow = (window as any).__mantaChildWindow;
-			if (!childWindow) {
-				console.log('👤 SelectedNodeSidebar: No child window connection, iframe may not be ready');
-			} else {
-				console.log('👤 SelectedNodeSidebar: Child window connection established');
-			}
-		};
-
-		// Check immediately
-		checkIframeConnection();
-
-		// Listen for iframe ready events
-		const handleIframeReady = (event: MessageEvent) => {
-			if (event.data?.type === 'manta:child:ready') {
-				console.log('👤 SelectedNodeSidebar: Detected iframe ready signal');
-				setTimeout(checkIframeConnection, 100); // Small delay to ensure setup is complete
-			}
-		};
-
-		window.addEventListener('message', handleIframeReady);
-
-		// Also check periodically in case of missed events
-		const interval = setInterval(checkIframeConnection, 2000);
-
-		return () => {
-			window.removeEventListener('message', handleIframeReady);
-			clearInterval(interval);
-		};
-	}, []);
+    // Removed iframe connection checks
 
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change

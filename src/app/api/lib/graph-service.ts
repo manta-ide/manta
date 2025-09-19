@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
-import { publishVarsUpdate } from './vars-bus';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
@@ -302,17 +301,6 @@ export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: st
 export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   await saveBaseGraphToFs(normalized);
-
-  // Broadcast base graph update to all SSE clients
-  try {
-    import('./vars-bus').then(({ broadcastGraphUpdate }) => {
-      broadcastGraphUpdate({ type: 'base-graph-update', baseGraph: normalized });
-    }).catch(error => {
-      console.warn('Failed to broadcast base graph update:', error);
-    });
-  } catch (error) {
-    console.warn('Failed to broadcast base graph update:', error);
-  }
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {
@@ -328,8 +316,8 @@ export async function updatePropertyAndWriteVars(nodeId: string, propertyId: str
   }
   // Save the updated graph to current-graph.xml as the primary persistence
   if (currentGraph) writeCurrentGraphToFs(currentGraph);
-  // Always publish a realtime vars update for subscribers (iframe bridge) and update vars.json convenience file
-  try { publishVarsUpdate({ [propertyId]: value }); } catch {}
+  // Update the vars file for the child project to consume
+  if (currentGraph) writeVarsToFs(currentGraph);
 }
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {

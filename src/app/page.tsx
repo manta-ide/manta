@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import FloatingChat from "@/components/FloatingChat";
-import AppViewer from "@/components/AppViewer";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
@@ -12,7 +11,6 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 export default function Home() {
   const [panels, setPanels] = useState({
     files: false,
-    viewer: true,
     graph: true,
   });
   const [panelsLoaded, setPanelsLoaded] = useState(false);
@@ -37,7 +35,6 @@ export default function Home() {
         const parsed = JSON.parse(raw);
         const next = {
           files: typeof parsed?.files === 'boolean' ? parsed.files : panels.files,
-          viewer: typeof parsed?.viewer === 'boolean' ? parsed.viewer : panels.viewer,
           graph: typeof parsed?.graph === 'boolean' ? parsed.graph : panels.graph,
         };
         setPanels(next);
@@ -47,7 +44,7 @@ export default function Home() {
     } finally {
       setPanelsLoaded(true);
     }
-  }, [panelsLoaded, panels.files, panels.viewer, panels.graph]);
+  }, [panelsLoaded, panels.files, panels.graph]);
 
   // Persist panel layout on change
   useEffect(() => {
@@ -91,15 +88,10 @@ export default function Home() {
   const hasSelected = true; // Sidebar always visible now
 
   // inner group (viewer + graph) requires min 30 each when present
-  const mainMin =
-    (panels.viewer ? 30 : 0) +
-    (panels.graph ? 30 : 0) ||
-    0;
+  const mainMin = (panels.graph ? 30 : 0) || 0;
 
   // choose sane outer defaults that sum to <= 100
-  const leftDefaults =
-    (panels.files ? 15 : 0) +
-    (hasSelected ? 20 : 0);
+  const leftDefaults = (panels.files ? 15 : 0) + (hasSelected ? 20 : 0);
 
   const mainDefault = Math.max(
     mainMin,
@@ -134,20 +126,9 @@ export default function Home() {
         <ResizablePanel minSize={mainMin} defaultSize={mainDefault}>
           <ResizablePanelGroup direction="horizontal">
             {panels.graph && (
-              <>
-                <ResizablePanel defaultSize={panels.viewer ? 40 : 100} minSize={30}>
-                  <div className="h-full bg-zinc-900">
-                    <GraphView />
-                  </div>
-                </ResizablePanel>
-                {panels.viewer && <ResizableHandle className="bg-zinc-600 hover:bg-zinc-500 transition-colors" />}
-              </>
-            )}
-
-            {panels.viewer && (
-              <ResizablePanel defaultSize={panels.graph ? 60 : 100} minSize={30}>
+              <ResizablePanel defaultSize={100} minSize={30}>
                 <div className="h-full bg-zinc-900">
-                  <AppViewer isEditMode={isEditMode} />
+                  <GraphView />
                 </div>
               </ResizablePanel>
             )}
