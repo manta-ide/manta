@@ -25,4 +25,4 @@ if (command === 'help' || command === '--help' || command === '-h') {
 const projectDirArg = command && !command.startsWith('-') ? command : undefined;
 const env = { ...process.env };
 if (projectDirArg) env.DEV_PROJECT_DIR = projectDirArg;
-run('npm', ['run', 'dev'], packageRoot, env);
+run('npx', ['next', 'dev', '--turbopack'], packageRoot, env);
