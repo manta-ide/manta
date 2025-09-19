@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="-103.41327031672394" y="-173.58656088878664" z="0">
+    <node id="app" title="Simple App" x="1077.8838654903236" y="-237.8072945008135" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
@@ -34,7 +34,7 @@
       </props>
     </node>
 
-    <node id="node-1758061078838971" title="Header" x="5.278280928418923" y="296.478441222678" z="0">
+    <node id="node-1758061078838971" title="Header" x="619.1374015362316" y="-527.54939525425" z="0">
       <description>One color header bar with nav links</description>
       <props>
         <prop name="header-styles" title="Header Styles" type="object">
@@ -103,7 +103,7 @@
       </props>
     </node>
 
-    <node id="node-1758061687539528" title="Hero section" x="363.72469911434166" y="306.70467087782583" z="0">
+    <node id="node-1758061687539528" title="Hero section" x="117.44542785195016" y="229.71217100498154" z="0">
       <description>Hero section with a few texts and a gradient</description>
       <props>
         <prop name="hero-styles" title="Hero Styles" type="object">
@@ -221,9 +221,7 @@
       </prop>
       </props>
     </node>
-  </nodes>
-
-  <edges>
+<edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
   </edges>
