@@ -124,14 +124,22 @@ function writeVarsToFs(graph: Graph) {
 const activeStreams = new Set<ReadableStreamDefaultController<Uint8Array>>();
 let broadcastTimeout: NodeJS.Timeout | null = null;
 
-function broadcastGraphUpdate(graph: Graph) {
+function broadcastGraphUpdate(graph: Graph, metadata?: { source?: string }) {
   if (activeStreams.size === 0) return;
 
   try {
     const xml = graphToXml(graph);
     // Base64 encode the XML using UTF-8 bytes
     const encodedXml = Buffer.from(xml, 'utf8').toString('base64');
-    const payload = `data: ${encodedXml}\n\n`;
+
+    let payload;
+    if (metadata?.source) {
+      // Include metadata for special handling
+      const message = { type: 'graph-update', xml: encodedXml, metadata };
+      payload = `data: ${JSON.stringify(message)}\n\n`;
+    } else {
+      payload = `data: ${encodedXml}\n\n`;
+    }
 
     // Clear any pending broadcast
     if (broadcastTimeout) {
@@ -166,9 +174,9 @@ export function unregisterStreamController(controller: ReadableStreamDefaultCont
 }
 
 // Broadcast function for graph updates
-async function broadcastGraphReload(_userId: string): Promise<void> {
+async function broadcastGraphReload(_userId: string, metadata?: { source?: string }): Promise<void> {
   if (currentGraph) {
-    broadcastGraphUpdate(currentGraph);
+    broadcastGraphUpdate(currentGraph, metadata);
   }
 }
 
@@ -291,6 +299,14 @@ export async function storeCurrentGraph(graph: Graph, userId: string): Promise<v
   writeVarsToFs(normalized);
 }
 
+export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  currentGraph = normalized;
+  await saveCurrentGraphToFs(normalized);
+  await broadcastGraphReload(userId, { source: 'agent' });
+  writeVarsToFs(normalized);
+}
+
 export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   currentGraph = normalized;
@@ -301,6 +317,53 @@ export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: st
 export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   await saveBaseGraphToFs(normalized);
+  // Broadcast base graph update for UI awareness
+  broadcastBaseGraphUpdate(normalized);
+}
+
+function broadcastBaseGraphUpdate(graph: Graph): void {
+  if (activeStreams.size === 0) return;
+
+  try {
+    const message = {
+      type: 'base-graph-update',
+      baseGraph: graph,
+      timestamp: new Date().toISOString()
+    };
+    const payload = `data: ${JSON.stringify(message)}\n\n`;
+
+    // Also send build completion signal
+    const completionMessage = {
+      type: 'build-complete',
+      message: 'Graph build process completed successfully',
+      timestamp: new Date().toISOString()
+    };
+    const completionPayload = `data: ${JSON.stringify(completionMessage)}\n\n`;
+    console.log('📤 Broadcasting build-complete message to all SSE clients');
+
+    // Clear any pending broadcast
+    if (broadcastTimeout) {
+      clearTimeout(broadcastTimeout);
+      broadcastTimeout = null;
+    }
+
+    // Debounce broadcasts to avoid spam (max 10 per second)
+    broadcastTimeout = setTimeout(() => {
+      for (const controller of activeStreams) {
+        try {
+          controller.enqueue(new TextEncoder().encode(payload));
+          // Also send completion signal
+          controller.enqueue(new TextEncoder().encode(completionPayload));
+        } catch (error) {
+          // Remove broken connections
+          activeStreams.delete(controller);
+        }
+      }
+      broadcastTimeout = null;
+    }, 100);
+  } catch (error) {
+    console.error('Error broadcasting base graph update:', error);
+  }
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {

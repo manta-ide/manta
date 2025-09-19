@@ -84,5 +84,13 @@
     "enable-keyboard": "",
     "min-value": 0,
     "max-value": 17
-  }
+  },
+  "title": "Test Section",
+  "description": "This is a test section component that can be customized through the CMS interface.",
+  "background-color": "#ffffff",
+  "text-color": "#333333",
+  "padding": "md",
+  "border-radius": 8,
+  "visible": true,
+  "centered": false
 }

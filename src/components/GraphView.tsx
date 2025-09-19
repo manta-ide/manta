@@ -933,13 +933,14 @@ function GraphCanvas() {
       const isPropertyOnlyChange = prevGraphStructureRef.current === currentStructure && latestNodesRef.current.length > 0;
 
       if (isPropertyOnlyChange) {
-        // Only properties changed - update existing nodes without full rebuild
-        console.log('🔄 Updating node properties without full rebuild');
+        // Only properties or baseGraph changed - update existing nodes/edges without full rebuild
+        console.log('🔄 Updating node data and edge styles without full rebuild');
+
+        // Update node payloads to reflect latest graph node data AND new baseGraph reference
         setNodes(currentNodes =>
           currentNodes.map(node => {
             const graphNode = graph.nodes.find(n => n.id === node.id);
             if (graphNode) {
-              // Preserve selection state and other node properties
               const shouldBeSelected = (selectedNodeIds && selectedNodeIds.length > 0)
                 ? selectedNodeIds.includes(node.id)
                 : selectedNodeId === node.id;
@@ -950,13 +951,27 @@ function GraphCanvas() {
                 data: {
                   ...node.data,
                   node: graphNode,
-                  properties: graphNode.properties || []
+                  properties: graphNode.properties || [],
+                  baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
+                  graph: graph,
                 }
               };
             }
             return node;
           })
         );
+
+        // Also refresh edge styling (built/unbuilt) against latest baseGraph
+        setEdges(currentEdges =>
+          currentEdges.map(e => {
+            const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+            return {
+              ...e,
+              style: e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+            } as Edge;
+          })
+        );
+
         return;
       }
 

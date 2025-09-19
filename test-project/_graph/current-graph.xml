@@ -221,10 +221,38 @@
       </prop>
       </props>
     </node>
+
+    <node id="node-1758261265711502" title="Test section" x="561.054670317495" y="-170.54499871074486" z="0">
+      <description>Test 1</description>
+      <props>
+        <prop name="title" title="Section Title" type="text">Test Section</prop>
+        <prop name="description" title="Description" type="textarea">This is a test section component that can be customized through the CMS interface.</prop>
+        <prop name="background-color" title="Background Color" type="color">#ffffff</prop>
+        <prop name="text-color" title="Text Color" type="color">#333333</prop>
+        <prop name="padding" title="Padding" type="select">
+          <value>md</value>
+          <options>
+          <option>sm</option>
+          <option>md</option>
+          <option>lg</option>
+          <option>xl</option>
+          </options>
+        </prop>
+        <prop name="border-radius" title="Border Radius" type="slider">8</prop>
+        <prop name="visible" title="Visible" type="boolean">true</prop>
+        <prop name="centered" title="Center Content" type="boolean">false</prop>
+        <prop name="styles" title="Advanced Styles" type="object">
+        <field name="border-color" title="Border Color" type="color"></field>
+        <field name="border-width" title="Border Width" type="number"></field>
+        <field name="shadow" title="Show Shadow" type="boolean"></field>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
+    <edge id="app-node-1758261265711502" source="app" target="node-1758261265711502" role="links-to"/>
   </edges>
 </graph>

@@ -160,7 +160,7 @@ useEffect(() => {
     const response = await fetch('/api/agent-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agentType: 'edit-graph', userMessage }),
+      body: JSON.stringify({ userMessage }),
     });
 
     console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));

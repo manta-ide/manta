@@ -1,6 +1,7 @@
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import CounterSection from "./components/CounterSection";
+import TestSection from "./components/TestSection";
 import { useVars } from "../_graph/varsHmr.ts";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
       <Header />
       <Hero />
       <CounterSection />
+      <TestSection />
     </main>
   );
 }

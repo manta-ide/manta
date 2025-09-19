@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           success: true,
           diff,
-          summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted`
+          summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted, ${diff.addedEdges.length} edges added, ${diff.deletedEdges.length} edges deleted`
         });
       }
 
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         success: true,
         diff,
-        summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted`
+        summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted, ${diff.addedEdges.length} edges added, ${diff.deletedEdges.length} edges deleted`
       });
     }
 
