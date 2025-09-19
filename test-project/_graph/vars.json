@@ -90,7 +90,18 @@
   "background-color": "#ffffff",
   "text-color": "#333333",
   "padding": "md",
-  "border-radius": 8,
+  "border-radius": "8",
   "visible": true,
-  "centered": false
+  "centered": "",
+  "styles": {
+    "border-color": "",
+    "border-width": 0,
+    "shadow": ""
+  },
+  "width": 300,
+  "height": 200,
+  "node-1758262383890521-border-radius": 8,
+  "node-1758262383890521-padding": 16,
+  "font-size": 16,
+  "opacity": "1"
 }

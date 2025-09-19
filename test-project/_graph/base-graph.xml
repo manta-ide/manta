@@ -248,11 +248,24 @@
       </prop>
       </props>
     </node>
+
+    <node id="node-1758262383890521" title="A node with a few number properties" x="1633.7164463297268" y="-266.31473965078453" z="0">
+      <description>A node with a few number properties</description>
+      <props>
+        <prop name="width" title="Width" type="number">300</prop>
+        <prop name="height" title="Height" type="number">200</prop>
+        <prop name="node-1758262383890521-border-radius" title="Border Radius" type="number">8</prop>
+        <prop name="node-1758262383890521-padding" title="Padding" type="number">16</prop>
+        <prop name="font-size" title="Font Size" type="number">16</prop>
+        <prop name="opacity" title="Opacity" type="slider">1</prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
     <edge id="app-node-1758261265711502" source="app" target="node-1758261265711502" role="links-to"/>
+    <edge id="app-node-1758262383890521" source="app" target="node-1758262383890521" role="links-to"/>
   </edges>
 </graph>

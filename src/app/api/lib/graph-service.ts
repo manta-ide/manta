@@ -4,6 +4,7 @@ import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
+import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
@@ -162,6 +163,23 @@ function broadcastGraphUpdate(graph: Graph, metadata?: { source?: string }) {
     }, 100);
   } catch (error) {
     console.error('Error broadcasting graph update:', error);
+  }
+}
+
+// Broadcast arbitrary JSON payloads to graph SSE subscribers
+export function broadcastGraphJson(payload: any) {
+  if (activeStreams.size === 0) return;
+  try {
+    const data = new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
+    for (const controller of activeStreams) {
+      try {
+        controller.enqueue(data);
+      } catch {
+        activeStreams.delete(controller);
+      }
+    }
+  } catch (error) {
+    console.error('Error broadcasting JSON graph event:', error);
   }
 }
 
@@ -411,7 +429,13 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
 
 export function getUnbuiltNodeIds(): string[] {
   if (!currentGraph) return [];
-  return currentGraph.nodes.filter(n => (n.state || 'unbuilt') !== 'built').map(n => n.id);
+  const baseGraph = readBaseGraphFromFs();
+  if (!baseGraph) {
+    // If no base graph exists, consider all nodes unbuilt
+    return currentGraph.nodes.map(n => n.id);
+  }
+  const diff = analyzeGraphDiff(baseGraph as any, currentGraph as any);
+  return [...diff.addedNodes, ...diff.modifiedNodes];
 }
 
 export async function markNodesBuilt(nodeIds: string[], _userId: string): Promise<void> {
