@@ -34,7 +34,7 @@
       </props>
     </node>
 
-    <node id="node-1758061078838971" title="Header" x="619.1374015362316" y="-527.54939525425" z="0">
+    <node id="node-1758061078838971" title="Header" x="581.708880982156" y="-485.96215019416616" z="0">
       <description>One color header bar with nav links</description>
       <props>
         <prop name="header-styles" title="Header Styles" type="object">
@@ -103,7 +103,7 @@
       </props>
     </node>
 
-    <node id="node-1758061687539528" title="Hero section" x="117.44542785195016" y="229.71217100498154" z="0">
+    <node id="node-1758061687539528" title="Hero section" x="292.11185710430254" y="74.45312278066837" z="0">
       <description>Hero section with a few texts and a gradient</description>
       <props>
         <prop name="hero-styles" title="Hero Styles" type="object">
@@ -221,8 +221,51 @@
       </prop>
       </props>
     </node>
-<edges>
+
+    <node id="node-1758261265711502" title="Test section" x="1276.5447861112186" y="-720.6565819641439" z="0">
+      <description>Test 1</description>
+      <props>
+        <prop name="title" title="Section Title" type="text">Test Section</prop>
+        <prop name="description" title="Description" type="textarea">This is a test section component that can be customized through the CMS interface.</prop>
+        <prop name="background-color" title="Background Color" type="color">#ffffff</prop>
+        <prop name="text-color" title="Text Color" type="color">#333333</prop>
+        <prop name="padding" title="Padding" type="select">
+          <value>md</value>
+          <options>
+          <option>sm</option>
+          <option>md</option>
+          <option>lg</option>
+          <option>xl</option>
+          </options>
+        </prop>
+        <prop name="border-radius" title="Border Radius" type="slider">8</prop>
+        <prop name="visible" title="Visible" type="boolean">true</prop>
+        <prop name="centered" title="Center Content" type="boolean"></prop>
+        <prop name="styles" title="Advanced Styles" type="object">
+        <field name="border-color" title="Border Color" type="color"></field>
+        <field name="border-width" title="Border Width" type="number">0</field>
+        <field name="shadow" title="Show Shadow" type="boolean"></field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1758262383890521" title="A node with a few number properties" x="1615.6953068036908" y="-402.16640684705857" z="0">
+      <description>A node with a few number properties</description>
+      <props>
+        <prop name="width" title="Width" type="number">300</prop>
+        <prop name="height" title="Height" type="number">200</prop>
+        <prop name="node-1758262383890521-border-radius" title="Border Radius" type="number">8</prop>
+        <prop name="node-1758262383890521-padding" title="Padding" type="number">16</prop>
+        <prop name="font-size" title="Font Size" type="number">16</prop>
+        <prop name="opacity" title="Opacity" type="slider">1</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
+    <edge id="app-node-1758261265711502" source="app" target="node-1758261265711502" role="links-to"/>
+    <edge id="app-node-1758262383890521" source="app" target="node-1758262383890521" role="links-to"/>
   </edges>
 </graph>

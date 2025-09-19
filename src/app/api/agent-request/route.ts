@@ -8,10 +8,7 @@ import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGra
 import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
 import { formatTraceMessage } from '@/lib/chatService';
 
-const AgentTypeSchema = z.enum(['edit-graph', 'build-graph']);
-
 const RequestSchema = z.object({
-  agentType: AgentTypeSchema,
   userMessage: MessageSchema,
   selectedNodeId: z.string().optional(),
   selectedNodeTitle: z.string().optional(),
@@ -32,11 +29,11 @@ const RequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Use default user for all requests
+    // Use default user for all reqs
     const userId = 'default-user';
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
-      console.log('Agent request schema error:', parsed.error.flatten());
+      console.log('Agent req schema error:', parsed.error.flatten());
       return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -44,7 +41,6 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      agentType,
       userMessage,
       selectedNodeId,
       selectedNodeTitle,
@@ -68,7 +64,7 @@ export async function POST(req: NextRequest) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/xml',
-          'X-Agent-Initiated': 'true', // Mark this as agent-initiated to trigger SSE broadcasts
+          'X-Agent-Initiated': 'true', // Mark this as req-initiated to trigger SSE broadcasts
           ...(req.headers.get('cookie') ? { cookie: req.headers.get('cookie') as string } : {}),
           ...(req.headers.get('authorization') ? { authorization: req.headers.get('authorization') as string } : {}),
         },
@@ -80,57 +76,24 @@ export async function POST(req: NextRequest) {
       return ok;
     });
 
-    // Set up graph state based on agent type
-    if (agentType === 'edit-graph') {
-      let graph = await fetchGraphFromApi(req);
+    // Build prompt with context - subreqs will be chosen automatically based on content
+    let prompt = userMessage.content;
 
-      // If no graph exists, create a completely empty one
-      if (!graph) {
-        const emptyGraph = {
-          nodes: []
-        };
-
-        await storeGraph(emptyGraph, userId);
-
-        graph = emptyGraph;
+    // Add selected node info if available
+    if (selectedNodeId) {
+      prompt += `\n\nSelected Node: ${selectedNodeTitle} (ID: ${selectedNodeId})`;
+      if (selectedNodePrompt) {
+        prompt += `\nPrompt: ${selectedNodePrompt}`;
       }
-
-      // Always set the current graph (either existing or newly created)
-      await setCurrentGraph(graph);
-
-    } else if (agentType === 'build-graph') {
-      // Set the current graph for the agent to work with
-      await setCurrentGraph(currentGraph);
     }
 
-    // Build prompt based on agent type
-    let prompt: string;
+    console.log(`🔧 Generated prompt length:`, prompt.length);
 
-    if (agentType === 'edit-graph') {
-      prompt = userMessage.content;
-
-      // Add selected node info if available
-      if (selectedNodeId) {
-        prompt += `\n\nSelected Node: ${selectedNodeTitle} (ID: ${selectedNodeId})`;
-        if (selectedNodePrompt) {
-          prompt += `\nPrompt: ${selectedNodePrompt}`;
-        }
-      }
-
-      console.log('🔧 Edit-graph: Generated prompt length:', prompt.length);
-
-    } else if (agentType === 'build-graph') {
-      prompt = userMessage.content;
-      console.log('🔧 Build-graph: Generated prompt length:', prompt.length);
-    } else {
-      throw new Error(`Unknown agent type: ${agentType}`);
-    }
-
-    // Call Claude Code API endpoint with the built prompt and agent type
+    // Call Claude Code API endpoint with the prompt - subreqs chosen automatically
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, agentType })
+      body: JSON.stringify({ prompt })
     });
 
     if (!response.ok) {
@@ -139,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     // If the response is already streaming, pass it through
     if (response.headers.get('content-type')?.includes('text/plain')) {
-      console.log(`🔄 ${agentType}: Processing streaming response from Claude Code`);
+      console.log(`🔄 ${req}: Processing streaming response from Claude Code`);
 
       // Create a new stream that processes the Server-Sent Events from Claude Code
       const reader = response.body?.getReader();
@@ -151,7 +114,7 @@ export async function POST(req: NextRequest) {
 
           try {
             if (!reader) {
-              console.log(`❌ ${agentType}: No reader available`);
+              console.log(`❌ ${req}: No reader available`);
               controller.close();
               return;
             }
@@ -160,12 +123,12 @@ export async function POST(req: NextRequest) {
             let hasStarted = false;
             let totalContent = '';
 
-            console.log(`🎬 ${agentType}: Starting stream processing`);
+            console.log(`🎬 ${req}: Starting stream processing`);
 
             while (true) {
               const { value, done } = await reader.read();
               if (done) {
-                console.log(`🏁 ${agentType}: Reader done, total content length:`, totalContent.length);
+                console.log(`🏁 ${req}: Reader done, total content length:`, totalContent.length);
                 break;
               }
 
@@ -178,45 +141,45 @@ export async function POST(req: NextRequest) {
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6); // Remove 'data: ' prefix
-                  console.log(`📦 ${agentType}: Received data:`, data);
+                  console.log(`📦 ${req}: Received data:`, data);
 
                   if (data === '[STREAM_START]') {
                     if (!hasStarted) {
                       hasStarted = true;
-                      console.log(`🎯 ${agentType}: Stream started`);
+                      console.log(`🎯 ${req}: Stream started`);
                     }
                   } else if (data === '[STREAM_END]') {
-                    console.log(`🏁 ${agentType}: Stream ended, total content:`, totalContent);
+                    console.log(`🏁 ${req}: Stream ended, total content:`, totalContent);
                     controller.close();
                     return;
                   } else {
                     try {
                       const parsed = JSON.parse(data);
-                      console.log(`📝 ${agentType}: Parsed content:`, parsed);
+                      console.log(`📝 ${req}: Parsed content:`, parsed);
 
                       if (parsed.type === 'result' && parsed.content) {
                         // Stream the final result
                         totalContent += parsed.content;
-                        console.log(`📤 ${agentType}: Sending final result:`, parsed.content);
+                        console.log(`📤 ${req}: Sending final result:`, parsed.content);
                         controller.enqueue(enc.encode(parsed.content));
                       } else if (parsed.type === 'trace') {
                         // Stream trace information
                         const traceContent = formatTraceMessage(parsed.trace);
                         totalContent += traceContent;
-                        console.log(`📤 ${agentType}: Sending trace:`, traceContent.trim());
+                        console.log(`📤 ${req}: Sending trace:`, traceContent.trim());
                         controller.enqueue(enc.encode(traceContent));
                       } else if (parsed.content) {
                         // Stream regular content (backward compatibility)
                         totalContent += parsed.content;
-                        console.log(`📤 ${agentType}: Sending content:`, parsed.content);
+                        console.log(`📤 ${req}: Sending content:`, parsed.content);
                         controller.enqueue(enc.encode(parsed.content));
                       } else if (parsed.error) {
-                        console.log(`❌ ${agentType}: Error in content:`, parsed.error);
+                        console.log(`❌ ${req}: Error in content:`, parsed.error);
                         controller.enqueue(enc.encode(`\n\nError: ${parsed.error}\n`));
                       }
                     } catch (e) {
                       // If it's not JSON, treat as plain text
-                      console.log(`📝 ${agentType}: Plain text content:`, data);
+                      console.log(`📝 ${req}: Plain text content:`, data);
                       totalContent += data;
                       controller.enqueue(enc.encode(data + '\n'));
                     }
@@ -225,26 +188,14 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            // Handle build-graph specific completion logic
-            if (agentType === 'build-graph') {
-              console.log('💾 Build-graph: Saving base graph after streaming completion');
-              try {
-                await storeBaseGraph(currentGraph, 'default-user');
-                console.log('✅ Base graph saved after successful build completion');
-                controller.enqueue(enc.encode('\nBase graph updated with current state\n'));
-              } catch (error) {
-                console.error('❌ Failed to save base graph:', error);
-                controller.enqueue(enc.encode('\nWarning: Failed to save base graph\n'));
-              }
-
-              controller.enqueue(enc.encode('\nGraph build completed successfully\n'));
-            }
+            // Subreqs handle their own completion logic
+            console.log('🏁 Agent req completed');
 
             // Close if we finish without [STREAM_END]
-            console.log(`🏁 ${agentType}: Stream completed without [STREAM_END]`);
+            console.log(`🏁 ${req}: Stream completed without [STREAM_END]`);
             controller.close();
           } catch (error) {
-            console.error(`❌ ${agentType}: Streaming error:`, error);
+            console.error(`❌ ${req}: Streaming error:`, error);
             controller.enqueue(enc.encode(`\n\nError: ${error instanceof Error ? error.message : String(error)}\n`));
             controller.close();
           }

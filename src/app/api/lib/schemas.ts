@@ -48,8 +48,7 @@ export const GraphNodeSchema = z.object({
   properties: z.array(PropertySchema).optional(),
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
-  height: z.number().optional(),
-  state: z.enum(['built', 'unbuilt']).optional(),
+  height: z.number().optional()
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 
@@ -314,7 +313,6 @@ export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;
 
 export const ClaudeCodeRequestSchema = z.object({
   prompt: z.string(),
-  agentType: z.enum(['edit-graph', 'build-graph']),
   options: ClaudeCodeOptionsSchema.optional(),
 });
 
@@ -730,18 +728,6 @@ export function xmlToGraph(xml: string): Graph {
       }
 
       const description = (nodeData.description?.['#text'] || nodeData.description || '').trim();
-      const stateData = nodeData.state;
-      let buildStatus: string | undefined;
-
-      // Extract build status from parsed state data
-      if (stateData?.build) {
-        buildStatus = stateData.build['@_status'] || stateData.build['#text'] || 'built';
-      }
-
-      // Default to 'built' if status is missing but state block exists
-      if (!buildStatus && stateData) {
-        buildStatus = 'built';
-      }
 
       // Parse properties using fast-xml-parser
       const propsData = nodeData.props;
@@ -957,7 +943,6 @@ export function xmlToGraph(xml: string): Graph {
         id,
         title,
         prompt: unescapeXml(description),
-        state: (buildStatus as any) || 'unbuilt',
         properties,
         ...(position ? { position } : {})
       } as GraphNode;

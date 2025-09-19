@@ -30,11 +30,10 @@ function pretty(obj: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, agentType, options } = ClaudeCodeRequestSchema.parse(await req.json());
+    const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
 
     logHeader('Claude Code Execute');
     logLine('🎯 Claude Code: User asked (full):', prompt);
-    logLine('🎯 Claude Code: Agent type:', agentType);
     logLine('🎯 Claude Code: Options received (full):', pretty(options));
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -63,9 +62,20 @@ export async function POST(req: NextRequest) {
         const encoder = new TextEncoder();
 
         try {
+          // Configure based on subagent
+          const baseUrl = getBaseUrl(req as any);
+          const tools = createGraphTools(baseUrl);
+          logLine('🔧 Claude Code: Registering tools:', tools.map(t => t.name));
+          const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
+
+          // Log the working directory
+          const workingDirectory = projectDir();
+          const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
+          logLine(`📁 Claude Code: Working directory (${mode} mode): ${workingDirectory}`);
+
           logLine('🚀 Starting Claude Code query with prompt length:', prompt.length);
 
-          // Create user message generator with the dynamic prompt
+          // Create user message generator with the prompt
           async function* generateUserMessage(): AsyncGenerator<SDKUserMessage> {
             yield {
               type: "user",
@@ -82,148 +92,69 @@ export async function POST(req: NextRequest) {
             first = false;
           }
 
+          // Orchestrator system prompt - analyzes diffs and delegates specific tasks
+          const orchestratorSystemPrompt = `You are the Manta orchestrator agent. Your role is to analyze the current state, identify what needs to be built, and delegate specific implementation tasks to specialized subagents. You are responsible for updating the base graph when all implementation work is complete.
+
+CRITICAL RULES:
+- You are an ORCHESTRATOR - you analyze, delegate tasks, coordinate, and finalize results
+- NEVER edit graph structure (nodes, edges) directly
+- NEVER write or modify code files
+- You CAN use analyze_diff() to understand what needs to be done
+- You CAN use update_base_graph() to finalize completed work
+
+ORCHESTRATOR WORKFLOW:
+
+Graph editing:
+For graph structure editing (creating nodes, editing connections, deleting elements): Use the graph-editor subagent
+
+There is current graph, which is the state of the codebase we need to achieve, and there is base graph, which is the current state of the codebase.
+You need to get the difference, and implement the changes to make the base graph match the current graph, by using code-builder subagent and then syncing the changes to the base graph.
+
+Graph building:
+1. Use analyze_diff() at the START to identify what changes need to be made
+2. For each change:
+   - Launch code-builder subagent with specific task: "Implement node [ID] - create properties and generate code"
+   - Wait for completion of that specific task
+   - Repeat for each change that needs work
+   - Use sync_to_base_graph() to sync the completed nodes/edges to base graph
+3. Use analyze_diff() at the END to verify that graphs are now in sync
+
+TASK DELEGATION:
+- Give code-builder ONE SPECIFIC NODE at a time to work on
+- Wait for each task to complete before starting the next
+- Provide clear instructions: "Build node [ID] with title '[TITLE]' and prompt '[PROMPT]'"
+- Monitor progress and ensure each task completes successfully
+
+VERIFICATION PROCESS:
+- Run analyze_diff() before starting any work to see the initial state
+- Run analyze_diff() after sync_to_base_graph() to confirm all differences are resolved
+- Only consider the task complete when analyze_diff() shows no remaining differences
+
+ORCHESTRATOR RESPONSIBILITIES:
+- Analyze the diff between current and base graphs to identify work needed
+- Delegate specific implementation tasks to code-builder subagent
+- Coordinate the workflow and ensure all tasks complete
+- Use sync_to_base_graph() with specific node/edge IDs to sync completed work
+- Use analyze_diff() before and after to verify sync status
+- Provide high-level guidance and summarize results
+
+Remember: You analyze what needs to be done, delegate specific tasks one by one, sync the results, and verify completion.`;
+
+          // Generic query options with orchestrator prompt
+          const queryOptions: Options = {
+            includePartialMessages: true,
+            customSystemPrompt: orchestratorSystemPrompt,
+            permissionMode: 'bypassPermissions',
+            mcpServers: { 'graph-tools': mcpServer },
+            abortController: new AbortController(),
+            cwd: workingDirectory,
+            strictMcpConfig: true,
+          } as any;
+
           logLine('🔧 Claude Code: Starting query iteration');
 
           let messageCount = 0;
           try {
-            // Configure based on agent type
-            const baseUrl = getBaseUrl(req as any);
-            const tools = createGraphTools(baseUrl);
-            logLine('🔧 Claude Code: Registering tools:', tools.map(t => t.name));
-            const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
-
-            // Log the working directory for the agent
-            const workingDirectory = projectDir();
-            const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
-            logLine(`📁 Claude Code: Working directory for ${agentType} (${mode} mode): ${workingDirectory}`);
-
-            // Choose configuration based on agent type
-            let customSystemPrompt: string;
-            let allowedTools: string[];
-            let disallowedTools: string[];
-            let queryOptions: Options;
-
-            if (agentType === 'edit-graph') {
-              customSystemPrompt =
-              `You are a graph editor agent.
-
-              Rules:
-              - Use unique IDs for all nodes
-              - Never edit source code - graph changes only
-              - Delete template nodes if request requires different structure
-              - Create nodes WITHOUT properties (properties are handled by graph builders)
-              - You can edit property values for existing nodes
-              - Use clear, descriptive titles and prompts for nodes
-
-              Tools: read(graphType="current"), node_create, node_edit, node_delete, edge_create, edge_delete
-
-              IMPORTANT: Always use read(graphType="current") to work with the current graph structure.
-
-              Keep responses brief, use the tools quickly and efficiently.
-              Optimization rules:
-              - For read-only queries ("what nodes are on the graph?"), call read(graphType="current") once and answer succinctly.
-              - For deletions, call node_delete once per target node and avoid repeated attempts.
-              - Avoid unnecessary thinking or extra tool calls when a single call is sufficient.`;
-
-              allowedTools = ["mcp__graph-tools__read", "mcp__graph-tools__node_add", "mcp__graph-tools__node_edit", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create", "mcp__graph-tools__edge_delete"];
-              // No disallowedTools - only allowedTools are permitted
-
-              // Edit operations work in the configured project directory (dev: test-project, prod: user project)
-              const editGraphCwd = projectDir();
-
-              queryOptions = {
-                includePartialMessages: true,
-                customSystemPrompt: customSystemPrompt,
-                permissionMode: 'bypassPermissions',
-                mcpServers: { 'graph-tools': mcpServer },
-                allowedTools: allowedTools,
-                abortController: new AbortController(),
-                cwd: editGraphCwd,
-                strictMcpConfig: true,
-              } as any;
-            } else if (agentType === 'build-graph') {
-              customSystemPrompt = `You are the Manta code builder agent. Follow this 3-step pipeline:
-
-              PIPELINE:
-              1. GET DIFF - Use analyze_diff() to see what nodes need to be built or updated
-              2. GENERATE PROPERTIES - Create/edit properties for new nodes and regenerate where changes are needed
-              3. GENERATE CODE - Implement code and wire all properties to actual functionality
-
-              Rules:
-              - Always start with analyze_diff() to understand what work is needed
-              - Use read(graphType="current") and read(graphType="base") to examine specific nodes that need building
-              - Focus on properties first, then code implementation
-              - Use node_edit() to add/modify properties on existing nodes
-              - Only use update_base_graph() when implementation is complete and tested
-
-              Property Guidelines:
-              - Properties should correspond to real component attributes and be wired to the actual code for CMS-style customization
-              - Make sure that all properties have values in the nodes
-              - Use appropriate input types from the schema that make sense for the component's customization needs:
-                * 'text' - for strings like titles, descriptions, labels
-                * 'textarea' - for longer text content, descriptions, or formatted text
-                * 'number' - for numeric values like sizes, padding, font sizes, quantities
-                * 'color' - for color pickers (background-color, text-color, border-color, etc.)
-                * 'boolean' - for true/false values like disabled, visible, required, clickable
-                * 'select' - for predefined options like size scales, layout directions, font families
-                * 'checkbox' - for multiple selections like features or categories
-                * 'radio' - for single selections from mutually exclusive options
-                * 'slider' - for ranged numeric values like opacity, border radius, spacing
-                * 'font' - for font selection with family, size, weight options
-                * 'object' - for nested properties and grouped settings
-                * 'object-list' - for arrays of objects like social links, menu items, testimonials
-              - Each property should have a clear 'title' and appropriate 'type' from the schema above
-              - Properties should be functional and actually affect the component's behavior/appearance
-              - Use CMS-style property categories:
-                * Colors: background-color, text-color, border-color, hover-color, etc.
-                * Sizes: width, height, padding, margin, font-size, border-radius, etc.
-                * Behavior: disabled, visible, clickable, required, readonly, etc.
-                * Content: title, description, placeholder, alt-text, label, etc.
-                * Layout: position, flex-direction, justify-content, align-items, gap, etc.
-                * Interactions: onClick, onHover, onChange handlers, etc.
-              - Properties should use sensible defaults but be customizable through the CMS interface
-              - IMPORTANT: Always use the correct property type - NEVER use "text" type for color properties, always use "color" type, etc.
-              - Group related properties using 'object' type for better organization (e.g., "root-styles" with background-color, text-color, font-family)
-              - Use 'object-list' for repeatable content structures with defined itemFields
-              - Make sure that all properties are editable by a normal user without programming/css knowledge, for a gradient do an object with a few colors, etc.
-
-              Available Tools:
-              - analyze_diff() - Step 1: Get differences between current and base graphs
-              - read(graphType, nodeId?) - Read from current or base graph, or specific nodes
-              - node_edit(mode, properties) - Step 2: Generate/edit properties for nodes
-              - node_add(nodeId, title, prompt) - Add new nodes to the graph
-              - edge_delete(sourceId, targetId) - Delete edges between nodes
-              - update_base_graph(nodes) - Step 3: Save completed implementations to base graph
-
-              Output: Short, single-sentence status updates during work. End with concise summary of what was accomplished.
-
-              This is a Vite project using TypeScript and Tailwind CSS. Focus on code implementation and property wiring.`;
-
-              // Graph builders follow a 3-step pipeline:
-              // 1. Get diff to see what needs to be built
-              // 2. Generate properties for new nodes, regenerate where they need changes
-              // 3. Generate code and wire properties
-
-              // Use disallowedTools only - all tools allowed except these specific ones
-              disallowedTools = ["mcp__graph-tools__node_create", "mcp__graph-tools__node_delete", "mcp__graph-tools__edge_create", "mcp__graph-tools__edge_delete",];
-              // No allowedTools - using disallowedTools approach
-
-              // Build operations work in the configured project directory (dev: test-project, prod: user project)
-              const buildGraphCwd = projectDir();
-
-              queryOptions = {
-                includePartialMessages: true,
-                customSystemPrompt: customSystemPrompt,
-                permissionMode: 'bypassPermissions',
-                mcpServers: { 'graph-tools': mcpServer },
-                disallowedTools: disallowedTools,
-                abortController: new AbortController(),
-                cwd: buildGraphCwd,
-                strictMcpConfig: true,
-              } as any;
-            } else {
-              throw new Error(`Unknown agent type: ${agentType}`);
-            }
 
             
 
@@ -257,6 +188,7 @@ export async function POST(req: NextRequest) {
               streamClosed = true;
               try {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Query failed: ' + (queryError as Error).message })}\n\n`));
+                controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));
               } catch (enqueueError) {
                 logLine('⚠️ Failed to enqueue error - stream may be closed:', enqueueError);
               }
@@ -291,6 +223,7 @@ export async function POST(req: NextRequest) {
             streamClosed = true;
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n\n`));
+              controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));
             } catch (enqueueError) {
               console.error('⚠️ Failed to enqueue final error - stream may be closed:', enqueueError);
             }

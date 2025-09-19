@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef, memo } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -6,17 +7,15 @@ import {
   Background,
   useNodesState,
   useEdgesState,
-  addEdge,
+  Connection,
   Node,
   Edge,
-  Connection,
   NodeMouseHandler,
   EdgeMouseHandler,
   OnEdgesChange,
   Handle,
   Position,
   useViewport,
-  ColorMode,
   PanOnScrollMode,
   ConnectionMode,
   useReactFlow,
@@ -28,11 +27,20 @@ import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
-import { graphToXml, xmlToGraph } from '@/app/api/lib/schemas';
+import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, RotateCcw, Trash2, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
+import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
 
+// Connection validation function
+const isValidConnection = (connection: Connection | Edge) => {
+  // Prevent self-connections
+  if (connection.source === connection.target) {
+    return false;
+  }
+  // Add more validation logic here if needed
+  return true;
+};
 
 // Custom node component
 const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
@@ -40,23 +48,6 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   const baseGraph = data.baseGraph;
   const { zoom } = useViewport();
   
-  // Disallow duplicate connections (in either direction) and self-loops
-  const isValidConnection = useCallback((conn: Connection) => {
-    try {
-      const g: Graph | undefined = data.graph;
-      if (!g) return true;
-      const s = conn.source;
-      const t = conn.target;
-      if (!s || !t) return true; // allow hover previews
-      if (s === t) return false; // no self-loop
-      const exists = (g.edges || []).some((e: any) =>
-        (e.source === s && e.target === t) || (e.source === t && e.target === s)
-      );
-      return !exists;
-    } catch {
-      return true;
-    }
-  }, [data.graph]);
 
   // Helper: get all connected neighbors (incoming + outgoing)
   const getNodeConnections = (nodeId: string) => {
@@ -154,19 +145,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           alignItems: 'center',
         }}
       >
-        {/* State indicators - only show for unbuilt nodes */}
-        {effectiveState === 'unbuilt' && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            width: indicatorSize,
-            height: indicatorSize,
-            borderRadius: '50%',
-            background: '#ef4444',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
-          }} />
-        )}
+        {/* State indicator - only show for unbuilt nodes */}
         {effectiveState === 'unbuilt' && (
           <div style={{
             position: 'absolute',
@@ -675,26 +654,7 @@ function GraphCanvas() {
     };
   }, [connectToGraphEvents, disconnectFromGraphEvents]);
 
-  // Listen for iframe selection events
-  useEffect(() => {
-    const handleIframeSelection = (event: MessageEvent) => {
-      if (event.data?.source === 'iframe') {
-        if (event.data?.type === 'manta:iframe:selection') {
-          const { nodeId, nodeData } = event.data;
-          console.log('GraphView received iframe selection:', nodeId);
-          setSelectedNode(nodeId, nodeData);
-          setSelectedNodeIds([nodeId]);
-        } else if (event.data?.type === 'manta:iframe:deselection') {
-          console.log('GraphView received iframe deselection');
-          setSelectedNode(null, null);
-          setSelectedNodeIds([]);
-        }
-      }
-    };
-
-    window.addEventListener('message', handleIframeSelection);
-    return () => window.removeEventListener('message', handleIframeSelection);
-  }, [setSelectedNode, setSelectedNodeIds]);
+  // Removed iframe selection message handling
 
   // No polling - rely on SSE for agent-initiated updates only
 
@@ -903,20 +863,7 @@ function GraphCanvas() {
       setSelectedNodeIds([node.id]);
       setSelectedNode(node.id, freshGraphNode);
 
-      // Communicate selection to iframe
-      const childWindow = (window as any).__mantaChildWindow;
-      if (childWindow && typeof childWindow.postMessage === 'function') {
-        try {
-          childWindow.postMessage({
-            type: 'manta:graph:selection',
-            nodeId: node.id,
-            nodeData: freshGraphNode,
-            source: 'graph'
-          }, '*');
-        } catch (error) {
-          console.warn('Failed to communicate selection to iframe:', error);
-        }
-      }
+      // Removed iframe selection messaging
     }
   }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
 
@@ -931,18 +878,7 @@ function GraphCanvas() {
       setSelectedNode(null, null);
       setSelectedNodeIds([]);
 
-      // Communicate deselection to iframe
-      const childWindow = (window as any).__mantaChildWindow;
-      if (childWindow && typeof childWindow.postMessage === 'function') {
-        try {
-          childWindow.postMessage({
-            type: 'manta:graph:deselection',
-            source: 'graph'
-          }, '*');
-        } catch (error) {
-          console.warn('Failed to communicate deselection to iframe:', error);
-        }
-      }
+      // Removed iframe deselection messaging
     }
   }, [setSelectedNode, setSelectedNodeIds]);
 
@@ -992,13 +928,14 @@ function GraphCanvas() {
       const isPropertyOnlyChange = prevGraphStructureRef.current === currentStructure && latestNodesRef.current.length > 0;
 
       if (isPropertyOnlyChange) {
-        // Only properties changed - update existing nodes without full rebuild
-        console.log('🔄 Updating node properties without full rebuild');
+        // Only properties or baseGraph changed - update existing nodes/edges without full rebuild
+        console.log('🔄 Updating node data and edge styles without full rebuild');
+
+        // Update node payloads to reflect latest graph node data AND new baseGraph reference
         setNodes(currentNodes =>
           currentNodes.map(node => {
             const graphNode = graph.nodes.find(n => n.id === node.id);
             if (graphNode) {
-              // Preserve selection state and other node properties
               const shouldBeSelected = (selectedNodeIds && selectedNodeIds.length > 0)
                 ? selectedNodeIds.includes(node.id)
                 : selectedNodeId === node.id;
@@ -1009,13 +946,27 @@ function GraphCanvas() {
                 data: {
                   ...node.data,
                   node: graphNode,
-                  properties: graphNode.properties || []
+                  properties: graphNode.properties || [],
+                  baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
+                  graph: graph,
                 }
               };
             }
             return node;
           })
         );
+
+        // Also refresh edge styling (built/unbuilt) against latest baseGraph
+        setEdges(currentEdges =>
+          currentEdges.map(e => {
+            const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+            return {
+              ...e,
+              style: e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+            } as Edge;
+          })
+        );
+
         return;
       }
 
@@ -1164,25 +1115,23 @@ function GraphCanvas() {
               }
             }
               
-          const edgeId = `${edge.source}-${edge.target}`;
-          if (!addedEdges.has(edgeId)) {
-           // Check if edge is unbuilt
-           const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
-            
-            reactFlowEdges.push({
-              id: edge.id,
-              source: src,
-              target: tgt,
-              sourceHandle,
-              targetHandle,
-              type: 'default',
-              style: previouslySelectedEdges.has(edge.id)
-                ? selectedEdgeStyle
-               : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
-              interactionWidth: 24,
-              selected: previouslySelectedEdges.has(edge.id),
-            });
-            addedSymmetric.add(symKey);
+          // Check if edge is unbuilt
+          const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
+
+          reactFlowEdges.push({
+            id: edge.id,
+            source: src,
+            target: tgt,
+            sourceHandle,
+            targetHandle,
+            type: 'default',
+            style: previouslySelectedEdges.has(edge.id)
+              ? selectedEdgeStyle
+             : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+            interactionWidth: 24,
+            selected: previouslySelectedEdges.has(edge.id),
+          });
+          addedSymmetric.add(symKey);
           }
         });
       }
@@ -1409,7 +1358,7 @@ function GraphCanvas() {
   }, [updateNode]);
 
   // Handle background mouse down for node creation
-  const onPaneMouseDown = useCallback((event: React.MouseEvent) => {
+  const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {
     // Only start selection on left mouse button
     if (event.button !== 0) return;
     // Ignore clicks that originate from nodes, edges, or handles

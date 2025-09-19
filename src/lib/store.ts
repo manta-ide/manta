@@ -468,18 +468,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Calculate the diff between current and base graphs
       const diff = state.calculateGraphDiff();
 
-      // Send build request with diff to agent
+      // Send build request - subagent will analyze diff itself
       const response = await fetch('/api/agent-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agentType: 'build-graph',
           userMessage: {
             role: 'user',
-            content: 'Build the entire graph with the following changes',
-            variables: { GRAPH_DIFF: JSON.stringify(diff) }
+            content: 'Build the graph - analyze changes and implement code for all nodes that need building'
           },
-          graphDiff: diff,
           currentGraph: state.graph
         }),
       });
@@ -511,7 +508,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           for (const line of lines) {
             if (line.trim()) {
               console.log('Build progress:', line);
-              if (line.includes('completed successfully')) {
+              if (line.includes('completed successfully') || line.includes('build process is now complete') || line.includes('[STREAM_END]')) {
                 console.log('✅ Graph build completed successfully');
                 set({ isBuildingGraph: false });
                 // Refresh the graph to show any changes
@@ -695,11 +692,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         try {
           const raw = ev.data || '';
 
-          // Skip graph updates if optimistic/suppression window is active
+          // Check if we're in a suppression window (will be bypassed for agent updates)
           const currentState = get();
           const now = Date.now();
           const suppressed = currentState.optimisticOperationsActive || (currentState.sseSuppressedUntil != null && now < (currentState.sseSuppressedUntil as number));
-          if (suppressed) return;
 
           const trimmed = raw.trim();
           // Case 1: plain XML
@@ -713,15 +709,39 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           // Case 2: JSON message
           try {
             const data = JSON.parse(trimmed);
-            if (data?.type === 'graph-update' && data.graph) {
-              const reconciled = reconcileGraph(get().graph, data.graph);
-              if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
-              return;
+
+            // Allow agent-driven updates even during optimistic operations
+            const isAgentUpdate = data?.source === 'agent' || data?.metadata?.source === 'agent';
+            if (suppressed && !isAgentUpdate) return;
+
+            if (data?.type === 'graph-update') {
+              if (data.xml) {
+                // New format with base64 XML and metadata
+                const xml = Buffer.from(data.xml, 'base64').toString('utf8');
+                const incoming = xmlToGraph(xml);
+                const reconciled = reconcileGraph(get().graph, incoming);
+                if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
+                return;
+              } else if (data.graph) {
+                // Legacy format with direct graph object
+                const reconciled = reconcileGraph(get().graph, data.graph);
+                if (reconciled) set({ graph: reconciled, graphLoading: false, graphError: null, graphConnected: true });
+                return;
+              }
             }
             // Handle base graph updates
             if (data?.type === 'base-graph-update' && data.baseGraph) {
               console.log('📊 SSE: Received base graph update');
               set({ baseGraph: data.baseGraph, graphLoading: false, graphError: null, graphConnected: true });
+              return;
+            }
+
+            // Handle build completion
+            if (data?.type === 'build-complete') {
+              console.log('✅ SSE: Build process completed - clearing UI loading states');
+              // Clear both optimistic operations and building graph states when build completes
+              set({ optimisticOperationsActive: false, isBuildingGraph: false });
+              console.log('✅ SSE: UI states cleared - optimisticOperationsActive: false, isBuildingGraph: false');
               return;
             }
           } catch {}
