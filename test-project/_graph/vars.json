@@ -1,19 +1,19 @@
 {
-  "is-dark-theme": "",
+  "is-dark-theme": true,
   "root-styles": {
-    "background-color": "#e8dede",
+    "background-color": "#000000",
     "text-color": "#000000",
     "font-family": "Arial",
     "base-font-size": "1rem"
   },
   "header-styles": {
-    "background-color": "#b64646",
+    "background-color": "#1753a3",
     "text-color": "#ffffff",
     "height": "6rem",
     "padding-x": "2rem"
   },
   "logo": {
-    "text": "MyApp",
+    "text": "MKX",
     "font-size": "1.5rem",
     "font-weight": "bold"
   },
@@ -35,18 +35,18 @@
       "href": "#contact"
     }
   ],
-  "hero-styles": {
-    "background-gradient-start": "#e6e6e6",
-    "background-gradient-end": "#764ba2",
-    "text-color": "#ffffff",
-    "padding-y": "5rem",
-    "padding-x": "3rem"
-  },
   "hero-content": {
-    "headline": "Welcome to Our Platform",
+    "headline": "MKX Software",
     "subheadline": "Build amazing experiences with our powerful tools",
     "cta-text": "Get Started",
     "cta-href": "#start"
+  },
+  "hero-styles": {
+    "background-gradient-start": "#000000",
+    "background-gradient-end": "#764ba2",
+    "text-color": "#000000",
+    "padding-y": "5rem",
+    "padding-x": "3rem"
   },
   "hero-typography": {
     "headline-size": "3.5rem",
@@ -54,54 +54,180 @@
     "headline-weight": "bold",
     "text-align": "center"
   },
-  "initial-count": 0,
-  "increment-step": 1,
-  "counter-styles": {
-    "background-color": "",
-    "number-color": "",
-    "number-size": [
-      100
-    ],
-    "padding": "",
-    "border-radius": ""
+  "section-title": "Our Projects",
+  "section-description": "Explore our latest work and innovative solutions",
+  "projects": [
+    {
+      "title": "Pactory",
+      "description": "Modern shopping experience with advanced features",
+      "image": "https://via.placeholder.com/400x250/3B82F6/ffffff?text=E-commerce+Platform",
+      "link": "https://example.com/project1",
+      "technologies": [
+        {
+          "name": ""
+        },
+        {
+          "name": ""
+        },
+        {
+          "name": ""
+        }
+      ]
+    },
+    {
+      "title": "Pecan",
+      "description": "Secure and intuitive banking solution",
+      "image": "https://via.placeholder.com/400x250/10B981/ffffff?text=Banking+App",
+      "link": "https://example.com/project2",
+      "technologies": [
+        {
+          "name": ""
+        },
+        {
+          "name": ""
+        },
+        {
+          "name": ""
+        }
+      ]
+    },
+    {
+      "title": "MKX Gaming",
+      "description": "Real-time analytics and machine learning insights",
+      "image": "https://via.placeholder.com/400x250/8B5CF6/ffffff?text=AI+Dashboard",
+      "link": "https://example.com/project3",
+      "technologies": [
+        {
+          "name": ""
+        },
+        {
+          "name": ""
+        },
+        {
+          "name": ""
+        }
+      ]
+    }
+  ],
+  "carousel-settings": {
+    "autoplay": true,
+    "autoplayDelay": 5000,
+    "showDots": true,
+    "showArrows": true,
+    "slidesToShow": 3,
+    "slidesToScroll": 1
+  },
+  "section-styles": {
+    "backgroundColor": "#ffffff",
+    "textColor": "#1f2937",
+    "titleColor": "#111827",
+    "padding": "4rem 1rem"
+  },
+  "card-styles": {
+    "cardBackground": "#ffffff",
+    "cardBorder": "#e5e7eb",
+    "cardShadow": "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+    "borderRadius": "0.75rem",
+    "hoverScale": 1.05
   },
   "button-styles": {
-    "button-color": "",
-    "button-hover-color": "",
-    "button-text-color": "",
-    "button-size": "large",
-    "button-spacing": ""
+    "buttonColor": "#3b82f6",
+    "buttonTextColor": "#ffffff",
+    "buttonHoverColor": "#2563eb",
+    "buttonText": "View Project"
   },
-  "labels": {
-    "section-title": "",
-    "increment-label": "",
-    "decrement-label": "",
-    "reset-label": ""
+  "node-1758263161465660-section-title": "Our Founding Team",
+  "section-subtitle": "Meet the passionate individuals who started this journey",
+  "team-members": [
+    {
+      "name": "Artem Marunchenko",
+      "role": "President",
+      "photo": "https://media.licdn.com/dms/image/v2/D5603AQEkjAwXPRdJ0g/profile-displayphoto-shrink_800_800/B56Zd8JaGnGoAk-/0/1750134530802?e=1761177600&v=beta&t=iQGUlIwkG2oYVQRHrh3BiRL-NuHP9LkjJ1SoyIZjtgM",
+      "experience": "15+ years in software development",
+      "bio": "Artem bring profound expertise in software development and management"
+    }
+  ],
+  "layout-style": "grid",
+  "columns-per-row": 1,
+  "photo-style": "circle",
+  "photo-size": "large",
+  "text-alignment": "center",
+  "show-experience": true,
+  "show-bio": true,
+  "node-1758263161465660-section-styles": {
+    "background-color": "#ffffff",
+    "text-color": "#1f2937",
+    "padding": "4rem 1rem"
   },
-  "features": {
-    "show-reset": true,
-    "show-title": "",
-    "enable-keyboard": "",
-    "min-value": 0,
-    "max-value": 17
+  "title-styles": {
+    "font-size": "2.5rem",
+    "font-weight": "bold",
+    "color": "#1f2937",
+    "margin-bottom": "1rem"
   },
-  "title": "Test Section",
-  "description": "This is a test section component that can be customized through the CMS interface.",
-  "background-color": "#ffffff",
-  "text-color": "#333333",
-  "padding": "md",
-  "border-radius": "8",
-  "visible": true,
-  "centered": "",
-  "styles": {
-    "border-color": "",
-    "border-width": 0,
-    "shadow": ""
+  "node-1758263161465660-card-styles": {
+    "background-color": "#f9fafb",
+    "border-radius": "0.75rem",
+    "padding": "2rem",
+    "shadow": "lg",
+    "hover-transform": true
   },
-  "width": 300,
-  "height": 200,
-  "node-1758262383890521-border-radius": 8,
-  "node-1758262383890521-padding": 16,
-  "font-size": 16,
-  "opacity": "1"
+  "footer-styles": {
+    "background-color": "#1f2937",
+    "text-color": "#e5e7eb",
+    "border-color": "#374151",
+    "padding-y": "3rem",
+    "padding-x": "1rem"
+  },
+  "company-info": {
+    "name": "MyCompany",
+    "description": "Building amazing digital experiences since 2024",
+    "copyright": "© 2024 MyCompany. All rights reserved."
+  },
+  "social-links": [
+    {
+      "platform": "Twitter",
+      "url": "https://twitter.com/mycompany",
+      "label": "Follow us on Twitter"
+    },
+    {
+      "platform": "Facebook",
+      "url": "https://facebook.com/mycompany",
+      "label": "Like us on Facebook"
+    },
+    {
+      "platform": "LinkedIn",
+      "url": "https://linkedin.com/company/mycompany",
+      "label": "Connect on LinkedIn"
+    },
+    {
+      "platform": "GitHub",
+      "url": "https://github.com/mycompany",
+      "label": "View our code"
+    }
+  ],
+  "footer-links": [
+    {
+      "label": "Privacy Policy",
+      "href": "/privacy"
+    },
+    {
+      "label": "Terms of Service",
+      "href": "/terms"
+    },
+    {
+      "label": "Contact",
+      "href": "/contact"
+    },
+    {
+      "label": "About",
+      "href": "/about"
+    }
+  ],
+  "layout-options": {
+    "show-border-top": true,
+    "center-content": true,
+    "max-width": "1200px",
+    "social-icon-size": "1.5rem"
+  }
 }

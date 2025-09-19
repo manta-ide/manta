@@ -117,8 +117,156 @@
   --sidebar-ring: oklch(0.442 0.017 285.786);
 }
 
+/* Modern design enhancements */
+* {
+  scroll-behavior: smooth;
+}
+
 /* Inherit font family/size from CSS vars when provided (no defaults) */
 body {
-  font-family: var(--font-family), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--font-family), 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
   font-size: var(--base-font-size);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Modern glass morphism effects */
+.glass-effect {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+/* Enhanced gradient backgrounds */
+.gradient-radial {
+  background: radial-gradient(ellipse at center, var(--gradient-start, #667eea), var(--gradient-end, #764ba2));
+}
+
+.gradient-mesh {
+  background:
+    radial-gradient(at 40% 20%, hsla(228,74%,75%, 0.7) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189,100%,56%, 0.7) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355,100%,93%, 0.7) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(340,100%,76%, 0.7) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(22,100%,77%, 0.7) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(242,100%,70%, 0.7) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, hsla(343,100%,76%, 0.7) 0px, transparent 50%);
+}
+
+/* Modern button hover effects */
+.modern-button {
+  @apply relative overflow-hidden transition-all duration-300 ease-out;
+  transform: translateY(0px);
+}
+
+.modern-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.modern-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.modern-button:hover::before {
+  left: 100%;
+}
+
+/* Enhanced card styles */
+.modern-card {
+  @apply relative overflow-hidden;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Modern text effects */
+.text-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Enhanced animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* Staggered animations */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+/* Modern scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #5a6fd8, #6a4190);
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(102, 126, 234, 0.3);
+  color: inherit;
+}
+
+::-moz-selection {
+  background: rgba(102, 126, 234, 0.3);
+  color: inherit;
 }

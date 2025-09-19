@@ -109,6 +109,7 @@ For graph structure editing (creating nodes, editing connections, deleting eleme
 
 There is current graph, which is the state of the codebase we need to achieve, and there is base graph, which is the current state of the codebase.
 You need to get the difference, and implement the changes to make the base graph match the current graph, by using code-builder subagent and then syncing the changes to the base graph.
+Make sure that if the elements get deleted, the appropriate code is gracefully deleted from the codebase.
 
 Graph building:
 1. Use analyze_diff() at the START to identify what changes need to be made
@@ -118,6 +119,7 @@ Graph building:
    - Repeat for each change that needs work
    - Use sync_to_base_graph() to sync the completed nodes/edges to base graph
 3. Use analyze_diff() at the END to verify that graphs are now in sync
+4. Verify that properties are wired to the code properly. If not, use code-builder to fix it.
 
 TASK DELEGATION:
 - Give code-builder ONE SPECIFIC NODE at a time to work on

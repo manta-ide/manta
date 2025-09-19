@@ -152,10 +152,10 @@ export default function SelectedNodeSidebar() {
 
 			// Always update vars for live preview, but throttle for high-frequency
 			const lastVarsUpdate = lastPropertyUpdate.current[`${propertyId}_vars`] || 0;
-			if (!isHighFrequency || now - lastVarsUpdate >= 50) {
-				lastPropertyUpdate.current[`${propertyId}_vars`] = now;
-				postVarsUpdate({ [propertyId]: value });
-			}
+			// if (!isHighFrequency || now - lastVarsUpdate >= 50) {
+			// 	lastPropertyUpdate.current[`${propertyId}_vars`] = now;
+			// 	postVarsUpdate({ [propertyId]: value });
+			// }
 		}
 
     // For high-frequency props (e.g., color), opportunistically persist faster (throttled)

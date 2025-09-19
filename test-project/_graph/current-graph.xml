@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="1077.8838654903236" y="-237.8072945008135" z="0">
+    <node id="app" title="Simple App" x="1313.5541412725581" y="103.2347872802087" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
       <props>
-        <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
+        <prop name="is-dark-theme" title="Is Dark Theme" type="boolean">true</prop>
         <prop name="root-styles" title="Root Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#e8dede</field>
+        <field name="background-color" title="Background Color" type="color">#000000</field>
         <field name="text-color" title="Text Color" type="color">#000000</field>
         <field name="font-family" title="Font Family" type="select">
           <value>Arial</value>
@@ -38,7 +38,7 @@
       <description>One color header bar with nav links</description>
       <props>
         <prop name="header-styles" title="Header Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#b64646</field>
+        <field name="background-color" title="Background Color" type="color">#1753a3</field>
         <field name="text-color" title="Text Color" type="color">#ffffff</field>
         <field name="height" title="Header Height" type="select">
           <value>6rem</value>
@@ -60,7 +60,7 @@
         </field>
       </prop>
         <prop name="logo" title="Logo Settings" type="object">
-        <field name="text" title="Logo Text" type="text">MyApp</field>
+        <field name="text" title="Logo Text" type="text">MKX</field>
         <field name="font-size" title="Logo Font Size" type="select">
           <value>1.5rem</value>
           <options>
@@ -103,13 +103,19 @@
       </props>
     </node>
 
-    <node id="node-1758061687539528" title="Hero section" x="292.11185710430254" y="74.45312278066837" z="0">
+    <node id="node-1758061687539528" title="Hero section" x="585.5666716600658" y="-156.68503231344636" z="0">
       <description>Hero section with a few texts and a gradient</description>
       <props>
+        <prop name="hero-content" title="Hero Content" type="object">
+        <field name="headline" title="Main Headline" type="text">MKX Software</field>
+        <field name="subheadline" title="Subheadline" type="textarea">Build amazing experiences with our powerful tools</field>
+        <field name="cta-text" title="Call-to-Action Text" type="text">Get Started</field>
+        <field name="cta-href" title="Call-to-Action Link" type="text">#start</field>
+      </prop>
         <prop name="hero-styles" title="Hero Styles" type="object">
-        <field name="background-gradient-start" title="Gradient Start Color" type="color">#e6e6e6</field>
+        <field name="background-gradient-start" title="Gradient Start Color" type="color">#000000</field>
         <field name="background-gradient-end" title="Gradient End Color" type="color">#764ba2</field>
-        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="text-color" title="Text Color" type="color">#000000</field>
         <field name="padding-y" title="Vertical Padding" type="select">
           <value>5rem</value>
           <options>
@@ -130,12 +136,6 @@
           <option>3rem</option>
           </options>
         </field>
-      </prop>
-        <prop name="hero-content" title="Hero Content" type="object">
-        <field name="headline" title="Main Headline" type="text">Welcome to Our Platform</field>
-        <field name="subheadline" title="Subheadline" type="textarea">Build amazing experiences with our powerful tools</field>
-        <field name="cta-text" title="Call-to-Action Text" type="text">Get Started</field>
-        <field name="cta-href" title="Call-to-Action Link" type="text">#start</field>
       </prop>
         <prop name="hero-typography" title="Typography" type="object">
         <field name="headline-size" title="Headline Font Size" type="select">
@@ -180,84 +180,285 @@
       </props>
     </node>
 
-    <node id="counter-section" title="Counter Section" x="745.6949035272221" y="244.80205375742514" z="0">
-      <description>Create a counter section with a number display and increment/decrement buttons. Include the current count value prominently displayed.</description>
+    <node id="node-1758263116699231" title="Projects section" x="578.0996378612148" y="88.69266479368068" z="0">
+      <description>Carousel with projects and links</description>
       <props>
-        <prop name="initial-count" title="Initial Count" type="number">0</prop>
-        <prop name="increment-step" title="Increment Step" type="number">1</prop>
-        <prop name="counter-styles" title="Counter Styles" type="object">
-        <field name="background-color" title="Background Color" type="color"></field>
-        <field name="number-color" title="Number Color" type="color"></field>
-        <field name="number-size" title="Number Size" type="slider">[100]</field>
-        <field name="padding" title="Padding" type="slider"></field>
-        <field name="border-radius" title="Border Radius" type="slider"></field>
+        <prop name="section-title" title="Section Title" type="text">Our Projects</prop>
+        <prop name="section-description" title="Section Description" type="textarea">Explore our latest work and innovative solutions</prop>
+        <prop name="projects" title="Projects" type="object-list">
+        <item index="0">
+          <field name="title" title="Project Title" type="text">Pactory</field>
+          <field name="description" title="Project Description" type="textarea">Modern shopping experience with advanced features</field>
+          <field name="image" title="Project Image URL" type="text">https://via.placeholder.com/400x250/3B82F6/ffffff?text=E-commerce+Platform</field>
+          <field name="link" title="Project Link" type="text">https://example.com/project1</field>
+          <field name="technologies" title="Technologies" type="object-list">
+        <item index="0">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+        <item index="1">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+        <item index="2">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+      </field>
+        </item>
+        <item index="1">
+          <field name="title" title="Project Title" type="text">Pecan</field>
+          <field name="description" title="Project Description" type="textarea">Secure and intuitive banking solution</field>
+          <field name="image" title="Project Image URL" type="text">https://via.placeholder.com/400x250/10B981/ffffff?text=Banking+App</field>
+          <field name="link" title="Project Link" type="text">https://example.com/project2</field>
+          <field name="technologies" title="Technologies" type="object-list">
+        <item index="0">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+        <item index="1">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+        <item index="2">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+      </field>
+        </item>
+        <item index="2">
+          <field name="title" title="Project Title" type="text">MKX Gaming</field>
+          <field name="description" title="Project Description" type="textarea">Real-time analytics and machine learning insights</field>
+          <field name="image" title="Project Image URL" type="text">https://via.placeholder.com/400x250/8B5CF6/ffffff?text=AI+Dashboard</field>
+          <field name="link" title="Project Link" type="text">https://example.com/project3</field>
+          <field name="technologies" title="Technologies" type="object-list">
+        <item index="0">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+        <item index="1">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+        <item index="2">
+          <field name="name" title="Technology Name" type="text"></field>
+        </item>
+      </field>
+        </item>
+      </prop>
+        <prop name="carousel-settings" title="Carousel Settings" type="object">
+        <field name="autoplay" title="Autoplay" type="boolean">true</field>
+        <field name="autoplayDelay" title="Autoplay Delay (ms)" type="number">5000</field>
+        <field name="showDots" title="Show Navigation Dots" type="boolean">true</field>
+        <field name="showArrows" title="Show Navigation Arrows" type="boolean">true</field>
+        <field name="slidesToShow" title="Slides to Show" type="number">3</field>
+        <field name="slidesToScroll" title="Slides to Scroll" type="number">1</field>
+      </prop>
+        <prop name="section-styles" title="Section Styles" type="object">
+        <field name="backgroundColor" title="Background Color" type="color">#ffffff</field>
+        <field name="textColor" title="Text Color" type="color">#1f2937</field>
+        <field name="titleColor" title="Title Color" type="color">#111827</field>
+        <field name="padding" title="Section Padding" type="text">4rem 1rem</field>
+      </prop>
+        <prop name="card-styles" title="Project Card Styles" type="object">
+        <field name="cardBackground" title="Card Background" type="color">#ffffff</field>
+        <field name="cardBorder" title="Card Border Color" type="color">#e5e7eb</field>
+        <field name="cardShadow" title="Card Shadow" type="text">0 4px 6px -1px rgba(0, 0, 0, 0.1)</field>
+        <field name="borderRadius" title="Border Radius" type="text">0.75rem</field>
+        <field name="hoverScale" title="Hover Scale" type="number">1.05</field>
       </prop>
         <prop name="button-styles" title="Button Styles" type="object">
-        <field name="button-color" title="Button Color" type="color"></field>
-        <field name="button-hover-color" title="Button Hover Color" type="color"></field>
-        <field name="button-text-color" title="Button Text Color" type="color"></field>
-        <field name="button-size" title="Button Size" type="select">
+        <field name="buttonColor" title="Button Color" type="color">#3b82f6</field>
+        <field name="buttonTextColor" title="Button Text Color" type="color">#ffffff</field>
+        <field name="buttonHoverColor" title="Button Hover Color" type="color">#2563eb</field>
+        <field name="buttonText" title="Button Text" type="text">View Project</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1758263161465660" title="Team" x="575.8335775171549" y="279.60824878073134" z="0">
+      <description>Founding team with photos and experience</description>
+      <props>
+        <prop name="node-1758263161465660-section-title" title="Section Title" type="text">Our Founding Team</prop>
+        <prop name="section-subtitle" title="Section Subtitle" type="textarea">Meet the passionate individuals who started this journey</prop>
+        <prop name="team-members" title="Team Members" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Artem Marunchenko</field>
+          <field name="role" title="Role/Position" type="text">President</field>
+          <field name="photo" title="Photo URL" type="text">https://media.licdn.com/dms/image/v2/D5603AQEkjAwXPRdJ0g/profile-displayphoto-shrink_800_800/B56Zd8JaGnGoAk-/0/1750134530802?e=1761177600&amp;v=beta&amp;t=iQGUlIwkG2oYVQRHrh3BiRL-NuHP9LkjJ1SoyIZjtgM</field>
+          <field name="experience" title="Experience Summary" type="text">15+ years in software development</field>
+          <field name="bio" title="Bio Description" type="textarea">Artem bring profound expertise in software development and management</field>
+        </item>
+      </prop>
+        <prop name="layout-style" title="Layout Style" type="select">
+          <value>grid</value>
+          <options>
+          <option>grid</option>
+          <option>horizontal</option>
+          <option>vertical</option>
+          </options>
+        </prop>
+        <prop name="columns-per-row" title="Columns Per Row" type="number">1</prop>
+        <prop name="photo-style" title="Photo Style" type="select">
+          <value>circle</value>
+          <options>
+          <option>circle</option>
+          <option>rounded</option>
+          <option>square</option>
+          </options>
+        </prop>
+        <prop name="photo-size" title="Photo Size" type="select">
           <value>large</value>
           <options>
           <option>small</option>
           <option>medium</option>
           <option>large</option>
           </options>
-        </field>
-        <field name="button-spacing" title="Button Spacing" type="slider"></field>
-      </prop>
-        <prop name="labels" title="Labels" type="object">
-        <field name="section-title" title="Section Title" type="text"></field>
-        <field name="increment-label" title="Increment Button Label" type="text"></field>
-        <field name="decrement-label" title="Decrement Button Label" type="text"></field>
-        <field name="reset-label" title="Reset Button Label" type="text"></field>
-      </prop>
-        <prop name="features" title="Features" type="object">
-        <field name="show-reset" title="Show Reset Button" type="boolean">true</field>
-        <field name="show-title" title="Show Section Title" type="boolean"></field>
-        <field name="enable-keyboard" title="Enable Keyboard Controls" type="boolean"></field>
-        <field name="min-value" title="Minimum Value" type="number">0</field>
-        <field name="max-value" title="Maximum Value" type="number">17</field>
-      </prop>
-      </props>
-    </node>
-
-    <node id="node-1758261265711502" title="Test section" x="1276.5447861112186" y="-720.6565819641439" z="0">
-      <description>Test 1</description>
-      <props>
-        <prop name="title" title="Section Title" type="text">Test Section</prop>
-        <prop name="description" title="Description" type="textarea">This is a test section component that can be customized through the CMS interface.</prop>
-        <prop name="background-color" title="Background Color" type="color">#ffffff</prop>
-        <prop name="text-color" title="Text Color" type="color">#333333</prop>
-        <prop name="padding" title="Padding" type="select">
-          <value>md</value>
+        </prop>
+        <prop name="text-alignment" title="Text Alignment" type="select">
+          <value>center</value>
           <options>
+          <option>left</option>
+          <option>center</option>
+          <option>right</option>
+          </options>
+        </prop>
+        <prop name="show-experience" title="Show Experience Summary" type="boolean">true</prop>
+        <prop name="show-bio" title="Show Bio Description" type="boolean">true</prop>
+        <prop name="node-1758263161465660-section-styles" title="Section Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#ffffff</field>
+        <field name="text-color" title="Text Color" type="color">#1f2937</field>
+        <field name="padding" title="Section Padding" type="text">4rem 1rem</field>
+      </prop>
+        <prop name="title-styles" title="Title Styles" type="object">
+        <field name="font-size" title="Font Size" type="text">2.5rem</field>
+        <field name="font-weight" title="Font Weight" type="select">
+          <value>bold</value>
+          <options>
+          <option>normal</option>
+          <option>bold</option>
+          <option>light</option>
+          </options>
+        </field>
+        <field name="color" title="Title Color" type="color">#1f2937</field>
+        <field name="margin-bottom" title="Bottom Margin" type="text">1rem</field>
+      </prop>
+        <prop name="node-1758263161465660-card-styles" title="Team Card Styles" type="object">
+        <field name="background-color" title="Card Background" type="color">#f9fafb</field>
+        <field name="border-radius" title="Border Radius" type="text">0.75rem</field>
+        <field name="padding" title="Card Padding" type="text">2rem</field>
+        <field name="shadow" title="Shadow Size" type="select">
+          <value>lg</value>
+          <options>
+          <option>none</option>
           <option>sm</option>
           <option>md</option>
           <option>lg</option>
           <option>xl</option>
           </options>
-        </prop>
-        <prop name="border-radius" title="Border Radius" type="slider">8</prop>
-        <prop name="visible" title="Visible" type="boolean">true</prop>
-        <prop name="centered" title="Center Content" type="boolean"></prop>
-        <prop name="styles" title="Advanced Styles" type="object">
-        <field name="border-color" title="Border Color" type="color"></field>
-        <field name="border-width" title="Border Width" type="number">0</field>
-        <field name="shadow" title="Show Shadow" type="boolean"></field>
+        </field>
+        <field name="hover-transform" title="Hover Transform Effect" type="boolean">true</field>
       </prop>
       </props>
     </node>
 
-    <node id="node-1758262383890521" title="A node with a few number properties" x="1615.6953068036908" y="-402.16640684705857" z="0">
-      <description>A node with a few number properties</description>
+    <node id="node-1758263206849459" title="Footer" x="567.9023663129451" y="485.25322500417155" z="0">
+      <description>Social media links</description>
       <props>
-        <prop name="width" title="Width" type="number">300</prop>
-        <prop name="height" title="Height" type="number">200</prop>
-        <prop name="node-1758262383890521-border-radius" title="Border Radius" type="number">8</prop>
-        <prop name="node-1758262383890521-padding" title="Padding" type="number">16</prop>
-        <prop name="font-size" title="Font Size" type="number">16</prop>
-        <prop name="opacity" title="Opacity" type="slider">1</prop>
+        <prop name="footer-styles" title="Footer Styles" type="object">
+        <field name="background-color" title="Background Color" type="color">#1f2937</field>
+        <field name="text-color" title="Text Color" type="color">#e5e7eb</field>
+        <field name="border-color" title="Border Color" type="color">#374151</field>
+        <field name="padding-y" title="Vertical Padding" type="text">3rem</field>
+        <field name="padding-x" title="Horizontal Padding" type="text">1rem</field>
+      </prop>
+        <prop name="company-info" title="Company Information" type="object">
+        <field name="name" title="Company Name" type="text">MyCompany</field>
+        <field name="description" title="Company Description" type="textarea">Building amazing digital experiences since 2024</field>
+        <field name="copyright" title="Copyright Text" type="text">© 2024 MyCompany. All rights reserved.</field>
+      </prop>
+        <prop name="social-links" title="Social Media Links" type="object-list">
+        <item index="0">
+          <field name="platform" title="Platform" type="select">
+          <value>Twitter</value>
+          <options>
+          <option>Twitter</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>LinkedIn</option>
+          <option>YouTube</option>
+          <option>GitHub</option>
+          <option>Discord</option>
+          </options>
+        </field>
+          <field name="url" title="URL" type="text">https://twitter.com/mycompany</field>
+          <field name="label" title="Label" type="text">Follow us on Twitter</field>
+        </item>
+        <item index="1">
+          <field name="platform" title="Platform" type="select">
+          <value>Facebook</value>
+          <options>
+          <option>Twitter</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>LinkedIn</option>
+          <option>YouTube</option>
+          <option>GitHub</option>
+          <option>Discord</option>
+          </options>
+        </field>
+          <field name="url" title="URL" type="text">https://facebook.com/mycompany</field>
+          <field name="label" title="Label" type="text">Like us on Facebook</field>
+        </item>
+        <item index="2">
+          <field name="platform" title="Platform" type="select">
+          <value>LinkedIn</value>
+          <options>
+          <option>Twitter</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>LinkedIn</option>
+          <option>YouTube</option>
+          <option>GitHub</option>
+          <option>Discord</option>
+          </options>
+        </field>
+          <field name="url" title="URL" type="text">https://linkedin.com/company/mycompany</field>
+          <field name="label" title="Label" type="text">Connect on LinkedIn</field>
+        </item>
+        <item index="3">
+          <field name="platform" title="Platform" type="select">
+          <value>GitHub</value>
+          <options>
+          <option>Twitter</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>LinkedIn</option>
+          <option>YouTube</option>
+          <option>GitHub</option>
+          <option>Discord</option>
+          </options>
+        </field>
+          <field name="url" title="URL" type="text">https://github.com/mycompany</field>
+          <field name="label" title="Label" type="text">View our code</field>
+        </item>
+      </prop>
+        <prop name="footer-links" title="Footer Links" type="object-list">
+        <item index="0">
+          <field name="label" title="Link Label" type="text">Privacy Policy</field>
+          <field name="href" title="Link URL" type="text">/privacy</field>
+        </item>
+        <item index="1">
+          <field name="label" title="Link Label" type="text">Terms of Service</field>
+          <field name="href" title="Link URL" type="text">/terms</field>
+        </item>
+        <item index="2">
+          <field name="label" title="Link Label" type="text">Contact</field>
+          <field name="href" title="Link URL" type="text">/contact</field>
+        </item>
+        <item index="3">
+          <field name="label" title="Link Label" type="text">About</field>
+          <field name="href" title="Link URL" type="text">/about</field>
+        </item>
+      </prop>
+        <prop name="layout-options" title="Layout Options" type="object">
+        <field name="show-border-top" title="Show Top Border" type="boolean">true</field>
+        <field name="center-content" title="Center Content" type="boolean">true</field>
+        <field name="max-width" title="Maximum Width" type="text">1200px</field>
+        <field name="social-icon-size" title="Social Icon Size" type="text">1.5rem</field>
+      </prop>
       </props>
     </node>
   </nodes>
@@ -265,7 +466,8 @@
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
-    <edge id="app-node-1758261265711502" source="app" target="node-1758261265711502" role="links-to"/>
-    <edge id="app-node-1758262383890521" source="app" target="node-1758262383890521" role="links-to"/>
+    <edge id="node-1758263116699231-app" source="node-1758263116699231" target="app" role="links-to"/>
+    <edge id="node-1758263161465660-app" source="node-1758263161465660" target="app" role="links-to"/>
+    <edge id="node-1758263206849459-app" source="node-1758263206849459" target="app" role="links-to"/>
   </edges>
 </graph>
