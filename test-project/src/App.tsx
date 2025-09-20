@@ -1,5 +1,6 @@
 import Header from "./components/Header";
 import Hero from "./components/Hero";
+import ReviewSection from "./components/ReviewSection";
 import Footer from "./components/Footer";
 import { useVars } from "../_graph/varsHmr.ts";
 
@@ -21,6 +22,7 @@ export default function App() {
     >
       <Header />
       <Hero />
+      <ReviewSection />
       <Footer />
     </main>
   );

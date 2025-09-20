@@ -251,11 +251,126 @@
       </prop>
       </props>
     </node>
+
+    <node id="review-section" title="Review Section" x="746.2239543978556" y="301.6254645746378" z="0">
+      <description>A component that displays customer reviews and testimonials. This section showcases user feedback, ratings, and testimonials to build trust and credibility with potential customers.</description>
+      <props>
+        <prop name="section-styles" title="Section Styles" type="object">
+        <field name="background-color" title="Background Color" type="color"></field>
+        <field name="padding-y" title="Vertical Padding" type="slider"></field>
+        <field name="padding-x" title="Horizontal Padding" type="slider"></field>
+      </prop>
+        <prop name="header-content" title="Header Content" type="object">
+        <field name="title" title="Section Title" type="text"></field>
+        <field name="subtitle" title="Section Subtitle" type="textarea"></field>
+        <field name="show-header" title="Show Header" type="boolean"></field>
+      </prop>
+        <prop name="review-section-header-styles" title="Header Styles" type="object">
+        <field name="title-color" title="Title Color" type="color"></field>
+        <field name="subtitle-color" title="Subtitle Color" type="color"></field>
+        <field name="title-size" title="Title Font Size" type="select">
+          <value></value>
+          <options>
+          <option>2rem</option>
+          <option>2.25rem</option>
+          <option>2.5rem</option>
+          <option>3rem</option>
+          <option>3.5rem</option>
+          </options>
+        </field>
+        <field name="text-align" title="Text Alignment" type="select">
+          <value></value>
+          <options>
+          <option>left</option>
+          <option>center</option>
+          <option>right</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="layout-settings" title="Layout Settings" type="object">
+        <field name="columns" title="Columns" type="select">
+          <value></value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          </options>
+        </field>
+        <field name="gap" title="Gap Between Reviews" type="slider"></field>
+        <field name="show-avatars" title="Show Avatars" type="boolean"></field>
+        <field name="show-ratings" title="Show Star Ratings" type="boolean"></field>
+      </prop>
+        <prop name="card-styles" title="Review Card Styles" type="object">
+        <field name="background-color" title="Card Background" type="color"></field>
+        <field name="border-color" title="Border Color" type="color"></field>
+        <field name="border-radius" title="Border Radius" type="slider"></field>
+        <field name="shadow" title="Card Shadow" type="select">
+          <value></value>
+          <options>
+          <option>none</option>
+          <option>sm</option>
+          <option>md</option>
+          <option>lg</option>
+          </options>
+        </field>
+        <field name="padding" title="Card Padding" type="slider"></field>
+      </prop>
+        <prop name="star-styles" title="Star Rating Styles" type="object">
+        <field name="star-color" title="Star Color" type="color"></field>
+        <field name="star-size" title="Star Size" type="select">
+          <value></value>
+          <options>
+          <option>0.875rem</option>
+          <option>1rem</option>
+          <option>1.125rem</option>
+          <option>1.25rem</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="text-styles" title="Text Styles" type="object">
+        <field name="review-text-color" title="Review Text Color" type="color"></field>
+        <field name="name-color" title="Name Color" type="color"></field>
+        <field name="role-color" title="Role Color" type="color"></field>
+        <field name="review-font-size" title="Review Font Size" type="select">
+          <value></value>
+          <options>
+          <option>0.875rem</option>
+          <option>1rem</option>
+          <option>1.125rem</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="reviews-data" title="Reviews" type="object-list">
+        <item index="0">
+          <field name="name" title="Customer Name" type="text">Sarah Johnson</field>
+          <field name="role" title="Customer Role/Title" type="text">Marketing Director</field>
+          <field name="avatar" title="Avatar URL" type="text">https://images.unsplash.com/photo-1494790108755-2616b612b1e0?w=150&amp;h=150&amp;fit=crop&amp;crop=face</field>
+          <field name="rating" title="Rating (1-5)" type="number">5</field>
+          <field name="review" title="Review Text" type="textarea">This platform has completely transformed how we handle our marketing campaigns. The results speak for themselves - we&apos;ve seen a 300% increase in engagement!</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Customer Name" type="text">Michael Chen</field>
+          <field name="role" title="Customer Role/Title" type="text">CEO, TechStart</field>
+          <field name="avatar" title="Avatar URL" type="text">https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&amp;h=150&amp;fit=crop&amp;crop=face</field>
+          <field name="rating" title="Rating (1-5)" type="number">5</field>
+          <field name="review" title="Review Text" type="textarea">Outstanding service and support. The team goes above and beyond to ensure success. I couldn&apos;t be happier with our decision to choose this solution.</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Customer Name" type="text">Emily Rodriguez</field>
+          <field name="role" title="Customer Role/Title" type="text">Product Manager</field>
+          <field name="avatar" title="Avatar URL" type="text">https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&amp;h=150&amp;fit=crop&amp;crop=face</field>
+          <field name="rating" title="Rating (1-5)" type="number">4</field>
+          <field name="review" title="Review Text" type="textarea">Great platform with intuitive design. The features are exactly what we needed to streamline our workflow. Highly recommended for growing teams.</field>
+        </item>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
     <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
     <edge id="node-1758329851379349-app" source="node-1758329851379349" target="app" role="links-to"/>
+    <edge id="app-review-section" source="app" target="review-section" role="links-to"/>
   </edges>
 </graph>

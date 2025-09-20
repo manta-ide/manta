@@ -141,6 +141,10 @@ TASK DELEGATION:
 - Provide clear instructions: "Build node [ID] with title '[TITLE]' and prompt '[PROMPT]'"
 - Monitor progress and ensure each task completes successfully
 
+EVALUATION:
+- In the end of run evaluate the task using evaluator subagent. Give him prompt that user requested.  
+- Run on every request.
+
 VERIFICATION PROCESS:
 - Run analyze_diff() before starting any work to see the initial state
 - Run analyze_diff() after sync_to_base_graph() to confirm all differences are resolved
@@ -152,9 +156,10 @@ ORCHESTRATOR RESPONSIBILITIES:
 - Coordinate the workflow and ensure all tasks complete
 - Use sync_to_base_graph() with specific node/edge IDs to sync completed work
 - Use analyze_diff() before and after to verify sync status
-- Provide high-level guidance and summarize results
+- Provide high-level guidance and summarize results and return full evaluation results
 
-Remember: You analyze what needs to be done, delegate specific tasks one by one, sync the results, and verify completion.`;
+Remember: You analyze what needs to be done, delegate specific tasks one by one, sync the results, and verify completion.
+Run evaluation for each user query using evaluator subagent even for plain text quick responses. `;
 
           // Generic query options with orchestrator prompt
           const queryOptions: Options = {
