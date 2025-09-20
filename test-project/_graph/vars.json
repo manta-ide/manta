@@ -1,19 +1,19 @@
 {
-  "is-dark-theme": true,
+  "is-dark-theme": "",
   "root-styles": {
-    "background-color": "#000000",
+    "background-color": "#ebd4d4",
     "text-color": "#000000",
     "font-family": "Arial",
     "base-font-size": "1rem"
   },
   "header-styles": {
-    "background-color": "#1753a3",
+    "background-color": "#cc91ef",
     "text-color": "#ffffff",
     "height": "6rem",
     "padding-x": "2rem"
   },
   "logo": {
-    "text": "MKX",
+    "text": "MyApp",
     "font-size": "1.5rem",
     "font-weight": "bold"
   },
@@ -29,22 +29,18 @@
     {
       "label": "Services",
       "href": "#services"
-    },
-    {
-      "label": "Contact",
-      "href": "#contact"
     }
   ],
   "hero-content": {
-    "headline": "MKX Software",
+    "headline": "Welcome to Our Platform",
     "subheadline": "Build amazing experiences with our powerful tools",
     "cta-text": "Get Started",
     "cta-href": "#start"
   },
   "hero-styles": {
-    "background-gradient-start": "#000000",
+    "background-gradient-start": "#e8e8e9",
     "background-gradient-end": "#764ba2",
-    "text-color": "#000000",
+    "text-color": "#ffffff",
     "padding-y": "5rem",
     "padding-x": "3rem"
   },
@@ -54,180 +50,40 @@
     "headline-weight": "bold",
     "text-align": "center"
   },
-  "section-title": "Our Projects",
-  "section-description": "Explore our latest work and innovative solutions",
-  "projects": [
-    {
-      "title": "Pactory",
-      "description": "Modern shopping experience with advanced features",
-      "image": "https://via.placeholder.com/400x250/3B82F6/ffffff?text=E-commerce+Platform",
-      "link": "https://example.com/project1",
-      "technologies": [
-        {
-          "name": ""
-        },
-        {
-          "name": ""
-        },
-        {
-          "name": ""
-        }
-      ]
-    },
-    {
-      "title": "Pecan",
-      "description": "Secure and intuitive banking solution",
-      "image": "https://via.placeholder.com/400x250/10B981/ffffff?text=Banking+App",
-      "link": "https://example.com/project2",
-      "technologies": [
-        {
-          "name": ""
-        },
-        {
-          "name": ""
-        },
-        {
-          "name": ""
-        }
-      ]
-    },
-    {
-      "title": "MKX Gaming",
-      "description": "Real-time analytics and machine learning insights",
-      "image": "https://via.placeholder.com/400x250/8B5CF6/ffffff?text=AI+Dashboard",
-      "link": "https://example.com/project3",
-      "technologies": [
-        {
-          "name": ""
-        },
-        {
-          "name": ""
-        },
-        {
-          "name": ""
-        }
-      ]
-    }
-  ],
-  "carousel-settings": {
-    "autoplay": true,
-    "autoplayDelay": 5000,
-    "showDots": true,
-    "showArrows": true,
-    "slidesToShow": 3,
-    "slidesToScroll": 1
-  },
-  "section-styles": {
-    "backgroundColor": "#ffffff",
-    "textColor": "#1f2937",
-    "titleColor": "#111827",
-    "padding": "4rem 1rem"
-  },
-  "card-styles": {
-    "cardBackground": "#ffffff",
-    "cardBorder": "#e5e7eb",
-    "cardShadow": "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-    "borderRadius": "0.75rem",
-    "hoverScale": 1.05
-  },
-  "button-styles": {
-    "buttonColor": "#3b82f6",
-    "buttonTextColor": "#ffffff",
-    "buttonHoverColor": "#2563eb",
-    "buttonText": "View Project"
-  },
-  "node-1758263161465660-section-title": "Our Founding Team",
-  "section-subtitle": "Meet the passionate individuals who started this journey",
-  "team-members": [
-    {
-      "name": "Artem Marunchenko",
-      "role": "President",
-      "photo": "https://media.licdn.com/dms/image/v2/D5603AQEkjAwXPRdJ0g/profile-displayphoto-shrink_800_800/B56Zd8JaGnGoAk-/0/1750134530802?e=1761177600&v=beta&t=iQGUlIwkG2oYVQRHrh3BiRL-NuHP9LkjJ1SoyIZjtgM",
-      "experience": "15+ years in software development",
-      "bio": "Artem bring profound expertise in software development and management"
-    }
-  ],
-  "layout-style": "grid",
-  "columns-per-row": 1,
-  "photo-style": "circle",
-  "photo-size": "large",
-  "text-alignment": "center",
-  "show-experience": true,
-  "show-bio": true,
-  "node-1758263161465660-section-styles": {
-    "background-color": "#ffffff",
-    "text-color": "#1f2937",
-    "padding": "4rem 1rem"
-  },
-  "title-styles": {
-    "font-size": "2.5rem",
-    "font-weight": "bold",
-    "color": "#1f2937",
-    "margin-bottom": "1rem"
-  },
-  "node-1758263161465660-card-styles": {
-    "background-color": "#f9fafb",
-    "border-radius": "0.75rem",
-    "padding": "2rem",
-    "shadow": "lg",
-    "hover-transform": true
+  "footer-content": {
+    "company-name": "Your Company",
+    "company-description": "Building amazing experiences for our customers.",
+    "copyright": "© 2024 Your Company. All rights reserved.",
+    "link-about-text": "About",
+    "link-about-href": "#about",
+    "link-services-text": "Services",
+    "link-services-href": "#services",
+    "link-contact-text": "Contact",
+    "link-contact-href": "#contact",
+    "link-privacy-text": "Privacy Policy",
+    "link-privacy-href": "#privacy"
   },
   "footer-styles": {
-    "background-color": "#1f2937",
-    "text-color": "#e5e7eb",
+    "background-color": "#0e151f",
+    "text-color": "#f9fafb",
     "border-color": "#374151",
     "padding-y": "3rem",
-    "padding-x": "1rem"
-  },
-  "company-info": {
-    "name": "MyCompany",
-    "description": "Building amazing digital experiences since 2024",
-    "copyright": "© 2024 MyCompany. All rights reserved."
+    "padding-x": "2rem",
+    "link-color": "#60a5fa",
+    "link-hover-color": "#93c5fd"
   },
   "social-links": [
     {
-      "platform": "Twitter",
-      "url": "https://twitter.com/mycompany",
-      "label": "Follow us on Twitter"
+      "platform": "facebook",
+      "url": "https://facebook.com/yourcompany"
     },
     {
-      "platform": "Facebook",
-      "url": "https://facebook.com/mycompany",
-      "label": "Like us on Facebook"
+      "platform": "twitter",
+      "url": "https://twitter.com/yourcompany"
     },
     {
-      "platform": "LinkedIn",
-      "url": "https://linkedin.com/company/mycompany",
-      "label": "Connect on LinkedIn"
-    },
-    {
-      "platform": "GitHub",
-      "url": "https://github.com/mycompany",
-      "label": "View our code"
+      "platform": "linkedin",
+      "url": "https://linkedin.com/company/yourcompany"
     }
-  ],
-  "footer-links": [
-    {
-      "label": "Privacy Policy",
-      "href": "/privacy"
-    },
-    {
-      "label": "Terms of Service",
-      "href": "/terms"
-    },
-    {
-      "label": "Contact",
-      "href": "/contact"
-    },
-    {
-      "label": "About",
-      "href": "/about"
-    }
-  ],
-  "layout-options": {
-    "show-border-top": true,
-    "center-content": true,
-    "max-width": "1200px",
-    "social-icon-size": "1.5rem"
-  }
+  ]
 }

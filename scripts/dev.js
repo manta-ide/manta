@@ -142,12 +142,22 @@ For development:
   manta            Run just the IDE (default)
 `);
 } else {
-  // Default: run IDE from package root but target the current directory
+  // Default: run IDE from package root
+  // When running npm run dev from project root, target test-project
+  // When running manta from other directories, target current directory
   const currentDir = process.cwd();
-  console.log(`Running Manta IDE targeting: ${currentDir}`);
+  let targetDir = currentDir;
+
+  // If we're in the project root (running npm run dev), target test-project
+  if (currentDir === packageRoot) {
+    targetDir = join(packageRoot, 'test-project');
+    console.log(`Running Manta IDE targeting test project: ${targetDir}`);
+  } else {
+    console.log(`Running Manta IDE targeting: ${targetDir}`);
+  }
 
   // Set environment variables to indicate we're in user project mode
-  const env = { ...process.env, MANTA_MODE: 'user-project', MANTA_PROJECT_DIR: currentDir };
+  const env = { ...process.env, MANTA_MODE: 'user-project', MANTA_PROJECT_DIR: targetDir };
 
   const child = spawn('npm', ['run', 'dev:ide'], {
     stdio: 'inherit',
