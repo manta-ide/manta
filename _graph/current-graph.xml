@@ -1,10 +1,190 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    
+    <node id="selection-badge" title="Selection Badge Component" x="889.9335313161037" y="299.3842825896081" z="0">
+      <description>A React component that displays a floating badge showing the currently selected node in the graph. The badge appears at the top of the interface and provides quick visual feedback about which node is currently active.
+
+The component handles selection state management and displays the node title in a clean, unobtrusive badge format that helps users maintain context while navigating the graph interface.</description>
+    </node>
+
+    <node id="floating-chat" title="Floating Chat Interface" x="407.94117851313945" y="-206.50954554362562" z="0">
+      <description>A floating chat component that provides an AI-powered conversational interface for interacting with the graph. Users can send messages, ask questions about nodes, and request modifications to the graph structure through natural language.
+
+The component manages chat state, message history, and integrates with the AI backend to process user requests and execute graph operations. It features a collapsible interface that can be toggled on/off without disrupting the main graph workflow.</description>
+    </node>
+
+    <node id="message-renderer" title="Message Renderer Component" x="704.3316426217032" y="-210.6352873094159" z="0">
+      <description>A component responsible for rendering individual chat messages within the floating chat interface. It handles different message types, formats content appropriately, and supports features like syntax highlighting for code blocks and proper formatting for AI responses.
+
+The renderer processes message content and applies appropriate styling, handles user vs AI message differentiation, and manages message-specific interactions like copying content or expanding/collapsing long messages.</description>
+    </node>
+
+    <node id="graph-view" title="Graph View Component" x="1469.3532492414352" y="416.3013897114051" z="0">
+      <description>The main graph visualization component that renders the interactive node-link diagram. It handles node positioning, edge connections, zoom/pan interactions, and visual styling of the graph elements using a graphics library like D3 or similar.
+
+This is the core component where users interact with nodes, create connections, and manipulate the graph structure. It manages selection states, drag-and-drop operations, and coordinates with other components to provide a seamless graph editing experience.</description>
+    </node>
+
+    <node id="selected-node-sidebar" title="Selected Node Sidebar" x="-821.552128955309" y="-355.7086764098075" z="0">
+      <description>A sidebar component that displays detailed information and editing controls for the currently selected node. It shows node properties, allows editing of node attributes, and provides access to various node-specific actions and configurations.
+
+The sidebar dynamically updates based on the selected node type and renders appropriate property editors for different data types. It serves as the primary interface for detailed node manipulation and configuration.</description>
+    </node>
+
+    <node id="top-bar" title="Top Bar Component" x="1257.434534835254" y="-414.3134690249783" z="0">
+      <description>The main navigation and action bar at the top of the application interface. It contains primary application controls, navigation elements, and global action buttons that affect the entire graph or application state.
+
+The top bar provides consistent access to key functionality like saving, loading, creating new graphs, and other high-level operations that users need regardless of their current focus within the graph interface.</description>
+    </node>
+
+    <node id="base-property-editor" title="Base Property Editor" x="-903.5791441311885" y="561.339962194993" z="0">
+      <description>The foundational abstract component that defines the common interface and shared functionality for all property editors. It establishes the standard structure, event handling patterns, and validation logic that specific property editors extend.
+
+This base class provides consistent behavior across all property types, including change handling, validation, error display, and integration with the broader property editing system in the node sidebar.</description>
+    </node>
+
+    <node id="boolean-property-editor" title="Boolean Property Editor" x="-763.8255070627258" y="1249.5922521890147" z="0">
+      <description>A property editor for boolean/true-false values, typically rendered as a toggle switch or checkbox. It provides a simple on/off interface for binary node properties.
+
+Extends the base property editor to handle boolean state changes and provides visual feedback for the current true/false state of the property.</description>
+    </node>
+
+    <node id="checkbox-property-editor" title="Checkbox Property Editor" x="-538.7724356717807" y="1514.2153187558729" z="0">
+      <description>A property editor that renders multiple checkboxes for selecting one or more options from a predefined list. Useful for multi-select scenarios where users need to choose multiple values from available options.
+
+Manages an array of selected values and provides visual indicators for which options are currently selected, with proper handling of check/uncheck interactions.</description>
+    </node>
+
+    <node id="color-property-editor" title="Color Property Editor" x="-1523.0250131113123" y="1307.71408214631" z="0">
+      <description>A specialized property editor for color values, featuring a color picker interface that allows users to select colors through various input methods like hex codes, RGB values, or a visual color wheel/palette.
+
+Provides real-time color preview and supports different color format outputs while maintaining a user-friendly interface for color selection and modification.</description>
+    </node>
+
+    <node id="font-property-editor" title="Font Property Editor" x="-1201.9621528250138" y="1222.9733638361356" z="0">
+      <description>A comprehensive property editor for font-related properties including font family, size, weight, style, and other typography settings. Provides dropdowns, sliders, and text inputs for complete font customization.
+
+Features font family selection with web-safe fonts, size adjustment controls, and styling options like bold, italic, and other font properties with live preview capabilities.</description>
+    </node>
+
+    <node id="number-property-editor" title="Number Property Editor" x="-699.5107192186499" y="1802.2734344174278" z="0">
+      <description>A property editor specifically designed for numeric input with support for integers and decimal values. Includes input validation, increment/decrement controls, and range constraints.
+
+Provides number formatting, validation feedback, and keyboard interaction support while ensuring only valid numeric values are accepted and properly formatted.</description>
+    </node>
+
+    <node id="radio-property-editor" title="Radio Property Editor" x="-463.5044907271945" y="1248.917605970549" z="0">
+      <description>A property editor that presents a set of mutually exclusive options as radio buttons, allowing users to select exactly one option from a predefined list. Ideal for single-choice scenarios where only one value should be selected.
+
+Manages the selected state across all radio options and ensures proper mutual exclusivity, with clear visual indicators for the currently selected option.</description>
+    </node>
+
+    <node id="slider-property-editor" title="Slider Property Editor" x="-1376.3688210405785" y="970.4522618371896" z="0">
+      <description>A property editor that uses a slider interface for numeric values within a defined range. Provides intuitive visual adjustment of values with real-time feedback and precise control over numeric properties.
+
+Features customizable min/max ranges, step increments, and visual value display while offering a more interactive and visual approach to numeric input than traditional text fields.</description>
+    </node>
+
+    <node id="object-list-property-editor" title="Object List Property Editor" x="-963.0242005816854" y="1535.6552884893113" z="0">
+      <description>A complex property editor for managing arrays of objects, where each object contains multiple properties. Provides add/remove functionality, item reordering, and nested property editing for each object in the list.
+
+Features dynamic list management with collapsible object entries, validation across all nested properties, and intuitive controls for manipulating the array structure while maintaining data integrity.</description>
+    </node>
+
+    <node id="object-property-editor" title="Object Property Editor" x="-1299.4953623673046" y="1488.1552377062094" z="0">
+      <description>A property editor for complex object values containing multiple nested properties. Provides a structured interface for editing object properties with appropriate sub-editors for each field type.
+
+Handles nested property validation, dynamic field rendering based on object schema, and maintains object structure integrity while allowing detailed customization of all contained properties.</description>
+    </node>
+
+    <node id="select-property-editor" title="Select Property Editor" x="-208.98654792881985" y="1513.4866761368764" z="0">
+      <description>A dropdown-based property editor that allows users to select a single value from a predefined list of options. Features a clean dropdown interface with search/filter capabilities for longer option lists.
+
+Provides clear visual feedback for the selected option and handles both static and dynamic option lists, with support for custom option formatting and grouping when needed.</description>
+    </node>
+
+    <node id="text-property-editor" title="Text Property Editor" x="-299.32091937424923" y="1767.215207116356" z="0">
+      <description>A single-line text input property editor for short text values like names, labels, and brief descriptions. Includes input validation, character limits, and proper text formatting capabilities.
+
+Features keyboard shortcuts, placeholder text, and real-time validation feedback while maintaining a clean, focused interface for text entry and editing.</description>
+    </node>
+
+    <node id="textarea-property-editor" title="TextArea Property Editor" x="-951.2989713672532" y="965.3302398238264" z="0">
+      <description>A multi-line text editor for longer text content such as descriptions, notes, and detailed explanations. Provides a resizable text area with word wrapping and extended text editing capabilities.
+
+Supports rich text features, line counting, auto-resize functionality, and maintains proper formatting while offering a comfortable editing experience for substantial text content.</description>
+    </node>
+
+    <node id="property-editors-index" title="Property Editors Index" x="-795.279706101688" y="100.44357402724815" z="0">
+      <description>The central index file that exports all property editor components and provides the mapping logic for determining which editor to use for each property type. Acts as the registry and factory for property editors.
+
+This module centralizes property editor management, making it easy to add new editors and ensuring consistent property editing behavior across the application.</description>
+    </node>
+
+    <node id="main-page" title="Main Page Component" x="735.4002713613014" y="-739.517042861924" z="0">
+      <description>The main application page that orchestrates the layout and integrates all major UI components. Manages panel state, loads the project on mount, and provides the overall application structure with resizable panels for the sidebar, graph view, and floating chat interface.</description>
+    </node>
+
+    <node id="project-store" title="Project Store (Zustand)" x="-11.403807403486894" y="9.3197648202055" z="0">
+      <description>Central state management store using Zustand that handles all file system operations, graph state management, graph building, and real-time synchronization via SSE. Manages project loading, file operations, graph mutations, and coordinates between the frontend UI and backend services.</description>
+    </node>
+
+    <node id="chat-service" title="Chat Service Hook" x="402.8252950179017" y="11.352493737546709" z="0">
+      <description>React hook that manages chat functionality including message state, history persistence, streaming responses from the agent API, and context management. Handles sending messages with file/selection/node context and processes agent responses with proper error handling.</description>
+    </node>
+
+    <node id="graph-xml-utils" title="Graph XML Utilities" x="-167.49771619210082" y="376.2595598567153" z="0">
+      <description>Utilities for converting between Graph objects and XML format using fast-xml-parser. Handles complex property serialization including nested objects, arrays, and options. Provides robust parsing with text encoding repair and comprehensive type coercion for graph persistence.</description>
+    </node>
+
+    <node id="graph-diff-utils" title="Graph Diff Utilities" x="128.04054292293648" y="376.2595598567153" z="0">
+      <description>Utilities for analyzing differences between base and current graph states. Handles node and edge comparison, build state determination, and automatic marking of unbuilt components. Essential for tracking which parts of the graph need implementation during the build process.</description>
+    </node>
+
+    <node id="project-config" title="Project Configuration" x="1896.4847662134182" y="-18.34587392201115" z="0">
+      <description>Utility functions for determining development project directories and context based on environment variables. Handles both development and production modes for project path resolution.</description>
+    </node>
+
+    <node id="ui-utils" title="UI Utilities" x="1905.4082479833435" y="-414.72801280354906" z="0">
+      <description>Common UI utility functions including class name combination using clsx and tailwind-merge. Provides the cn() function for conditional styling and Tailwind CSS class management.</description>
+    </node>
+
+    <node id="ui-selection-utils" title="UI Selection Utils" x="601.636445867061" y="301.18884915084067" z="0">
+      <description>Utilities for managing and validating UI selection state. Provides functions for formatting selection dimensions and handling selection data display.</description>
+    </node>
+
+    <node id="runtime-error-store" title="Runtime Error Store" x="1905.4082479833432" y="-204.96065126712324" z="0">
+      <description>Simple store for managing runtime error state. Provides functions to set, get, and clear error information including component stack traces for debugging.</description>
+    </node>
   </nodes>
 
   <edges>
-
+    <edge id="floating-chat-message-renderer" source="floating-chat" target="message-renderer" role="uses"/>
+    <edge id="selected-node-sidebar-property-editors-index" source="selected-node-sidebar" target="property-editors-index" role="uses"/>
+    <edge id="property-editors-index-base-property-editor" source="property-editors-index" target="base-property-editor" role="exports"/>
+    <edge id="boolean-property-editor-base-property-editor" source="boolean-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="checkbox-property-editor-base-property-editor" source="checkbox-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="color-property-editor-base-property-editor" source="color-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="font-property-editor-base-property-editor" source="font-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="number-property-editor-base-property-editor" source="number-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="radio-property-editor-base-property-editor" source="radio-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="slider-property-editor-base-property-editor" source="slider-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="object-list-property-editor-base-property-editor" source="object-list-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="object-property-editor-base-property-editor" source="object-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="select-property-editor-base-property-editor" source="select-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="text-property-editor-base-property-editor" source="text-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="textarea-property-editor-base-property-editor" source="textarea-property-editor" target="base-property-editor" role="extends"/>
+    <edge id="main-page-floating-chat" source="main-page" target="floating-chat" role="uses component"/>
+    <edge id="main-page-graph-view" source="main-page" target="graph-view" role="uses component"/>
+    <edge id="main-page-selected-node-sidebar" source="main-page" target="selected-node-sidebar" role="uses component"/>
+    <edge id="main-page-top-bar" source="main-page" target="top-bar" role="uses component"/>
+    <edge id="main-page-project-store" source="main-page" target="project-store" role="uses hook"/>
+    <edge id="project-store-graph-xml-utils" source="project-store" target="graph-xml-utils" role="imports functions"/>
+    <edge id="project-store-graph-diff-utils" source="project-store" target="graph-diff-utils" role="imports functions"/>
+    <edge id="chat-service-project-store" source="chat-service" target="project-store" role="uses hook"/>
+    <edge id="floating-chat-chat-service" source="floating-chat" target="chat-service" role="uses hook"/>
+    <edge id="ui-selection-utils-project-store" source="ui-selection-utils" target="project-store" role="type usage"/>
+    <edge id="selection-badge-ui-selection-utils" source="selection-badge" target="ui-selection-utils" role="uses functions"/>
+    <edge id="graph-diff-utils-graph-xml-utils" source="graph-diff-utils" target="graph-xml-utils" role="works with Graph types"/>
   </edges>
 </graph>

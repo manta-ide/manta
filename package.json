@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:ide": "next dev --turbopack"
+    "dev:ide": "next dev --turbopack",
+    "dev:test": "npm --prefix test-project run dev"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.115",

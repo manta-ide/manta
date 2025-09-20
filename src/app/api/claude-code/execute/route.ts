@@ -104,12 +104,23 @@ CRITICAL RULES:
 
 ORCHESTRATOR WORKFLOW:
 
+Identify which task type is needed, and only proceed with the task type, one of the following:
+- Graph editing
+- Indexing
+- Graph building
+- Direct building
+
 Graph editing:
 For graph structure editing (creating nodes, editing connections, deleting elements): Use the graph-editor subagent
 
 There is current graph, which is the state of the codebase we need to achieve, and there is base graph, which is the current state of the codebase.
 You need to get the difference, and implement the changes to make the base graph match the current graph, by using code-builder subagent and then syncing the changes to the base graph.
 Make sure that if the elements get deleted, the appropriate code is gracefully deleted from the codebase.
+
+Indexing:
+Go through the codebase and index it based on user's prompt, and build the graph using graph-editor subagent. Do that one by one component. Do not add any properties or modify the codebase unless asked to do so.
+The graph can be empty at the start, and you can fill it up by indexing existing code with nodes using graph-editor subagent. Make sure to split the components into a few nodes if needed, and limit the text in node description to 2 paragraphs max.
+So if the component is large and complex, you can split it into a few nodes. 
 
 Graph building:
 1. Use analyze_diff() at the START to identify what changes need to be made
@@ -120,6 +131,9 @@ Graph building:
    - Use sync_to_base_graph() to sync the completed nodes/edges to base graph
 3. Use analyze_diff() at the END to verify that graphs are now in sync
 4. Verify that properties are wired to the code properly. If not, use code-builder to fix it.
+
+Direct building:
+Use code-builder subagent to build something that user wants directly, mostly used for fixes or sub-node changes. 
 
 TASK DELEGATION:
 - Give code-builder ONE SPECIFIC NODE at a time to work on
@@ -147,7 +161,7 @@ Remember: You analyze what needs to be done, delegate specific tasks one by one,
             includePartialMessages: true,
             customSystemPrompt: orchestratorSystemPrompt,
             permissionMode: 'bypassPermissions',
-            //mcpServers: { 'graph-tools': mcpServer },
+            mcpServers: { 'graph-tools': mcpServer },
             abortController: new AbortController(),
             cwd: workingDirectory,
             strictMcpConfig: true,

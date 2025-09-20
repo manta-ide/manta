@@ -64,13 +64,13 @@
     "link-privacy-href": "#privacy"
   },
   "footer-styles": {
-    "background-color": "#0e151f",
+    "background-color": "#764ba2",
     "text-color": "#f9fafb",
-    "border-color": "#374151",
+    "border-color": "#473752",
     "padding-y": "3rem",
     "padding-x": "2rem",
-    "link-color": "#60a5fa",
-    "link-hover-color": "#93c5fd"
+    "link-color": "#efd6ff",
+    "link-hover-color": "#de92fc"
   },
   "social-links": [
     {
