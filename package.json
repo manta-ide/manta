@@ -78,6 +78,12 @@
     "typescript": "^5"
   },
   "files": [
-    "README.md"
+    "README.md",
+    "scripts/",
+    "src/",
+    "public/",
+    "next.config.ts",
+    "package.json",
+    "tsconfig.json"
   ]
 }
