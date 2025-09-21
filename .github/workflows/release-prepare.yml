@@ -1,0 +1,50 @@
+name: Prepare Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Optional: not strictly needed for a version bump
+      # - name: Install
+      #   run: npm ci
+
+      - name: Bump version (no tag)
+        id: bump
+        run: |
+          npm version ${{ inputs.bump }} --no-git-tag-version
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: release/v${{ steps.bump.outputs.version }}
+          title: "chore(release): v${{ steps.bump.outputs.version }}"
+          commit-message: "chore(release): v${{ steps.bump.outputs.version }}"
+          body: |
+            Bumps package version to **v${{ steps.bump.outputs.version }}**.
+            Merge this PR to trigger publishing.
+          labels: release
