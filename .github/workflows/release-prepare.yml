@@ -22,15 +22,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # optional: make it explicit
+          token: ${{ github.token }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      # Optional: not strictly needed for a version bump
-      # - name: Install
-      #   run: npm ci
 
       - name: Bump version (no tag)
         id: bump
@@ -41,11 +39,11 @@ jobs:
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GH_PAT }}
+          # Use the default GITHUB_TOKEN by omitting token:
           branch: release/v${{ steps.bump.outputs.version }}
           title: "chore(release): v${{ steps.bump.outputs.version }}"
           commit-message: "chore(release): v${{ steps.bump.outputs.version }}"
           body: |
-            Bumps package version to **v${{ steps.bump.outputs.version }}**.
+            Bumps package version to v${{ steps.bump.outputs.version }}.
             Merge this PR to trigger publishing.
           labels: release
