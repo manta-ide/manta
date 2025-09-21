@@ -193,13 +193,13 @@
         <field name="link-privacy-href" title="Privacy Link URL" type="text">#privacy</field>
       </prop>
         <prop name="footer-styles" title="Footer Styles" type="object">
-        <field name="background-color" title="Background Color" type="color">#0e151f</field>
+        <field name="background-color" title="Background Color" type="color">#764ba2</field>
         <field name="text-color" title="Text Color" type="color">#f9fafb</field>
-        <field name="border-color" title="Border Color" type="color">#374151</field>
+        <field name="border-color" title="Border Color" type="color">#473752</field>
         <field name="padding-y" title="Vertical Padding" type="text">3rem</field>
         <field name="padding-x" title="Horizontal Padding" type="text">2rem</field>
-        <field name="link-color" title="Link Color" type="color">#60a5fa</field>
-        <field name="link-hover-color" title="Link Hover Color" type="color">#93c5fd</field>
+        <field name="link-color" title="Link Color" type="color">#efd6ff</field>
+        <field name="link-hover-color" title="Link Hover Color" type="color">#de92fc</field>
       </prop>
         <prop name="social-links" title="Social Media Links" type="object-list">
         <item index="0">

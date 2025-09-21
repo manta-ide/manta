@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../**/*";
+@source "./**/*";
 @import "tw-animate-css";
 
 /* Line clamp utility */
