@@ -41,6 +41,7 @@ jobs:
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.GH_PAT }}
           branch: release/v${{ steps.bump.outputs.version }}
           title: "chore(release): v${{ steps.bump.outputs.version }}"
           commit-message: "chore(release): v${{ steps.bump.outputs.version }}"
