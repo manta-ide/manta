@@ -28,11 +28,10 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      # Optional: add your tests/build here
-      # - name: Test
-      #   run: npm test
-      # - name: Build
-      #   run: npm run build
+      - name: Configure git identity           # <-- add this
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Compute tag and create if missing
         id: tag
