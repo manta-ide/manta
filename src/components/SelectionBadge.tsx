@@ -41,25 +41,25 @@ export function SelectionBadge({ type, label, onRemove }: SelectionBadgeProps) {
 interface SelectionBadgesProps {
   currentFile: string | null;
   selection: Selection | null;
-  selectedNodeId: string | null;
-  selectedNode: any | null;
+  selectedNodeIds: string[];
+  selectedNodes?: any[];
   onRemoveFile: () => void;
   onRemoveSelection: () => void;
-  onRemoveNode: () => void;
+  onRemoveNodes: () => void;
 }
 
-export default function SelectionBadges({ 
-  currentFile, 
-  selection, 
-  selectedNodeId,
-  selectedNode,
-  onRemoveFile, 
+export default function SelectionBadges({
+  currentFile,
+  selection,
+  selectedNodeIds,
+  selectedNodes,
+  onRemoveFile,
   onRemoveSelection,
-  onRemoveNode
+  onRemoveNodes
 }: SelectionBadgesProps) {
   const validSelection = isValidSelection(selection);
-  
-  if (!currentFile && !validSelection && !selectedNodeId) return null;
+
+  if (!currentFile && !validSelection && selectedNodeIds.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-2 p-2">
@@ -77,11 +77,15 @@ export default function SelectionBadges({
           onRemove={onRemoveSelection}
         />
       )}
-      {selectedNodeId && selectedNode && (
+      {selectedNodeIds.length > 0 && (
         <SelectionBadge
           type="node"
-          label={selectedNode.title || selectedNodeId}
-          onRemove={onRemoveNode}
+          label={
+            selectedNodeIds.length === 1
+              ? (selectedNodes?.[0]?.title || 'Selected Node')
+              : `Multiple Nodes (${selectedNodeIds.length})`
+          }
+          onRemove={onRemoveNodes}
         />
       )}
     </div>

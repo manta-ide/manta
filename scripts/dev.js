@@ -51,7 +51,7 @@ async function main() {
     console.log(`Running Manta IDE (prod) targeting: ${targetDir}`);
     await run("node", [serverJs], {
       cwd: serverCwd,                              // <-- MUST be standalone dir
-      env: { ...env, NODE_ENV: "production", PORT: process.env.PORT || "3000" },
+      env: { ...env, NODE_ENV: "production", PORT: process.env.PORT || "3001" },
     });
     return;
   }
@@ -88,7 +88,7 @@ Usage:
   }
   await run("node", [serverJs], {
     cwd: serverCwd,
-    env: { ...env, NODE_ENV: "production", PORT: process.env.PORT || "3000" },
+    env: { ...env, NODE_ENV: "production", PORT: process.env.PORT || "3001" },
   });
 }
 
