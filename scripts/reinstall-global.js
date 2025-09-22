@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "child_process";
 import { join } from "path";
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 
 const packageRoot = join(process.cwd());
 
@@ -36,11 +36,14 @@ async function main() {
     const packResult = await run("npm", ["pack"]);
     console.log("✅ Package created successfully");
 
-    // Step 4: Find the packed file (should be manta-ide-0.1.45.tgz)
-    const packedFile = "manta-ide-0.1.45.tgz";
-    if (!existsSync(packedFile)) {
-      throw new Error(`Packed file ${packedFile} not found`);
+    // Step 4: Find the packed file
+    const files = readdirSync(packageRoot);
+    const packedFiles = files.filter(file => file.startsWith("manta-ide-") && file.endsWith(".tgz"));
+    if (packedFiles.length === 0) {
+      throw new Error("No packed file found");
     }
+    const packedFile = packedFiles[0]; // Take the first (and likely only) match
+    console.log(`📦 Found packed file: ${packedFile}`);
 
     // Step 5: Install the packed file globally
     console.log(`📦 Installing ${packedFile} globally...`);
