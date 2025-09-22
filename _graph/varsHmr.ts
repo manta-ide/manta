@@ -73,7 +73,7 @@ function applyCssVarsFrom(vars: Vars) {
 
 async function loadVars(): Promise<Vars> {
   try {
-    const res = await fetch('/_graph/vars.json', { cache: 'no-store' });
+    const res = await fetch('/api/public/vars', { cache: 'no-store' });
     if (res.ok) return (await res.json()) as Vars;
   } catch (e) {
     console.warn('[vars] Failed to load vars.json:', e);
