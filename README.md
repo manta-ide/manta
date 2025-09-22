@@ -4,7 +4,7 @@
 
 [npm]: https://img.shields.io/npm/v/manta-ide.svg?style=flat-square
 
-Manta IDE is a graph-based development environment that lets you code by creating and editing natural-language nodes. 
+Manta IDE is a graph-based development environment that lets you code by creating natural-language nodes. 
 
 <img width="1271" height="809" alt="image" src="https://github.com/user-attachments/assets/6223bc1a-bc5f-4ab1-8f2a-6af1d3cfc10c" />
 
