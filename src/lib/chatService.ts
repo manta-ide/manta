@@ -19,7 +19,7 @@ import {
  * Handles message sending and basic state management
  */
 export function useChatService() {
-  const { currentFile, selection, setSelection, selectedNodeId, selectedNode } = useProjectStore();
+  const { currentFile, selection, setSelection, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +72,7 @@ useEffect(() => {
     }
   }, []);
 
-  const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNode?: boolean }) => {
+  const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNodes?: boolean }) => {
     console.log('🚀 Chat Service: sendMessage called with input:', input.slice(0, 100) + (input.length > 100 ? '...' : ''));
 
     if (!input.trim()) return;
@@ -80,7 +80,7 @@ useEffect(() => {
     // Use context flags if provided, otherwise include everything
     const shouldIncludeFile = contextFlags?.includeFile !== false;
     const shouldIncludeSelection = contextFlags?.includeSelection !== false;
-    const shouldIncludeNode = contextFlags?.includeNode !== false;
+    const shouldIncludeNodes = contextFlags?.includeNodes !== false;
 
     // Only use selection if it's valid and should be included
     const validSelection = (shouldIncludeSelection && isValidSelection(selection)) ? selection : null;
@@ -122,15 +122,23 @@ useEffect(() => {
       };
     }
 
-    // Add selected node variables if a node is selected and should be included
-    if (shouldIncludeNode && selectedNodeId && selectedNode) {
+    // Add selected node variables if nodes are selected and should be included
+    if (shouldIncludeNodes && selectedNodeIds.length > 0) {
       userMessage.variables = {
         ...userMessage.variables,
-        SELECTED_NODE_ID: selectedNodeId,
-        SELECTED_NODE_TITLE: selectedNode.title,
-        SELECTED_NODE_PROMPT: selectedNode.prompt,
-        SELECTED_NODE_IDS: selectedNodeId // For backward compatibility
+        SELECTED_NODE_IDS: selectedNodeIds.join(','),
+        SELECTED_NODE_COUNT: selectedNodeIds.length.toString()
       };
+
+      // For single node selection, also include the individual node data for backward compatibility
+      if (selectedNodeIds.length === 1 && selectedNodeId && selectedNode) {
+        userMessage.variables = {
+          ...userMessage.variables,
+          SELECTED_NODE_ID: selectedNodeId,
+          SELECTED_NODE_TITLE: selectedNode.title,
+          SELECTED_NODE_PROMPT: selectedNode.prompt
+        };
+      }
     }
 
     // Add user message to UI and save to database
@@ -453,7 +461,7 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, selectedNodeId, selectedNode, setSelection, messages, saveChatHistory]);
+  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory]);
 
   // Function to clear chat history
   const clearMessages = useCallback(async () => {

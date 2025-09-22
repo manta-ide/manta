@@ -19,7 +19,7 @@ interface Position {
 }
 
 export default function FloatingChat() {
-  const { currentFile, selection, selectedNodeId } = useProjectStore();
+  const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph } = useProjectStore();
   const [input, setInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -33,7 +33,7 @@ export default function FloatingChat() {
   // Local state to track what context should be included in the next message
   const [includeFile, setIncludeFile] = useState(false);
   const [includeSelection, setIncludeSelection] = useState(false);
-  const [includeNode, setIncludeNode] = useState(false);
+  const [includeNodes, setIncludeNodes] = useState(false);
 
   // Use simplified chat service
   const { state, actions } = useChatService();
@@ -52,11 +52,14 @@ export default function FloatingChat() {
   }, [selection]);
 
   useEffect(() => {
-    if (selectedNodeId) setIncludeNode(true);
-  }, [selectedNodeId]);
+    if (selectedNodeIds.length > 0) setIncludeNodes(true);
+  }, [selectedNodeIds]);
 
   // Get only the last 2 messages
   const lastTwoMessages = messages.slice(-2);
+
+  // Get selected nodes from graph
+  const selectedNodes = graph?.nodes?.filter(node => selectedNodeIds.includes(node.id)) || [];
 
   // Position near bottom-left of GraphView on first mount (robust to late mount)
   useEffect(() => {
@@ -162,12 +165,12 @@ export default function FloatingChat() {
     // Clear context flags after sending
     setIncludeFile(false);
     setIncludeSelection(false);
-    setIncludeNode(false);
+    setIncludeNodes(false);
 
     await sendMessage(messageToSend, {
       includeFile,
       includeSelection,
-      includeNode
+      includeNodes
     });
   };
 
@@ -554,11 +557,11 @@ export default function FloatingChat() {
           <SelectionBadges
             currentFile={includeFile ? currentFile : null}
             selection={includeSelection ? selection : null}
-            selectedNodeId={includeNode ? selectedNodeId : null}
-            selectedNode={includeNode ? { title: 'Selected Node' } : null}
+            selectedNodeIds={includeNodes ? selectedNodeIds : []}
+            selectedNodes={includeNodes ? selectedNodes : []}
             onRemoveFile={() => setIncludeFile(false)}
             onRemoveSelection={() => setIncludeSelection(false)}
-            onRemoveNode={() => setIncludeNode(false)}
+            onRemoveNodes={() => setIncludeNodes(false)}
           />
           
           <div className="flex gap-2 items-end">
