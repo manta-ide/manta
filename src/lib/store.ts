@@ -262,8 +262,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setCurrentFile: (path) => set({ currentFile: path }),
   setSelectedFile: (path) => set({ selectedFile: path }),
   setSelection: (selection) => set({ selection }),
-  setSelectedNode: (id, node = null) => set({ selectedNodeId: id, selectedNode: node ?? null }),
-  setSelectedNodeIds: (ids) => set({ selectedNodeIds: Array.isArray(ids) ? ids : [] }),
+  setSelectedNode: (id, node = null) => {
+    const prevId = get().selectedNodeId;
+    const prevNode = get().selectedNode;
+    if (prevId === id && prevNode === (node ?? null)) return;
+    set({ selectedNodeId: id, selectedNode: node ?? null });
+  },
+  setSelectedNodeIds: (ids) => {
+    const next = Array.isArray(ids) ? ids : [];
+    const prev = get().selectedNodeIds || [];
+    const sameLength = next.length === prev.length;
+    const sameSet = sameLength && next.every((id) => prev.includes(id));
+    if (sameSet) return;
+    set({ selectedNodeIds: next });
+  },
   
   getFileContent: (path) => {
     return get().files.get(path) || '';

@@ -325,21 +325,24 @@ export default function SelectedNodeSidebar() {
 
 	return (
 		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
-			<div className="px-3 py-2 border-b border-zinc-700">
-				<div className="text-xs font-medium text-zinc-300 mb-2">
-					Title
+			{/* Show Title only for single selection */}
+			{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
+				<div className="px-3 py-2 border-b border-zinc-700">
+					<div className="text-xs font-medium text-zinc-300 mb-2">
+						Title
+					</div>
+					<Input
+						className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
+						value={titleDraft}
+						onChange={(e) => {
+							const newValue = e.target.value;
+							setTitleDraft(newValue);
+							debouncedUpdateTitle(newValue);
+						}}
+						placeholder="Enter node title..."
+					/>
 				</div>
-				<Input
-					className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
-					value={titleDraft}
-					onChange={(e) => {
-						const newValue = e.target.value;
-						setTitleDraft(newValue);
-						debouncedUpdateTitle(newValue);
-					}}
-					placeholder="Enter node title..."
-				/>
-			</div>
+			)}
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
 				<div className="space-y-3 pr-2">
 				{/* Multi-select summary */}

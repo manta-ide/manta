@@ -43,7 +43,7 @@ The top bar provides consistent access to key functionality like saving, loading
 This base class provides consistent behavior across all property types, including change handling, validation, error display, and integration with the broader property editing system in the node sidebar.</description>
     </node>
 
-    <node id="boolean-property-editor" title="Boolean Property Editor" x="-763.8255070627258" y="1249.5922521890147" z="0">
+    <node id="boolean-property-editor" title="Boolean Property Editor" x="-77.55269409136861" y="972.1628171580405" z="0">
       <description>A property editor for boolean/true-false values, typically rendered as a toggle switch or checkbox. It provides a simple on/off interface for binary node properties.
 
 Extends the base property editor to handle boolean state changes and provides visual feedback for the current true/false state of the property.</description>
@@ -73,7 +73,7 @@ Features font family selection with web-safe fonts, size adjustment controls, an
 Provides number formatting, validation feedback, and keyboard interaction support while ensuring only valid numeric values are accepted and properly formatted.</description>
     </node>
 
-    <node id="radio-property-editor" title="Radio Property Editor" x="-463.5044907271945" y="1248.917605970549" z="0">
+    <node id="radio-property-editor" title="Radio Property Editor" x="-375.89519545425526" y="1223.364894849275" z="0">
       <description>A property editor that presents a set of mutually exclusive options as radio buttons, allowing users to select exactly one option from a predefined list. Ideal for single-choice scenarios where only one value should be selected.
 
 Manages the selected state across all radio options and ensures proper mutual exclusivity, with clear visual indicators for the currently selected option.</description>
@@ -97,7 +97,7 @@ Features dynamic list management with collapsible object entries, validation acr
 Handles nested property validation, dynamic field rendering based on object schema, and maintains object structure integrity while allowing detailed customization of all contained properties.</description>
     </node>
 
-    <node id="select-property-editor" title="Select Property Editor" x="-208.98654792881985" y="1513.4866761368764" z="0">
+    <node id="select-property-editor" title="Select Property Editor" x="502.8389761638114" y="1217.8053045907068" z="0">
       <description>A dropdown-based property editor that allows users to select a single value from a predefined list of options. Features a clean dropdown interface with search/filter capabilities for longer option lists.
 
 Provides clear visual feedback for the selected option and handles both static and dynamic option lists, with support for custom option formatting and grouping when needed.</description>
@@ -109,7 +109,7 @@ Provides clear visual feedback for the selected option and handles both static a
 Features keyboard shortcuts, placeholder text, and real-time validation feedback while maintaining a clean, focused interface for text entry and editing.</description>
     </node>
 
-    <node id="textarea-property-editor" title="TextArea Property Editor" x="-951.2989713672532" y="965.3302398238264" z="0">
+    <node id="textarea-property-editor" title="TextArea Property Editor" x="-221.2215107594265" y="695.2015793989306" z="0">
       <description>A multi-line text editor for longer text content such as descriptions, notes, and detailed explanations. Provides a resizable text area with word wrapping and extended text editing capabilities.
 
 Supports rich text features, line counting, auto-resize functionality, and maintains proper formatting while offering a comfortable editing experience for substantial text content.</description>
