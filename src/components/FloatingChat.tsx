@@ -11,6 +11,8 @@ import { useChatService } from '@/lib/chatService';
 import { MessageRenderer } from './MessageRenderer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+// @ts-ignore - remark-breaks doesn't have type definitions
+import remarkBreaks from 'remark-breaks';
 import { ShimmeringText } from '@/components/ui/shadcn-io/shimmering-text';
 
 interface Position {
@@ -118,7 +120,7 @@ export default function FloatingChat() {
     h1: ({ children }: any) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
     h2: ({ children }: any) => <h2 className="text-base font-bold text-white mb-2">{children}</h2>,
     h3: ({ children }: any) => <h3 className="text-sm font-bold text-white mb-1">{children}</h3>,
-    p: ({ children }: any) => <p className="text-zinc-200 mb-2 break-words">{children}</p>,
+    p: ({ children }: any) => <p className="text-zinc-200 mb-2 whitespace-pre-wrap">{children}</p>,
     // Use outside markers with padding to avoid numbering issues
     ul: ({ children }: any) => (
       <ul className="list-disc pl-4 text-zinc-200 mb-2 space-y-1">{children}</ul>
@@ -141,7 +143,7 @@ export default function FloatingChat() {
         );
       }
       // Inline code
-      return <code className="bg-zinc-800 text-zinc-200 px-1 py-0.5 rounded text-sm font-mono">{children}</code>;
+      return <code className="bg-zinc-800 text-zinc-200 px-1 py-0.5 rounded font-mono">{children}</code>;
     },
     pre: ({ children }: any) => <div className="mb-2">{children}</div>,
     blockquote: ({ children }: any) => <blockquote className="border-l-4 border-zinc-600 pl-4 text-zinc-300 italic mb-2">{children}</blockquote>,
@@ -445,13 +447,13 @@ export default function FloatingChat() {
               return () => { if (raf.current) cancelAnimationFrame(raf.current); };
             }, [text, onDone, speed]);
             return (
-              <div className="text-zinc-200">
-                <div className="md-ol-continue">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                    {shown}
-                  </ReactMarkdown>
+                <div className="text-zinc-200">
+                  <div className="md-ol-continue">
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
+                      {shown}
+                    </ReactMarkdown>
+                  </div>
                 </div>
-              </div>
             );
           }
           return (
@@ -477,7 +479,7 @@ export default function FloatingChat() {
                   <div className="mb-2">
                     {m.content && m.content.trim().length > 0 ? (
                       <div className="md-ol-continue">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
                           {m.content}
                         </ReactMarkdown>
                       </div>
@@ -504,7 +506,7 @@ export default function FloatingChat() {
                       <>
                         {console.log('🎨 FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
                         <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
                           components={markdownComponents}
                         >
                           {m.content}
@@ -534,7 +536,7 @@ export default function FloatingChat() {
                 ) : (
                   <div className="md-ol-continue">
                     <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={markdownComponents}
                     >
                       {m.content || ''}

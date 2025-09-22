@@ -264,12 +264,15 @@ useEffect(() => {
                       accumulatedContent += chunkContent;
                     }
                   } catch {
-                    // Not JSON, just accumulate
+                    // Not JSON, accumulate with proper line breaks
+                    if (accumulatedContent.length > 0 && !accumulatedContent.endsWith('\n')) {
+                      accumulatedContent += '\n';
+                    }
                     accumulatedContent += chunkContent;
                   }
                 }
 
-                console.log(`📝 Chat Service: Chunk ${chunkCount}, raw: "${line.slice(0, 50)}${line.length > 50 ? '...' : ''}", processed: "${chunkContent.slice(0, 50)}${chunkContent.length > 50 ? '...' : ''}", total: ${accumulatedContent.length}`);
+                console.log(`📝 Chat Service: Chunk ${chunkCount}, total: ${accumulatedContent.length}`);
 
                 // Update the UI with the accumulated content (throttled to reduce updates)
                 setMessages((prev) => {
@@ -321,6 +324,9 @@ useEffect(() => {
               }
             }
             if (finalChunk.trim().length > 0) {
+              if (accumulatedContent.length > 0 && !accumulatedContent.endsWith('\n')) {
+                accumulatedContent += '\n';
+              }
               accumulatedContent += finalChunk;
               // Push a final UI update with leftover content
               setMessages((prev) => {
@@ -377,6 +383,9 @@ useEffect(() => {
           console.log('⚠️ Chat Service: Accumulated content is empty, using fallback');
           accumulatedContent = 'I processed your request but received no response content.';
         }
+
+        // Ensure line breaks are preserved - convert escaped newlines and ensure proper formatting
+        accumulatedContent = accumulatedContent.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
         setMessages((prev) => {
           const updated = [...prev];
