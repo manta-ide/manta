@@ -1,6 +1,7 @@
 {
   "name": "manta-ide",
-  "version": "0.1.46",
+  "version": "0.1.48",
+  "license": "MIT",
   "private": false,
   "type": "module",
   "bin": {
@@ -93,7 +94,8 @@
     "LICENSE.md",
     "scripts/",
     "public/",
-    ".next/",
+    ".next/standalone/",
+    ".next/static/",
     "next.config.mjs",
     "postcss.config.mjs",
     "package.json"
