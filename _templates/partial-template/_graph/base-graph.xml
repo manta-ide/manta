@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="sample-component" title="Sample Component" x="200" y="200" z="0">
+      <description>A sample component added by the partial template. This demonstrates how templates can extend existing projects.</description>
+      <props>
+        <prop name="component-name" title="Component Name" type="text">SampleComponent</prop>
+        <prop name="background-color" title="Background Color" type="color">#f0f0f0</prop>
+        <prop name="width" title="Width" type="number">300</prop>
+        <prop name="height" title="Height" type="number">200</prop>
+      </props>
+    </node>
+  </nodes>
+  <edges>
+  </edges>
+</graph>

@@ -1,0 +1,17 @@
+{
+  "name": "partial-template",
+  "version": "1.0.0",
+  "description": "A partial template for new projects - adds sample components and graph structure",
+  "scripts": {
+    "partial-template-info": "echo 'Partial template applied! Check src/components/SampleComponent.tsx and _graph/ for new files.'"
+  },
+  "keywords": ["manta", "template", "partial"],
+  "partial-template": {
+    "added-files": [
+      "src/components/SampleComponent.tsx",
+      "_graph/base-graph.xml",
+      "_graph/current-graph.xml"
+    ],
+    "description": "Adds a sample React component and basic graph structure to extend existing projects"
+  }
+}

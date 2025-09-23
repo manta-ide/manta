@@ -5,6 +5,7 @@ import FloatingChat from "@/components/FloatingChat";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
+import WelcomeScreen from "@/components/WelcomeScreen";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
@@ -14,10 +15,101 @@ export default function Home() {
     graph: true,
   });
   const [panelsLoaded, setPanelsLoaded] = useState(false);
-  
+
   const [isEditMode, setIsEditMode] = useState(true);
+  const [projectExistsState, setProjectExistsState] = useState<boolean | null>(null);
+  const [isInstallingTemplate, setIsInstallingTemplate] = useState(false);
+  const [templateResult, setTemplateResult] = useState<{
+    added: string[];
+    updated: string[];
+    skipped: string[];
+    removed: string[];
+  } | null>(null);
 
   const { loadProject: loadProjectFromFileSystem } = useProjectStore();
+
+  // Check if project exists on mount
+  useEffect(() => {
+    const checkProjectStatus = async () => {
+      try {
+        const response = await fetch('/api/project-status');
+        if (response.ok) {
+          const data = await response.json();
+          setProjectExistsState(data.projectExists);
+          console.log('🏗️ Project exists:', data.projectExists);
+        } else {
+          console.warn('Failed to check project status:', response.status);
+          setProjectExistsState(null);
+        }
+      } catch (error) {
+        console.error('Error checking project status:', error);
+        setProjectExistsState(null);
+      }
+    };
+
+    checkProjectStatus();
+  }, []);
+
+  // Handle applying partial template
+  const handleApplyPartialTemplate = async () => {
+    console.log('➕ Applying partial template...');
+    setIsInstallingTemplate(true);
+    setTemplateResult(null);
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateName: 'partial-template',
+          type: 'partial'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to apply partial template');
+      }
+
+      const data = await response.json();
+      setTemplateResult(data.details);
+
+      // Check if project now exists (since partial template adds graph files)
+      const projectCheckResponse = await fetch('/api/project-status');
+      if (projectCheckResponse.ok) {
+        const projectData = await projectCheckResponse.json();
+        setProjectExistsState(projectData.projectExists);
+      }
+    } catch (error) {
+      console.error('Failed to apply partial template:', error);
+    } finally {
+      setIsInstallingTemplate(false);
+    }
+  };
+
+  // Handle installing full template
+  const handleInstallFullTemplate = async () => {
+    console.log('📦 Installing full template...');
+    setIsInstallingTemplate(true);
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateName: 'full-template',
+          type: 'full'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to install template');
+      }
+
+      // Reload the page to pick up the new project
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to install template:', error);
+      setIsInstallingTemplate(false);
+    }
+  };
 
   // Load project on mount
   useEffect(() => {
@@ -101,6 +193,26 @@ export default function Home() {
   // Adjust panel sizes when SelectedNodeSidebar is visible
   // const selectedPanelSize = hasSelected ? 20 : 0;
 
+  // Show welcome screen if no project exists
+  if (projectExistsState === false) {
+    return (
+      <WelcomeScreen
+        onInstallFullTemplate={handleInstallFullTemplate}
+        onApplyPartialTemplate={handleApplyPartialTemplate}
+        isLoading={isInstallingTemplate}
+        templateResult={templateResult || undefined}
+      />
+    );
+  }
+
+  // Show loading state while checking project existence
+  if (projectExistsState === null) {
+    return (
+      <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-zinc-900">

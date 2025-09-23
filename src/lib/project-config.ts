@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 
 /**
  * Get the development project directory path
@@ -31,4 +32,21 @@ export function getDevProjectName(): string {
 
   // Otherwise, use the configured dev project directory name (development mode)
   return process.env.DEV_PROJECT_DIR || 'test-project';
+}
+
+/**
+ * Check if a project already exists in the given directory
+ * A project exists if it has graph files (_graph/current-graph.xml or _graph/base-graph.xml)
+ */
+export function projectExists(projectDir: string = getDevProjectDir()): boolean {
+  try {
+    const graphDir = path.join(projectDir, '_graph');
+    const currentGraphPath = path.join(graphDir, 'current-graph.xml');
+    const baseGraphPath = path.join(graphDir, 'base-graph.xml');
+
+    return fs.existsSync(currentGraphPath) || fs.existsSync(baseGraphPath);
+  } catch (error) {
+    console.warn('Error checking if project exists:', error);
+    return false;
+  }
 }
