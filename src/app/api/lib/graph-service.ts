@@ -12,7 +12,7 @@ export type Graph = z.infer<typeof GraphSchema>;
 let currentGraph: Graph | null = null;
 
 // Local mode toggle and helpers
-const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+const LOCAL_MODE = process.env.NODE_ENV !== 'production';
 function getProjectDir(): string {
   // Use the configured development project directory
   try {
@@ -58,7 +58,6 @@ function readGraphFromFs(): Graph | null {
         const parsed = GraphSchema.safeParse(data);
         const graph = parsed.success ? parsed.data : (data as Graph);
         try { writeGraphToFs(graph); } catch {}
-        console.log('graph', graph);
         return graph;
       }
     }

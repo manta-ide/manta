@@ -3,7 +3,7 @@ import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteV
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
-const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+const LOCAL_MODE = process.env.NODE_ENV !== 'production';
 
 // Get default user for all requests
 async function getSessionFromRequest(req: NextRequest) {
@@ -44,14 +44,26 @@ export async function GET(req: NextRequest) {
           // Send initial graph data
           const sendGraphData = async () => {
              try {
-               let graph = getGraphSession();
-               if (!graph) {
+               let graph;
+               if (LOCAL_MODE) {
+                 // In development mode, always reload from file to pick up directory changes
                  try {
-                   await loadGraphFromFile(user.id);
-                   graph = getGraphSession();
+                   graph = await loadCurrentGraphFromFile(user.id);
                  } catch (loadError) {
-                   console.log('ℹ️ No graph file found, skipping SSE update (loadError: ', loadError, ')');
+                   console.log('ℹ️ No graph file found in dev mode, skipping SSE update (loadError: ', loadError, ')');
                    return; // Don't send any data if no graph exists
+                 }
+               } else {
+                 // In production, use session cache for performance
+                 graph = getGraphSession();
+                 if (!graph) {
+                   try {
+                     await loadGraphFromFile(user.id);
+                     graph = getGraphSession();
+                   } catch (loadError) {
+                     console.log('ℹ️ No graph file found, skipping SSE update (loadError: ', loadError, ')');
+                     return; // Don't send any data if no graph exists
+                   }
                  }
                }
                
@@ -182,11 +194,16 @@ export async function GET(req: NextRequest) {
         if (graphType === 'base') {
           graph = await loadBaseGraphFromFile(user.id);
         } else {
-          // Use session cache with fallback to filesystem for current graphs
-          graph = getGraphSession();
-          if (!graph) {
-            await loadGraphFromFile(user.id);
+          // In development mode, always reload from file to pick up directory changes
+          // In production, use session cache for performance
+          if (LOCAL_MODE) {
+            graph = await loadCurrentGraphFromFile(user.id);
+          } else {
             graph = getGraphSession();
+            if (!graph) {
+              await loadGraphFromFile(user.id);
+              graph = getGraphSession();
+            }
           }
         }
       }

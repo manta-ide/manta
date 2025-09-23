@@ -11,12 +11,12 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "dev": "node scripts/dev.js",
+    "dev": "node scripts/dev.js dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:ide": "next dev",
-    "dev:ide:turbo": "next dev --turbopack",
+    "dev:ide": "node scripts/dev.js dev:ide",
+    "dev:ide:turbo": "node scripts/dev.js dev:ide:turbo",
     "dev:test": "npm --prefix test-project run dev",
     "postbuild": "node scripts/postbuild-copy-static.js",
     "prepublishOnly": "NODE_ENV=production npm run build",
