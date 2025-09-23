@@ -5,6 +5,7 @@ import FloatingChat from "@/components/FloatingChat";
 import GraphView from "@/components/GraphView";
 import SelectedNodeSidebar from "@/components/SelectedNodeSidebar";
 import TopBar from "@/components/TopBar";
+import WelcomeScreen from "@/components/WelcomeScreen";
 import { useProjectStore } from "@/lib/store";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
@@ -14,10 +15,85 @@ export default function Home() {
     graph: true,
   });
   const [panelsLoaded, setPanelsLoaded] = useState(false);
-  
+
   const [isEditMode, setIsEditMode] = useState(true);
+  const [projectExistsState, setProjectExistsState] = useState<boolean | null>(null);
+  const [hasNextJsProjectState, setHasNextJsProjectState] = useState<boolean | null>(null);
+  const [needsPartialTemplateState, setNeedsPartialTemplateState] = useState<boolean | null>(null);
+  const [isInstallingTemplate, setIsInstallingTemplate] = useState(false);
 
   const { loadProject: loadProjectFromFileSystem } = useProjectStore();
+
+  // Check if project exists on mount and auto-install partial template if needed
+  useEffect(() => {
+    const checkProjectStatus = async () => {
+      try {
+        const response = await fetch('/api/project-status');
+        if (response.ok) {
+          const data = await response.json();
+          setProjectExistsState(data.projectExists);
+          setHasNextJsProjectState(data.hasNextJsProject);
+          setNeedsPartialTemplateState(data.needsPartialTemplate);
+
+          console.log('🏗️ Project exists:', data.projectExists);
+          console.log('🔧 Has Next.js project:', data.hasNextJsProject);
+          console.log('📦 Needs partial template:', data.needsPartialTemplate);
+
+          // Auto-install partial template if needed
+          if (data.needsPartialTemplate) {
+            console.log('🚀 Auto-installing partial template...');
+            await handleInstallTemplate('partial');
+          }
+        } else {
+          console.warn('Failed to check project status:', response.status);
+          setProjectExistsState(null);
+          setHasNextJsProjectState(null);
+          setNeedsPartialTemplateState(null);
+        }
+      } catch (error) {
+        console.error('Error checking project status:', error);
+        setProjectExistsState(null);
+        setHasNextJsProjectState(null);
+        setNeedsPartialTemplateState(null);
+      }
+    };
+
+    checkProjectStatus();
+  }, []);
+
+  // Handle installing template from branch
+  const handleInstallTemplate = async (branch: string) => {
+    console.log(`📦 Installing template from branch: ${branch}`);
+    setIsInstallingTemplate(true);
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateBranch: branch
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to install template');
+      }
+
+      const data = await response.json();
+
+      // Check if project now exists (since templates add graph files)
+      const projectCheckResponse = await fetch('/api/project-status');
+      if (projectCheckResponse.ok) {
+        const projectData = await projectCheckResponse.json();
+        setProjectExistsState(projectData.projectExists);
+        setHasNextJsProjectState(projectData.hasNextJsProject);
+        setNeedsPartialTemplateState(projectData.needsPartialTemplate);
+      }
+    } catch (error) {
+      console.error('Failed to install template:', error);
+    } finally {
+      setIsInstallingTemplate(false);
+    }
+  };
 
   // Load project on mount
   useEffect(() => {
@@ -101,6 +177,36 @@ export default function Home() {
   // Adjust panel sizes when SelectedNodeSidebar is visible
   // const selectedPanelSize = hasSelected ? 20 : 0;
 
+  // Show welcome screen if no project exists
+  if (projectExistsState === false) {
+    return (
+      <WelcomeScreen
+        onInstallTemplate={handleInstallTemplate}
+        isLoading={isInstallingTemplate}
+      />
+    );
+  }
+
+  // Show loading state while checking project existence
+  if (projectExistsState === null || hasNextJsProjectState === null || needsPartialTemplateState === null) {
+    return (
+      <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show loading state while auto-installing partial template
+  if (needsPartialTemplateState && isInstallingTemplate) {
+    return (
+      <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-white text-xl">Setting up your project...</div>
+          <div className="text-zinc-400 text-sm">Adding sample components and graphs to your existing Next.js project</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-zinc-900">

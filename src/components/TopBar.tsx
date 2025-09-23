@@ -1,6 +1,6 @@
 'use client';
 
-import { useVars } from "../../_graph/varsHmr";
+import { useVars } from "../../.manta/varsHmr";
 
 interface TopBarProps {
   panels: { graph: boolean };

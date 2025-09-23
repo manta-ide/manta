@@ -2,8 +2,36 @@
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { existsSync, cpSync, mkdirSync, writeFileSync, readdirSync } from "fs";
+import { existsSync, cpSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from "fs";
 import JSZip from "jszip";
+
+// Load .env file if it exists
+function loadEnvFile() {
+  const envPath = join(packageRoot, '.env');
+  if (existsSync(envPath)) {
+    try {
+      const envContent = readFileSync(envPath, 'utf8');
+      const envVars = {};
+      envContent.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const [key, ...valueParts] = trimmed.split('=');
+          if (key && valueParts.length > 0) {
+            const value = valueParts.join('=').trim();
+            // Remove quotes if present
+            const cleanValue = value.replace(/^["']|["']$/g, '');
+            envVars[key.trim()] = cleanValue;
+          }
+        }
+      });
+      // Set the environment variables
+      Object.assign(process.env, envVars);
+      console.log('Loaded environment variables from .env file');
+    } catch (error) {
+      console.warn('Failed to load .env file:', error.message);
+    }
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -107,6 +135,9 @@ async function runIfExists(cwd, cmd, args) {
 }
 
 async function main() {
+  // Load environment variables from .env file
+  loadEnvFile();
+
   const args = process.argv.slice(2);
   const command = args[0];
 
@@ -163,12 +194,38 @@ async function main() {
 
   if (command === "dev") {
     // Dev only for repo clones that include src/app
-    console.log(`Running Manta IDE (dev) targeting: ${targetDir}`);
+    // Check for environment variable specifying absolute project directory
+    const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
+    console.log(`Running Manta IDE (dev) targeting: ${devProjectDir}`);
     // Run Next from the PACKAGE ROOT (not the user project)
     const nextBin = join(packageRoot, "node_modules", ".bin", "next");
     await run(nextBin, ["dev"], {
       cwd: packageRoot,
-      env: { ...env, NODE_ENV: "development" },
+      env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
+    });
+    return;
+  }
+
+  if (command === "dev:ide") {
+    // Direct Next.js dev with environment variables
+    const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
+    console.log(`Running Manta IDE (dev:ide) targeting: ${devProjectDir}`);
+    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
+    await run(nextBin, ["dev"], {
+      cwd: packageRoot,
+      env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
+    });
+    return;
+  }
+
+  if (command === "dev:ide:turbo") {
+    // Direct Next.js dev with turbopack and environment variables
+    const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
+    console.log(`Running Manta IDE (dev:ide:turbo) targeting: ${devProjectDir}`);
+    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
+    await run(nextBin, ["dev", "--turbopack"], {
+      cwd: packageRoot,
+      env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
     });
     return;
   }
@@ -183,6 +240,11 @@ Usage:
   manta run        Run Manta IDE targeting current directory
   manta dev        Run dev server (only in local repo with src/)
   manta help       Show this help
+
+NPM Scripts (in package.json):
+  npm run dev              Run dev server via scripts/dev.js
+  npm run dev:ide          Run Next.js dev directly (respects .env)
+  npm run dev:ide:turbo    Run Next.js dev with turbopack (respects .env)
 `);
     return;
   }

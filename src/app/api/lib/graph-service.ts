@@ -12,7 +12,7 @@ export type Graph = z.infer<typeof GraphSchema>;
 let currentGraph: Graph | null = null;
 
 // Local mode toggle and helpers
-const LOCAL_MODE = process.env.MANTA_LOCAL_MODE === '1' || process.env.NEXT_PUBLIC_LOCAL_MODE === '1';
+const LOCAL_MODE = process.env.NODE_ENV !== 'production';
 function getProjectDir(): string {
   // Use the configured development project directory
   try {
@@ -27,13 +27,13 @@ function getProjectDir(): string {
   // Fallback to current directory if dev project directory doesn't exist
   try {
     const cwd = process.cwd();
-    if (fs.existsSync(path.join(cwd, '_graph'))) return cwd;
+    if (fs.existsSync(path.join(cwd, '.manta'))) return cwd;
     return cwd;
   } catch {
     return process.cwd();
   }
 }
-function getGraphDir(): string { return path.join(getProjectDir(), '_graph'); }
+function getGraphDir(): string { return path.join(getProjectDir(), '.manta'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
 function getCurrentGraphPath(): string { return path.join(getGraphDir(), 'current-graph.xml'); }
 function getBaseGraphPath(): string { return path.join(getGraphDir(), 'base-graph.xml'); }
@@ -58,7 +58,6 @@ function readGraphFromFs(): Graph | null {
         const parsed = GraphSchema.safeParse(data);
         const graph = parsed.success ? parsed.data : (data as Graph);
         try { writeGraphToFs(graph); } catch {}
-        console.log('graph', graph);
         return graph;
       }
     }
