@@ -163,12 +163,14 @@ async function main() {
 
   if (command === "dev") {
     // Dev only for repo clones that include src/app
-    console.log(`Running Manta IDE (dev) targeting: ${targetDir}`);
+    // Check for environment variable specifying absolute project directory
+    const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
+    console.log(`Running Manta IDE (dev) targeting: ${devProjectDir}`);
     // Run Next from the PACKAGE ROOT (not the user project)
     const nextBin = join(packageRoot, "node_modules", ".bin", "next");
     await run(nextBin, ["dev"], {
       cwd: packageRoot,
-      env: { ...env, NODE_ENV: "development" },
+      env: { ...env, MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
     });
     return;
   }
