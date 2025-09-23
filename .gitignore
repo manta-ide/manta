@@ -1,12 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/cli-proxy/node_modules
-/cli-proxy/package-lock.json
-/base-template/node_modules
-/base-template/package-lock.json
-/test-project/node_modules
-/test-project/package-lock.json
+/dev-project/
 /node_modules
 /.pnp
 .pnp.*
@@ -15,13 +10,6 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
-packages/manta/node_modules
-packages/manta/package-lock.json
-packages/manta-mcp/node_modules
-packages/manta-mcp/package-lock.json
-packages/manta-mcp/dist
-packages/manta/dist
 
 /logs
 

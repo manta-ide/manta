@@ -36,11 +36,11 @@ export function getDevProjectName(): string {
 
 /**
  * Check if a project already exists in the given directory
- * A project exists if it has graph files (_graph/current-graph.xml or _graph/base-graph.xml)
+ * A project exists if it has graph files (.manta/current-graph.xml or .manta/base-graph.xml)
  */
 export function projectExists(projectDir: string = getDevProjectDir()): boolean {
   try {
-    const graphDir = path.join(projectDir, '_graph');
+    const graphDir = path.join(projectDir, '.manta');
     const currentGraphPath = path.join(graphDir, 'current-graph.xml');
     const baseGraphPath = path.join(graphDir, 'base-graph.xml');
 

@@ -29,7 +29,7 @@ import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
 import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
-import { useVars } from '../../_graph/varsHmr';
+import { useVars } from '../../.manta/varsHmr';
 
 // Connection validation function
 const isValidConnection = (connection: Connection | Edge) => {

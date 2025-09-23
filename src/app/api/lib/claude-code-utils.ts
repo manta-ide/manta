@@ -116,8 +116,8 @@ export function projectDir(): string {
   }
 }
 
-export function graphPath(): string { return path.join(projectDir(), '_graph', 'graph.xml'); }
-export function baseGraphPath(): string { return path.join(projectDir(), '_graph', 'base-graph.xml'); }
+export function graphPath(): string { return path.join(projectDir(), '.manta', 'graph.xml'); }
+export function baseGraphPath(): string { return path.join(projectDir(), '.manta', 'base-graph.xml'); }
 
 export function readLocalGraph(): any | null {
   try {

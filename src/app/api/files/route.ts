@@ -17,7 +17,7 @@ const projectDir = () => {
   // Fallback to current directory if dev project directory doesn't exist
   return process.cwd();
 };
-const IGNORE = new Set(['node_modules', '.git', '.next', 'dist', 'build', 'out', '_graph', 'coverage']);
+const IGNORE = new Set(['node_modules', '.git', '.next', 'dist', 'build', 'out', '.manta', 'coverage']);
 
 type FileNode = { name: string; path: string; type: 'file'|'directory'; children?: FileNode[]; content?: string };
 
