@@ -1,8 +1,292 @@
 import { NextRequest } from 'next/server';
+import * as path from 'path';
+import * as fs from 'fs';
+import { spawn } from 'child_process';
 import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-code';
 import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
+
+// Type definitions for Claude Code installations
+interface ClaudeInstallation {
+  path: string;
+  version?: string;
+  source: string;
+  installationType: 'system' | 'custom';
+}
+
+// Claude Code binary discovery functions
+function findClaudeBinary(): string {
+  console.log('🔍 Searching for Claude Code binary...');
+
+  // First try the current approach (development/standalone detection)
+  const quickPath = getQuickCliPath();
+  if (quickPath && fs.existsSync(quickPath)) {
+    console.log(`✅ Found Claude Code via quick detection: ${quickPath}`);
+    return quickPath;
+  }
+
+  // If quick detection fails, do comprehensive discovery
+  const installations = discoverSystemInstallations();
+
+  if (installations.length === 0) {
+    throw new Error('Claude Code not found. Please ensure it\'s installed in one of these locations: PATH, /usr/local/bin, /opt/homebrew/bin, ~/.nvm/versions/node/*/bin, ~/.claude/local, ~/.local/bin');
+  }
+
+  // Log all found installations
+  installations.forEach(install => {
+    console.log(`📍 Found Claude installation: ${install.path} (${install.source})`);
+  });
+
+  // Select the best installation
+  const best = selectBestInstallation(installations);
+  if (best) {
+    console.log(`🎯 Selected Claude installation: ${best.path} (${best.source})`);
+    return best.path;
+  }
+
+  throw new Error('No valid Claude installation found');
+}
+
+function getQuickCliPath(): string | null {
+  // Check if we're in development (not standalone build)
+  const isDevelopment = !process.cwd().includes('.next') && fs.existsSync(path.join(process.cwd(), 'node_modules'));
+
+  if (isDevelopment) {
+    // In development, use local node_modules
+    return path.join(process.cwd(), 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js');
+  } else {
+    // In standalone build, we're in .next/standalone/.next/server/...
+    // Need to go up to find node_modules alongside standalone
+    try {
+      const currentFileUrl = new URL(import.meta.url);
+      const currentDir = path.dirname(currentFileUrl.pathname);
+      const standaloneDir = path.resolve(currentDir, '../../../../../');
+      return path.join(standaloneDir, 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js');
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
+function discoverSystemInstallations(): ClaudeInstallation[] {
+  const installations: ClaudeInstallation[] = [];
+
+  // 1. Try 'which' command first
+  const whichInstall = tryWhichCommand();
+  if (whichInstall) installations.push(whichInstall);
+
+  // 2. Check NVM paths
+  installations.push(...findNvmInstallations());
+
+  // 3. Check standard paths
+  installations.push(...findStandardInstallations());
+
+  // Remove duplicates by path
+  const uniquePaths = new Set<string>();
+  return installations.filter(install => {
+    if (uniquePaths.has(install.path)) return false;
+    uniquePaths.add(install.path);
+    return true;
+  });
+}
+
+function tryWhichCommand(): ClaudeInstallation | null {
+  try {
+    const result = spawnSync('which', ['claude'], { encoding: 'utf8' });
+    if (result.status === 0 && result.stdout) {
+      const output = result.stdout.trim();
+
+      // Parse aliased output: "claude: aliased to /path/to/claude"
+      let pathStr = output;
+      if (output.startsWith('claude:') && output.includes('aliased to')) {
+        const parts = output.split('aliased to');
+        if (parts[1]) pathStr = parts[1].trim();
+      }
+
+      if (fs.existsSync(pathStr)) {
+        const version = getClaudeVersion(pathStr);
+        return {
+          path: pathStr,
+          version,
+          source: 'which',
+          installationType: 'system'
+        };
+      }
+    }
+  } catch (e) {
+    // which command failed, continue
+  }
+  return null;
+}
+
+function findNvmInstallations(): ClaudeInstallation[] {
+  const installations: ClaudeInstallation[] = [];
+
+  const home = process.env.HOME;
+  if (!home) return installations;
+
+  const nvmDir = path.join(home, '.nvm', 'versions', 'node');
+
+  try {
+    if (!fs.existsSync(nvmDir)) return installations;
+
+    const entries = fs.readdirSync(nvmDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const claudePath = path.join(nvmDir, entry.name, 'bin', 'claude');
+        if (fs.existsSync(claudePath)) {
+          const version = getClaudeVersion(claudePath);
+          installations.push({
+            path: claudePath,
+            version,
+            source: `nvm (${entry.name})`,
+            installationType: 'system'
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // NVM directory not accessible, continue
+  }
+
+  return installations;
+}
+
+function findStandardInstallations(): ClaudeInstallation[] {
+  const installations: ClaudeInstallation[] = [];
+  const home = process.env.HOME || '';
+
+  // Common installation paths
+  const pathsToCheck = [
+    { path: '/usr/local/bin/claude', source: 'system' },
+    { path: '/opt/homebrew/bin/claude', source: 'homebrew' },
+    { path: '/usr/bin/claude', source: 'system' },
+    { path: '/bin/claude', source: 'system' },
+    { path: path.join(home, '.claude/local/claude'), source: 'claude-local' },
+    { path: path.join(home, '.local/bin/claude'), source: 'local-bin' },
+    { path: path.join(home, '.npm-global/bin/claude'), source: 'npm-global' },
+    { path: path.join(home, '.yarn/bin/claude'), source: 'yarn' },
+    { path: path.join(home, '.bun/bin/claude'), source: 'bun' },
+    { path: path.join(home, 'bin/claude'), source: 'home-bin' },
+    { path: path.join(home, 'node_modules/.bin/claude'), source: 'node-modules' },
+    { path: path.join(home, '.config/yarn/global/node_modules/.bin/claude'), source: 'yarn-global' },
+  ];
+
+  for (const { path: checkPath, source } of pathsToCheck) {
+    if (fs.existsSync(checkPath)) {
+      const version = getClaudeVersion(checkPath);
+      installations.push({
+        path: checkPath,
+        version,
+        source,
+        installationType: 'system'
+      });
+    }
+  }
+
+  // Check if claude is available in PATH
+  try {
+    const result = spawnSync('claude', ['--version'], { encoding: 'utf8', timeout: 5000 });
+    if (result.status === 0) {
+      const version = extractVersionFromOutput(result.stdout);
+      installations.push({
+        path: 'claude',
+        version,
+        source: 'PATH',
+        installationType: 'system'
+      });
+    }
+  } catch (e) {
+    // claude not in PATH, continue
+  }
+
+  return installations;
+}
+
+function getClaudeVersion(claudePath: string): string | undefined {
+  try {
+    const result = spawnSync(claudePath, ['--version'], { encoding: 'utf8', timeout: 5000 });
+    if (result.status === 0 && result.stdout) {
+      return extractVersionFromOutput(result.stdout);
+    }
+  } catch (e) {
+    // Version check failed, continue
+  }
+  return undefined;
+}
+
+function extractVersionFromOutput(stdout: string): string | undefined {
+  // Look for version pattern like "1.0.41" or "1.0.17-beta"
+  const versionRegex = /(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?(?:\+[a-zA-Z0-9.-]+)?)/;
+  const match = stdout.match(versionRegex);
+  return match ? match[1] : undefined;
+}
+
+function selectBestInstallation(installations: ClaudeInstallation[]): ClaudeInstallation | null {
+  if (installations.length === 0) return null;
+
+  // Sort by version (highest first), then by source preference
+  installations.sort((a, b) => {
+    // Compare versions if both have them
+    if (a.version && b.version) {
+      const versionCompare = compareVersions(b.version, a.version); // Reverse for descending
+      if (versionCompare !== 0) return versionCompare;
+    } else if (a.version && !b.version) {
+      return -1; // a with version comes first
+    } else if (!a.version && b.version) {
+      return 1; // b with version comes first
+    }
+
+    // If versions are equal or both missing, compare by source preference
+    return sourcePreference(a.source) - sourcePreference(b.source);
+  });
+
+  return installations[0];
+}
+
+function sourcePreference(source: string): number {
+  const preferences: Record<string, number> = {
+    'which': 1,
+    'homebrew': 2,
+    'system': 3,
+    'nvm': 4,
+    'local-bin': 5,
+    'claude-local': 6,
+    'npm-global': 7,
+    'yarn': 8,
+    'yarn-global': 9,
+    'bun': 10,
+    'node-modules': 11,
+    'home-bin': 12,
+    'PATH': 13,
+  };
+
+  // Handle nvm with version
+  if (source.startsWith('nvm')) return 4;
+
+  return preferences[source] || 14;
+}
+
+function compareVersions(a: string, b: string): number {
+  const aParts = a.split('.').map(s => parseInt(s.split('-')[0]) || 0);
+  const bParts = b.split('.').map(s => parseInt(s.split('-')[0]) || 0);
+
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aVal = aParts[i] || 0;
+    const bVal = bParts[i] || 0;
+    if (aVal > bVal) return 1;
+    if (aVal < bVal) return -1;
+  }
+  return 0;
+}
+
+// Import spawnSync for synchronous operations
+import { spawnSync } from 'child_process';
+
+// Force Node.js runtime - required for Claude Code execution
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Claude Code Execute Route
 // This route handles Claude Code execution for different agent types.
@@ -62,6 +346,9 @@ export async function POST(req: NextRequest) {
         const encoder = new TextEncoder();
 
         try {
+          // Find the best Claude Code installation
+          const cliPath = findClaudeBinary();
+
           // Configure based on subagent
           const baseUrl = getBaseUrl(req as any);
           const tools = createGraphTools(baseUrl);
@@ -189,6 +476,7 @@ Remember: You analyze what needs to be done, delegate specific tasks to the appr
             abortController: new AbortController(),
             cwd: workingDirectory,
             strictMcpConfig: true,
+            pathToClaudeCodeExecutable: cliPath,
           } as any;
 
           logLine('🔧 Claude Code: Starting query iteration');

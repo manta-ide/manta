@@ -23,7 +23,7 @@
     "reinstall-global": "node scripts/reinstall-global.js"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^1.0.115",
+    "@anthropic-ai/claude-code": "^1.0.120",
     "@headless-tree/core": "^1.2.1",
     "@headless-tree/react": "^1.2.1",
     "@internationalized/date": "^3.8.2",
