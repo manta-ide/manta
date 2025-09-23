@@ -1628,7 +1628,6 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
         /* Dynamic pan behavior based on tool mode */
         panOnDrag={currentTool === 'pan' && !selectionKeyActive ? [0, 2] : [2]} // Right mouse always pans
         selectionOnDrag={currentTool === 'select' || selectionKeyActive}
-        onMouseDown={onPaneMouseDown}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
