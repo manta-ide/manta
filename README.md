@@ -17,9 +17,8 @@ Manta IDE is a graph-based development environment that lets you code by creatin
    ```bash
    npm i -g manta-ide
 
-3. Install the template and run the IDE:
+3. Run the IDE:
    ```bash
-   manta i
    manta run
 
 5. Open [http://localhost:3000](http://localhost:3000)
