@@ -1,0 +1,26 @@
+{
+  "repo": "manta-ide/manta-template",
+  "templates": [
+    {
+      "branch": "main",
+      "name": "Base Template",
+      "description": "Basic Next.js project with Next.js + Tailwind CSS + Shadcn UI",
+      "image": "/templates/base.png",
+      "glowColor": "blue"
+    },
+    {
+      "branch": "portfolio",
+      "name": "Portfolio Template",
+      "description": "Portfolio website built using Next.js, Tailwind CSS and Framer-motion.",
+      "image": "/templates/portfolio.png",
+      "glowColor": "purple"
+    },
+    {
+      "branch": "saas",
+      "name": "SaaS Template",
+      "description": "SaaS Boilerplate built with Next.js + Tailwind CSS + Shadcn UI + TypeScript.",
+      "image": "/templates/saas.png",
+      "glowColor": "orange"
+    }
+  ]
+}

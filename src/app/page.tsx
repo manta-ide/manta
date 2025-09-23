@@ -18,17 +18,13 @@ export default function Home() {
 
   const [isEditMode, setIsEditMode] = useState(true);
   const [projectExistsState, setProjectExistsState] = useState<boolean | null>(null);
+  const [hasNextJsProjectState, setHasNextJsProjectState] = useState<boolean | null>(null);
+  const [needsPartialTemplateState, setNeedsPartialTemplateState] = useState<boolean | null>(null);
   const [isInstallingTemplate, setIsInstallingTemplate] = useState(false);
-  const [templateResult, setTemplateResult] = useState<{
-    added: string[];
-    updated: string[];
-    skipped: string[];
-    removed: string[];
-  } | null>(null);
 
   const { loadProject: loadProjectFromFileSystem } = useProjectStore();
 
-  // Check if project exists on mount
+  // Check if project exists on mount and auto-install partial template if needed
   useEffect(() => {
     const checkProjectStatus = async () => {
       try {
@@ -36,66 +32,45 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           setProjectExistsState(data.projectExists);
+          setHasNextJsProjectState(data.hasNextJsProject);
+          setNeedsPartialTemplateState(data.needsPartialTemplate);
+
           console.log('🏗️ Project exists:', data.projectExists);
+          console.log('🔧 Has Next.js project:', data.hasNextJsProject);
+          console.log('📦 Needs partial template:', data.needsPartialTemplate);
+
+          // Auto-install partial template if needed
+          if (data.needsPartialTemplate) {
+            console.log('🚀 Auto-installing partial template...');
+            await handleInstallTemplate('partial');
+          }
         } else {
           console.warn('Failed to check project status:', response.status);
           setProjectExistsState(null);
+          setHasNextJsProjectState(null);
+          setNeedsPartialTemplateState(null);
         }
       } catch (error) {
         console.error('Error checking project status:', error);
         setProjectExistsState(null);
+        setHasNextJsProjectState(null);
+        setNeedsPartialTemplateState(null);
       }
     };
 
     checkProjectStatus();
   }, []);
 
-  // Handle applying partial template
-  const handleApplyPartialTemplate = async () => {
-    console.log('➕ Applying partial template...');
-    setIsInstallingTemplate(true);
-    setTemplateResult(null);
-    try {
-      const response = await fetch('/api/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateName: 'partial-template',
-          type: 'partial'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to apply partial template');
-      }
-
-      const data = await response.json();
-      setTemplateResult(data.details);
-
-      // Check if project now exists (since partial template adds graph files)
-      const projectCheckResponse = await fetch('/api/project-status');
-      if (projectCheckResponse.ok) {
-        const projectData = await projectCheckResponse.json();
-        setProjectExistsState(projectData.projectExists);
-      }
-    } catch (error) {
-      console.error('Failed to apply partial template:', error);
-    } finally {
-      setIsInstallingTemplate(false);
-    }
-  };
-
-  // Handle installing full template
-  const handleInstallFullTemplate = async () => {
-    console.log('📦 Installing full template...');
+  // Handle installing template from branch
+  const handleInstallTemplate = async (branch: string) => {
+    console.log(`📦 Installing template from branch: ${branch}`);
     setIsInstallingTemplate(true);
     try {
       const response = await fetch('/api/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          templateName: 'full-template',
-          type: 'full'
+          templateBranch: branch
         })
       });
 
@@ -103,10 +78,19 @@ export default function Home() {
         throw new Error('Failed to install template');
       }
 
-      // Reload the page to pick up the new project
-      window.location.reload();
+      const data = await response.json();
+
+      // Check if project now exists (since templates add graph files)
+      const projectCheckResponse = await fetch('/api/project-status');
+      if (projectCheckResponse.ok) {
+        const projectData = await projectCheckResponse.json();
+        setProjectExistsState(projectData.projectExists);
+        setHasNextJsProjectState(projectData.hasNextJsProject);
+        setNeedsPartialTemplateState(projectData.needsPartialTemplate);
+      }
     } catch (error) {
       console.error('Failed to install template:', error);
+    } finally {
       setIsInstallingTemplate(false);
     }
   };
@@ -197,19 +181,29 @@ export default function Home() {
   if (projectExistsState === false) {
     return (
       <WelcomeScreen
-        onInstallFullTemplate={handleInstallFullTemplate}
-        onApplyPartialTemplate={handleApplyPartialTemplate}
+        onInstallTemplate={handleInstallTemplate}
         isLoading={isInstallingTemplate}
-        templateResult={templateResult || undefined}
       />
     );
   }
 
   // Show loading state while checking project existence
-  if (projectExistsState === null) {
+  if (projectExistsState === null || hasNextJsProjectState === null || needsPartialTemplateState === null) {
     return (
       <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show loading state while auto-installing partial template
+  if (needsPartialTemplateState && isInstallingTemplate) {
+    return (
+      <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-white text-xl">Setting up your project...</div>
+          <div className="text-zinc-400 text-sm">Adding sample components and graphs to your existing Next.js project</div>
+        </div>
       </div>
     );
   }

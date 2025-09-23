@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
-import { projectExists } from '@/lib/project-config';
+import { projectExists, hasNextJsProject } from '@/lib/project-config';
 
 export async function GET() {
   try {
     const exists = projectExists();
-    return NextResponse.json({ projectExists: exists });
+    const hasNextJs = hasNextJsProject();
+
+    return NextResponse.json({
+      projectExists: exists,
+      hasNextJsProject: hasNextJs,
+      needsPartialTemplate: hasNextJs && !exists
+    });
   } catch (error) {
     console.error('Error checking project status:', error);
     return NextResponse.json(

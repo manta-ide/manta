@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getDevProjectDir } from '@/lib/project-config';
+import JSZip from 'jszip';
 
 const templatesDir = path.join(process.cwd(), '_templates');
 
@@ -21,42 +22,20 @@ const getProjectDir = () => {
 // List available templates
 export async function GET() {
   try {
-    const templates: { name: string; type: 'partial' | 'full'; description: string }[] = [];
+    const configPath = path.join(process.cwd(), 'templates-config.json');
 
-    // Check if templates directory exists
-    if (!fs.existsSync(templatesDir)) {
+    if (!fs.existsSync(configPath)) {
       return NextResponse.json({ templates: [] });
     }
 
-    // Read template directories
-    const templateDirs = fs.readdirSync(templatesDir, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
+    const configContent = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configContent);
 
-    for (const templateName of templateDirs) {
-      const templatePath = path.join(templatesDir, templateName);
-      const readmePath = path.join(templatePath, 'README.md');
-
-      let description = `Template: ${templateName}`;
-      if (fs.existsSync(readmePath)) {
-        try {
-          const readmeContent = fs.readFileSync(readmePath, 'utf8');
-          const firstLine = readmeContent.split('\n')[0];
-          if (firstLine && firstLine.startsWith('#')) {
-            description = firstLine.substring(1).trim();
-          }
-        } catch (error) {
-          console.warn(`Failed to read README for template ${templateName}:`, error);
-        }
-      }
-
-      const type = templateName.includes('partial') ? 'partial' : 'full';
-      templates.push({
-        name: templateName,
-        type: type as 'partial' | 'full',
-        description
-      });
-    }
+    const templates = config.templates.map((template: any) => ({
+      ...template,
+      id: template.branch,
+      type: 'full' as const
+    }));
 
     return NextResponse.json({ templates });
   } catch (error) {
@@ -68,34 +47,20 @@ export async function GET() {
 // Apply template
 export async function POST(req: NextRequest) {
   try {
-    const { templateName, type } = await req.json();
+    const { templateBranch } = await req.json();
 
-    if (!templateName) {
-      return NextResponse.json({ error: 'Template name is required' }, { status: 400 });
+    if (!templateBranch) {
+      return NextResponse.json({ error: 'Template branch is required' }, { status: 400 });
     }
 
-    const templatePath = path.join(templatesDir, templateName);
     const projectDir = getProjectDir();
 
-    // Check if template exists
-    if (!fs.existsSync(templatePath)) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
-    }
+    console.log(`📦 Applying template from branch: ${templateBranch}`);
 
-    console.log(`📦 Applying ${type} template: ${templateName}`);
+    // Download and apply template from GitHub
+    const result = await downloadAndApplyTemplate(templateBranch, projectDir);
 
-    let result;
-    if (type === 'full') {
-      // For full template, replace everything (except node_modules and .git)
-      result = await applyFullTemplate(templatePath, projectDir);
-    } else if (type === 'partial') {
-      // For partial template, merge without overwriting existing files
-      result = await applyPartialTemplate(templatePath, projectDir);
-    } else {
-      return NextResponse.json({ error: 'Invalid template type' }, { status: 400 });
-    }
-
-    console.log(`✅ Template ${templateName} applied successfully`);
+    console.log(`✅ Template ${templateBranch} applied successfully`);
     return NextResponse.json({
       success: true,
       message: 'Template applied successfully',
@@ -107,8 +72,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Apply full template (replace project)
-async function applyFullTemplate(templatePath: string, projectDir: string) {
+// Download and apply template from GitHub
+async function downloadAndApplyTemplate(branch: string, projectDir: string) {
+  const configPath = path.join(process.cwd(), 'templates-config.json');
+  const configContent = fs.readFileSync(configPath, 'utf8');
+  const config = JSON.parse(configContent);
+
   const result = {
     added: [] as string[],
     updated: [] as string[],
@@ -116,9 +85,43 @@ async function applyFullTemplate(templatePath: string, projectDir: string) {
     removed: [] as string[]
   };
 
+  // Handle partial template specially - use local files instead of GitHub
+  if (branch === 'partial') {
+    const partialTemplatePath = path.join(process.cwd(), '_templates', 'partial-template');
+    console.log(`📦 Applying local partial template`);
+
+    // For partial templates, don't remove existing files - just merge
+    const copyResult = await copyDirectory(partialTemplatePath, projectDir, false, result);
+    return { ...result, ...copyResult };
+  }
+
+  // For full templates, download from GitHub
+  const repoSpec = config.repo;
+  const token = process.env.GITHUB_TOKEN || process.env.GITHUB_PERSONAL_ACCESS_TOKEN || '';
+
+  const zipUrl = `https://codeload.github.com/${repoSpec}/zip/refs/heads/${encodeURIComponent(branch)}`;
+  console.log(`📥 Downloading template from ${repoSpec}@${branch}`);
+
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const resp = await fetch(zipUrl, { headers });
+  if (!resp.ok) {
+    throw new Error(`Failed to download ZIP: ${resp.status} ${resp.statusText}`);
+  }
+
+  const ab = await resp.arrayBuffer();
+  const zip = await JSZip.loadAsync(ab);
+
+  // Detect top-level folder prefix (e.g., repo-ref/)
+  let rootPrefix = '';
+  zip.forEach((relPath) => {
+    const parts = relPath.split('/');
+    if (parts.length > 1 && !rootPrefix) rootPrefix = parts[0] + '/';
+  });
+
   // Remove existing files (except protected directories)
   const protectedDirs = new Set(['node_modules', '.git', '.next', 'dist', 'build']);
-
   const entries = fs.readdirSync(projectDir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory() && !protectedDirs.has(entry.name)) {
@@ -132,22 +135,38 @@ async function applyFullTemplate(templatePath: string, projectDir: string) {
     }
   }
 
-  // Copy template files
-  const copyResult = await copyDirectory(templatePath, projectDir, true, result);
-  return { ...result, ...copyResult };
-}
+  // Write template files
+  const entries2 = Object.values(zip.files);
+  let written = 0;
+  for (const entry of entries2) {
+    if (entry.dir) continue;
 
-// Apply partial template (merge without overwriting)
-async function applyPartialTemplate(templatePath: string, projectDir: string) {
-  const result = {
-    added: [] as string[],
-    updated: [] as string[],
-    skipped: [] as string[],
-    removed: [] as string[]
-  };
+    const rel = rootPrefix && entry.name.startsWith(rootPrefix)
+      ? entry.name.slice(rootPrefix.length)
+      : entry.name;
 
-  const copyResult = await copyDirectory(templatePath, projectDir, false, result); // false = don't overwrite
-  return { ...result, ...copyResult };
+    if (!rel) continue;
+
+    const abs = path.join(projectDir, rel);
+    const dir = path.dirname(abs);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const exists = fs.existsSync(abs);
+    const relativePath = path.relative(process.cwd(), abs);
+
+    if (!exists) {
+      const content = await entry.async('nodebuffer');
+      fs.writeFileSync(abs, content);
+      result.added.push(relativePath);
+      written++;
+    } else {
+      result.skipped.push(relativePath);
+    }
+  }
+
+  console.log(`📝 Wrote ${written} files from template`);
+
+  return result;
 }
 
 // Recursive directory copy function

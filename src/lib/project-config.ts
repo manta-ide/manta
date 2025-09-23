@@ -50,3 +50,25 @@ export function projectExists(projectDir: string = getDevProjectDir()): boolean 
     return false;
   }
 }
+
+/**
+ * Check if there's a Next.js project in the directory (has package.json and next.config files)
+ */
+export function hasNextJsProject(projectDir: string = getDevProjectDir()): boolean {
+  try {
+    const packageJsonPath = path.join(projectDir, 'package.json');
+    const nextConfigPath = path.join(projectDir, 'next.config.mjs');
+    const nextConfigJsPath = path.join(projectDir, 'next.config.js');
+    const nextConfigTsPath = path.join(projectDir, 'next.config.ts');
+
+    const hasPackageJson = fs.existsSync(packageJsonPath);
+    const hasNextConfig = fs.existsSync(nextConfigPath) ||
+                         fs.existsSync(nextConfigJsPath) ||
+                         fs.existsSync(nextConfigTsPath);
+
+    return hasPackageJson && hasNextConfig;
+  } catch (error) {
+    console.warn('Error checking if Next.js project exists:', error);
+    return false;
+  }
+}

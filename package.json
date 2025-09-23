@@ -46,6 +46,7 @@
     "elkjs": "^0.10.0",
     "execa": "^9.6.0",
     "fast-xml-parser": "^5.2.5",
+    "framer-motion": "^12.23.19",
     "json-schema-to-zod": "^2.6.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.525.0",
