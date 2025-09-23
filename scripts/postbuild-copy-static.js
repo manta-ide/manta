@@ -22,3 +22,15 @@ console.log(
   "|",
   existsSync(chunks) ? `${readdirSync(chunks).length} chunks` : "no chunks"
 );
+
+// Copy public assets to standalone build
+const publicSrc = join(root, "public");
+const publicDst = join(root, ".next", "standalone", "public");
+
+if (existsSync(publicSrc)) {
+  mkdirSync(publicDst, { recursive: true });
+  cpSync(publicSrc, publicDst, { recursive: true });
+  console.log("[manta] copied public assets to standalone");
+} else {
+  console.warn("[manta] public directory not found");
+}
