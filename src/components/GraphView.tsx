@@ -10,8 +10,6 @@ import {
   Connection,
   Node,
   Edge,
-  NodeMouseHandler,
-  EdgeMouseHandler,
   OnEdgesChange,
   Handle,
   Position,
@@ -539,10 +537,18 @@ function GraphCanvas() {
     setBaseGraph,
     loadBaseGraph
   } = useProjectStore();
-  // Tool modes: 'select', 'pan', 'add-node' - using default from properties
-  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
+  // Tool modes: 'select', 'pan', 'add-node'
+const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
     (toolbarProps.defaultTool as 'select' | 'pan' | 'add-node') ?? 'select'
   );
+  // Modifier-based marquee (Ctrl/Cmd/Shift) even when pan tool is active
+  const [selectionKeyActive, setSelectionKeyActive] = useState(false);
+  // Track lasso (box) selection state to support Ctrl-deselect
+  const lassoActiveRef = useRef(false);
+  const lassoCtrlKeyRef = useRef(false);
+  const lassoShiftKeyRef = useRef(false);
+  const preLassoSelectedIdsRef = useRef<string[]>([]);
+  const lassoSelectedIdsRef = useRef<string[]>([]);
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data
@@ -560,7 +566,23 @@ function GraphCanvas() {
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
 
-  // Edge visual styles - using properties
+  // Listen for selection modifier keys to enable marquee while in pan mode
+  useEffect(() => {
+    const handleKeyState = (e: KeyboardEvent) => {
+      setSelectionKeyActive(Boolean(e.ctrlKey || e.metaKey || e.shiftKey));
+    };
+    const clear = () => setSelectionKeyActive(false);
+    window.addEventListener('keydown', handleKeyState);
+    window.addEventListener('keyup', handleKeyState);
+    window.addEventListener('blur', clear);
+    return () => {
+      window.removeEventListener('keydown', handleKeyState);
+      window.removeEventListener('keyup', handleKeyState);
+      window.removeEventListener('blur', clear);
+    };
+  }, []);
+
+  // Edge visual styles
   const defaultEdgeStyle = {
     stroke: edgeStyleProps.defaultEdgeColor,
     strokeWidth: edgeStyleProps.defaultEdgeWidth,
@@ -737,9 +759,10 @@ function GraphCanvas() {
 
       // Delete selected edges from server graph
       if (edgeIdsToDelete.length > 0) {
-        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
-          !edgeIdsToDelete.includes(edge.id)
-        );
+        currentGraph.edges = currentGraph.edges.filter((edge: any) => {
+          const id = edge.id || `${edge.source}-${edge.target}`;
+          return !edgeIdsToDelete.includes(id);
+        });
       }
 
       // Persist to API
@@ -957,67 +980,6 @@ function GraphCanvas() {
 
   // Connection is managed by the store
 
-  // Handle node selection
-  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
-    // Always get the fresh node data from the current graph state
-    const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
-    const reactFlowNode = node.data?.node as GraphNode;
-
-    if (!freshGraphNode) return;
-
-    // Check if shift or ctrl/cmd is pressed for multi-selection
-    const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
-
-    if (isMultiSelect) {
-      const prev = selectedNodeIds || [];
-      const isSelected = prev.includes(node.id);
-      if (isSelected) {
-        // Remove from selection
-        const newSelection = prev.filter(id => id !== node.id);
-        // If this was the single selected node, clear the main selection
-        if (selectedNodeId === node.id && newSelection.length === 0) {
-          setSelectedNode(null, null);
-        } else if (selectedNodeId === node.id && newSelection.length > 0) {
-          // Set the first remaining node as the main selected node
-          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
-          if (firstNode) {
-            setSelectedNode(newSelection[0], firstNode);
-          }
-        }
-        setSelectedNodeIds(newSelection);
-      } else {
-        // Add to selection
-        const newSelection = [...prev, node.id];
-        // Set this as the main selected node if it's the first one
-        if (prev.length === 0) {
-          setSelectedNode(node.id, freshGraphNode);
-        }
-        setSelectedNodeIds(newSelection);
-      }
-    } else {
-      // Single selection - clear multi-selection and select only this node
-      setSelectedNodeIds([node.id]);
-      setSelectedNode(node.id, freshGraphNode);
-
-      // Removed iframe selection messaging
-    }
-  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
-
-  // Handle edge selection (with multi-select support)
-  const onEdgeClick: EdgeMouseHandler = useCallback((event, _edge) => {
-    const isMulti = event.shiftKey || event.metaKey || event.ctrlKey;
-    // prevent parent handlers from interfering with selection rectangle
-    event.preventDefault();
-    event.stopPropagation();
-    if (!isMulti) {
-      // Clear node selection when focusing an edge; let React Flow handle edge selection
-      setSelectedNode(null, null);
-      setSelectedNodeIds([]);
-
-      // Removed iframe deselection messaging
-    }
-  }, [setSelectedNode, setSelectedNodeIds]);
-
   // Ensure edge selection visually updates immediately when selection state changes
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => {
@@ -1216,7 +1178,7 @@ function GraphCanvas() {
         const previouslySelectedEdges = new Set(
           (latestEdgesRef.current || [])
             .filter((e) => e.selected)
-            .map((e) => e.id)
+            .map((e) => `${e.source}-${e.target}`)
         );
         // Build a quick position map for fallback handle inference
         const posMap = new Map<string, { x: number; y: number }>();
@@ -1257,13 +1219,13 @@ function GraphCanvas() {
           const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
 
           reactFlowEdges.push({
-            id: edge.id,
+            id: `${src}-${tgt}`,
             source: src,
             target: tgt,
             sourceHandle,
             targetHandle,
             type: 'default',
-            style: previouslySelectedEdges.has(edge.id)
+            style: previouslySelectedEdges.has(`${src}-${tgt}`)
               ? selectedEdgeStyle
              : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
             interactionWidth: edgeStyleProps.edgeInteractionWidth,
@@ -1495,28 +1457,21 @@ function GraphCanvas() {
     for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
   }, [updateNode]);
 
-  // Handle background mouse down for node creation
-  const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {
-    // Only start selection on left mouse button
-    if (event.button !== 0) return;
-    // Ignore clicks that originate from nodes, edges, or handles
+  // Create node on pane click when in add-node tool. Do not intercept normal selection/pan.
+  const onPaneClick = useCallback((event: ReactMouseEvent) => {
+    if (currentTool !== 'add-node') return;
+    // Ignore clicks originating from nodes/edges/handles
     const target = event.target as HTMLElement;
     if (target.closest('.react-flow__node') || target.closest('.react-flow__edge') || target.closest('.react-flow__handle')) return;
 
-    if (currentTool === 'add-node') {
-      // Convert screen coordinates to flow coordinates
-      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      // Center the node at mouse position (node size is 260x160)
-      const centeredPosition = {
-        x: flowPosition.x - 130, // Half of node width (260/2)
-        y: flowPosition.y - 80   // Half of node height (160/2)
-      };
-      createNewNode(centeredPosition);
-      event.preventDefault();
-      return;
-    }
-
-    event.preventDefault();
+    // Convert screen coordinates to flow coordinates
+    const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    // Center the node at mouse position (node size is 260x160)
+    const centeredPosition = {
+      x: flowPosition.x - 130,
+      y: flowPosition.y - 80,
+    };
+    createNewNode(centeredPosition);
   }, [currentTool, reactFlow, createNewNode]);
 
   // Node types for ReactFlow
@@ -1571,8 +1526,89 @@ function GraphCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChangeWithStyle}
         onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onEdgeClick={onEdgeClick}
+        onSelectionStart={(e: any) => {
+          // Begin lasso selection; snapshot current selection & modifier keys
+          lassoActiveRef.current = true;
+          lassoCtrlKeyRef.current = Boolean(e?.ctrlKey || e?.metaKey);
+          lassoShiftKeyRef.current = Boolean(e?.shiftKey);
+          preLassoSelectedIdsRef.current = (latestNodesRef.current || [])
+            .filter((n) => n.selected)
+            .map((n) => n.id);
+          lassoSelectedIdsRef.current = [];
+        }}
+        onSelectionEnd={() => {
+          // Finalize custom lasso behavior (Ctrl-subtract, optional Shift-add)
+          try {
+            const pre = new Set(preLassoSelectedIdsRef.current || []);
+            const box = new Set(lassoSelectedIdsRef.current || []);
+
+            // Ctrl/Meta: subtract nodes in box from the pre-existing selection
+            if (lassoCtrlKeyRef.current) {
+              for (const id of box) pre.delete(id);
+              const nextIds = Array.from(pre);
+              // Apply selection to nodes and store
+              setNodes((nds) => nds.map((n) => ({ ...n, selected: nextIds.includes(n.id) })));
+              setSelectedNodeIds(nextIds);
+              const primaryId = nextIds[0] || null;
+              if (primaryId) {
+                const first = (graph?.nodes || []).find((n: any) => n.id === primaryId) || null;
+                setSelectedNode(primaryId, first || null);
+              } else {
+                setSelectedNode(null, null);
+              }
+            } else if (lassoShiftKeyRef.current) {
+              // Shift: additive (union). Keep default behavior if you prefer.
+              for (const id of box) pre.add(id);
+              const nextIds = Array.from(pre);
+              setNodes((nds) => nds.map((n) => ({ ...n, selected: nextIds.includes(n.id) })));
+              setSelectedNodeIds(nextIds);
+              const primaryId = nextIds[0] || null;
+              if (primaryId) {
+                const first = (graph?.nodes || []).find((n: any) => n.id === primaryId) || null;
+                setSelectedNode(primaryId, first || null);
+              } else {
+                setSelectedNode(null, null);
+              }
+            }
+          } finally {
+            // Reset lasso state
+            lassoActiveRef.current = false;
+            lassoCtrlKeyRef.current = false;
+            lassoShiftKeyRef.current = false;
+            preLassoSelectedIdsRef.current = [];
+            lassoSelectedIdsRef.current = [];
+          }
+        }}
+        
+        onSelectionChange={({ nodes: selNodes }) => {
+          // Mirror React Flow selection into the store (nodes only for sidebar/state).
+          const nextIds = (selNodes || []).map((n) => n.id);
+
+          // While lassoing, capture the transient box selection ids
+          if (lassoActiveRef.current) {
+            lassoSelectedIdsRef.current = nextIds;
+          }
+
+          // Only update store when the selection actually changes (avoid loops).
+          const prevIds = selectedNodeIds || [];
+          const sameLength = nextIds.length === prevIds.length;
+          const sameSet = sameLength && nextIds.every((id) => prevIds.includes(id));
+          if (!sameSet) {
+            setSelectedNodeIds(nextIds);
+          }
+
+          // Keep primary selection in sync (first selected node)
+          const primaryId = nextIds[0] || null;
+          if (primaryId) {
+            if (primaryId !== selectedNodeId) {
+              const first = (graph?.nodes || []).find((n: any) => n.id === primaryId) || null;
+              setSelectedNode(primaryId, first || null);
+            }
+          } else if (selectedNodeId) {
+            setSelectedNode(null, null);
+          }
+
+        }}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
@@ -1590,8 +1626,8 @@ function GraphCanvas() {
         zoomOnScroll={graphCanvasProps.enableZoomOnScroll}
         zoomOnPinch={graphCanvasProps.enableZoomOnPinch}
         /* Dynamic pan behavior based on tool mode */
-        panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
-        selectionOnDrag={currentTool === 'select'}
+        panOnDrag={currentTool === 'pan' && !selectionKeyActive ? [0, 2] : [2]} // Right mouse always pans
+        selectionOnDrag={currentTool === 'select' || selectionKeyActive}
         onMouseDown={onPaneMouseDown}
         colorMode="dark"
         nodesDraggable={true}

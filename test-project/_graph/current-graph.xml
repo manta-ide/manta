@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="app" title="Simple App" x="0" y="0" z="0">
+    <node id="app" title="Simple App" x="26.781412084154965" y="-977.9711782191841" z="0">
       <description>A simple app component with basic styling - background color, text color, font family, and font size.</description>
       <props>
         <prop name="is-dark-theme" title="Is Dark Theme" type="boolean"></prop>
@@ -34,7 +34,7 @@
       </props>
     </node>
 
-    <node id="node-1758061078838971" title="Header" x="3.919447171651356" y="295.11960746591046" z="0">
+    <node id="node-1758061078838971" title="Header" x="22.880210616236923" y="-457.0350404418351" z="0">
       <description>One color header bar with nav links</description>
       <props>
         <prop name="header-styles" title="Header Styles" type="object">
@@ -99,7 +99,7 @@
       </props>
     </node>
 
-    <node id="node-1758061687539528" title="Hero section" x="362.3458605995344" y="301.4403549446807" z="0">
+    <node id="node-1758061687539528" title="Hero section" x="629.6613666178814" y="-757.71311784765" z="0">
       <description>Hero section with a few texts and a gradient</description>
       <props>
         <prop name="hero-content" title="Hero Content" type="object">
@@ -176,7 +176,7 @@
       </props>
     </node>
 
-    <node id="node-1758329851379349" title="Footer" x="-461.02627839657237" y="296.6729636431011" z="0">
+    <node id="node-1758329851379349" title="Footer" x="-492.51423478839234" y="-829.7152918904001" z="0">
       <description>Footer section with social links</description>
       <props>
         <prop name="footer-content" title="Footer Content" type="object">
@@ -250,8 +250,8 @@
   </nodes>
 
   <edges>
-    <edge id="app-node-1758061078838971" source="app" target="node-1758061078838971" role="links-to"/>
     <edge id="app-node-1758061687539528" source="app" target="node-1758061687539528" role="links-to"/>
+    <edge id="node-1758061078838971-app" source="node-1758061078838971" target="app" role="links-to"/>
     <edge id="node-1758329851379349-app" source="node-1758329851379349" target="app" role="links-to"/>
   </edges>
 </graph>
