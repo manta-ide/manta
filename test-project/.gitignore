@@ -1,34 +1,41 @@
-# Logs
-logs
-*.log
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+.pnpm-debug.log*
 
-# Dependencies
-node_modules/
+# env files (can opt-in for committing if needed)
+.env*
 
-# Build artifacts
-dist/
-dist-ssr/
-*.local
+# vercel
+.vercel
 
-# Environment variables
-.env
-.env.*.local
-
-# Editor directories and files
-.vscode/
-!.vscode/extensions.json # Keep extensions.json to share recommended extensions
-.idea/
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Vite specific
-.vite/ # This directory is primarily for storing optimized dependencies, which are typically within node_modules anyway.
+# typescript
+*.tsbuildinfo
+next-env.d.ts

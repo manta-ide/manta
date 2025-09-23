@@ -73,9 +73,7 @@ function applyCssVarsFrom(vars: Vars) {
 
 async function loadVars(): Promise<Vars> {
   try {
-    const base = (import.meta as any).env?.BASE_URL || '/';
-    const url = `${base}_graph/vars.json`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch('/api/public/vars', { cache: 'no-store' });
     if (res.ok) return (await res.json()) as Vars;
   } catch (e) {
     console.warn('[vars] Failed to load vars.json:', e);
@@ -97,6 +95,7 @@ export function useVars(): [Vars, (updates: Vars) => void] {
     const next = { ...vars, ...updates };
     setVars(next);
     applyCssVarsFrom(next);
+    // Intentionally no server write; vars.json is written by the IDE
   };
 
   return [vars, updateVars];
