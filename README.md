@@ -48,6 +48,6 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 4. Run the solution:
    ```bash
-   npm run dev:ide
+   npm run dev
 
 5. Open [http://localhost:3000](http://localhost:3000)
