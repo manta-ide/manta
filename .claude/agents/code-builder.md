@@ -35,21 +35,32 @@ import { useVars } from "../.manta/varsHmr.ts";
 
 export default function App() {
   const [vars] = useVars();
-  const rootStyles = (vars["root-styles"] as Record<string, any>) || {};
-  const cssVars = {
-    "--background-color": rootStyles["background-color"] ?? vars["background-color"] ?? "#ffffff",
-    "--text-color": rootStyles["text-color"] ?? vars["text-color"] ?? "#000000",
-    "--font-family": rootStyles["font-family"] ?? vars["font-family"] ?? "Arial",
-    "--base-font-size": rootStyles["base-font-size"] ?? vars["base-font-size"] ?? "1rem",
-  } as React.CSSProperties;
+  const headerVars = vars['header'] as Record<string, unknown> || {};
+  const navigationItems = (headerVars['navigation-items'] as { name: string; hash: string }[]) || [
+    { name: 'Home', hash: '#home' },
+    { name: 'About', hash: '#about' },
+    { name: 'Experience', hash: '#experience' },
+    { name: 'Projects', hash: '#projects' },
+    { name: 'Contact', hash: '#contact' },
+  ];
+  const mobileMenuTitle = (headerVars['mobile-menu-title'] as string) || 'Navigation';
+
+  const headerStyles = (headerVars['header-styles'] as Record<string, unknown>) || {};
+  const backgroundColor = (headerStyles['background-color'] as string) ?? '#ffffff';
+  const textColor = (headerStyles['text-color'] as string) ?? '#000000';
+  const fontFamily = (headerStyles['font-family'] as string) ?? 'Arial';
 
   return (
     <main
       id="app"
-      style={cssVars}
+      style={{
+        "--background-color": backgroundColor,
+        "--text-color": textColor,
+        "--font-family": fontFamily,
+      } as React.CSSProperties}
       className="min-h-screen bg-[var(--background-color)] text-[var(--text-color)] antialiased"
     >
-      <Header />
+      <Header navigationItems={navigationItems} mobileMenuTitle={mobileMenuTitle} />
       <Hero />
       <Footer />
     </main>
@@ -57,6 +68,6 @@ export default function App() {
 }
 ``
 
-The .manta is always in project root, so the path could be different depending on the position of this file and the graph. 
+The .manta is always in project root, so the path could be different depending on the position of this file and the graph, make sure to correctly set the path based on where the .mamta and the file you are editing are.
 
-Always run linting after code creation or edits are done.
+Always run linting on the file after code creation or edits are done.
