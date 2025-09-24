@@ -8,8 +8,24 @@ import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
-// In-memory cache of the current graph for this process
-let currentGraph: Graph | null = null;
+type GraphServiceRuntimeState = {
+  currentGraph: Graph | null;
+  activeStreams: Set<ReadableStreamDefaultController<Uint8Array>>;
+  broadcastTimeout: NodeJS.Timeout | null;
+};
+
+const globalGraphState = (globalThis as typeof globalThis & {
+  __MANTA_GRAPH_SERVICE_STATE__?: GraphServiceRuntimeState;
+}).__MANTA_GRAPH_SERVICE_STATE__ ??= {
+  currentGraph: null,
+  activeStreams: new Set<ReadableStreamDefaultController<Uint8Array>>(),
+  broadcastTimeout: null,
+};
+
+const getCurrentGraph = () => globalGraphState.currentGraph;
+const setCurrentGraph = (graph: Graph | null) => {
+  globalGraphState.currentGraph = graph;
+};
 
 // Local mode toggle and helpers
 const LOCAL_MODE = process.env.NODE_ENV !== 'production';
@@ -121,8 +137,7 @@ function writeVarsToFs(graph: Graph) {
 }
 
 // SSE broadcast system
-const activeStreams = new Set<ReadableStreamDefaultController<Uint8Array>>();
-let broadcastTimeout: NodeJS.Timeout | null = null;
+const activeStreams = globalGraphState.activeStreams;
 
 function broadcastGraphUpdate(graph: Graph, metadata?: { source?: string }) {
   if (activeStreams.size === 0) return;
@@ -142,13 +157,13 @@ function broadcastGraphUpdate(graph: Graph, metadata?: { source?: string }) {
     }
 
     // Clear any pending broadcast
-    if (broadcastTimeout) {
-      clearTimeout(broadcastTimeout);
-      broadcastTimeout = null;
+    if (globalGraphState.broadcastTimeout) {
+      clearTimeout(globalGraphState.broadcastTimeout);
+      globalGraphState.broadcastTimeout = null;
     }
 
     // Debounce broadcasts to avoid spam (max 10 per second)
-    broadcastTimeout = setTimeout(() => {
+    globalGraphState.broadcastTimeout = setTimeout(() => {
       const data = new TextEncoder().encode(payload);
       for (const controller of activeStreams) {
         try {
@@ -158,7 +173,7 @@ function broadcastGraphUpdate(graph: Graph, metadata?: { source?: string }) {
           activeStreams.delete(controller);
         }
       }
-      broadcastTimeout = null;
+      globalGraphState.broadcastTimeout = null;
     }, 100);
   } catch (error) {
     console.error('Error broadcasting graph update:', error);
@@ -192,8 +207,9 @@ export function unregisterStreamController(controller: ReadableStreamDefaultCont
 
 // Broadcast function for graph updates
 async function broadcastGraphReload(_userId: string, metadata?: { source?: string }): Promise<void> {
-  if (currentGraph) {
-    broadcastGraphUpdate(currentGraph, metadata);
+  const snapshot = getCurrentGraph();
+  if (snapshot) {
+    broadcastGraphUpdate(snapshot, metadata);
   }
 }
 
@@ -293,9 +309,9 @@ async function saveBaseGraphToFs(graph: Graph): Promise<void> {
 }
 
 // --- Public API (in-memory + persistence) ---
-export function getGraphSession(): Graph | null { return currentGraph; }
+export function getGraphSession(): Graph | null { return getCurrentGraph(); }
 
-export function getCurrentGraphSession(): Graph | null { return currentGraph; }
+export function getCurrentGraphSession(): Graph | null { return getCurrentGraph(); }
 
 export function getBaseGraphSession(): Graph | null {
   // For now, we'll store this in memory too, but we could load from file if needed
@@ -304,7 +320,7 @@ export function getBaseGraphSession(): Graph | null {
 
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
-  currentGraph = normalized;
+  setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId);
   // Also update the vars file to ensure consistency
@@ -313,7 +329,7 @@ export async function storeGraph(graph: Graph, userId: string): Promise<void> {
 
 export async function storeCurrentGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
-  currentGraph = normalized;
+  setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId);
   writeVarsToFs(normalized);
@@ -321,7 +337,7 @@ export async function storeCurrentGraph(graph: Graph, userId: string): Promise<v
 
 export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
-  currentGraph = normalized;
+  setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId, { source: 'agent' });
   writeVarsToFs(normalized);
@@ -329,7 +345,7 @@ export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): 
 
 export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
-  currentGraph = normalized;
+  setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   writeVarsToFs(normalized);
 }
@@ -362,13 +378,13 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
     console.log('📤 Broadcasting build-complete message to all SSE clients');
 
     // Clear any pending broadcast
-    if (broadcastTimeout) {
-      clearTimeout(broadcastTimeout);
-      broadcastTimeout = null;
+    if (globalGraphState.broadcastTimeout) {
+      clearTimeout(globalGraphState.broadcastTimeout);
+      globalGraphState.broadcastTimeout = null;
     }
 
     // Debounce broadcasts to avoid spam (max 10 per second)
-    broadcastTimeout = setTimeout(() => {
+    globalGraphState.broadcastTimeout = setTimeout(() => {
       for (const controller of activeStreams) {
         try {
           controller.enqueue(new TextEncoder().encode(payload));
@@ -379,7 +395,7 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
           activeStreams.delete(controller);
         }
       }
-      broadcastTimeout = null;
+      globalGraphState.broadcastTimeout = null;
     }, 100);
   } catch (error) {
     console.error('Error broadcasting base graph update:', error);
@@ -387,32 +403,34 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
 }
 
 export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {
-  if (currentGraph) {
-    const idx = currentGraph.nodes.findIndex(n => n.id === nodeId);
+  const current = getCurrentGraph();
+  if (current) {
+    const idx = current.nodes.findIndex(n => n.id === nodeId);
     if (idx !== -1) {
-      const node = currentGraph.nodes[idx] as any;
+      const node = current.nodes[idx] as any;
       if (Array.isArray(node.properties)) {
         const pIdx = node.properties.findIndex((p: any) => p.id === propertyId);
         if (pIdx !== -1) node.properties[pIdx] = { ...node.properties[pIdx], value };
       }
     }
+
+    // Save the updated graph to current-graph.xml as the primary persistence
+    writeCurrentGraphToFs(current);
+    // Update the vars file for the child project to consume
+    writeVarsToFs(current);
   }
-  // Save the updated graph to current-graph.xml as the primary persistence
-  if (currentGraph) writeCurrentGraphToFs(currentGraph);
-  // Update the vars file for the child project to consume
-  if (currentGraph) writeVarsToFs(currentGraph);
 }
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
   // Prioritize current graph file, fallback to main graph file
   const graph = readCurrentGraphFromFs();
-  currentGraph = graph;
+  setCurrentGraph(graph);
   return graph;
 }
 
 export async function loadCurrentGraphFromFile(_userId: string): Promise<Graph | null> {
   const graph = readCurrentGraphFromFs();
-  currentGraph = graph;
+  setCurrentGraph(graph);
   return graph;
 }
 
@@ -420,45 +438,51 @@ export async function loadBaseGraphFromFile(_userId: string): Promise<Graph | nu
   return readBaseGraphFromFs();
 }
 
-export async function clearGraphSession(): Promise<void> { currentGraph = null; }
+export async function clearGraphSession(): Promise<void> { setCurrentGraph(null); }
 
-export function getGraphStats(): { hasGraph: boolean } { return { hasGraph: currentGraph !== null }; }
+export function getGraphStats(): { hasGraph: boolean } { return { hasGraph: getCurrentGraph() !== null }; }
 
 export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | null {
-  if (!currentGraph) return null;
-  return currentGraph.nodes.find(node => node.id === nodeId) || null;
+  const current = getCurrentGraph();
+  if (!current) return null;
+  return current.nodes.find(node => node.id === nodeId) || null;
 }
 
 export function getUnbuiltNodeIds(): string[] {
-  if (!currentGraph) return [];
+  const current = getCurrentGraph();
+  if (!current) return [];
   const baseGraph = readBaseGraphFromFs();
   if (!baseGraph) {
     // If no base graph exists, consider all nodes unbuilt
-    return currentGraph.nodes.map(n => n.id);
+    return current.nodes.map(n => n.id);
   }
-  const diff = analyzeGraphDiff(baseGraph as any, currentGraph as any);
+  const diff = analyzeGraphDiff(baseGraph as any, current as any);
   return [...diff.addedNodes, ...diff.modifiedNodes];
 }
 
 export async function markNodesBuilt(nodeIds: string[], _userId: string): Promise<void> {
-  if (!currentGraph) return;
+  const current = getCurrentGraph();
+  if (!current) return;
   const idSet = new Set(nodeIds);
-  currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
-  if (currentGraph) writeCurrentGraphToFs(currentGraph);
+  const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
+  setCurrentGraph(updated);
+  writeCurrentGraphToFs(updated);
 }
 
 export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Promise<void> {
-  if (!currentGraph) return;
+  const current = getCurrentGraph();
+  if (!current) return;
   const idSet = new Set(nodeIds);
-  currentGraph = { ...currentGraph, nodes: currentGraph.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
-  if (currentGraph) writeCurrentGraphToFs(currentGraph);
+  const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
+  setCurrentGraph(updated);
+  writeCurrentGraphToFs(updated);
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
   // Load current graph from file
   const currentGraphFromFile = readCurrentGraphFromFs();
   if (currentGraphFromFile) {
-    currentGraph = currentGraphFromFile;
+    setCurrentGraph(currentGraphFromFile);
   }
   // Note: base graph is loaded on-demand, not pre-loaded here
 }
