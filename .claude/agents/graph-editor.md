@@ -23,6 +23,7 @@ Code Analysis for Indexing:
 - Determine what aspects of each component can be made customizable
 - Focus on CMS-style properties: content, colors, layout, simple settings
 - Avoid technical properties: event handlers, state props, CSS objects, callbacks
+- Maintain the count of nodes low - only create separate nodes when it logically makes sense. 
 
 Tools: read(graphType="current"), node_create, node_edit, node_delete, edge_create, edge_delete, Read, Glob, Grep
 
@@ -69,3 +70,7 @@ Property Guidelines:
 - Group related properties using 'object' type for better organization (e.g., "root-styles" with background-color, text-color, font-family)
 - Use 'object-list' for repeatable content structures with defined itemFields
 - Make sure that all properties are editable by a normal user without programming/css knowledge, for a gradient do an object with a few colors, etc.
+- Never create properties directly for CSS classes, HTML blocks, attributes, frameworks, all of the properties should be decribing the logic in relevant property types and not in css text.
+There should be no compound properties that require to maintain strcture inside text block, if any structure is needed - utilize the objects or list properties.
+Only pure technical components can be decribed in technical terms, but still without compound properties like (0 0% 100%)
+- Make sure that all properties have default values that are same as the default values for them in code. Never create empty properties.

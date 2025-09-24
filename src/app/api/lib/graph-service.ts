@@ -200,11 +200,14 @@ async function broadcastGraphReload(_userId: string, metadata?: { source?: strin
 function extractVariablesFromGraph(graph: Graph): Record<string, any> {
   const vars: Record<string, any> = {};
   (graph.nodes || []).forEach(node => {
-    if (Array.isArray(node.properties)) {
-      node.properties.forEach((p: any, index: number) => {
-        const propertyId = (p.id || `property-${index}`).toString().toLowerCase().replace(/\s+/g, '-');
-        vars[propertyId] = p.value;
-      });
+    if (node.id) {
+      vars[node.id] = {};
+      if (Array.isArray(node.properties)) {
+        node.properties.forEach((p: any, index: number) => {
+          const propertyId = (p.id || `property-${index}`).toString().toLowerCase().replace(/\s+/g, '-');
+          vars[node.id][propertyId] = p.value;
+        });
+      }
     }
   });
   return vars;

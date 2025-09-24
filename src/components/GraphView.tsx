@@ -724,8 +724,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       console.log('🗑️ Optimistically deleted nodes:', nodeIdsToDelete, 'edges:', edgeIdsToDelete);
 
       // Now fetch current graph and persist changes
-      const origin = 'http://localhost:3000';
-      const url = `${origin}/api/graph-api?graphType=current`;
+      const url = '/api/graph-api?graphType=current';
 
       const data = await fetch(url, {
         headers: {
@@ -1320,8 +1319,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       console.log('🔗 Optimistically connected nodes:', params.source, '->', params.target);
 
       // Then persist to the graph API
-      const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
-      const url = `${origin}/api/graph-api?graphType=current`;
+      const url = '/api/graph-api?graphType=current';
 
       // Get current graph data (accept both XML and JSON)
       const data = await fetch(url, {
@@ -1609,6 +1607,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           }
 
         }}
+        onPaneClick={onPaneClick}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}

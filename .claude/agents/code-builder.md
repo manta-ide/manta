@@ -59,4 +59,4 @@ export default function App() {
 
 The .manta is always in project root, so the path could be different depending on the position of this file and the graph. 
 
-Always run linting for files you edit.
+Always run linting after code creation or edits are done.
