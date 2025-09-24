@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { existsSync, cpSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from "fs";
@@ -33,28 +32,9 @@ function loadEnvFile() {
   }
 }
 
-// Set up environment for dev command
-function setupDevEnvironment() {
-  // Set default environment variables
-  process.env.MANTA_MODE = "user-project";
-  process.env.NODE_ENV = "development";
-
-  // Set MANTA_PROJECT_DIR from MANTA_DEV_PROJECT_DIR or default to dev-project
-  const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || join(packageRoot, 'dev-project');
-  process.env.MANTA_PROJECT_DIR = devProjectDir;
-
-  console.log(`Setting up Manta IDE (dev) targeting: ${devProjectDir}`);
-}
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageRoot = join(__dirname, "..");
-
-// Helper function to get the correct binary path for cross-platform compatibility
-function getBinPath(binName) {
-  const basePath = join(packageRoot, "node_modules", ".bin", binName);
-  return process.platform === "win32" ? `${basePath}.cmd` : basePath;
-}
 
 
 async function downloadAndExtractTemplate() {
@@ -209,31 +189,6 @@ async function main() {
     return;
   }
 
-  if (command === "dev") {
-    // Set up environment variables
-    setupDevEnvironment();
-
-    // Change to package root directory
-    process.chdir(packageRoot);
-
-    // Run Next.js dev server
-    console.log(`Starting Next.js development server...`);
-    const nextBin = getBinPath("next");
-    const child = spawn(nextBin, ["dev"], {
-      stdio: "inherit",
-      env: process.env,
-    });
-
-    // Handle process termination
-    process.on("SIGINT", () => child.kill("SIGINT"));
-    process.on("SIGTERM", () => child.kill("SIGTERM"));
-
-    return new Promise((resolve) => {
-      child.on("close", (code) => {
-        process.exit(code);
-      });
-    });
-  }
 
   if (command === "dev:ide:turbo") {
     // Direct Next.js dev with turbopack and environment variables
