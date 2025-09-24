@@ -37,6 +37,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageRoot = join(__dirname, "..");
 
+// Helper function to get the correct binary path for cross-platform compatibility
+function getBinPath(binName) {
+  const basePath = join(packageRoot, "node_modules", ".bin", binName);
+  return process.platform === "win32" ? `${basePath}.cmd` : basePath;
+}
+
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: "inherit", ...opts });
@@ -198,7 +204,7 @@ async function main() {
     const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
     console.log(`Running Manta IDE (dev) targeting: ${devProjectDir}`);
     // Run Next from the PACKAGE ROOT (not the user project)
-    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
+    const nextBin = getBinPath("next");
     await run(nextBin, ["dev"], {
       cwd: packageRoot,
       env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
@@ -210,7 +216,7 @@ async function main() {
     // Direct Next.js dev with environment variables
     const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
     console.log(`Running Manta IDE (dev:ide) targeting: ${devProjectDir}`);
-    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
+    const nextBin = getBinPath("next");
     await run(nextBin, ["dev"], {
       cwd: packageRoot,
       env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
@@ -222,7 +228,7 @@ async function main() {
     // Direct Next.js dev with turbopack and environment variables
     const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
     console.log(`Running Manta IDE (dev:ide:turbo) targeting: ${devProjectDir}`);
-    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
+    const nextBin = getBinPath("next");
     await run(nextBin, ["dev", "--turbopack"], {
       cwd: packageRoot,
       env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
