@@ -11,11 +11,11 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "dev": "MANTA_PROJECT_DIR=./dev-project NODE_ENV=development next dev",
+    "dev": "cross-env MANTA_PROJECT_DIR=./dev-project NODE_ENV=development next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:ide:turbo": "MANTA_PROJECT_DIR=. NODE_ENV=development next dev --turbopack",
+    "dev:ide:turbo": "cross-env MANTA_PROJECT_DIR=. NODE_ENV=development next dev --turbopack",
     "dev:test": "npm --prefix test-project run dev",
     "postbuild": "node scripts/postbuild-copy-static.js",
     "prepublishOnly": "NODE_ENV=production npm run build",
@@ -85,6 +85,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "concurrently": "^9.2.0",
+    "cross-env": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
     "tw-animate-css": "^1.3.8"
