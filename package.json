@@ -11,11 +11,11 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "dev": "MANTA_MODE=user-project MANTA_PROJECT_DIR=./dev-project NODE_ENV=development next dev",
+    "dev": "MANTA_PROJECT_DIR=./dev-project NODE_ENV=development next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:ide:turbo": "MANTA_MODE=user-project MANTA_PROJECT_DIR=. NODE_ENV=development next dev --turbopack",
+    "dev:ide:turbo": "MANTA_PROJECT_DIR=. NODE_ENV=development next dev --turbopack",
     "dev:test": "npm --prefix test-project run dev",
     "postbuild": "node scripts/postbuild-copy-static.js",
     "prepublishOnly": "NODE_ENV=production npm run build",
