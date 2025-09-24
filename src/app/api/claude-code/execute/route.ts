@@ -476,6 +476,7 @@ Remember: You analyze what needs to be done, delegate specific tasks to the appr
             abortController: new AbortController(),
             cwd: workingDirectory,
             strictMcpConfig: true,
+            model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
           } as any;
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { existsSync, cpSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from "fs";
@@ -37,13 +36,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageRoot = join(__dirname, "..");
 
-function run(cmd, args, opts = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: "inherit", ...opts });
-    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(" ")} -> ${code}`))));
-    child.on("error", reject);
-  });
-}
 
 async function downloadAndExtractTemplate() {
   const cwd = process.cwd();
@@ -184,49 +176,34 @@ async function main() {
       }
     } catch {}
 
-    console.log(`Running Manta IDE (prod) targeting: ${targetDir}`);
-    await run("node", [serverJs], {
-      cwd: serverCwd,                              // <-- MUST be standalone dir
-      env: { ...env, NODE_ENV: "production", PORT: process.env.PORT || "3001" },
-    });
+    console.log(`Setting up Manta IDE (prod) targeting: ${targetDir}`);
+
+    // Set environment variables
+    process.env.NODE_ENV = "production";
+    process.env.PORT = process.env.PORT || "3001";
+
+    // Change to standalone directory
+    process.chdir(serverCwd);
+
+    console.log(`Environment set up. Run 'node ${serverJs}' to start production server.`);
     return;
   }
 
-  if (command === "dev") {
-    // Dev only for repo clones that include src/app
-    // Check for environment variable specifying absolute project directory
-    const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
-    console.log(`Running Manta IDE (dev) targeting: ${devProjectDir}`);
-    // Run Next from the PACKAGE ROOT (not the user project)
-    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
-    await run(nextBin, ["dev"], {
-      cwd: packageRoot,
-      env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
-    });
-    return;
-  }
-
-  if (command === "dev:ide") {
-    // Direct Next.js dev with environment variables
-    const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
-    console.log(`Running Manta IDE (dev:ide) targeting: ${devProjectDir}`);
-    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
-    await run(nextBin, ["dev"], {
-      cwd: packageRoot,
-      env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
-    });
-    return;
-  }
 
   if (command === "dev:ide:turbo") {
     // Direct Next.js dev with turbopack and environment variables
     const devProjectDir = process.env.MANTA_DEV_PROJECT_DIR || targetDir;
-    console.log(`Running Manta IDE (dev:ide:turbo) targeting: ${devProjectDir}`);
-    const nextBin = join(packageRoot, "node_modules", ".bin", "next");
-    await run(nextBin, ["dev", "--turbopack"], {
-      cwd: packageRoot,
-      env: { ...env, MANTA_MODE: "user-project", MANTA_PROJECT_DIR: devProjectDir, NODE_ENV: "development" },
-    });
+    console.log(`Setting up Manta IDE (dev:ide:turbo) targeting: ${devProjectDir}`);
+
+    // Set environment variables
+    process.env.MANTA_MODE = "user-project";
+    process.env.MANTA_PROJECT_DIR = devProjectDir;
+    process.env.NODE_ENV = "development";
+
+    // Change to package root directory
+    process.chdir(packageRoot);
+
+    console.log(`Environment set up. Run 'npx next dev --turbopack' to start development server with turbopack.`);
     return;
   }
 
@@ -242,9 +219,8 @@ Usage:
   manta help       Show this help
 
 NPM Scripts (in package.json):
-  npm run dev              Run dev server via scripts/dev.js
-  npm run dev:ide          Run Next.js dev directly (respects .env)
-  npm run dev:ide:turbo    Run Next.js dev with turbopack (respects .env)
+  npm run dev              Run Next.js dev server directly
+  npm run dev:ide:turbo    Run Next.js dev server with turbopack
 `);
     return;
   }
@@ -254,10 +230,17 @@ NPM Scripts (in package.json):
     console.error("[manta] No standalone build found for fallback run.");
     process.exit(1);
   }
-  await run("node", [serverJs], {
-    cwd: serverCwd,
-    env: { ...env, NODE_ENV: "production", PORT: process.env.PORT || "3001" },
-  });
+
+  console.log(`Setting up Manta IDE (prod) targeting: ${targetDir}`);
+
+  // Set environment variables
+  process.env.NODE_ENV = "production";
+  process.env.PORT = process.env.PORT || "3001";
+
+  // Change to standalone directory
+  process.chdir(serverCwd);
+
+  console.log(`Environment set up. Run 'node ${serverJs}' to start production server.`);
 }
 
 main().catch((err) => {

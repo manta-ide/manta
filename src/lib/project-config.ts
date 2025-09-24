@@ -3,13 +3,13 @@ import fs from 'fs';
 
 /**
  * Get the development project directory path
- * Uses environment variables set by dev.js to determine context:
- * - MANTA_MODE=user-project: Use MANTA_PROJECT_DIR (production mode)
+ * Uses environment variables to determine context:
+ * - If MANTA_PROJECT_DIR is set: Use it (user project mode)
  * - Otherwise: Use DEV_PROJECT_DIR env var or 'test-project' (development mode)
  */
 export function getDevProjectDir(): string {
-  // If we're in user project mode (production), use the project directory set by dev.js
-  if (process.env.MANTA_MODE === 'user-project' && process.env.MANTA_PROJECT_DIR) {
+  // If MANTA_PROJECT_DIR is set, use it (user project mode)
+  if (process.env.MANTA_PROJECT_DIR) {
     return process.env.MANTA_PROJECT_DIR;
   }
 
@@ -20,13 +20,13 @@ export function getDevProjectDir(): string {
 
 /**
  * Get just the development project directory name (without full path)
- * Uses environment variables set by dev.js to determine context:
- * - MANTA_MODE=user-project: returns empty string (current dir)
+ * Uses environment variables to determine context:
+ * - If MANTA_PROJECT_DIR is set: returns empty string (current dir)
  * - Otherwise: uses DEV_PROJECT_DIR env var or 'test-project' (development mode)
  */
 export function getDevProjectName(): string {
-  // If we're in user project mode (production), return empty string to indicate current dir
-  if (process.env.MANTA_MODE === 'user-project') {
+  // If MANTA_PROJECT_DIR is set, return empty string to indicate current dir
+  if (process.env.MANTA_PROJECT_DIR) {
     return '';
   }
 
