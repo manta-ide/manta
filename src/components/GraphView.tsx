@@ -561,18 +561,32 @@ function GraphCanvas() {
       console.log('🗑️ Optimistically deleted nodes:', nodeIdsToDelete, 'edges:', edgeIdsToDelete);
 
       // Now fetch current graph and persist changes
-      const origin = 'http://localhost:3000';
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
       const url = `${origin}/api/graph-api?graphType=current`;
 
-      const data = await fetch(url, {
-        headers: {
-          'Accept': 'application/xml, application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      let data;
+      try {
+        console.log('🌐 Fetching graph from:', url);
+        data = await fetch(url, {
+          headers: {
+            'Accept': 'application/xml, application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('📡 Fetch response status:', data.status, data.statusText);
+      } catch (fetchError) {
+        console.error('❌ Fetch failed:', fetchError);
+        throw new Error(`Failed to fetch graph data: ${fetchError.message}`);
+      }
+
+      if (!data.ok) {
+        console.error('❌ Fetch response not OK:', data.status, data.statusText);
+        throw new Error(`Server returned ${data.status}: ${data.statusText}`);
+      }
 
       let currentGraph;
       const contentType = (data.headers.get('content-type') || '').toLowerCase();
+      console.log('📄 Response content type:', contentType);
 
       if (contentType.includes('xml')) {
         const xml = await data.text();
@@ -583,23 +597,33 @@ function GraphCanvas() {
       }
 
       // Delete selected nodes from server graph
+      let updatedNodes = currentGraph.nodes || [];
+      let updatedEdges = currentGraph.edges || [];
+
       if (nodeIdsToDelete.length > 0) {
-        currentGraph.nodes = currentGraph.nodes.filter((node: any) =>
+        updatedNodes = updatedNodes.filter((node: any) =>
           !nodeIdsToDelete.includes(node.id)
         );
 
         // Also remove edges connected to deleted nodes
-        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+        updatedEdges = updatedEdges.filter((edge: any) =>
           !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
         );
       }
 
       // Delete selected edges from server graph
       if (edgeIdsToDelete.length > 0) {
-        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+        updatedEdges = updatedEdges.filter((edge: any) =>
           !edgeIdsToDelete.includes(edge.id)
         );
       }
+
+      // Create new graph object to ensure proper reactivity
+      const updatedGraph = {
+        ...currentGraph,
+        nodes: updatedNodes,
+        edges: updatedEdges.length > 0 ? updatedEdges : undefined
+      };
 
       // Persist to API
       await fetch(url, {
@@ -608,17 +632,19 @@ function GraphCanvas() {
           'Content-Type': 'application/xml; charset=utf-8',
           'Accept-Charset': 'utf-8'
         },
-        body: graphToXml(currentGraph)
+        body: graphToXml(updatedGraph)
       });
 
       console.log('✅ Successfully persisted deletion to server');
 
-      // Update local store graph to match server snapshot
-      useProjectStore.setState({ graph: currentGraph });
-
-      // Suppress SSE briefly to avoid stale snapshot race and clear optimistic flag
-      suppressSSE?.(2000);
+      // Clear optimistic flag before updating store to allow graph rebuild
       setOptimisticOperationsActive(false);
+
+      // Update local store graph to match server snapshot
+      useProjectStore.setState({ graph: updatedGraph });
+
+      // Suppress SSE briefly to avoid stale snapshot race
+      suppressSSE?.(2000);
 
     } catch (error) {
       console.error('❌ Failed to delete selected elements:', error);
@@ -668,7 +694,7 @@ function GraphCanvas() {
     });
   }, [loadGraphs]);
 
-  // Handle keyboard shortcuts for deletion
+  // Handle keyboard shortcuts for deletion (Delete key only)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check if we're in an input field or textarea - if so, don't handle graph shortcuts
@@ -683,16 +709,21 @@ function GraphCanvas() {
       // Don't handle graph shortcuts if we're typing in a form element
       if (isInInput) return;
 
-      if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (event.key === 'Delete') {
+        console.log(`🎹 Key pressed: ${event.key}, selected nodes: ${nodes.filter(node => node.selected).length}, selected edges: ${edges.filter(edge => edge.selected).length}`);
         event.preventDefault();
 
         // Get selected nodes and edges from ReactFlow
         const selectedNodes = nodes.filter(node => node.selected);
         const selectedEdges = edges.filter(edge => edge.selected);
 
-        if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+        if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+          console.log('⚠️ No nodes or edges selected for deletion');
+          return;
+        }
 
         // Delete selected elements
+        console.log(`🗑️ Deleting ${selectedNodes.length} nodes and ${selectedEdges.length} edges`);
         handleDeleteSelected(selectedNodes, selectedEdges);
       }
     };
@@ -1215,7 +1246,7 @@ function GraphCanvas() {
       console.log('🔗 Optimistically connected nodes:', params.source, '->', params.target);
 
       // Then persist to the graph API
-      const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
       const url = `${origin}/api/graph-api?graphType=current`;
 
       // Get current graph data (accept both XML and JSON)
@@ -1248,14 +1279,20 @@ function GraphCanvas() {
       };
 
       // Add edge to graph if not existing (either direction)
-      if (!currentGraph.edges) currentGraph.edges = [];
-      const existsOnServer = currentGraph.edges.some((e: any) =>
+      const updatedEdges = [...(currentGraph.edges || [])];
+      const existsOnServer = updatedEdges.some((e: any) =>
         (e.source === serverEdge.source && e.target === serverEdge.target) ||
         (e.source === serverEdge.target && e.target === serverEdge.source)
       );
       if (!existsOnServer) {
-        currentGraph.edges.push(serverEdge);
+        updatedEdges.push(serverEdge);
       }
+
+      // Create new graph object to ensure proper reactivity
+      const updatedGraph = {
+        ...currentGraph,
+        edges: updatedEdges
+      };
 
       // Persist to API
       await fetch(url, {
@@ -1264,17 +1301,19 @@ function GraphCanvas() {
           'Content-Type': 'application/xml; charset=utf-8',
           'Accept-Charset': 'utf-8'
         },
-        body: graphToXml(currentGraph)
+        body: graphToXml(updatedGraph)
       });
 
       console.log('✅ Successfully persisted connection to server');
 
-      // Update local store graph to match server snapshot
-      useProjectStore.setState({ graph: currentGraph });
-
-      // Suppress SSE briefly to avoid stale snapshot race and clear optimistic flag
-      suppressSSE?.(2000);
+      // Clear optimistic flag before updating store to allow graph rebuild
       setOptimisticOperationsActive(false);
+
+      // Update local store graph to match server snapshot
+      useProjectStore.setState({ graph: updatedGraph });
+
+      // Suppress SSE briefly to avoid stale snapshot race
+      suppressSSE?.(2000);
     } catch (error) {
       console.error('❌ Failed to create connection:', error);
       // Remove the edge from local state if persistence failed
