@@ -109,11 +109,11 @@ export function nodesAreDifferent(node1: any, node2: any): boolean {
     }
 
     // Compare property values (handle different types)
-    if (prop1.value !== prop2.value) {
+    if ((prop1 as any).value !== (prop2 as any).value) {
       // For objects/arrays, do a deep comparison
-      if (typeof prop1.value === 'object' && prop1.value !== null &&
-          typeof prop2.value === 'object' && prop2.value !== null) {
-        if (JSON.stringify(prop1.value) !== JSON.stringify(prop2.value)) {
+      if (typeof (prop1 as any).value === 'object' && (prop1 as any).value !== null &&
+          typeof (prop2 as any).value === 'object' && (prop2 as any).value !== null) {
+        if (JSON.stringify((prop1 as any).value) !== JSON.stringify((prop2 as any).value)) {
           return true;
         }
       } else {
@@ -122,7 +122,7 @@ export function nodesAreDifferent(node1: any, node2: any): boolean {
     }
 
     // Compare other property fields that might affect behavior
-    if (prop1.type !== prop2.type || prop1.title !== prop2.title) {
+    if ((prop1 as any).type !== (prop2 as any).type || (prop1 as any).title !== (prop2 as any).title) {
       return true;
     }
   }

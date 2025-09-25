@@ -10,6 +10,8 @@ import {
   Connection,
   Node,
   Edge,
+  NodeMouseHandler,
+  EdgeMouseHandler,
   OnEdgesChange,
   Handle,
   Position,
@@ -26,10 +28,9 @@ import { useProjectStore } from '@/lib/store';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
-import { isEdgeUnbuilt } from '@/lib/graph-diff';
+import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
 import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
-import { useVars } from '../../.manta/varsHmr';
 
 // Connection validation function
 const isValidConnection = (connection: Connection | Edge) => {
@@ -46,25 +47,6 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
   const { zoom } = useViewport();
-  const [vars] = useVars();
-
-  // Get CustomNode component properties with fallbacks
-  const customNodeProps = {
-    backgroundColor: vars["node-background-color"] ?? "#ffffff",
-    selectedBackgroundColor: vars["selected-background-color"] ?? "#f8fafc",
-    borderColor: vars["border-color"] ?? "#e5e7eb",
-    selectedBorderColor: vars["selected-border-color"] ?? "#2563eb",
-    nodeWidth: vars["node-width"] ?? 260,
-    nodeMinHeight: vars["node-min-height"] ?? 160,
-    titleFontSize: vars["title-font-size"] ?? 16,
-    zoomOutTitleSize: vars["zoom-out-title-size"] ?? 24,
-    promptFontSize: vars["prompt-font-size"] ?? 13,
-    handleColor: vars["handle-color"] ?? "#ffffff",
-    handleBorderColor: vars["handle-border-color"] ?? "#9ca3af",
-    unbuiltIndicatorColor: vars["unbuilt-indicator-color"] ?? "#ef4444",
-    showStateIndicators: vars["show-state-indicators"] ?? true,
-    zoomThreshold: vars["zoom-threshold"] ?? 0.8,
-  };
   
 
   // Helper: get all connected neighbors (incoming + outgoing)
@@ -82,7 +64,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   };
 
   // Show simplified view when zoomed out
-  const isZoomedOut = zoom < customNodeProps.zoomThreshold;
+  const isZoomedOut = zoom < 0.8;
   // Calculate handle size based on zoom level
   const handleSize = isZoomedOut ? (selected ? '24px' : '20px') : (selected ? '16px' : '12px');
   // Calculate indicator dot size based on zoom level
@@ -90,67 +72,23 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 
   // Derive effective visual state based on base graph comparison
   const effectiveState = (() => {
-    // Get node state properties from data (passed from parent)
-    const nodeStateProps = data.nodeStateProps || {
-      stateComparisonFields: ["title", "prompt"],
-      enableStateLogging: true,
-      ignorePropertyChanges: true,
-    };
-
-    if (nodeStateProps.enableStateLogging) {
-      console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
-    }
+    console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
     if (!baseGraph) {
-      if (nodeStateProps.enableStateLogging) {
-        console.log(`   ❌ No base graph available`);
-      }
+      console.log(`   ❌ No base graph available`);
       return 'unbuilt'; // No base graph, consider unbuilt
     }
 
     const baseNode = baseGraph.nodes.find((n: any) => n.id === node.id);
     if (!baseNode) {
-      if (nodeStateProps.enableStateLogging) {
-        console.log(`   ❌ No matching base node found`);
-      }
+      console.log(`   ❌ No matching base node found`);
       return 'unbuilt'; // New node, consider unbuilt
     }
 
-    // Compare fields based on configuration
-    const comparisons: Record<string, boolean> = {};
-    const fields = Array.isArray(nodeStateProps.stateComparisonFields)
-      ? nodeStateProps.stateComparisonFields
-      : ["title", "prompt"];
-
-    for (const field of fields) {
-      switch (field) {
-        case 'title':
-          comparisons.title = node.title === baseNode.title;
-          break;
-        case 'prompt':
-          comparisons.prompt = node.prompt === baseNode.prompt;
-          break;
-        case 'properties':
-          if (!nodeStateProps.ignorePropertyChanges) {
-            comparisons.properties = JSON.stringify(node.properties || []) === JSON.stringify(baseNode.properties || []);
-          }
-          break;
-        case 'position':
-          comparisons.position = JSON.stringify(node.position) === JSON.stringify(baseNode.position);
-          break;
-      }
-    }
-
-    if (nodeStateProps.enableStateLogging) {
-      console.log(`   📊 Comparisons:`, comparisons);
-    }
-
-    const isSame = Object.values(comparisons).every(Boolean);
+    // Use the same diff logic as analyzeGraphDiff - compares title, prompt, AND properties
+    const isSame = !nodesAreDifferent(baseNode, node);
     const result = isSame ? 'built' : 'unbuilt';
-
-    if (nodeStateProps.enableStateLogging) {
-      console.log(`   ✅ Result: ${result}`);
-    }
+    console.log(`   ✅ Result: ${result} (using full diff comparison including properties)`);
 
     return result;
   })();
@@ -163,20 +101,20 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       case 'built':
       case 'unbuilt': // Unbuilt nodes look the same as built nodes visually
         return {
-          background: selected ? customNodeProps.selectedBackgroundColor : customNodeProps.backgroundColor,
-          border: selected ? `${borderWidth} solid ${customNodeProps.selectedBorderColor}` : `1px solid ${customNodeProps.borderColor}`,
+          background: selected ? '#f8fafc' : '#ffffff',
+          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
           boxShadow: selected
-            ? `0 0 0 2px ${customNodeProps.selectedBorderColor}`
+            ? '0 0 0 2px #2563eb'
             : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           borderRadius: '8px',
         };
 
       default: // Any other state - treat as unbuilt
         return {
-          background: selected ? customNodeProps.selectedBackgroundColor : customNodeProps.backgroundColor,
-          border: selected ? `${borderWidth} solid ${customNodeProps.selectedBorderColor}` : `1px solid ${customNodeProps.borderColor}`,
+          background: selected ? '#f8fafc' : '#ffffff',
+          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
           boxShadow: selected
-            ? `0 0 0 2px ${customNodeProps.selectedBorderColor}`
+            ? '0 0 0 2px #2563eb'
             : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           borderRadius: '8px',
         };
@@ -192,8 +130,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           ...nodeStyles,
           borderRadius: '8px',
           padding: '20px',
-          width: `${customNodeProps.nodeWidth}px`,
-          minHeight: `${customNodeProps.nodeMinHeight}px`,
+          width: '260px',
+          minHeight: '160px',
           position: 'relative',
           fontFamily: 'Inter, sans-serif',
           display: 'flex',
@@ -203,7 +141,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         }}
       >
         {/* State indicator - only show for unbuilt nodes */}
-        {customNodeProps.showStateIndicators && effectiveState === 'unbuilt' && (
+        {effectiveState === 'unbuilt' && (
           <div style={{
             position: 'absolute',
             top: '10px',
@@ -211,7 +149,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             width: indicatorSize,
             height: indicatorSize,
             borderRadius: '50%',
-            background: customNodeProps.unbuiltIndicatorColor,
+            background: '#ef4444',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
           }} />
         )}
@@ -224,7 +162,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         {/* Large title text */}
         <div
           style={{
-            fontSize: `${customNodeProps.zoomOutTitleSize}px`,
+            fontSize: '24px',
             fontWeight: '700',
             color: '#1f2937',
             textAlign: 'center',
@@ -232,7 +170,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            maxWidth: `${customNodeProps.nodeWidth - 40}px`,
+            maxWidth: '220px',
             marginBottom: '8px',
           }}
           title={node.title}
@@ -269,22 +207,22 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
         {/* Top */}
         <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
         <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
           style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
         {/* Right */}
         <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
         <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
           style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
         {/* Bottom */}
         <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
         <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
           style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
         {/* Left */}
         <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
         <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
           style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
       </div>
@@ -300,8 +238,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         ...nodeStyles,
         borderRadius: '8px',
         padding: '20px',
-        width: `${customNodeProps.nodeWidth}px`,
-        minHeight: `${customNodeProps.nodeMinHeight}px`,
+        width: '260px',
+        minHeight: '160px',
         position: 'relative',
         fontFamily: 'Inter, sans-serif',
         display: 'flex',
@@ -310,7 +248,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       }}
     >
       {/* State indicators - only show for unbuilt nodes */}
-      {customNodeProps.showStateIndicators && effectiveState === 'unbuilt' && (
+      {effectiveState === 'unbuilt' && (
         <div style={{
           position: 'absolute',
           top: '10px',
@@ -318,7 +256,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           width: indicatorSize,
           height: indicatorSize,
           borderRadius: '50%',
-          background: customNodeProps.unbuiltIndicatorColor,
+          background: '#ef4444',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
         }} />
       )}
@@ -333,7 +271,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         {/* Title */}
         <div
           style={{
-            fontSize: `${customNodeProps.titleFontSize}px`,
+            fontSize: '16px',
             fontWeight: '600',
             color: '#1f2937',
             marginBottom: '12px',
@@ -342,11 +280,11 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         >
           {node.title}
         </div>
-
+        
         {/* Prompt preview */}
         <div
           style={{
-            fontSize: `${customNodeProps.promptFontSize}px`,
+            fontSize: '13px',
             color: '#6b7280',
             marginBottom: '16px',
             lineHeight: '1.4',
@@ -409,22 +347,22 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
       {/* Top */}
       <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
       <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
         style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
       {/* Right */}
       <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
       <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
         style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
       {/* Bottom */}
       <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
       <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
         style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
       {/* Left */}
       <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: customNodeProps.handleColor, width: handleSize, height: handleSize, border: `1px solid ${customNodeProps.handleBorderColor}`, borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
       <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
         style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
     </div>
@@ -442,85 +380,11 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 });
 
 function GraphCanvas() {
-  const [vars] = useVars();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
-
-  // Get GraphCanvas component properties with fallbacks
-  const graphCanvasProps = {
-    canvasBackgroundColor: vars["canvas-background-color"] ?? "#374151",
-    backgroundGridSize: vars["background-grid-size"] ?? 20,
-    minZoom: vars["min-zoom"] ?? 0.1,
-    maxZoom: vars["max-zoom"] ?? 2,
-    fitViewPadding: vars["fit-view-padding"] ?? 0.2,
-    panScrollMode: vars["pan-scroll-mode"] ?? "Free",
-    enableZoomOnScroll: vars["enable-zoom-on-scroll"] ?? false,
-    enableZoomOnPinch: vars["enable-zoom-on-pinch"] ?? true,
-    connectionMode: vars["connection-mode"] ?? "Loose",
-    autoLayoutAlgorithm: vars["auto-layout-algorithm"] ?? "layered",
-    layoutNodeSpacing: vars["layout-node-spacing"] ?? 80,
-    layoutLayerSpacing: vars["layout-layer-spacing"] ?? 100,
-  };
-
-  // Get Toolbar component properties with fallbacks
-  const toolbarProps = {
-    toolbarPosition: vars["toolbar-position"] ?? "left",
-    toolbarGap: vars["toolbar-gap"] ?? 8,
-    buttonSize: vars["button-size"] ?? 32,
-    activeButtonColor: vars["active-button-color"] ?? "#2563eb",
-    inactiveButtonColor: vars["inactive-button-color"] ?? "#3f3f46",
-    buttonTextColor: vars["button-text-color"] ?? "#9ca3af",
-    activeTextColor: vars["active-text-color"] ?? "#ffffff",
-    hoverColor: vars["hover-color"] ?? "#4f46e5",
-    showTooltips: vars["show-tooltips"] ?? true,
-    defaultTool: vars["default-tool"] ?? "select",
-  };
-
-  // Get Action buttons properties with fallbacks
-  const actionButtonProps = {
-    buttonPosition: vars["button-position"] ?? "top-right",
-    buttonGap: vars["button-gap"] ?? 8,
-    buildButtonColor: vars["build-button-color"] ?? "#16a34a",
-    buildButtonText: vars["build-button-text"] ?? "Build Graph",
-    loadingText: vars["loading-text"] ?? "Building Graph...",
-    disabledOpacity: vars["disabled-opacity"] ?? 0.75,
-    buttonBackground: vars["button-background"] ?? "#3f3f46",
-    buttonTextColor: vars["action-buttons-button-text-color"] ?? "#9ca3af",
-    buttonHoverColor: vars["button-hover-color"] ?? "#52525b",
-    showLoadingSpinner: vars["show-loading-spinner"] ?? true,
-  };
-
-  // Get Edge styling system properties with fallbacks
-  const edgeStyleProps = {
-    defaultEdgeColor: vars["default-edge-color"] ?? "#9ca3af",
-    defaultEdgeWidth: vars["default-edge-width"] ?? 2,
-    defaultEdgeOpacity: vars["default-edge-opacity"] ?? 0.8,
-    selectedEdgeColor: vars["selected-edge-color"] ?? "#3b82f6",
-    selectedEdgeWidth: vars["selected-edge-width"] ?? 4,
-    selectedEdgeOpacity: vars["selected-edge-opacity"] ?? 1,
-    unbuiltEdgeColor: vars["unbuilt-edge-color"] ?? "#ef4444",
-    unbuiltEdgeWidth: vars["unbuilt-edge-width"] ?? 3,
-    unbuiltDashPattern: vars["unbuilt-dash-pattern"] ?? "20,30",
-    unbuiltEdgeOpacity: vars["unbuilt-edge-opacity"] ?? 0.9,
-    edgeInteractionWidth: vars["edge-interaction-width"] ?? 24,
-  };
-
-  // Get Node state management properties with fallbacks
-  const nodeStateProps = {
-    stateComparisonFields: vars["state-comparison-fields"] ?? ["title", "prompt"],
-    builtStateColor: vars["built-state-color"] ?? "#10b981",
-    unbuiltStateColor: vars["unbuilt-state-color"] ?? "#ef4444",
-    buildingStateColor: vars["building-state-color"] ?? "#f59e0b",
-    showStateInMinimap: vars["show-state-in-minimap"] ?? true,
-    minimapBuiltColor: vars["minimap-built-color"] ?? "#9ca3af",
-    minimapUnbuiltColor: vars["minimap-unbuilt-color"] ?? "#fbbf24",
-    enableStateLogging: vars["enable-state-logging"] ?? true,
-    ignorePropertyChanges: vars["ignore-property-changes"] ?? true,
-    autoRefreshStates: vars["auto-refresh-states"] ?? true,
-  };
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
   const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
@@ -538,17 +402,7 @@ function GraphCanvas() {
     loadBaseGraph
   } = useProjectStore();
   // Tool modes: 'select', 'pan', 'add-node'
-const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
-    (toolbarProps.defaultTool as 'select' | 'pan' | 'add-node') ?? 'select'
-  );
-  // Modifier-based marquee (Ctrl/Cmd/Shift) even when pan tool is active
-  const [selectionKeyActive, setSelectionKeyActive] = useState(false);
-  // Track lasso (box) selection state to support Ctrl-deselect
-  const lassoActiveRef = useRef(false);
-  const lassoCtrlKeyRef = useRef(false);
-  const lassoShiftKeyRef = useRef(false);
-  const preLassoSelectedIdsRef = useRef<string[]>([]);
-  const lassoSelectedIdsRef = useRef<string[]>([]);
+  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data
@@ -566,38 +420,22 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
 
-  // Listen for selection modifier keys to enable marquee while in pan mode
-  useEffect(() => {
-    const handleKeyState = (e: KeyboardEvent) => {
-      setSelectionKeyActive(Boolean(e.ctrlKey || e.metaKey || e.shiftKey));
-    };
-    const clear = () => setSelectionKeyActive(false);
-    window.addEventListener('keydown', handleKeyState);
-    window.addEventListener('keyup', handleKeyState);
-    window.addEventListener('blur', clear);
-    return () => {
-      window.removeEventListener('keydown', handleKeyState);
-      window.removeEventListener('keyup', handleKeyState);
-      window.removeEventListener('blur', clear);
-    };
-  }, []);
-
   // Edge visual styles
   const defaultEdgeStyle = {
-    stroke: edgeStyleProps.defaultEdgeColor,
-    strokeWidth: edgeStyleProps.defaultEdgeWidth,
-    opacity: edgeStyleProps.defaultEdgeOpacity,
+    stroke: '#9ca3af',
+    strokeWidth: 2,
+    opacity: 0.8,
   } as const;
   const selectedEdgeStyle = {
-    stroke: edgeStyleProps.selectedEdgeColor,
-    strokeWidth: edgeStyleProps.selectedEdgeWidth,
-    opacity: edgeStyleProps.selectedEdgeOpacity,
+    stroke: '#3b82f6',
+    strokeWidth: 4,
+    opacity: 1,
   } as const;
   const unbuiltEdgeStyle = {
-    stroke: edgeStyleProps.unbuiltEdgeColor,
-    strokeWidth: edgeStyleProps.unbuiltEdgeWidth,
-    strokeDasharray: edgeStyleProps.unbuiltDashPattern,
-    opacity: edgeStyleProps.unbuiltEdgeOpacity,
+    stroke: '#ef4444',  // Red dashes
+    strokeWidth: 3,
+    strokeDasharray: '20,30',  // 20px red dash, 30px gap (longer dashes, fewer)
+    opacity: 0.9,
     strokeLinecap: 'round' as const,
   } as const;
 
@@ -649,8 +487,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           node: newNode,
           properties: newNode.properties,
           baseGraph: baseGraph,
-          graph: graph,
-          nodeStateProps: nodeStateProps,
+          graph: graph
         },
         type: 'custom',
         selected: true, // Node is already selected
@@ -724,7 +561,8 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       console.log('🗑️ Optimistically deleted nodes:', nodeIdsToDelete, 'edges:', edgeIdsToDelete);
 
       // Now fetch current graph and persist changes
-      const url = '/api/graph-api?graphType=current';
+      const origin = 'http://localhost:3000';
+      const url = `${origin}/api/graph-api?graphType=current`;
 
       const data = await fetch(url, {
         headers: {
@@ -758,10 +596,9 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
 
       // Delete selected edges from server graph
       if (edgeIdsToDelete.length > 0) {
-        currentGraph.edges = currentGraph.edges.filter((edge: any) => {
-          const id = edge.id || `${edge.source}-${edge.target}`;
-          return !edgeIdsToDelete.includes(id);
-        });
+        currentGraph.edges = currentGraph.edges.filter((edge: any) =>
+          !edgeIdsToDelete.includes(edge.id)
+        );
       }
 
       // Persist to API
@@ -885,7 +722,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       // Defer to next tick to ensure layout/DOM size is ready
       setTimeout(() => {
         try {
-          reactFlow.fitView({ padding: graphCanvasProps.fitViewPadding, duration: 500, includeHiddenNodes: true });
+          reactFlow.fitView({ padding: 0.2, duration: 500, includeHiddenNodes: true });
         } catch {}
       }, 0);
       hasFittedRef.current = true;
@@ -979,6 +816,67 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
 
   // Connection is managed by the store
 
+  // Handle node selection
+  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+    // Always get the fresh node data from the current graph state
+    const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
+    const reactFlowNode = node.data?.node as GraphNode;
+
+    if (!freshGraphNode) return;
+
+    // Check if shift or ctrl/cmd is pressed for multi-selection
+    const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
+
+    if (isMultiSelect) {
+      const prev = selectedNodeIds || [];
+      const isSelected = prev.includes(node.id);
+      if (isSelected) {
+        // Remove from selection
+        const newSelection = prev.filter(id => id !== node.id);
+        // If this was the single selected node, clear the main selection
+        if (selectedNodeId === node.id && newSelection.length === 0) {
+          setSelectedNode(null, null);
+        } else if (selectedNodeId === node.id && newSelection.length > 0) {
+          // Set the first remaining node as the main selected node
+          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+          if (firstNode) {
+            setSelectedNode(newSelection[0], firstNode);
+          }
+        }
+        setSelectedNodeIds(newSelection);
+      } else {
+        // Add to selection
+        const newSelection = [...prev, node.id];
+        // Set this as the main selected node if it's the first one
+        if (prev.length === 0) {
+          setSelectedNode(node.id, freshGraphNode);
+        }
+        setSelectedNodeIds(newSelection);
+      }
+    } else {
+      // Single selection - clear multi-selection and select only this node
+      setSelectedNodeIds([node.id]);
+      setSelectedNode(node.id, freshGraphNode);
+
+      // Removed iframe selection messaging
+    }
+  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
+
+  // Handle edge selection (with multi-select support)
+  const onEdgeClick: EdgeMouseHandler = useCallback((event, _edge) => {
+    const isMulti = event.shiftKey || event.metaKey || event.ctrlKey;
+    // prevent parent handlers from interfering with selection rectangle
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isMulti) {
+      // Clear node selection when focusing an edge; let React Flow handle edge selection
+      setSelectedNode(null, null);
+      setSelectedNodeIds([]);
+
+      // Removed iframe deselection messaging
+    }
+  }, [setSelectedNode, setSelectedNodeIds]);
+
   // Ensure edge selection visually updates immediately when selection state changes
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => {
@@ -1046,7 +944,6 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
                   properties: graphNode.properties || [],
                   baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
                   graph: graph,
-                  nodeStateProps: nodeStateProps,
                 }
               };
             }
@@ -1104,10 +1001,10 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           const elkGraph = {
             id: 'root',
             layoutOptions: {
-              'elk.algorithm': graphCanvasProps.autoLayoutAlgorithm,
+              'elk.algorithm': 'layered',
               'elk.direction': 'DOWN',
-              'elk.layered.spacing.nodeNodeBetweenLayers': graphCanvasProps.layoutLayerSpacing.toString(),
-              'elk.spacing.nodeNode': graphCanvasProps.layoutNodeSpacing.toString(),
+              'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+              'elk.spacing.nodeNode': '80',
             },
             children: elkNodes,
             edges: elkEdges,
@@ -1159,8 +1056,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
             node: node,
             properties: node.properties || [],
             baseGraph: baseGraph,
-            graph: graph,
-            nodeStateProps: nodeStateProps,
+            graph: graph
           },
           type: 'custom',
           selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
@@ -1177,7 +1073,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
         const previouslySelectedEdges = new Set(
           (latestEdgesRef.current || [])
             .filter((e) => e.selected)
-            .map((e) => `${e.source}-${e.target}`)
+            .map((e) => e.id)
         );
         // Build a quick position map for fallback handle inference
         const posMap = new Map<string, { x: number; y: number }>();
@@ -1218,16 +1114,16 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
 
           reactFlowEdges.push({
-            id: `${src}-${tgt}`,
+            id: edge.id,
             source: src,
             target: tgt,
             sourceHandle,
             targetHandle,
             type: 'default',
-            style: previouslySelectedEdges.has(`${src}-${tgt}`)
+            style: previouslySelectedEdges.has(edge.id)
               ? selectedEdgeStyle
              : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
-            interactionWidth: edgeStyleProps.edgeInteractionWidth,
+            interactionWidth: 24,
             selected: previouslySelectedEdges.has(edge.id),
           });
           addedSymmetric.add(symKey);
@@ -1276,7 +1172,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       targetHandle: params.targetHandle || undefined,
       type: 'default' as const,
       style: unbuiltEdgeStyle,
-      interactionWidth: edgeStyleProps.edgeInteractionWidth,
+      interactionWidth: 24,
       selected: false,
     };
 
@@ -1306,7 +1202,7 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       targetHandle: newEdge.targetHandle,
       type: 'default',
       style: newEdge.style,
-      interactionWidth: edgeStyleProps.edgeInteractionWidth,
+      interactionWidth: newEdge.interactionWidth,
       selected: false,
     };
     setEdges((eds) => {
@@ -1319,7 +1215,8 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       console.log('🔗 Optimistically connected nodes:', params.source, '->', params.target);
 
       // Then persist to the graph API
-      const url = '/api/graph-api?graphType=current';
+      const origin = 'http://localhost:3000'; // This should match the resolveBaseUrl in graph-tools
+      const url = `${origin}/api/graph-api?graphType=current`;
 
       // Get current graph data (accept both XML and JSON)
       const data = await fetch(url, {
@@ -1455,21 +1352,28 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
     for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
   }, [updateNode]);
 
-  // Create node on pane click when in add-node tool. Do not intercept normal selection/pan.
-  const onPaneClick = useCallback((event: ReactMouseEvent) => {
-    if (currentTool !== 'add-node') return;
-    // Ignore clicks originating from nodes/edges/handles
+  // Handle background mouse down for node creation
+  const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {
+    // Only start selection on left mouse button
+    if (event.button !== 0) return;
+    // Ignore clicks that originate from nodes, edges, or handles
     const target = event.target as HTMLElement;
     if (target.closest('.react-flow__node') || target.closest('.react-flow__edge') || target.closest('.react-flow__handle')) return;
 
-    // Convert screen coordinates to flow coordinates
-    const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-    // Center the node at mouse position (node size is 260x160)
-    const centeredPosition = {
-      x: flowPosition.x - 130,
-      y: flowPosition.y - 80,
-    };
-    createNewNode(centeredPosition);
+    if (currentTool === 'add-node') {
+      // Convert screen coordinates to flow coordinates
+      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      // Center the node at mouse position (node size is 260x160)
+      const centeredPosition = {
+        x: flowPosition.x - 130, // Half of node width (260/2)
+        y: flowPosition.y - 80   // Half of node height (160/2)
+      };
+      createNewNode(centeredPosition);
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
   }, [currentTool, reactFlow, createNewNode]);
 
   // Node types for ReactFlow
@@ -1524,109 +1428,26 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChangeWithStyle}
         onConnect={onConnect}
-        onSelectionStart={(e: any) => {
-          // Begin lasso selection; snapshot current selection & modifier keys
-          lassoActiveRef.current = true;
-          lassoCtrlKeyRef.current = Boolean(e?.ctrlKey || e?.metaKey);
-          lassoShiftKeyRef.current = Boolean(e?.shiftKey);
-          preLassoSelectedIdsRef.current = (latestNodesRef.current || [])
-            .filter((n) => n.selected)
-            .map((n) => n.id);
-          lassoSelectedIdsRef.current = [];
-        }}
-        onSelectionEnd={() => {
-          // Finalize custom lasso behavior (Ctrl-subtract, optional Shift-add)
-          try {
-            const pre = new Set(preLassoSelectedIdsRef.current || []);
-            const box = new Set(lassoSelectedIdsRef.current || []);
-
-            // Ctrl/Meta: subtract nodes in box from the pre-existing selection
-            if (lassoCtrlKeyRef.current) {
-              for (const id of box) pre.delete(id);
-              const nextIds = Array.from(pre);
-              // Apply selection to nodes and store
-              setNodes((nds) => nds.map((n) => ({ ...n, selected: nextIds.includes(n.id) })));
-              setSelectedNodeIds(nextIds);
-              const primaryId = nextIds[0] || null;
-              if (primaryId) {
-                const first = (graph?.nodes || []).find((n: any) => n.id === primaryId) || null;
-                setSelectedNode(primaryId, first || null);
-              } else {
-                setSelectedNode(null, null);
-              }
-            } else if (lassoShiftKeyRef.current) {
-              // Shift: additive (union). Keep default behavior if you prefer.
-              for (const id of box) pre.add(id);
-              const nextIds = Array.from(pre);
-              setNodes((nds) => nds.map((n) => ({ ...n, selected: nextIds.includes(n.id) })));
-              setSelectedNodeIds(nextIds);
-              const primaryId = nextIds[0] || null;
-              if (primaryId) {
-                const first = (graph?.nodes || []).find((n: any) => n.id === primaryId) || null;
-                setSelectedNode(primaryId, first || null);
-              } else {
-                setSelectedNode(null, null);
-              }
-            }
-          } finally {
-            // Reset lasso state
-            lassoActiveRef.current = false;
-            lassoCtrlKeyRef.current = false;
-            lassoShiftKeyRef.current = false;
-            preLassoSelectedIdsRef.current = [];
-            lassoSelectedIdsRef.current = [];
-          }
-        }}
-        
-        onSelectionChange={({ nodes: selNodes }) => {
-          // Mirror React Flow selection into the store (nodes only for sidebar/state).
-          const nextIds = (selNodes || []).map((n) => n.id);
-
-          // While lassoing, capture the transient box selection ids
-          if (lassoActiveRef.current) {
-            lassoSelectedIdsRef.current = nextIds;
-          }
-
-          // Only update store when the selection actually changes (avoid loops).
-          const prevIds = selectedNodeIds || [];
-          const sameLength = nextIds.length === prevIds.length;
-          const sameSet = sameLength && nextIds.every((id) => prevIds.includes(id));
-          if (!sameSet) {
-            setSelectedNodeIds(nextIds);
-          }
-
-          // Keep primary selection in sync (first selected node)
-          const primaryId = nextIds[0] || null;
-          if (primaryId) {
-            if (primaryId !== selectedNodeId) {
-              const first = (graph?.nodes || []).find((n: any) => n.id === primaryId) || null;
-              setSelectedNode(primaryId, first || null);
-            }
-          } else if (selectedNodeId) {
-            setSelectedNode(null, null);
-          }
-
-        }}
-        onPaneClick={onPaneClick}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         attributionPosition="bottom-left"
-        minZoom={graphCanvasProps.minZoom}
-        maxZoom={graphCanvasProps.maxZoom}
-        connectionMode={graphCanvasProps.connectionMode === "Loose" ? ConnectionMode.Loose : ConnectionMode.Strict}
+        minZoom={0.1}
+        maxZoom={2}
+        connectionMode={ConnectionMode.Loose}
         edgesFocusable={true}
         /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
         panOnScroll={true}
-        panOnScrollMode={graphCanvasProps.panScrollMode === "Free" ? PanOnScrollMode.Free :
-                        graphCanvasProps.panScrollMode === "Vertical" ? PanOnScrollMode.Vertical :
-                        PanOnScrollMode.Horizontal}
-        zoomOnScroll={graphCanvasProps.enableZoomOnScroll}
-        zoomOnPinch={graphCanvasProps.enableZoomOnPinch}
+        panOnScrollMode={PanOnScrollMode.Free}
+        zoomOnScroll={false}
+        zoomOnPinch={true}
         /* Dynamic pan behavior based on tool mode */
-        panOnDrag={currentTool === 'pan' && !selectionKeyActive ? [0, 2] : [2]} // Right mouse always pans
-        selectionOnDrag={currentTool === 'select' || selectionKeyActive}
+        panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
+        selectionOnDrag={currentTool === 'select'}
+        onMouseDown={onPaneMouseDown}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
@@ -1634,65 +1455,37 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
       >
         <MiniMap
           nodeColor={(node: any) => {
-            if (!nodeStateProps.showStateInMinimap) {
-              return nodeStateProps.minimapBuiltColor; // Default color when state display is disabled
-            }
-
             const nd = node.data?.node;
             const baseGraph = node.data?.baseGraph;
 
-            // Compute state dynamically using the same logic as CustomNode
+            // Compute state dynamically using the same logic as node state computation
             let nodeState = 'unbuilt';
             if (baseGraph && nd) {
               const baseNode = baseGraph.nodes.find((n: any) => n.id === nd.id);
               if (baseNode) {
-                const comparisons: Record<string, boolean> = {};
-                const fields = Array.isArray(nodeStateProps.stateComparisonFields)
-                  ? nodeStateProps.stateComparisonFields
-                  : ["title", "prompt"];
-
-                for (const field of fields) {
-                  switch (field) {
-                    case 'title':
-                      comparisons.title = nd.title === baseNode.title;
-                      break;
-                    case 'prompt':
-                      comparisons.prompt = nd.prompt === baseNode.prompt;
-                      break;
-                    case 'properties':
-                      if (!nodeStateProps.ignorePropertyChanges) {
-                        comparisons.properties = JSON.stringify(nd.properties || []) === JSON.stringify(baseNode.properties || []);
-                      }
-                      break;
-                    case 'position':
-                      comparisons.position = JSON.stringify(nd.position) === JSON.stringify(baseNode.position);
-                      break;
-                  }
-                }
-
-                const isSame = Object.values(comparisons).every(Boolean);
+                // Use the same diff logic - compares title, prompt, AND properties
+                const isSame = !nodesAreDifferent(baseNode, nd);
                 nodeState = isSame ? 'built' : 'unbuilt';
               }
             }
 
-            if (nodeState === 'built') return nodeStateProps.minimapBuiltColor;
-            return nodeStateProps.minimapUnbuiltColor; // unbuilt
+            if (nodeState === 'built') return '#9ca3af';
+            return '#fbbf24'; // unbuilt
           }}
         />
         <Controls />
-        <Background color={graphCanvasProps.canvasBackgroundColor} gap={graphCanvasProps.backgroundGridSize} />
+        <Background color="#374151" gap={20} />
       </ReactFlow>
 
-      {/* Tool Buttons */}
+      {/* Tool Buttons - Left Side */}
       <div style={{
         position: 'absolute',
-        ...(toolbarProps.toolbarPosition === 'left' && { left: '12px', top: '50%', transform: 'translateY(-50%)' }),
-        ...(toolbarProps.toolbarPosition === 'right' && { right: '12px', top: '50%', transform: 'translateY(-50%)' }),
-        ...(toolbarProps.toolbarPosition === 'top' && { top: '12px', left: '50%', transform: 'translateX(-50%)' }),
-        ...(toolbarProps.toolbarPosition === 'bottom' && { bottom: '12px', left: '50%', transform: 'translateX(-50%)' }),
+        left: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
         display: 'flex',
-        flexDirection: toolbarProps.toolbarPosition === 'top' || toolbarProps.toolbarPosition === 'bottom' ? 'row' : 'column',
-        gap: `${toolbarProps.toolbarGap}px`,
+        flexDirection: 'column',
+        gap: '8px',
         zIndex: 1000,
       }}>
         {/* Select Tool */}
@@ -1700,15 +1493,12 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           onClick={() => setCurrentTool('select')}
           variant={currentTool === 'select' ? 'default' : 'outline'}
           size="sm"
-          className="border-0"
-          style={{
-            width: `${toolbarProps.buttonSize}px`,
-            height: `${toolbarProps.buttonSize}px`,
-            padding: '0',
-            backgroundColor: currentTool === 'select' ? toolbarProps.activeButtonColor : toolbarProps.inactiveButtonColor,
-            color: currentTool === 'select' ? toolbarProps.activeTextColor : toolbarProps.buttonTextColor,
-          }}
-          title={toolbarProps.showTooltips ? "Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items" : undefined}
+          className={`${currentTool === 'select'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
         >
           <SquareDashed className="w-4 h-4" />
         </Button>
@@ -1718,15 +1508,12 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           onClick={() => setCurrentTool('pan')}
           variant={currentTool === 'pan' ? 'default' : 'outline'}
           size="sm"
-          className="border-0"
-          style={{
-            width: `${toolbarProps.buttonSize}px`,
-            height: `${toolbarProps.buttonSize}px`,
-            padding: '0',
-            backgroundColor: currentTool === 'pan' ? toolbarProps.activeButtonColor : toolbarProps.inactiveButtonColor,
-            color: currentTool === 'pan' ? toolbarProps.activeTextColor : toolbarProps.buttonTextColor,
-          }}
-          title={toolbarProps.showTooltips ? "Pan Tool - Click and drag to pan the view, right-click always pans" : undefined}
+          className={`${currentTool === 'pan'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Pan Tool - Click and drag to pan the view, right-click always pans"
         >
           <Hand className="w-4 h-4" />
         </Button>
@@ -1736,29 +1523,24 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           onClick={() => setCurrentTool('add-node')}
           variant={currentTool === 'add-node' ? 'default' : 'outline'}
           size="sm"
-          className="border-0"
-          style={{
-            width: `${toolbarProps.buttonSize}px`,
-            height: `${toolbarProps.buttonSize}px`,
-            padding: '0',
-            backgroundColor: currentTool === 'add-node' ? toolbarProps.activeButtonColor : toolbarProps.inactiveButtonColor,
-            color: currentTool === 'add-node' ? toolbarProps.activeTextColor : toolbarProps.buttonTextColor,
-          }}
-          title={toolbarProps.showTooltips ? "Add Node Tool - Click anywhere on the canvas to create a new node" : undefined}
+          className={`${currentTool === 'add-node'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Add Node Tool - Click anywhere on the canvas to create a new node"
         >
           <StickyNote className="w-4 h-4" />
         </Button>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Right Side */}
       <div style={{
         position: 'absolute',
-        ...(actionButtonProps.buttonPosition === 'top-right' && { top: '12px', right: '12px' }),
-        ...(actionButtonProps.buttonPosition === 'top-left' && { top: '12px', left: '12px' }),
-        ...(actionButtonProps.buttonPosition === 'bottom-right' && { bottom: '12px', right: '12px' }),
-        ...(actionButtonProps.buttonPosition === 'bottom-left' && { bottom: '12px', left: '12px' }),
+        top: '12px',
+        right: '12px',
         display: 'flex',
-        gap: `${actionButtonProps.buttonGap}px`,
+        gap: '8px',
         zIndex: 1000,
       }}>
         {/* Build Entire Graph Button */}
@@ -1767,24 +1549,20 @@ const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>(
           disabled={isBuildingGraph || !graph}
           variant="outline"
           size="sm"
-          className="border-0"
-          style={{
-            backgroundColor: isBuildingGraph || !graph ? actionButtonProps.buttonBackground : actionButtonProps.buildButtonColor,
-            color: actionButtonProps.buttonTextColor,
-            opacity: isBuildingGraph || !graph ? actionButtonProps.disabledOpacity : 1,
-            cursor: isBuildingGraph || !graph ? 'not-allowed' : 'pointer',
-          }}
-          title={isBuildingGraph ? actionButtonProps.loadingText : `Build entire graph with current changes`}
+          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+            isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
+          }`}
+          title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
         >
           {isBuildingGraph ? (
             <>
-              {actionButtonProps.showLoadingSpinner && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {actionButtonProps.loadingText}
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Building Graph...
             </>
           ) : (
             <>
               <Play className="w-4 h-4 mr-2" />
-              {actionButtonProps.buildButtonText}
+              Build Graph
             </>
           )}
         </Button>

@@ -319,15 +319,6 @@ export async function POST(req: NextRequest) {
     logHeader('Claude Code Execute');
     logLine('🎯 Claude Code: User asked (full):', prompt);
     logLine('🎯 Claude Code: Options received (full):', pretty(options));
-
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    logLine('🔑 Claude Code: ANTHROPIC_API_KEY present:', !!apiKey);
-
-    // if (!apiKey) {
-    //   throw new Error('ANTHROPIC_API_KEY environment variable is required');
-    // }
-
-
     // Execute Claude Code with SDK and stream response
     let fullResponse = '';
     let hasStartedStreaming = false;
@@ -352,15 +343,12 @@ export async function POST(req: NextRequest) {
           // Configure based on subagent
           const baseUrl = getBaseUrl(req as any);
           const tools = createGraphTools(baseUrl);
-          logLine('🔧 Claude Code: Registering tools:', tools.map(t => t.name));
           const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
 
           // Log the working directory
           const workingDirectory = projectDir();
           const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
           logLine(`📁 Claude Code: Working directory (${mode} mode): ${workingDirectory}`);
-
-          logLine('🚀 Starting Claude Code query with prompt length:', prompt.length);
 
           // Create user message generator with the prompt
           async function* generateUserMessage(): AsyncGenerator<SDKUserMessage> {
@@ -396,14 +384,14 @@ SIMPLIFIED WORKFLOW:
 
 You have 4 main task types. Use analyze_diff() before and after each task to verify changes.
 
-**1) Indexing Flow: Code → Nodes and Code with properties**
-- Launch graph-editor subagent to analyze existing code and create nodes WITH CMS-style properties
-- Launch code-builder subagent to wire the properties to the existing code
+**1) Indexing Flow: Code → Nodes with properties**
+- Launch graph-editor subagent to analyze existing code, create nodes WITH CMS-style properties and connect them according to the structure of the code
+- Do NOT change any code during indexing
 - Sync changes to base graph once at the end
 
-**2) Build Flow: Nodes → Nodes and Code with properties**
+**2) Build Flow: Nodes → Code implementation**
 - Use analyze_diff() to identify nodes that need code implementation
-- Launch code-builder subagent to generate code and wire existing properties to functionality
+- Launch code-builder subagent to generate code based on node specifications
 - Launch graph-editor subagent if properties need to be created/modified (graph-editor can analyze code if needed)
 - Sync changes to base graph once at the end
 
@@ -428,12 +416,12 @@ SIMPLIFIED TASK DELEGATION:
 
 **Indexing Flow:**
 - Launch graph-editor subagent to analyze existing code and create nodes WITH CMS-style properties
-- Launch code-builder subagent to wire properties to existing code
+- Do NOT change any code during indexing
 - Sync to base graph once at the end
 
 **Build Flow:**
 - Use analyze_diff() to identify what needs to be built
-- Launch code-builder subagent to generate code and wire properties
+- Launch code-builder subagent to generate code based on node specifications
 - Launch graph-editor subagent if properties need to be created/modified (can analyze code if needed)
 - Sync to base graph once at the end
 
@@ -459,13 +447,14 @@ VERIFICATION PROCESS:
 
 ORCHESTRATOR RESPONSIBILITIES:
 - Analyze the diff between current and base graphs to identify work needed
-- Delegate specific tasks to appropriate subagents (indexing, graph-editor, code-builder)
+- Delegate specific tasks to appropriate subagents (indexing → graph-editor only, building → code-builder and graph-editor as needed)
 - Coordinate the workflow and ensure all tasks complete
 - Use sync_to_base_graph() with specific node/edge IDs to sync completed work
 - Use analyze_diff() before and after to verify sync status
 - Provide high-level guidance and summarize results (limit all summaries to 1 paragraph maximum)
+- NEVER do property wiring - properties exist in the graph structure and are handled by the graph-editor
 
-Remember: You analyze what needs to be done, delegate specific tasks to the appropriate subagent based on task type (indexing → graph-editor for node creation during indexing, graph-editor for property creation, graph-editor for node creation, code-builder for implementation), sync the results, and verify completion. All summaries and results must be limited to 1 paragraph maximum.`;
+Remember: You analyze what needs to be done, delegate specific tasks to the appropriate subagent based on task type (indexing → graph-editor for node/property creation, building → code-builder for implementation), sync the results, and verify completion. All summaries and results must be limited to 1 paragraph maximum.`;
 
           // Generic query options with orchestrator prompt
           const queryOptions: Options = {
@@ -479,8 +468,6 @@ Remember: You analyze what needs to be done, delegate specific tasks to the appr
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
           } as any;
-
-          logLine('🔧 Claude Code: Starting query iteration');
 
           let messageCount = 0;
           try {

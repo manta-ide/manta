@@ -223,19 +223,28 @@ useEffect(() => {
                 // Check if this is SSE format (data: prefix)
                 if (line.startsWith('data: ')) {
                   const dataPart = line.substring(6).trim(); // Remove 'data: ' prefix
-                  try {
-                    const parsed = JSON.parse(dataPart);
-                    if (parsed.content) {
-                      chunkContent = parsed.content;
-                    } else if (parsed.error) {
-                      chunkContent = `Error: ${parsed.error}`;
-                    } else {
-                      // Handle control messages like [STREAM_START], [STREAM_END]
-                      chunkContent = '';
+
+                  // Skip control messages entirely
+                  if (dataPart === '[STREAM_START]' || dataPart === '[STREAM_END]') {
+                    chunkContent = '';
+                  } else {
+                    try {
+                      const parsed = JSON.parse(dataPart);
+                      if (parsed.content) {
+                        chunkContent = parsed.content;
+                      } else if (parsed.error) {
+                        chunkContent = `Error: ${parsed.error}`;
+                      } else if (parsed.type === 'trace') {
+                        // Handle trace messages - these are separate from final content
+                        chunkContent = formatTraceMessage(parsed.trace);
+                      } else {
+                        // Any other JSON without content/error/trace - skip it
+                        chunkContent = '';
+                      }
+                    } catch {
+                      // Not JSON, use as plain text
+                      chunkContent = dataPart;
                     }
-                  } catch {
-                    // Not JSON, use as plain text
-                    chunkContent = dataPart;
                   }
                 } else {
                   // Handle plain text (non-SSE format)
@@ -249,6 +258,9 @@ useEffect(() => {
                     } else if (parsed.type === 'trace') {
                       // Handle trace messages - these are separate from final content
                       chunkContent = formatTraceMessage(parsed.trace);
+                    } else {
+                      // Skip any other JSON without content/error/trace
+                      chunkContent = '';
                     }
                   } catch {
                     // Not JSON, use as plain text
@@ -307,28 +319,45 @@ useEffect(() => {
             let finalChunk = buffer;
             if (buffer.startsWith('data: ')) {
               const dataPart = buffer.substring(6).trim();
-              try {
-                const parsed = JSON.parse(dataPart);
-                if (parsed.content) {
-                  finalChunk = parsed.content;
-                } else if (parsed.error) {
-                  finalChunk = `Error: ${parsed.error}`;
-                } else {
-                  finalChunk = '';
+
+              // Skip control messages entirely
+              if (dataPart === '[STREAM_START]' || dataPart === '[STREAM_END]') {
+                finalChunk = '';
+              } else {
+                try {
+                  const parsed = JSON.parse(dataPart);
+                  if (parsed.content) {
+                    finalChunk = parsed.content;
+                  } else if (parsed.error) {
+                    finalChunk = `Error: ${parsed.error}`;
+                  } else if (parsed.type === 'trace') {
+                    finalChunk = formatTraceMessage(parsed.trace);
+                  } else {
+                    finalChunk = '';
+                  }
+                } catch {
+                  finalChunk = dataPart;
                 }
-              } catch {
-                finalChunk = dataPart;
               }
             } else {
-              try {
-                const parsed = JSON.parse(buffer);
-                if (parsed.content) {
-                  finalChunk = parsed.content;
-                } else if (parsed.error) {
-                  finalChunk = `Error: ${parsed.error}`;
+              // Skip plain text control messages
+              if (buffer.trim() === '[STREAM_START]' || buffer.trim() === '[STREAM_END]') {
+                finalChunk = '';
+              } else {
+                try {
+                  const parsed = JSON.parse(buffer);
+                  if (parsed.content) {
+                    finalChunk = parsed.content;
+                  } else if (parsed.error) {
+                    finalChunk = `Error: ${parsed.error}`;
+                  } else if (parsed.type === 'trace') {
+                    finalChunk = formatTraceMessage(parsed.trace);
+                  } else {
+                    finalChunk = '';
+                  }
+                } catch {
+                  finalChunk = buffer;
                 }
-              } catch {
-                finalChunk = buffer;
               }
             }
             if (finalChunk.trim().length > 0) {
@@ -362,7 +391,18 @@ useEffect(() => {
               console.log('🔄 Chat Service: Attempting fallback to read entire response');
               const fullResponse = await response.text();
               console.log('📄 Chat Service: Fallback response length:', fullResponse.length);
-              accumulatedContent = fullResponse;
+
+              // Filter out control messages from fallback response
+              accumulatedContent = fullResponse
+                .split('\n')
+                .filter(line => {
+                  const trimmed = line.trim();
+                  return trimmed !== 'data: [STREAM_START]' &&
+                         trimmed !== 'data: [STREAM_END]' &&
+                         trimmed !== '[STREAM_START]' &&
+                         trimmed !== '[STREAM_END]';
+                })
+                .join('\n');
             } catch (fallbackError) {
               console.error('❌ Chat Service: Fallback also failed:', fallbackError);
               accumulatedContent = 'Error: Failed to read response';
@@ -375,7 +415,18 @@ useEffect(() => {
             console.log('🔄 Chat Service: Attempting fallback to read entire response');
             const fullResponse = await response.text();
             console.log('📄 Chat Service: Fallback response length:', fullResponse.length);
-            accumulatedContent = fullResponse;
+
+            // Filter out control messages from fallback response
+            accumulatedContent = fullResponse
+              .split('\n')
+              .filter(line => {
+                const trimmed = line.trim();
+                return trimmed !== 'data: [STREAM_START]' &&
+                       trimmed !== 'data: [STREAM_END]' &&
+                       trimmed !== '[STREAM_START]' &&
+                       trimmed !== '[STREAM_END]';
+              })
+              .join('\n');
           } catch (fallbackError) {
             console.error('❌ Chat Service: Fallback also failed:', fallbackError);
             accumulatedContent = 'Error: Failed to read response';
