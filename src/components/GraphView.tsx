@@ -576,7 +576,8 @@ function GraphCanvas() {
         console.log('📡 Fetch response status:', data.status, data.statusText);
       } catch (fetchError) {
         console.error('❌ Fetch failed:', fetchError);
-        throw new Error(`Failed to fetch graph data: ${fetchError.message}`);
+        const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        throw new Error(`Failed to fetch graph data: ${errorMessage}`);
       }
 
       if (!data.ok) {

@@ -14,13 +14,6 @@
       "description": "Portfolio website built using Next.js, Tailwind CSS and Framer-motion.",
       "image": "/templates/portfolio.png",
       "glowColor": "purple"
-    },
-    {
-      "branch": "saas",
-      "name": "SaaS Template",
-      "description": "SaaS Boilerplate built with Next.js + Tailwind CSS + Shadcn UI + TypeScript.",
-      "image": "/templates/saas.png",
-      "glowColor": "orange"
     }
   ]
 }
