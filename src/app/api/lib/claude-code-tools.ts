@@ -392,10 +392,12 @@ export const createGraphTools = (baseUrl: string) => {
   // analyze_diff
   tool(
     'analyze_diff',
-    'Analyze differences between current graph and base graph to see what changes need to be made.',
-    {},
-    async () => {
-      console.log('🔍 TOOL: analyze_diff called');
+    'Analyze differences between current graph and base graph to see what changes need to be made. Can analyze entire graph or focus on a specific node.',
+    {
+      nodeId: z.string().optional().describe('Optional node ID to analyze differences for. If not provided, analyzes the entire graph.')
+    },
+    async ({ nodeId }) => {
+      console.log('🔍 TOOL: analyze_diff called', { nodeId });
 
       try {
         // Read the diff from the graph API
@@ -424,6 +426,125 @@ export const createGraphTools = (baseUrl: string) => {
 
         const { diff, summary } = diffData;
 
+        // If nodeId is specified, show detailed differences for that specific node
+        if (nodeId) {
+          console.log('🎯 TOOL: analyze_diff showing detailed differences for node:', nodeId);
+
+          try {
+            // Fetch both current and base graphs to get detailed comparison
+            const [currentResponse, baseResponse] = await Promise.all([
+              fetch(`${baseUrl}/api/graph-api?type=current`, { headers: { 'Accept': 'application/json' } }),
+              fetch(`${baseUrl}/api/graph-api?type=base`, { headers: { 'Accept': 'application/json' } })
+            ]);
+
+            if (!currentResponse.ok || !baseResponse.ok) {
+              const errorMsg = 'Failed to fetch graphs for detailed comparison';
+              console.log('❌ TOOL: analyze_diff failed to fetch graphs:', errorMsg);
+              return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
+            }
+
+            const [currentData, baseData] = await Promise.all([
+              currentResponse.json(),
+              baseResponse.json()
+            ]);
+
+            if (!currentData.success || !baseData.success) {
+              const errorMsg = 'Graph API returned errors';
+              console.log('❌ TOOL: analyze_diff API errors:', errorMsg);
+              return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
+            }
+
+            const currentNode = currentData.graph.nodes?.find((n: any) => n.id === nodeId);
+            const baseNode = baseData.graph.nodes?.find((n: any) => n.id === nodeId);
+
+            // Check if node exists in either graph
+            if (!currentNode && !baseNode) {
+              const result = `Node Analysis: **${nodeId}**\n\n❌ **Node not found** in either current or base graph.\n`;
+              console.log('📤 TOOL: analyze_diff node not found in either graph:', nodeId);
+              return { content: [{ type: 'text', text: result }] };
+            }
+
+            // Format detailed node differences
+            let result = `Node Analysis: **${nodeId}**\n\n`;
+
+            // Handle different scenarios
+            if (!baseNode && currentNode) {
+              // Node was added
+              result += `📍 **Node Added:**\n`;
+              result += `**Title:** ${currentNode.title}\n`;
+              result += `**Prompt:** ${currentNode.prompt}\n`;
+
+              if (currentNode.properties && currentNode.properties.length > 0) {
+                result += `**Properties:**\n`;
+                currentNode.properties.forEach((prop: any) => {
+                  result += `  - ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type})\n`;
+                });
+              }
+              result += '\n';
+
+            } else if (baseNode && !currentNode) {
+              // Node was deleted
+              result += `🗑️ **Node Deleted:**\n`;
+              result += `**Previous Title:** ${baseNode.title}\n`;
+              result += `**Previous Prompt:** ${baseNode.prompt}\n\n`;
+
+            } else if (baseNode && currentNode) {
+              // Node exists in both - compare in detail
+              const differences = compareNodesDetailed(baseNode, currentNode);
+
+              if (differences.length === 0) {
+                result += `🎉 **No differences found!** This node matches perfectly between current and base graphs.\n`;
+              } else {
+                result += `✏️ **Node Modified:**\n\n`;
+
+                differences.forEach(diff => {
+                  result += `${diff}\n`;
+                });
+                result += '\n';
+              }
+            }
+
+            // Add edge differences for this node
+            const nodeEdges = (diff.addedEdges || []).filter((edgeId: string) =>
+              edgeId.startsWith(`${nodeId}-`) || edgeId.endsWith(`-${nodeId}`)
+            );
+            const deletedNodeEdges = (diff.deletedEdges || []).filter((edgeId: string) =>
+              edgeId.startsWith(`${nodeId}-`) || edgeId.endsWith(`-${nodeId}`)
+            );
+
+            if (nodeEdges.length > 0) {
+              result += `🔗 **Added Edges (${nodeEdges.length}):**\n`;
+              nodeEdges.forEach((edgeId: string) => {
+                result += `- ${edgeId}\n`;
+              });
+              result += '\n';
+            }
+
+            if (deletedNodeEdges.length > 0) {
+              result += `🔌 **Deleted Edges (${deletedNodeEdges.length}):**\n`;
+              deletedNodeEdges.forEach((edgeId: string) => {
+                result += `- ${edgeId}\n`;
+              });
+              result += '\n';
+            }
+
+            result += '💡 **Next Steps:**\n';
+            result += '1. Review the changes above for this node\n';
+            result += '2. Use node_create, node_edit, or other tools to make necessary changes\n';
+            result += '3. Use sync_to_base_graph to save completed changes\n';
+            result += '4. Run analyze_diff again to verify all changes are complete\n';
+
+            console.log('📤 TOOL: analyze_diff returning detailed node analysis:', nodeId);
+            return { content: [{ type: 'text', text: result }] };
+
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('💥 TOOL: analyze_diff error in node analysis:', errorMessage);
+            return { content: [{ type: 'text', text: `Error analyzing node differences: ${errorMessage}` }] };
+          }
+        }
+
+        // Original full graph analysis
         // Format the diff information for the agent
         let result = `Graph Analysis Complete:\n${summary}\n\n`;
 
@@ -929,6 +1050,128 @@ export const createGraphTools = (baseUrl: string) => {
 
   ];
 };
+
+/**
+ * Compares two nodes in detail and returns an array of difference descriptions
+ */
+function compareNodesDetailed(baseNode: any, currentNode: any): string[] {
+  const differences: string[] = [];
+
+  // Compare basic fields
+  if (baseNode.title !== currentNode.title) {
+    differences.push(`**Title changed:** "${baseNode.title}" → "${currentNode.title}"`);
+  }
+
+  if (baseNode.prompt !== currentNode.prompt) {
+    differences.push(`**Prompt changed:**`);
+    differences.push(`  From: "${baseNode.prompt}"`);
+    differences.push(`  To: "${currentNode.prompt}"`);
+  }
+
+  // Compare properties
+  const baseProps = Array.isArray(baseNode.properties) ? baseNode.properties : [];
+  const currentProps = Array.isArray(currentNode.properties) ? currentNode.properties : [];
+
+  const basePropMap = new Map(baseProps.map((p: any) => [p.id, p]));
+  const currentPropMap = new Map(currentProps.map((p: any) => [p.id, p]));
+
+  // Check for added properties
+  for (const [propId, currentProp] of currentPropMap.entries()) {
+    if (!basePropMap.has(propId)) {
+      differences.push(`**Property added:** ${propId} = ${JSON.stringify((currentProp as any).value)} (${(currentProp as any).type})`);
+    }
+  }
+
+  // Check for removed properties
+  for (const [propId, baseProp] of basePropMap.entries()) {
+    if (!currentPropMap.has(propId)) {
+      differences.push(`**Property removed:** ${propId} (was: ${JSON.stringify((baseProp as any).value)})`);
+    }
+  }
+
+  // Check for modified properties
+  for (const [propId, currentProp] of currentPropMap.entries()) {
+    const baseProp = basePropMap.get(propId);
+    if (baseProp) {
+      const propDifferences = comparePropertyDetailed(propId as string, baseProp as any, currentProp as any);
+      differences.push(...propDifferences);
+    }
+  }
+
+  return differences;
+}
+
+/**
+ * Compares two properties in detail and returns difference descriptions
+ */
+function comparePropertyDetailed(propId: string, baseProp: any, currentProp: any): string[] {
+  const differences: string[] = [];
+
+  // Check if values are different
+  const baseValue = baseProp.value;
+  const currentValue = currentProp.value;
+
+  const valuesEqual = (() => {
+    if (baseValue === currentValue) return true;
+    if (typeof baseValue === 'object' && baseValue !== null &&
+        typeof currentValue === 'object' && currentValue !== null) {
+      return JSON.stringify(baseValue) === JSON.stringify(currentValue);
+    }
+    return false;
+  })();
+
+  if (!valuesEqual) {
+    differences.push(`**Property modified:** ${propId}`);
+    differences.push(`  From: ${JSON.stringify(baseValue)}`);
+    differences.push(`  To: ${JSON.stringify(currentValue)}`);
+  }
+
+  // Check other property fields
+  if (baseProp.type !== currentProp.type) {
+    differences.push(`**Property type changed:** ${propId} (${baseProp.type} → ${currentProp.type})`);
+  }
+
+  if (baseProp.title !== currentProp.title) {
+    differences.push(`**Property title changed:** ${propId} ("${baseProp.title}" → "${currentProp.title}")`);
+  }
+
+  // Check fields for object properties
+  if (baseProp.type === 'object' || currentProp.type === 'object') {
+    const baseFields = Array.isArray(baseProp.fields) ? baseProp.fields : [];
+    const currentFields = Array.isArray(currentProp.fields) ? currentProp.fields : [];
+
+    const baseFieldMap = new Map(baseFields.map((f: any) => [f.id || f.name, f]));
+    const currentFieldMap = new Map(currentFields.map((f: any) => [f.id || f.name, f]));
+
+    // Added fields
+    for (const [fieldId, currentField] of currentFieldMap.entries()) {
+      if (!baseFieldMap.has(fieldId)) {
+        differences.push(`**Object field added:** ${propId}.${fieldId} = ${JSON.stringify((currentField as any).value)}`);
+      }
+    }
+
+    // Removed fields
+    for (const [fieldId, baseField] of baseFieldMap.entries()) {
+      if (!currentFieldMap.has(fieldId)) {
+        differences.push(`**Object field removed:** ${propId}.${fieldId} (was: ${JSON.stringify((baseField as any).value)})`);
+      }
+    }
+
+    // Modified fields
+    for (const [fieldId, currentField] of currentFieldMap.entries()) {
+      const baseField = baseFieldMap.get(fieldId);
+      if (baseField) {
+        if (JSON.stringify((baseField as any).value) !== JSON.stringify((currentField as any).value)) {
+          differences.push(`**Object field modified:** ${propId}.${fieldId}`);
+          differences.push(`  From: ${JSON.stringify((baseField as any).value)}`);
+          differences.push(`  To: ${JSON.stringify((currentField as any).value)}`);
+        }
+      }
+    }
+  }
+
+  return differences;
+}
 
 // Helper function to save graph
 async function saveGraph(graph: any): Promise<{ success: boolean; error?: string }> {

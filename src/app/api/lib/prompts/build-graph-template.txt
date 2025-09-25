@@ -24,8 +24,7 @@ Property Wiring Guidelines
   * Layout: position, flex-direction, justify-content, align-items, etc.
   * Interactions: onClick, onHover, onChange handlers, etc.
 - Properties should use the input types defined in the schema:
-  * 'text' - for strings like titles, descriptions
-  * 'textarea' - for longer text content
+  * 'text' - for strings and longer text content
   * 'number' - for numeric values like sizes, padding
   * 'color' - for color pickers
   * 'boolean' - for true/false values like disabled, visible

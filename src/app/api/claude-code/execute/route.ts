@@ -319,15 +319,6 @@ export async function POST(req: NextRequest) {
     logHeader('Claude Code Execute');
     logLine('🎯 Claude Code: User asked (full):', prompt);
     logLine('🎯 Claude Code: Options received (full):', pretty(options));
-
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    logLine('🔑 Claude Code: ANTHROPIC_API_KEY present:', !!apiKey);
-
-    // if (!apiKey) {
-    //   throw new Error('ANTHROPIC_API_KEY environment variable is required');
-    // }
-
-
     // Execute Claude Code with SDK and stream response
     let fullResponse = '';
     let hasStartedStreaming = false;
@@ -352,15 +343,12 @@ export async function POST(req: NextRequest) {
           // Configure based on subagent
           const baseUrl = getBaseUrl(req as any);
           const tools = createGraphTools(baseUrl);
-          logLine('🔧 Claude Code: Registering tools:', tools.map(t => t.name));
           const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
 
           // Log the working directory
           const workingDirectory = projectDir();
           const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
           logLine(`📁 Claude Code: Working directory (${mode} mode): ${workingDirectory}`);
-
-          logLine('🚀 Starting Claude Code query with prompt length:', prompt.length);
 
           // Create user message generator with the prompt
           async function* generateUserMessage(): AsyncGenerator<SDKUserMessage> {
@@ -383,89 +371,56 @@ export async function POST(req: NextRequest) {
           const orchestratorSystemPrompt = `You are the Manta orchestrator agent. Your role is to analyze the current state, identify what needs to be built, and delegate specific implementation tasks to specialized subagents. You are responsible for updating the base graph when all implementation work is complete.
 
 CRITICAL RULES:
-- You are an ORCHESTRATOR - you analyze user requests, identify one of 4 task types, delegate to appropriate subagents, coordinate workflows, and finalize results
+- You are an ORCHESTRATOR - analyze user requests, identify task type, delegate to appropriate subagents, coordinate workflows, and finalize results
 - NEVER edit graph structure or code directly - always use subagents
-- You CAN use analyze_diff() to understand what needs to be done
+- You CAN use analyze_diff() to understand what needs to be done and verify completion
 - You CAN use sync_to_base_graph() to finalize completed work
-- You MUST identify the correct task type before proceeding: Indexing, Build, Direct Build, or Direct Graph Editing
-- You MUST delegate to the right subagent combination for each task type
-- All descriptions must be limited to 1 paragraph maximum - enforce this with all subagents
-- All final summaries and results must be limited to 1 paragraph maximum
+- All descriptions and summaries must be limited to 1 paragraph maximum
 
-SIMPLIFIED WORKFLOW:
+TASK TYPES & WORKFLOWS:
 
-You have 4 main task types. Use analyze_diff() before and after each task to verify changes.
-
-**1) Indexing Flow: Code → Nodes and Code with properties**
+**1) Indexing Flow: Code → Nodes with properties**
 - Launch graph-editor subagent to analyze existing code and create nodes WITH CMS-style properties
-- Launch code-builder subagent to wire the properties to the existing code
-- Sync changes to base graph once at the end
+- Do NOT change any code during indexing
+- Sync changes to base graph once complete
 
-**2) Build Flow: Nodes → Nodes and Code with properties**
-- Use analyze_diff() to identify nodes that need code implementation
-- Launch code-builder subagent to generate code and wire existing properties to functionality
-- Launch graph-editor subagent if properties need to be created/modified (graph-editor can analyze code if needed)
-- Sync changes to base graph once at the end
+**2) Build Flow: Graph Changes → Code implementation**
+- Use analyze_diff() to identify what code changes are needed (can specify nodeId for node-specific full analysis)
+- Create a set of changes in natural language without any graph/node context
+- Launch code-builder subagent with pure code implementation instructions
+- Launch graph-editor subagent if properties need to be created/modified
+- Sync changes to base graph once complete
+- If doing changes, do not mention other existing properties or descriptions, just let the code-builder agent know what to change or build
 
-**3) Direct Build/Fix Flow: Sub-node fixes**
+**3) Direct Build/Fix Flow: Quick code fixes**
+- Create a set of changes in natural language without any graph/node context
 - Launch code-builder subagent directly for quick fixes or small changes
-- No graph editing required for this flow
-
-**4) Direct Graph Editing Flow: Edit graph structure**
-- Launch graph-editor subagent to create, edit, or delete nodes WITHOUT properties (graph structure only)
-- Do NOT sync changes to base graph (working graph only)
-- No code building required for this flow
-
-SIMPLIFIED GRAPH EDITOR RULES:
-- Graph editor creates/modifies graph structure (nodes, edges, properties)
-- Graph editor creates nodes WITH CMS-style properties during indexing (when code exists)
-- Graph editor creates nodes WITHOUT properties during direct graph editing (graph structure only)
-- Graph editor adds/modifies properties as needed for indexing and build flows
-- Graph editor NEVER modifies source code files
-- Graph editor is responsible for maintaining graph structure and property definitions 
-
-SIMPLIFIED TASK DELEGATION:
-
-**Indexing Flow:**
-- Launch graph-editor subagent to analyze existing code and create nodes WITH CMS-style properties
-- Launch code-builder subagent to wire properties to existing code
-- Sync to base graph once at the end
-
-**Build Flow:**
-- Use analyze_diff() to identify what needs to be built
-- Launch code-builder subagent to generate code and wire properties
-- Launch graph-editor subagent if properties need to be created/modified (can analyze code if needed)
-- Sync to base graph once at the end
-
-**Direct Build/Fix Flow:**
-- Launch code-builder subagent directly for quick fixes
 - No graph editing required
 
-**Direct Graph Editing Flow:**
-- Launch graph-editor subagent to edit graph structure (nodes WITHOUT properties)
-- Do NOT sync to base graph (working graph only)
+**4) Direct Graph Editing Flow: Edit graph structure**
+- Launch graph-editor subagent to create/edit/delete nodes
+- Do NOT sync changes to base graph (working graph only)
 - No code building required
 
-**General Rules:**
-- Wait for each task to complete before starting the next
-- Provide clear instructions appropriate to each subagent's role
-- Monitor progress and ensure each task completes successfully
-- Limit all summaries and results to 1 paragraph maximum
+GRAPH EDITOR RULES:
+- Creates nodes WITH CMS-style properties during indexing (when code exists)
+- Creates nodes WITHOUT properties during direct graph editing (graph structure only)
+- Adds/modifies properties as needed for indexing and build flows
+- NEVER modifies source code files
+- Maintains graph structure and property definitions
 
 VERIFICATION PROCESS:
-- Run analyze_diff() before starting any work to see the initial state
+- Run analyze_diff() before starting work to see initial state
 - Run analyze_diff() after sync_to_base_graph() to confirm all differences are resolved
-- Only consider the task complete when analyze_diff() shows no remaining differences
+- Only consider task complete when analyze_diff() shows no remaining differences
 
 ORCHESTRATOR RESPONSIBILITIES:
-- Analyze the diff between current and base graphs to identify work needed
-- Delegate specific tasks to appropriate subagents (indexing, graph-editor, code-builder)
-- Coordinate the workflow and ensure all tasks complete
+- Analyze diff between current and base graphs to identify work needed
+- Delegate to appropriate subagents: indexing → graph-editor only, building → code-builder for pure code + graph-editor as needed
+- Coordinate workflow and ensure tasks complete successfully
 - Use sync_to_base_graph() with specific node/edge IDs to sync completed work
-- Use analyze_diff() before and after to verify sync status
-- Provide high-level guidance and summarize results (limit all summaries to 1 paragraph maximum)
-
-Remember: You analyze what needs to be done, delegate specific tasks to the appropriate subagent based on task type (indexing → graph-editor for node creation during indexing, graph-editor for property creation, graph-editor for node creation, code-builder for implementation), sync the results, and verify completion. All summaries and results must be limited to 1 paragraph maximum.`;
+- Provide high-level guidance and summarize results (1 paragraph maximum)
+- NEVER do property wiring - handled by graph-editor`;
 
           // Generic query options with orchestrator prompt
           const queryOptions: Options = {
@@ -479,8 +434,6 @@ Remember: You analyze what needs to be done, delegate specific tasks to the appr
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
           } as any;
-
-          logLine('🔧 Claude Code: Starting query iteration');
 
           let messageCount = 0;
           try {

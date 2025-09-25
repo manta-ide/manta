@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph, updatePropertyAndWriteVars, registerStreamController, unregisterStreamController, storeCurrentGraph, storeBaseGraph, loadCurrentGraphFromFile, loadBaseGraphFromFile } from '../lib/graph-service';
+import { getGraphSession, loadGraphFromFile, storeGraph, registerStreamController, unregisterStreamController, storeCurrentGraph, storeBaseGraph, loadCurrentGraphFromFile, loadBaseGraphFromFile, storeCurrentGraphWithoutBroadcast } from '../lib/graph-service';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
@@ -399,7 +399,7 @@ export async function PATCH(req: NextRequest) {
 
     const node = graph.nodes[nodeIndex];
     const propertyIndex = node.properties?.findIndex(p => p.id === propertyId);
-    
+
     if (propertyIndex === -1 || propertyIndex === undefined || !node.properties) {
       return NextResponse.json(
         { error: 'Property not found' },
@@ -407,7 +407,11 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    await updatePropertyAndWriteVars(nodeId, propertyId, value, user.id);
+    // Update the property value directly in the graph
+    node.properties[propertyIndex] = { ...node.properties[propertyIndex], value };
+
+    // Save the updated graph without broadcasting (user-initiated change)
+    await storeCurrentGraphWithoutBroadcast(graph, user.id);
 
     console.log(`✅ Property updated successfully`);
 

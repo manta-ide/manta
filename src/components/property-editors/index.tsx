@@ -4,7 +4,6 @@ import React from 'react';
 import { Property } from '@/app/api/lib/schemas';
 import ColorPropertyEditor from './ColorPropertyEditor';
 import SelectPropertyEditor from './SelectPropertyEditor';
-import TextPropertyEditor from './TextPropertyEditor';
 import NumberPropertyEditor from './NumberPropertyEditor';
 import BooleanPropertyEditor from './BooleanPropertyEditor';
 import CheckboxPropertyEditor from './CheckboxPropertyEditor';
@@ -38,10 +37,10 @@ export default function PropertyEditor({ property, onChange, onPreview }: Proper
           onPreview={handlePreview}
         />
       );
-    case 'textarea':
+    case 'text':
       return (
         <TextAreaPropertyEditor
-          property={property as Property & { type: 'textarea' }}
+          property={property as Property & { type: 'text' }}
           onChange={handleChange}
         />
       );
@@ -77,20 +76,6 @@ export default function PropertyEditor({ property, onChange, onPreview }: Proper
         />
       );
     }
-    case 'text':
-      return (
-        <TextPropertyEditor
-          property={property as Property & { type: 'text' }}
-          onChange={handleChange}
-        />
-      );
-    case 'string':
-      return (
-        <TextPropertyEditor
-          property={property as Property & { type: 'text' }}
-          onChange={handleChange}
-        />
-      );
     case 'number':
       return (
         <NumberPropertyEditor

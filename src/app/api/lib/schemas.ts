@@ -11,7 +11,6 @@ import { z } from 'zod';
 export const PropertyTypeEnum = z.enum([
   'color',
   'text',
-  'textarea',
   'number',
   'select',
   'boolean',

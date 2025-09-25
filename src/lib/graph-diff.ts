@@ -84,8 +84,57 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
  * Compares two nodes to determine if they are different
  */
 export function nodesAreDifferent(node1: any, node2: any): boolean {
-  // Only compare title and prompt for determining if nodes are different
-  return node1.title !== node2.title || node1.prompt !== node2.prompt;
+  // Compare title and prompt
+  if (node1.title !== node2.title || node1.prompt !== node2.prompt) {
+    return true;
+  }
+
+  // Compare properties
+  const props1 = Array.isArray(node1.properties) ? node1.properties : [];
+  const props2 = Array.isArray(node2.properties) ? node2.properties : [];
+
+  if (props1.length !== props2.length) {
+    return true;
+  }
+
+  // Create maps for easier comparison
+  const propMap1 = new Map(props1.map((p: any) => [p.id, p]));
+  const propMap2 = new Map(props2.map((p: any) => [p.id, p]));
+
+  // Check if all properties in node1 exist in node2 with same values
+  for (const [id, prop1] of propMap1.entries()) {
+    const prop2 = propMap2.get(id);
+    if (!prop2) {
+      return true; // Property missing in node2
+    }
+
+    // Compare property values (handle different types)
+    if ((prop1 as any).value !== (prop2 as any).value) {
+      // For objects/arrays, do a deep comparison
+      if (typeof (prop1 as any).value === 'object' && (prop1 as any).value !== null &&
+          typeof (prop2 as any).value === 'object' && (prop2 as any).value !== null) {
+        if (JSON.stringify((prop1 as any).value) !== JSON.stringify((prop2 as any).value)) {
+          return true;
+        }
+      } else {
+        return true;
+      }
+    }
+
+    // Compare other property fields that might affect behavior
+    if ((prop1 as any).type !== (prop2 as any).type || (prop1 as any).title !== (prop2 as any).title) {
+      return true;
+    }
+  }
+
+  // Check if node2 has extra properties not in node1
+  for (const id of propMap2.keys()) {
+    if (!propMap1.has(id)) {
+      return true;
+    }
+  }
+
+  return false; // Nodes are identical
 }
 
 /**
