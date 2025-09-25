@@ -85,14 +85,74 @@ async function downloadAndApplyTemplate(branch: string, projectDir: string) {
     removed: [] as string[]
   };
 
-  // Handle partial template specially - use local files instead of GitHub
+  // Handle partial template specially - generate minimal structure in memory
   if (branch === 'partial') {
-    const partialTemplatePath = path.join(process.cwd(), '_templates', 'partial-template');
-    console.log(`📦 Applying local partial template`);
+    console.log(`📦 Generating minimal partial template in memory`);
 
-    // For partial templates, don't remove existing files - just merge
-    const copyResult = await copyDirectory(partialTemplatePath, projectDir, false, result);
-    return { ...result, ...copyResult };
+    // Create minimal .manta structure
+    const mantaDir = path.join(projectDir, '.manta');
+    const claudeDir = path.join(projectDir, '.claude', 'agents');
+
+    // Create directories
+    fs.mkdirSync(mantaDir, { recursive: true });
+    fs.mkdirSync(claudeDir, { recursive: true });
+
+    // Create empty graph files
+    const emptyGraph = `<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+  </nodes>
+
+  <edges>
+  </edges>
+</graph>`;
+
+    const baseGraphPath = path.join(mantaDir, 'base-graph.xml');
+    const currentGraphPath = path.join(mantaDir, 'current-graph.xml');
+
+    if (!fs.existsSync(baseGraphPath)) {
+      fs.writeFileSync(baseGraphPath, emptyGraph);
+      result.added.push(path.relative(process.cwd(), baseGraphPath));
+    } else {
+      result.skipped.push(path.relative(process.cwd(), baseGraphPath));
+    }
+
+    if (!fs.existsSync(currentGraphPath)) {
+      fs.writeFileSync(currentGraphPath, emptyGraph);
+      result.added.push(path.relative(process.cwd(), currentGraphPath));
+    } else {
+      result.skipped.push(path.relative(process.cwd(), currentGraphPath));
+    }
+
+    // Create placeholder agent files
+    const codeBuilderAgent = `---
+name: code-builder
+description: Code builder agent. This is a placeholder that gets dynamically generated when the app starts based on your project structure.
+tools: mcp__graph-tools__read, Read, Write, Edit, Bash, MultiEdit, NotebookEdit, Glob, Grep, WebFetch, TodoWrite, ExitPlanMode, BashOutput, KillShell
+---
+
+This agent configuration will be dynamically generated based on your project structure when the app starts.`;
+
+    const graphEditorAgent = `---
+name: graph-editor
+description: Graph structure editor with code analysis. This is a placeholder that gets dynamically generated when the app starts based on your project structure.
+tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__node_edit, mcp__graph-tools__node_delete, mcp__graph-tools__edge_create, mcp__graph-tools__edge_delete, Read, Glob, Grep
+---
+
+This agent configuration will be dynamically generated based on your project structure when the app starts.`;
+
+    const codeBuilderPath = path.join(claudeDir, 'code-builder.md');
+    const graphEditorPath = path.join(claudeDir, 'graph-editor.md');
+
+    fs.writeFileSync(codeBuilderPath, codeBuilderAgent);
+    fs.writeFileSync(graphEditorPath, graphEditorAgent);
+
+    result.added.push(
+      path.relative(process.cwd(), codeBuilderPath),
+      path.relative(process.cwd(), graphEditorPath)
+    );
+
+    return result;
   }
 
   // For full templates, download from GitHub

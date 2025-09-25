@@ -12,6 +12,7 @@ type GraphServiceRuntimeState = {
   currentGraph: Graph | null;
   activeStreams: Set<ReadableStreamDefaultController<Uint8Array>>;
   broadcastTimeout: NodeJS.Timeout | null;
+  baseGraphBroadcastTimeout: NodeJS.Timeout | null;
 };
 
 const globalGraphState = (globalThis as typeof globalThis & {
@@ -20,6 +21,7 @@ const globalGraphState = (globalThis as typeof globalThis & {
   currentGraph: null,
   activeStreams: new Set<ReadableStreamDefaultController<Uint8Array>>(),
   broadcastTimeout: null,
+  baseGraphBroadcastTimeout: null,
 };
 
 const getCurrentGraph = () => globalGraphState.currentGraph;
@@ -336,6 +338,7 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
     const message = {
       type: 'base-graph-update',
       baseGraph: graph,
+      source: 'agent', // Mark as agent-driven to bypass SSE suppression
       timestamp: new Date().toISOString()
     };
     const payload = `data: ${JSON.stringify(message)}\n\n`;
@@ -349,26 +352,25 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
     const completionPayload = `data: ${JSON.stringify(completionMessage)}\n\n`;
     console.log('📤 Broadcasting build-complete message to all SSE clients');
 
-    // Clear any pending broadcast
-    if (globalGraphState.broadcastTimeout) {
-      clearTimeout(globalGraphState.broadcastTimeout);
-      globalGraphState.broadcastTimeout = null;
-    }
+    // Don't clear pending broadcasts - use separate timeout for base graph updates
+    // to avoid interfering with regular graph broadcasts
 
     // Debounce broadcasts to avoid spam (max 10 per second)
-    globalGraphState.broadcastTimeout = setTimeout(() => {
-      for (const controller of activeStreams) {
-        try {
-          controller.enqueue(new TextEncoder().encode(payload));
-          // Also send completion signal
-          controller.enqueue(new TextEncoder().encode(completionPayload));
-        } catch (error) {
-          // Remove broken connections
-          activeStreams.delete(controller);
+    if (!globalGraphState.baseGraphBroadcastTimeout) {
+      globalGraphState.baseGraphBroadcastTimeout = setTimeout(() => {
+        for (const controller of activeStreams) {
+          try {
+            controller.enqueue(new TextEncoder().encode(payload));
+            // Also send completion signal
+            controller.enqueue(new TextEncoder().encode(completionPayload));
+          } catch (error) {
+            // Remove broken connections
+            activeStreams.delete(controller);
+          }
         }
-      }
-      globalGraphState.broadcastTimeout = null;
-    }, 100);
+        globalGraphState.baseGraphBroadcastTimeout = null;
+      }, 100);
+    }
   } catch (error) {
     console.error('Error broadcasting base graph update:', error);
   }

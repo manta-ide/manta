@@ -513,9 +513,39 @@ function toPropTypeAttr(p: Property): string {
 
 function valueToText(p: Property): string {
   const v = (p as any)?.value;
+  const type = (p as any)?.type;
+
   if (v === undefined || v === null) return '';
+
+  // For boolean properties, use "true"/"false" strings
+  if (type === 'boolean') {
+    return v === true || v === 'true' ? 'true' : 'false';
+  }
+
+  // For number properties, ensure it's stored as a string representation of the number
+  if (type === 'number') {
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'string') {
+      const num = Number(v);
+      return Number.isFinite(num) ? String(num) : v;
+    }
+    return String(v);
+  }
+
+  // For select properties, the value should be one of the options
+  if (type === 'select' && typeof v === 'string') {
+    return v;
+  }
+
+  // For color properties, store as-is (could be hex, rgba, etc.)
+  if (type === 'color' && typeof v === 'string') {
+    return v;
+  }
+
+  // For text and other string-based properties
   if (typeof v === 'string') return v;
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+
+  // For arrays and objects (object-list, object types handle this differently)
   try { return JSON.stringify(v); } catch { return String(v); }
 }
 
@@ -684,18 +714,36 @@ ${optionsXml}
 function parsePropValue(type: string | undefined, text: string): any {
   const t = (type || '').toLowerCase();
   const raw = unescapeXml(text || '').trim();
+
+  if (t === 'boolean') {
+    if (raw.toLowerCase() === 'true' || raw === '1') return true;
+    if (raw.toLowerCase() === 'false' || raw === '0') return false;
+    // For legacy compatibility, check for other boolean-like strings
+    if (raw.toLowerCase() === 'enabled' || raw.toLowerCase() === 'yes' || raw.toLowerCase() === 'on') return true;
+    if (raw.toLowerCase() === 'disabled' || raw.toLowerCase() === 'no' || raw.toLowerCase() === 'off') return false;
+    return raw; // fallback to original string if unclear
+  }
+
   if (t === 'number') {
     const n = Number(raw);
     return Number.isFinite(n) ? n : raw;
   }
-  if (t === 'boolean') {
-    if (raw.toLowerCase() === 'true') return true;
-    if (raw.toLowerCase() === 'false') return false;
+
+  if (t === 'select') {
+    // Select values should remain as strings
     return raw;
   }
-  if (t === 'json') {
+
+  if (t === 'color') {
+    // Color values should remain as strings (hex, rgba, etc.)
+    return raw;
+  }
+
+  // Parse JSON content for json type or if it looks like JSON
+  if (t === 'json' || raw.startsWith('{') || raw.startsWith('[')) {
     try { return JSON.parse(raw); } catch { return raw; }
   }
+
   return raw;
 }
 
