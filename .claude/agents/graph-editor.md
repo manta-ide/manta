@@ -38,7 +38,7 @@ Tools: read(graphType="current"), node_create, node_edit, node_delete, edge_crea
 - Avoid unnecessary thinking or extra tool calls when a single call is sufficient
 
 Property Guidelines:
-- Properties should correspond to real component attributes and be wired to the actual code for CMS-style customization
+- Properties should correspond to real component attributes for CMS-style customization
 - Make sure that all properties have values in the nodes
 - Use appropriate input types from the schema that make sense for the component's customization needs:
   * 'text' - for strings like titles, descriptions, labels
@@ -54,17 +54,17 @@ Property Guidelines:
   * 'object-list' - for arrays of objects like social links, menu items, testimonials
 - Each property should have a clear 'title' and appropriate 'type' from the schema
 - Properties should be functional and actually affect the component's behavior/appearance
+- All properties should be defining the behaviour or visuals of the component. You shouldn't just do properties for all variables, you need to think of which types of properties could help affect this component and change it in a way that user might want. So even if in the code something is not yet implemented, you might add some property.
+So every property should have some meaning to why the user would change this. 
 - Focus on user-editable CMS properties:
   * Colors and styling options
   * Size and spacing settings
-  * Visibility and behavior toggles
+  * Visibility and behavior
   * Text content and labels
   * Layout and positioning
 - IMPORTANT: Always use the correct property type - NEVER use "text" type for color properties, always use "color" type, etc.
 - Group related properties using 'object' type for better organization (e.g., "styling" with color, text color, font settings)
 - Use 'object-list' for repeatable content structures with defined itemFields
-- Make sure that all properties are editable by a normal user without programming/css knowledge, for a gradient do an object with a few colors, etc.
-- Never create properties directly for CSS classes, HTML blocks, attributes, frameworks, all of the properties should be decribing the logic in relevant property types and not in css text.
-There should be no compound properties that require to maintain strcture inside text block, if any structure is needed - utilize the objects or list properties.
-Only pure technical components can be decribed in technical terms, but still without compound properties like (0 0% 100%)
+- Make sure that all properties are editable by a normal user without programming/css knowledge, for a gradient do an object with a few colors, etc. All of the property titles and options for them should be in natural text. Not bottom-right - Bottom Right, not flex-col, Flexible Column. The properties will be read by an agent for implementation, so they shouldn't be directly compatible with code. 
+-There should be no compound properties that require to maintain strcture inside text block, if any structure is needed - utilize the objects or list properties.
 - Make sure that all properties have default values that are same as the default values for them in code. Never create empty properties.
