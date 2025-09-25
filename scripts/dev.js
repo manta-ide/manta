@@ -6,23 +6,32 @@ import { spawn } from "child_process";
 import { createServer } from "net";
 import JSZip from "jszip";
 
-// Find an available port starting from the given port
-function findAvailablePort(startPort) {
-  return new Promise((resolve, reject) => {
+// Check if a port is available
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
     const server = createServer();
-    server.listen(startPort, () => {
-      const port = server.address().port;
-      server.close(() => resolve(port));
+    server.listen(port, () => {
+      server.close(() => resolve(true));
     });
-    server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        // Port is in use, try the next one
-        resolve(findAvailablePort(startPort + 1));
-      } else {
-        reject(err);
-      }
+    server.on('error', () => {
+      resolve(false);
     });
   });
+}
+
+// Find an available port starting from the given port
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (true) {
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+    port++;
+    // Prevent infinite loop by limiting to a reasonable range
+    if (port > startPort + 100) {
+      throw new Error(`Could not find an available port starting from ${startPort}`);
+    }
+  }
 }
 
 // Load .env file if it exists

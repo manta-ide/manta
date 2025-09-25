@@ -1005,9 +1005,9 @@ export const createGraphTools = (baseUrl: string) => {
   // node_delete
   tool(
     'node_delete',
-    'Delete a node by id.',
-    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true) },
-    async ({ nodeId, recursive }) => {
+    'Delete a node by id. Use alreadyImplemented=true during indexing to immediately sync the deletion to base graph.',
+    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode)') },
+    async ({ nodeId, recursive, alreadyImplemented }) => {
       console.log('🗑️ TOOL: node_delete called', { nodeId, recursive });
 
       try {
@@ -1073,7 +1073,25 @@ export const createGraphTools = (baseUrl: string) => {
         }
         console.log('✅ TOOL: node_delete graph saved successfully');
 
-        const result = `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}`;
+        // If alreadyImplemented is true, sync this deletion to base graph immediately
+        if (alreadyImplemented) {
+          console.log('🔄 TOOL: node_delete syncing to base graph due to alreadyImplemented=true');
+          try {
+            // Get the IDs of all nodes that were deleted
+            const deletedNodeIds = Array.from(toDelete);
+            const syncResult = await syncToBaseGraph(deletedNodeIds, []);
+            if (!syncResult.success) {
+              console.log('⚠️ TOOL: node_delete sync to base failed:', syncResult.error);
+              return { content: [{ type: 'text', text: `Warning: Node deleted but failed to sync to base: ${syncResult.error}` }] };
+            }
+            console.log('✅ TOOL: node_delete successfully synced to base graph');
+          } catch (syncError) {
+            console.error('💥 TOOL: node_delete sync error:', syncError);
+            return { content: [{ type: 'text', text: `Warning: Node deleted but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }] };
+          }
+        }
+
+        const result = `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}${alreadyImplemented ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: node_delete returning result:', result);
         return { content: [{ type: 'text', text: result }] };
       } catch (error) {
@@ -1250,6 +1268,10 @@ async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ 
             baseGraph.nodes = baseGraph.nodes || [];
             baseGraph.nodes.push({ ...currentNode });
           }
+        } else if (baseNodeIdx >= 0) {
+          // Node doesn't exist in current graph but exists in base - remove from base
+          console.log('🗑️ TOOL: syncToBaseGraph removing node from base:', nodeId);
+          baseGraph.nodes.splice(baseNodeIdx, 1);
         }
       }
     }
