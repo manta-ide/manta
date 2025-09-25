@@ -694,7 +694,7 @@ function GraphCanvas() {
     });
   }, [loadGraphs]);
 
-  // Handle keyboard shortcuts for deletion (Delete key only)
+  // Handle keyboard shortcuts for deletion (Delete and Backspace keys)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check if we're in an input field or textarea - if so, don't handle graph shortcuts
@@ -709,9 +709,10 @@ function GraphCanvas() {
       // Don't handle graph shortcuts if we're typing in a form element
       if (isInInput) return;
 
-      if (event.key === 'Delete') {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
         console.log(`🎹 Key pressed: ${event.key}, selected nodes: ${nodes.filter(node => node.selected).length}, selected edges: ${edges.filter(edge => edge.selected).length}`);
         event.preventDefault();
+        event.stopPropagation();
 
         // Get selected nodes and edges from ReactFlow
         const selectedNodes = nodes.filter(node => node.selected);
@@ -730,7 +731,7 @@ function GraphCanvas() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, edges]);
+  }, [nodes, edges, handleDeleteSelected]);
 
   // Keep a ref of latest nodes to avoid effect dependency on nodes (prevents loops)
   const latestNodesRef = useRef<Node[]>([]);
@@ -1491,6 +1492,7 @@ function GraphCanvas() {
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
         elementsSelectable={true}
+        deleteKeyCode={[]}
       >
         <MiniMap
           nodeColor={(node: any) => {
