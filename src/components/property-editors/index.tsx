@@ -108,7 +108,7 @@ export default function PropertyEditor({ property, onChange, onPreview }: Proper
     case 'checkbox':
       return (
         <CheckboxPropertyEditor
-          property={property as Property & { type: 'checkbox' }}
+          property={property as Property & { type: 'checkbox'; options?: string[] }}
           onChange={handleChange}
         />
       );

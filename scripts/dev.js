@@ -2,7 +2,28 @@
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { existsSync, cpSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from "fs";
+import { spawn } from "child_process";
+import { createServer } from "net";
 import JSZip from "jszip";
+
+// Find an available port starting from the given port
+function findAvailablePort(startPort) {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.listen(startPort, () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        // Port is in use, try the next one
+        resolve(findAvailablePort(startPort + 1));
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
 
 // Load .env file if it exists
 function loadEnvFile() {
@@ -176,16 +197,61 @@ async function main() {
       }
     } catch {}
 
-    console.log(`Setting up Manta IDE (prod) targeting: ${targetDir}`);
+    console.log(`Starting Manta IDE (prod) targeting: ${targetDir}`);
 
     // Set environment variables
     process.env.NODE_ENV = "production";
-    process.env.PORT = process.env.PORT || "3001";
+
+    // Find an available port starting from PORT env var or 3001
+    const startPort = parseInt(process.env.PORT || "3001", 10);
+    const availablePort = await findAvailablePort(startPort);
+    process.env.PORT = availablePort.toString();
 
     // Change to standalone directory
     process.chdir(serverCwd);
 
-    console.log(`Environment set up. Run 'node ${serverJs}' to start production server.`);
+    // Actually start the server instead of just printing instructions
+    console.log(`Starting production server on port ${process.env.PORT}...`);
+    try {
+      const child = spawn('node', [serverJs], {
+        stdio: 'inherit',
+        cwd: serverCwd,
+        env: {
+          ...process.env,
+          MANTA_MODE: "user-project",
+          MANTA_PROJECT_DIR: targetDir,
+        }
+      });
+
+      // Handle process termination
+      process.on('SIGINT', () => {
+        console.log('\nShutting down Manta IDE...');
+        child.kill('SIGINT');
+        process.exit(0);
+      });
+
+      process.on('SIGTERM', () => {
+        console.log('\nShutting down Manta IDE...');
+        child.kill('SIGTERM');
+        process.exit(0);
+      });
+
+      await new Promise((resolve, reject) => {
+        child.on('close', (code) => {
+          if (code === 0) {
+            console.log('Manta IDE stopped successfully.');
+            resolve();
+          } else {
+            console.error(`Manta IDE exited with code ${code}`);
+            reject(new Error(`Server exited with code ${code}`));
+          }
+        });
+        child.on('error', reject);
+      });
+    } catch (error) {
+      console.error('Failed to start Manta IDE:', error.message);
+      process.exit(1);
+    }
     return;
   }
 
@@ -212,9 +278,9 @@ async function main() {
 Manta IDE CLI
 
 Usage:
-  manta            Run prebuilt Manta IDE (default)
+  manta            Start prebuilt Manta IDE (default)
   manta i          Download and install template from manta-ide/manta-template
-  manta run        Run Manta IDE targeting current directory
+  manta run        Start Manta IDE targeting current directory
   manta dev        Run dev server (only in local repo with src/)
   manta help       Show this help
 
@@ -231,16 +297,61 @@ NPM Scripts (in package.json):
     process.exit(1);
   }
 
-  console.log(`Setting up Manta IDE (prod) targeting: ${targetDir}`);
+  console.log(`Starting Manta IDE (prod) targeting: ${targetDir}`);
 
   // Set environment variables
   process.env.NODE_ENV = "production";
-  process.env.PORT = process.env.PORT || "3001";
+
+  // Find an available port starting from PORT env var or 3001
+  const startPort = parseInt(process.env.PORT || "3001", 10);
+  const availablePort = await findAvailablePort(startPort);
+  process.env.PORT = availablePort.toString();
 
   // Change to standalone directory
   process.chdir(serverCwd);
 
-  console.log(`Environment set up. Run 'node ${serverJs}' to start production server.`);
+  // Actually start the server instead of just printing instructions
+  console.log(`Starting production server on port ${process.env.PORT}...`);
+  try {
+    const child = spawn('node', [serverJs], {
+      stdio: 'inherit',
+      cwd: serverCwd,
+      env: {
+        ...process.env,
+        MANTA_MODE: "user-project",
+        MANTA_PROJECT_DIR: targetDir,
+      }
+    });
+
+    // Handle process termination
+    process.on('SIGINT', () => {
+      console.log('\nShutting down Manta IDE...');
+      child.kill('SIGINT');
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', () => {
+      console.log('\nShutting down Manta IDE...');
+      child.kill('SIGTERM');
+      process.exit(0);
+    });
+
+    await new Promise((resolve, reject) => {
+      child.on('close', (code) => {
+        if (code === 0) {
+          console.log('Manta IDE stopped successfully.');
+          resolve();
+        } else {
+          console.error(`Manta IDE exited with code ${code}`);
+          reject(new Error(`Server exited with code ${code}`));
+        }
+      });
+      child.on('error', reject);
+    });
+  } catch (error) {
+    console.error('Failed to start Manta IDE:', error.message);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {
