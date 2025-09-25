@@ -54,7 +54,6 @@ function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); 
 function getCurrentGraphPath(): string { return path.join(getGraphDir(), 'current-graph.xml'); }
 function getBaseGraphPath(): string { return path.join(getGraphDir(), 'base-graph.xml'); }
 function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
-function getVarsPath(): string { return path.join(getGraphDir(), 'vars.json'); }
 function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
 function readGraphFromFs(): Graph | null {
   try {
@@ -129,11 +128,6 @@ function writeBaseGraphToFs(graph: Graph) {
   ensureGraphDir();
   const xml = graphToXml(graph);
   fs.writeFileSync(getBaseGraphPath(), xml, 'utf8');
-}
-function writeVarsToFs(graph: Graph) {
-  const vars = extractVariablesFromGraph(graph);
-  ensureGraphDir();
-  fs.writeFileSync(getVarsPath(), JSON.stringify(vars, null, 2), 'utf8');
 }
 
 // SSE broadcast system
@@ -213,21 +207,6 @@ async function broadcastGraphReload(_userId: string, metadata?: { source?: strin
   }
 }
 
-function extractVariablesFromGraph(graph: Graph): Record<string, any> {
-  const vars: Record<string, any> = {};
-  (graph.nodes || []).forEach(node => {
-    if (node.id) {
-      vars[node.id] = {};
-      if (Array.isArray(node.properties)) {
-        node.properties.forEach((p: any, index: number) => {
-          const propertyId = (p.id || `property-${index}`).toString().toLowerCase().replace(/\s+/g, '-');
-          vars[node.id][propertyId] = p.value;
-        });
-      }
-    }
-  });
-  return vars;
-}
 
 function normalizeGraph(original: Graph): Graph {
   const seenNodeIds = new Set<string>();
@@ -294,13 +273,11 @@ function normalizeGraph(original: Graph): Graph {
 async function saveGraphToFs(graph: Graph): Promise<void> {
   const normalized = normalizeGraph(graph);
   writeCurrentGraphToFs(normalized);
-  writeVarsToFs(normalized);
 }
 
 async function saveCurrentGraphToFs(graph: Graph): Promise<void> {
   const normalized = normalizeGraph(graph);
   writeCurrentGraphToFs(normalized);
-  writeVarsToFs(normalized);
 }
 
 async function saveBaseGraphToFs(graph: Graph): Promise<void> {
@@ -323,8 +300,6 @@ export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId);
-  // Also update the vars file to ensure consistency
-  writeVarsToFs(normalized);
 }
 
 export async function storeCurrentGraph(graph: Graph, userId: string): Promise<void> {
@@ -332,7 +307,6 @@ export async function storeCurrentGraph(graph: Graph, userId: string): Promise<v
   setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId);
-  writeVarsToFs(normalized);
 }
 
 export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): Promise<void> {
@@ -340,14 +314,12 @@ export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): 
   setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
   await broadcastGraphReload(userId, { source: 'agent' });
-  writeVarsToFs(normalized);
 }
 
 export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
   await saveCurrentGraphToFs(normalized);
-  writeVarsToFs(normalized);
 }
 
 export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
@@ -402,24 +374,6 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
   }
 }
 
-export async function updatePropertyAndWriteVars(nodeId: string, propertyId: string, value: any, userId: string): Promise<void> {
-  const current = getCurrentGraph();
-  if (current) {
-    const idx = current.nodes.findIndex(n => n.id === nodeId);
-    if (idx !== -1) {
-      const node = current.nodes[idx] as any;
-      if (Array.isArray(node.properties)) {
-        const pIdx = node.properties.findIndex((p: any) => p.id === propertyId);
-        if (pIdx !== -1) node.properties[pIdx] = { ...node.properties[pIdx], value };
-      }
-    }
-
-    // Save the updated graph to current-graph.xml as the primary persistence
-    writeCurrentGraphToFs(current);
-    // Update the vars file for the child project to consume
-    writeVarsToFs(current);
-  }
-}
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
   // Prioritize current graph file, fallback to main graph file
