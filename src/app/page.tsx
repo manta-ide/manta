@@ -43,6 +43,10 @@ export default function Home() {
           if (data.needsPartialTemplate) {
             console.log('🚀 Auto-installing partial template...');
             await handleInstallTemplate('partial');
+          } else if (data.projectExists) {
+            // If project exists but doesn't need partial template, still regenerate agents
+            console.log('🤖 Regenerating agents for existing project...');
+            await generateAgents();
           }
         } else {
           console.warn('Failed to check project status:', response.status);
@@ -60,6 +64,24 @@ export default function Home() {
 
     checkProjectStatus();
   }, []);
+
+  // Generate agents for existing project
+  const generateAgents = async () => {
+    try {
+      console.log('🤖 Generating agents...');
+      const agentResponse = await fetch('/api/project-status', {
+        method: 'POST'
+      });
+
+      if (agentResponse.ok) {
+        console.log('🤖 Agents generated successfully');
+      } else {
+        console.warn('⚠️ Failed to generate agents');
+      }
+    } catch (error) {
+      console.error('Failed to generate agents:', error);
+    }
+  };
 
   // Handle installing template from branch
   const handleInstallTemplate = async (branch: string) => {
@@ -79,6 +101,10 @@ export default function Home() {
       }
 
       const data = await response.json();
+      console.log('✅ Template installed, now generating agents...');
+
+      // Generate dynamic agents based on project structure
+      await generateAgents();
 
       // Check if project now exists (since templates add graph files)
       const projectCheckResponse = await fetch('/api/project-status');

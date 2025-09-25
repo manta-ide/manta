@@ -178,13 +178,14 @@ export const createGraphTools = (baseUrl: string) => {
   // edge_create
   tool(
     'edge_create',
-    'Create a connection (edge) between two nodes in the graph.',
+    'Create a connection (edge) between two nodes in the graph. Use alreadyImplemented=true during indexing to immediately sync the edge to base graph.',
     {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
       role: z.string().optional(),
+      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this edge to base graph (used during indexing mode)'),
     },
-    async ({ sourceId, targetId, role }) => {
+    async ({ sourceId, targetId, role, alreadyImplemented }) => {
       console.log('🔗 TOOL: edge_create called', { sourceId, targetId, role });
 
       try {
@@ -253,7 +254,24 @@ export const createGraphTools = (baseUrl: string) => {
         }
         console.log('✅ TOOL: edge_create graph saved successfully');
 
-        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}`;
+        // If alreadyImplemented is true, sync this edge to base graph immediately
+        if (alreadyImplemented) {
+          console.log('🔄 TOOL: edge_create syncing to base graph due to alreadyImplemented=true');
+          try {
+            const edgeId = newEdge.id;
+            const syncResult = await syncToBaseGraph([], [edgeId]);
+            if (!syncResult.success) {
+              console.log('⚠️ TOOL: edge_create sync to base failed:', syncResult.error);
+              return { content: [{ type: 'text', text: `Warning: Edge created but failed to sync to base: ${syncResult.error}` }] };
+            }
+            console.log('✅ TOOL: edge_create successfully synced to base graph');
+          } catch (syncError) {
+            console.error('💥 TOOL: edge_create sync error:', syncError);
+            return { content: [{ type: 'text', text: `Warning: Edge created but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }] };
+          }
+        }
+
+        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${alreadyImplemented ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: edge_create returning result:', result);
         return { content: [{ type: 'text', text: result }] };
       } catch (error) {
@@ -323,15 +341,16 @@ export const createGraphTools = (baseUrl: string) => {
   // node_create
   tool(
     'node_create',
-    'Create a new node and persist it to the graph.',
+    'Create a new node and persist it to the graph. Use alreadyImplemented=true during indexing to immediately sync the node to base graph.',
     {
       nodeId: z.string().min(1),
       title: z.string().min(1),
       prompt: z.string().min(1),
       properties: z.array(PropertySchema).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
+      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this node to base graph (used during indexing mode)'),
     },
-    async ({ nodeId, title, prompt, properties, position }) => {
+    async ({ nodeId, title, prompt, properties, position, alreadyImplemented }) => {
       console.log('➕ TOOL: node_create called', { nodeId, title, position: !!position });
 
       try {
@@ -377,7 +396,23 @@ export const createGraphTools = (baseUrl: string) => {
         }
         console.log('✅ TOOL: node_create graph saved successfully');
 
-        const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.`;
+        // If alreadyImplemented is true, sync this node to base graph immediately
+        if (alreadyImplemented) {
+          console.log('🔄 TOOL: node_create syncing to base graph due to alreadyImplemented=true');
+          try {
+            const syncResult = await syncToBaseGraph([nodeId], []);
+            if (!syncResult.success) {
+              console.log('⚠️ TOOL: node_create sync to base failed:', syncResult.error);
+              return { content: [{ type: 'text', text: `Warning: Node created but failed to sync to base: ${syncResult.error}` }] };
+            }
+            console.log('✅ TOOL: node_create successfully synced to base graph');
+          } catch (syncError) {
+            console.error('💥 TOOL: node_create sync error:', syncError);
+            return { content: [{ type: 'text', text: `Warning: Node created but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }] };
+          }
+        }
+
+        const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.${alreadyImplemented ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: node_create returning success:', result);
         return { content: [{ type: 'text', text: result }] };
       } catch (error) {
@@ -1174,6 +1209,84 @@ function comparePropertyDetailed(propId: string, baseProp: any, currentProp: any
 }
 
 // Helper function to save graph
+// Helper function to sync specific nodes/edges to base graph
+async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ success: boolean; error?: string }> {
+  console.log('🔄 TOOL: syncToBaseGraph called', { nodeIds, edgeIds });
+
+  try {
+    // Read both current and base graphs
+    const currentGraphResult = await readLocalGraph();
+    const baseGraphResult = await readBaseGraph();
+
+    if (!currentGraphResult) {
+      throw new Error('No current graph available to sync from');
+    }
+
+    let baseGraph = baseGraphResult?.graph;
+    if (!baseGraph) {
+      console.log('📝 TOOL: syncToBaseGraph creating new base graph');
+      baseGraph = { nodes: [], edges: [] };
+    }
+
+    const currentGraph = currentGraphResult.graph;
+    console.log('📊 TOOL: syncToBaseGraph - current:', currentGraph.nodes?.length || 0, 'nodes,', currentGraph.edges?.length || 0, 'edges');
+    console.log('📊 TOOL: syncToBaseGraph - base:', baseGraph.nodes?.length || 0, 'nodes,', baseGraph.edges?.length || 0, 'edges');
+
+    // Sync nodes
+    if (nodeIds && nodeIds.length > 0) {
+      for (const nodeId of nodeIds) {
+        const currentNode = currentGraph.nodes?.find((n: any) => n.id === nodeId);
+        const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === nodeId) ?? -1;
+
+        if (currentNode) {
+          // Node exists in current graph
+          if (baseNodeIdx >= 0) {
+            // Update existing node in base graph
+            console.log('🔄 TOOL: syncToBaseGraph updating node:', nodeId);
+            baseGraph.nodes[baseNodeIdx] = { ...currentNode };
+          } else {
+            // Add new node to base graph
+            console.log('➕ TOOL: syncToBaseGraph adding node:', nodeId);
+            baseGraph.nodes = baseGraph.nodes || [];
+            baseGraph.nodes.push({ ...currentNode });
+          }
+        }
+      }
+    }
+
+    // Sync edges
+    if (edgeIds && edgeIds.length > 0) {
+      for (const edgeId of edgeIds) {
+        const currentEdge = currentGraph.edges?.find((e: any) => e.id === edgeId);
+        const baseEdgeIdx = baseGraph.edges?.findIndex((e: any) => e.id === edgeId) ?? -1;
+
+        if (currentEdge) {
+          // Edge exists in current graph
+          if (baseEdgeIdx >= 0) {
+            // Update existing edge in base graph
+            console.log('🔄 TOOL: syncToBaseGraph updating edge:', edgeId);
+            baseGraph.edges[baseEdgeIdx] = { ...currentEdge };
+          } else {
+            // Add new edge to base graph
+            console.log('➕ TOOL: syncToBaseGraph adding edge:', edgeId);
+            baseGraph.edges = baseGraph.edges || [];
+            baseGraph.edges.push({ ...currentEdge });
+          }
+        }
+      }
+    }
+
+    console.log('💾 TOOL: syncToBaseGraph saving synced base graph with', baseGraph.nodes?.length || 0, 'nodes,', baseGraph.edges?.length || 0, 'edges');
+    await storeBaseGraph(baseGraph, DEFAULT_USER_ID);
+    console.log('✅ TOOL: syncToBaseGraph base graph synced successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('💥 TOOL: syncToBaseGraph error:', error);
+    const errorMsg = `Failed to sync to base graph: ${error instanceof Error ? error.message : String(error)}`;
+    return { success: false, error: errorMsg };
+  }
+}
+
 async function saveGraph(graph: any): Promise<{ success: boolean; error?: string }> {
   console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0);
 
