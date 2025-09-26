@@ -52,23 +52,20 @@ export function projectExists(projectDir: string = getDevProjectDir()): boolean 
 }
 
 /**
- * Check if there's a Next.js project in the directory (has package.json and next.config files)
+ * Check if the directory has any files (excluding hidden files and directories)
  */
-export function hasNextJsProject(projectDir: string = getDevProjectDir()): boolean {
+export function hasAnyFiles(projectDir: string = getDevProjectDir()): boolean {
   try {
-    const packageJsonPath = path.join(projectDir, 'package.json');
-    const nextConfigPath = path.join(projectDir, 'next.config.mjs');
-    const nextConfigJsPath = path.join(projectDir, 'next.config.js');
-    const nextConfigTsPath = path.join(projectDir, 'next.config.ts');
+    if (!fs.existsSync(projectDir)) {
+      return false;
+    }
 
-    const hasPackageJson = fs.existsSync(packageJsonPath);
-    const hasNextConfig = fs.existsSync(nextConfigPath) ||
-                         fs.existsSync(nextConfigJsPath) ||
-                         fs.existsSync(nextConfigTsPath);
-
-    return hasPackageJson && hasNextConfig;
+    const files = fs.readdirSync(projectDir);
+    // Filter out hidden files/directories (starting with .)
+    const visibleFiles = files.filter(file => !file.startsWith('.'));
+    return visibleFiles.length > 0;
   } catch (error) {
-    console.warn('Error checking if Next.js project exists:', error);
+    console.warn('Error checking if directory has files:', error);
     return false;
   }
 }

@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { projectExists, hasNextJsProject, getDevProjectDir } from '@/lib/project-config';
+import { projectExists, hasAnyFiles, getDevProjectDir } from '@/lib/project-config';
 import { generateCodeBuilderAgent, generateGraphEditorAgent } from '@/app/api/lib/agentPrompts';
 
 export async function GET() {
   try {
     const exists = projectExists();
-    const hasNextJs = hasNextJsProject();
+    const hasFiles = hasAnyFiles();
 
     return NextResponse.json({
       projectExists: exists,
-      hasNextJsProject: hasNextJs,
-      needsPartialTemplate: hasNextJs && !exists
+      hasAnyFiles: hasFiles,
+      needsPartialTemplate: hasFiles
     });
   } catch (error) {
     console.error('Error checking project status:', error);
