@@ -409,8 +409,7 @@ export async function POST(req: NextRequest) {
               await handleMessage(message as SDKMessage, controller, encoder);
             }
           } catch (queryError) {
-            logHeader('❌ Claude Code: Query error');
-            logLine('', pretty(queryError));
+            logHeader('❌ Claude Code: Query error' + queryError);
 
             // Only send error and close if stream is still open
             if (!streamClosed) {
