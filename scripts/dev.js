@@ -226,9 +226,13 @@ async function main() {
         stdio: 'inherit',
         cwd: serverCwd,
         env: {
-          ...process.env,
+          NODE_ENV: "production",
+          PORT: process.env.PORT,
           MANTA_MODE: "user-project",
           MANTA_PROJECT_DIR: targetDir,
+          // Only pass essential environment variables to avoid Windows issues
+          ...(process.env.GITHUB_TOKEN && { GITHUB_TOKEN: process.env.GITHUB_TOKEN }),
+          ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN && { GITHUB_PERSONAL_ACCESS_TOKEN: process.env.GITHUB_PERSONAL_ACCESS_TOKEN }),
         }
       });
 
@@ -326,9 +330,13 @@ NPM Scripts (in package.json):
       stdio: 'inherit',
       cwd: serverCwd,
       env: {
-        ...process.env,
+        NODE_ENV: "production",
+        PORT: process.env.PORT,
         MANTA_MODE: "user-project",
         MANTA_PROJECT_DIR: targetDir,
+        // Only pass essential environment variables to avoid Windows issues
+        ...(process.env.GITHUB_TOKEN && { GITHUB_TOKEN: process.env.GITHUB_TOKEN }),
+        ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN && { GITHUB_PERSONAL_ACCESS_TOKEN: process.env.GITHUB_PERSONAL_ACCESS_TOKEN }),
       }
     });
 
