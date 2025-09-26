@@ -1,4 +1,3 @@
-
 ---
 name: code-builder
 description: Code builder agent specialized for web development projects. Use for implementing specific graph nodes assigned by the orchestrator. Focuses on generating code based on node specifications. Works on one node at a time as directed.

@@ -1,8 +1,670 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="FloatingChat" title="FloatingChat" x="227.9862632259772" y="-245.75393498361007" z="0">
+      <description>A draggable floating chat interface with dark zinc-themed styling, containing a header, message display area, and input field with context badges.</description>
+      <props>
+        <prop name="chat-bg-color" title="Chat Background" type="color">#18181b</prop>
+        <prop name="header-bg-color" title="Header Background" type="color">#27272a</prop>
+        <prop name="border-color" title="Border Color" type="color">#52525b</prop>
+        <prop name="text-color" title="Text Color" type="color">#ffffff</prop>
+        <prop name="input-bg-color" title="Input Background" type="color">#27272a</prop>
+        <prop name="button-bg-color" title="Button Background" type="color">#3f3f46</prop>
+        <prop name="button-hover-color" title="Button Hover Color" type="color">#52525b</prop>
+        <prop name="shimmer-color" title="Shimmer Color" type="color">#ffffff</prop>
+        <prop name="shimmer-bg-color" title="Shimmer Background Color" type="color">#71717a</prop>
+        <prop name="chat-width" title="Chat Width" type="number">288</prop>
+        <prop name="border-radius" title="Border Radius" type="number">8</prop>
+        <prop name="shadow-opacity" title="Shadow Opacity" type="slider">[0.8]</prop>
+        <prop name="minimized-show-count" title="Show Message Count When Minimized" type="boolean">true</prop>
+        <prop name="typing-animation-speed" title="Typing Animation Speed" type="number">1.5</prop>
+        <prop name="position-constraint" title="Position Constraint Mode" type="select">
+          <value>constrained</value>
+          <options>
+          <option>free</option>
+          <option>constrained</option>
+          <option>snap-to-grid</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="GraphView" title="GraphView" x="772.3200463159977" y="-264.84374016507405" z="0">
+      <description>The main graph visualization component with ReactFlow, featuring custom nodes, edges, minimap, controls, and a dark background with tool buttons for select/pan/add-node modes.</description>
+      <props>
+        <prop name="background-color" title="Background Color" type="color">#374151</prop>
+        <prop name="node-selected-bg" title="Selected Node Background" type="color">#f8fafc</prop>
+        <prop name="node-unselected-bg" title="Unselected Node Background" type="color">#ffffff</prop>
+        <prop name="node-border-color" title="Node Border Color" type="color">#e5e7eb</prop>
+        <prop name="node-selected-border" title="Selected Node Border" type="color">#2563eb</prop>
+        <prop name="edge-default-color" title="Default Edge Color" type="color">#9ca3af</prop>
+        <prop name="edge-selected-color" title="Selected Edge Color" type="color">#3b82f6</prop>
+        <prop name="edge-unbuilt-color" title="Unbuilt Edge Color" type="color">#ef4444</prop>
+        <prop name="handle-bg-color" title="Handle Background" type="color">#ffffff</prop>
+        <prop name="handle-border-color" title="Handle Border Color" type="color">#9ca3af</prop>
+        <prop name="minimap-built-color" title="Minimap Built Node Color" type="color">#9ca3af</prop>
+        <prop name="minimap-unbuilt-color" title="Minimap Unbuilt Node Color" type="color">#fbbf24</prop>
+        <prop name="grid-gap" title="Background Grid Gap" type="number">20</prop>
+        <prop name="zoom-sensitivity" title="Zoom Sensitivity" type="slider">[1]</prop>
+        <prop name="pan-mode" title="Pan Mode" type="select">
+          <value>trackpad</value>
+          <options>
+          <option>trackpad</option>
+          <option>mouse</option>
+          <option>both</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="MessageRenderer" title="MessageRenderer" x="-171.07068703053147" y="-238.11296404474575" z="0">
+      <description>A content renderer for parsing and displaying code blocks with Monaco Editor, featuring syntax highlighting and auto-calculated heights.</description>
+      <props>
+        <prop name="code-block-bg" title="Code Block Background" type="color">#18181b</prop>
+        <prop name="code-header-bg" title="Code Header Background" type="color">#27272a</prop>
+        <prop name="code-border-color" title="Code Border Color" type="color">#3f3f46</prop>
+        <prop name="code-text-color" title="Code Text Color" type="color">#d4d4d8</prop>
+        <prop name="editor-theme" title="Editor Theme" type="select">
+          <value>vs-dark</value>
+          <options>
+          <option>vs-dark</option>
+          <option>vs</option>
+          </options>
+        </prop>
+        <prop name="font-size" title="Font Size" type="number">12</prop>
+        <prop name="line-height" title="Line Height" type="number">18</prop>
+        <prop name="min-height" title="Minimum Height" type="number">40</prop>
+        <prop name="max-height" title="Maximum Height" type="number">400</prop>
+        <prop name="show-line-numbers" title="Show Line Numbers" type="boolean">true</prop>
+        <prop name="word-wrap" title="Word Wrap" type="select">
+          <value>off</value>
+          <options>
+          <option>off</option>
+          <option>on</option>
+          <option>bounded</option>
+          </options>
+        </prop>
+        <prop name="scrollbar-size" title="Scrollbar Size" type="number">8</prop>
+        <prop name="MessageRenderer-border-radius" title="Border Radius" type="number">6</prop>
+        <prop name="show-minimap" title="Show Minimap" type="boolean">false</prop>
+        <prop name="smooth-scrolling" title="Smooth Scrolling" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="SelectedNodeSidebar" title="SelectedNodeSidebar" x="1000" y="100" z="0">
+      <description>A sidebar panel for editing selected node properties with dark zinc styling, containing title/description inputs and property editors with debounced saving.</description>
+      <props>
+        <prop name="sidebar-bg-color" title="Sidebar Background" type="color">#18181b</prop>
+        <prop name="SelectedNodeSidebar-border-color" title="Border Color" type="color">#3f3f46</prop>
+        <prop name="SelectedNodeSidebar-text-color" title="Text Color" type="color">#ffffff</prop>
+        <prop name="label-color" title="Label Color" type="color">#d4d4d8</prop>
+        <prop name="SelectedNodeSidebar-input-bg-color" title="Input Background" type="color">#27272a</prop>
+        <prop name="input-border-color" title="Input Border" type="color">#3f3f46</prop>
+        <prop name="input-focus-border" title="Input Focus Border" type="color">#3b82f6</prop>
+        <prop name="multi-select-bg" title="Multi-select Background" type="color">#27272a</prop>
+        <prop name="multi-select-border" title="Multi-select Border" type="color">#3f3f46</prop>
+        <prop name="children-bg" title="Children Background" type="color">#27272a</prop>
+        <prop name="error-text-color" title="Error Text Color" type="color">#fca5a5</prop>
+        <prop name="success-text-color" title="Success Text Color" type="color">#86efac</prop>
+        <prop name="title-debounce-delay" title="Title Save Delay (ms)" type="number">300</prop>
+        <prop name="description-debounce-delay" title="Description Save Delay (ms)" type="number">500</prop>
+        <prop name="property-throttle" title="Property Update Throttle (ms)" type="number">60</prop>
+      </props>
+    </node>
+
+    <node id="SelectionBadge" title="SelectionBadge" x="-158.66384492668055" y="-429.0582246570629" z="0">
+      <description>Badge components for displaying file, area, and node selections with icons and remove buttons, featuring outline styling with zinc colors.</description>
+      <props>
+        <prop name="badge-bg-color" title="Badge Background" type="color">transparent</prop>
+        <prop name="badge-border-color" title="Badge Border" type="color">#52525b</prop>
+        <prop name="badge-text-color" title="Badge Text" type="color">#ffffff</prop>
+        <prop name="icon-color" title="Icon Color" type="color">#ffffff</prop>
+        <prop name="remove-button-color" title="Remove Button Color" type="color">#a1a1aa</prop>
+        <prop name="remove-button-hover" title="Remove Button Hover" type="color">#ffffff</prop>
+        <prop name="badge-padding" title="Badge Padding" type="text">gap-1 pr-1</prop>
+        <prop name="icon-size" title="Icon Size" type="number">12</prop>
+        <prop name="text-size" title="Text Size" type="text">text-xs</prop>
+        <prop name="remove-icon-size" title="Remove Icon Size" type="number">10</prop>
+        <prop name="badge-spacing" title="Badge Spacing" type="text">gap-2 p-2</prop>
+        <prop name="message-badge-spacing" title="Message Badge Spacing" type="text">gap-1.5 mb-2</prop>
+        <prop name="variant-light-style" title="Light Variant Style" type="text">border-zinc-600 text-white bg-transparent</prop>
+        <prop name="variant-dark-style" title="Dark Variant Style" type="text">border-zinc-600 text-white bg-transparent</prop>
+        <prop name="show-file-icon" title="Show File Icon" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="TopBar" title="TopBar" x="1167.1948675629712" y="-269.2577425301698" z="0">
+      <description>A minimal top header bar with dark zinc styling and empty flex containers for future content expansion.</description>
+      <props>
+        <prop name="TopBar-header-bg-color" title="Header Background" type="color">#27272a</prop>
+        <prop name="TopBar-border-color" title="Bottom Border Color" type="color">#3f3f46</prop>
+        <prop name="padding-horizontal" title="Horizontal Padding" type="text">px-4</prop>
+        <prop name="padding-vertical" title="Vertical Padding" type="text">py-1.5</prop>
+        <prop name="height" title="Header Height" type="number">48</prop>
+        <prop name="justify-content" title="Content Justification" type="select">
+          <value>space-between</value>
+          <options>
+          <option>space-between</option>
+          <option>center</option>
+          <option>flex-start</option>
+          <option>flex-end</option>
+          </options>
+        </prop>
+        <prop name="align-items" title="Items Alignment" type="select">
+          <value>center</value>
+          <options>
+          <option>center</option>
+          <option>flex-start</option>
+          <option>flex-end</option>
+          </options>
+        </prop>
+        <prop name="left-section-gap" title="Left Section Gap" type="text"></prop>
+        <prop name="right-section-gap" title="Right Section Gap" type="text">gap-3</prop>
+        <prop name="border-width" title="Border Width" type="number">1</prop>
+        <prop name="show-border" title="Show Bottom Border" type="boolean">true</prop>
+        <prop name="sticky-position" title="Sticky Position" type="boolean">false</prop>
+        <prop name="z-index" title="Z-Index" type="number">10</prop>
+        <prop name="backdrop-blur" title="Backdrop Blur" type="boolean">false</prop>
+        <prop name="shadow" title="Show Shadow" type="boolean">false</prop>
+      </props>
+    </node>
+
+    <node id="WelcomeScreen" title="WelcomeScreen" x="1745.2703384879974" y="-612.520540049097" z="0">
+      <description>A full-screen welcome interface displaying template cards with images, featuring dark zinc background and interactive template selection with loading states.</description>
+      <props>
+        <prop name="screen-bg-color" title="Screen Background" type="color">#18181b</prop>
+        <prop name="heading-color" title="Heading Color" type="color">#ffffff</prop>
+        <prop name="subheading-color" title="Subheading Color" type="color">#a1a1aa</prop>
+        <prop name="card-bg-color" title="Card Background" type="color">#ffffff</prop>
+        <prop name="card-hover-shadow" title="Card Hover Shadow" type="text">hover:shadow-lg</prop>
+        <prop name="card-selected-ring" title="Selected Card Ring" type="color">#3b82f6</prop>
+        <prop name="WelcomeScreen-button-bg-color" title="Install Button Background" type="color">#000000</prop>
+        <prop name="button-text-color" title="Install Button Text" type="color">#ffffff</prop>
+        <prop name="button-hover-bg" title="Install Button Hover" type="color">#000000</prop>
+        <prop name="card-image-height" title="Card Image Height" type="text">h-30</prop>
+        <prop name="grid-columns" title="Grid Columns" type="select">
+          <value>2</value>
+          <options>
+          <option>1</option>
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+          </options>
+        </prop>
+        <prop name="WelcomeScreen-grid-gap" title="Grid Gap" type="number">32</prop>
+        <prop name="max-width" title="Content Max Width" type="text">max-w-2xl</prop>
+        <prop name="screen-padding" title="Screen Padding" type="text">p-8</prop>
+        <prop name="loading-text-color" title="Loading Text Color" type="color">#a1a1aa</prop>
+      </props>
+    </node>
+
+    <node id="BasePropertyEditor" title="BasePropertyEditor" x="1268.4951120750145" y="4526.637787113792" z="0">
+      <description>Base wrapper component for property editors with label styling and optional right slot for actions, using zinc color scheme.</description>
+      <props>
+        <prop name="BasePropertyEditor-label-color" title="Label Color" type="color">#d4d4d8</prop>
+        <prop name="label-font-size" title="Label Font Size" type="text">text-xs</prop>
+        <prop name="label-font-weight" title="Label Font Weight" type="text">font-medium</prop>
+        <prop name="container-gap" title="Container Gap" type="text">gap-2</prop>
+        <prop name="container-padding" title="Container Padding" type="text">py-1</prop>
+        <prop name="show-value-display" title="Show Value Display" type="boolean">false</prop>
+        <prop name="header-justify" title="Header Justification" type="select">
+          <value>space-between</value>
+          <options>
+          <option>space-between</option>
+          <option>flex-start</option>
+          <option>flex-end</option>
+          <option>center</option>
+          </options>
+        </prop>
+        <prop name="header-align" title="Header Alignment" type="select">
+          <value>center</value>
+          <options>
+          <option>center</option>
+          <option>flex-start</option>
+          <option>flex-end</option>
+          </options>
+        </prop>
+        <prop name="content-width" title="Content Width" type="text">w-full</prop>
+        <prop name="flex-direction" title="Flex Direction" type="select">
+          <value>column</value>
+          <options>
+          <option>column</option>
+          <option>row</option>
+          </options>
+        </prop>
+        <prop name="custom-class" title="Custom CSS Classes" type="text"></prop>
+        <prop name="show-right-slot" title="Show Right Slot" type="boolean">true</prop>
+        <prop name="label-text-transform" title="Label Text Transform" type="select">
+          <value>none</value>
+          <options>
+          <option>none</option>
+          <option>uppercase</option>
+          <option>lowercase</option>
+          <option>capitalize</option>
+          </options>
+        </prop>
+        <prop name="container-bg" title="Container Background" type="color">transparent</prop>
+        <prop name="border-style" title="Border Style" type="text">border-0</prop>
+      </props>
+    </node>
+
+    <node id="BooleanPropertyEditor" title="BooleanPropertyEditor" x="1065.3380082313151" y="2596.672252550748" z="0">
+      <description>Boolean property editor with switch control and clickable On/Off labels, featuring blue/zinc color states and scaled styling.</description>
+      <props>
+        <prop name="switch-bg-unchecked" title="Switch Background (Off)" type="color">#3f3f46</prop>
+        <prop name="switch-bg-checked" title="Switch Background (On)" type="color">#2563eb</prop>
+        <prop name="label-color-active" title="Active Label Color" type="color">#ffffff</prop>
+        <prop name="label-color-inactive" title="Inactive Label Color" type="color">#71717a</prop>
+        <prop name="switch-scale" title="Switch Scale" type="number">0.75</prop>
+        <prop name="BooleanPropertyEditor-label-font-size" title="Label Font Size" type="text">text-xs</prop>
+        <prop name="BooleanPropertyEditor-label-font-weight" title="Label Font Weight" type="text">font-medium</prop>
+        <prop name="BooleanPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
+        <prop name="label-min-width" title="Label Min Width" type="text">min-w-[20px]</prop>
+        <prop name="off-label-text" title="Off Label Text" type="text">Off</prop>
+        <prop name="on-label-text" title="On Label Text" type="text">On</prop>
+        <prop name="cursor-style" title="Cursor Style" type="select">
+          <value>pointer</value>
+          <options>
+          <option>pointer</option>
+          <option>default</option>
+          <option>help</option>
+          </options>
+        </prop>
+        <prop name="label-alignment" title="Label Text Alignment" type="select">
+          <value>center</value>
+          <options>
+          <option>left</option>
+          <option>right</option>
+          <option>center</option>
+          </options>
+        </prop>
+        <prop name="hover-effect" title="Show Hover Effect" type="boolean">true</prop>
+        <prop name="disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
+      </props>
+    </node>
+
+    <node id="CheckboxPropertyEditor" title="CheckboxPropertyEditor" x="786.4936293120522" y="2593.8997630416025" z="0">
+      <description>Checkbox property editor supporting both single boolean values and multi-select groups with zinc-styled checkboxes and labels.</description>
+      <props>
+        <prop name="checkbox-scale" title="Checkbox Scale" type="number">0.75</prop>
+        <prop name="CheckboxPropertyEditor-label-color" title="Label Color" type="color">#d4d4d8</prop>
+        <prop name="CheckboxPropertyEditor-label-font-size" title="Label Font Size" type="text">text-xs</prop>
+        <prop name="CheckboxPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
+        <prop name="group-spacing" title="Group Item Spacing" type="text">space-y-1</prop>
+        <prop name="checkbox-bg-color" title="Checkbox Background" type="color">#27272a</prop>
+        <prop name="checkbox-border-color" title="Checkbox Border" type="color">#52525b</prop>
+        <prop name="checkbox-checked-bg" title="Checked Background" type="color">#2563eb</prop>
+        <prop name="checkbox-checked-border" title="Checked Border" type="color">#2563eb</prop>
+        <prop name="hover-bg-color" title="Hover Background" type="color">#3f3f46</prop>
+        <prop name="focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+        <prop name="CheckboxPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
+        <prop name="checkmark-color" title="Checkmark Color" type="color">#ffffff</prop>
+        <prop name="CheckboxPropertyEditor-border-radius" title="Border Radius" type="number">4</prop>
+        <prop name="animation-duration" title="Animation Duration (ms)" type="number">150</prop>
+      </props>
+    </node>
+
+    <node id="ColorPropertyEditor" title="ColorPropertyEditor" x="-56.24546713455129" y="2600.1997106188846" z="0">
+      <description>Color picker property editor with hex input, color preview button, and popover containing HexColorPicker component with dark zinc styling.</description>
+      <props>
+        <prop name="ColorPropertyEditor-input-bg-color" title="Input Background" type="color">#27272a</prop>
+        <prop name="ColorPropertyEditor-input-border-color" title="Input Border" type="color">#3f3f46</prop>
+        <prop name="input-text-color" title="Input Text Color" type="color">#ffffff</prop>
+        <prop name="preview-button-size" title="Preview Button Size" type="number">28</prop>
+        <prop name="popover-bg-color" title="Popover Background" type="color">#27272a</prop>
+        <prop name="popover-border-color" title="Popover Border" type="color">#3f3f46</prop>
+        <prop name="popover-width" title="Popover Width" type="number">256</prop>
+        <prop name="popover-spacing" title="Popover Content Spacing" type="text">space-y-3</prop>
+        <prop name="hex-input-height" title="Hex Input Height" type="number">36</prop>
+        <prop name="preview-border-radius" title="Preview Border Radius" type="text">rounded-l</prop>
+        <prop name="input-border-radius" title="Input Border Radius" type="text">rounded-r</prop>
+        <prop name="ColorPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+        <prop name="placeholder-color" title="Placeholder Color" type="color">#71717a</prop>
+        <prop name="max-hex-length" title="Max Hex Length" type="number">6</prop>
+        <prop name="default-color" title="Default Color" type="color">#000000</prop>
+      </props>
+    </node>
+
+    <node id="FontPropertyEditor" title="FontPropertyEditor" x="214.39398916310574" y="2598.1412778685753" z="0">
+      <description>Font family selector with dropdown containing default Google Fonts list and preview on hover, using dark zinc select styling.</description>
+      <props>
+        <prop name="select-bg-color" title="Select Background" type="color">#27272a</prop>
+        <prop name="select-border-color" title="Select Border" type="color">#3f3f46</prop>
+        <prop name="select-text-color" title="Select Text Color" type="color">#ffffff</prop>
+        <prop name="dropdown-bg-color" title="Dropdown Background" type="color">#27272a</prop>
+        <prop name="dropdown-border-color" title="Dropdown Border" type="color">#3f3f46</prop>
+        <prop name="option-hover-color" title="Option Hover Color" type="color">#3f3f46</prop>
+        <prop name="select-height" title="Select Height" type="number">28</prop>
+        <prop name="FontPropertyEditor-font-size" title="Font Size" type="text">text-xs</prop>
+        <prop name="FontPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
+        <prop name="placeholder-text" title="Placeholder Text" type="text">Select font family...</prop>
+        <prop name="preview-on-hover" title="Preview on Hover" type="boolean">true</prop>
+        <prop name="default-font-family" title="Default Font Family" type="select">
+          <value>Inter</value>
+          <options>
+          <option>Inter</option>
+          <option>Roboto</option>
+          <option>Open Sans</option>
+          <option>Lato</option>
+          <option>Montserrat</option>
+          </options>
+        </prop>
+        <prop name="show-font-count" title="Show Font Count" type="boolean">false</prop>
+        <prop name="sort-fonts" title="Sort Fonts Alphabetically" type="boolean">true</prop>
+        <prop name="FontPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+      </props>
+    </node>
+
+    <node id="NumberPropertyEditor" title="NumberPropertyEditor" x="505.2932855124277" y="2602.6916296939144" z="0">
+      <description>Number input with increment/decrement buttons using React Aria Components, featuring tabular-nums and zinc styling with step controls.</description>
+      <props>
+        <prop name="NumberPropertyEditor-input-bg-color" title="Input Background" type="color">#27272a</prop>
+        <prop name="NumberPropertyEditor-input-border-color" title="Input Border" type="color">#3f3f46</prop>
+        <prop name="NumberPropertyEditor-input-text-color" title="Input Text Color" type="color">#ffffff</prop>
+        <prop name="NumberPropertyEditor-button-bg-color" title="Button Background" type="color">#27272a</prop>
+        <prop name="button-border-color" title="Button Border" type="color">#3f3f46</prop>
+        <prop name="NumberPropertyEditor-button-text-color" title="Button Text Color" type="color">#a1a1aa</prop>
+        <prop name="NumberPropertyEditor-button-hover-bg" title="Button Hover Background" type="color">#3f3f46</prop>
+        <prop name="button-hover-text" title="Button Hover Text" type="color">#ffffff</prop>
+        <prop name="focus-border-color" title="Focus Border Color" type="color">#3b82f6</prop>
+        <prop name="NumberPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+        <prop name="input-height" title="Input Height" type="number">28</prop>
+        <prop name="button-width" title="Button Width" type="number">20</prop>
+        <prop name="font-variant" title="Font Variant" type="select">
+          <value>tabular-nums</value>
+          <options>
+          <option>tabular-nums</option>
+          <option>normal</option>
+          </options>
+        </prop>
+        <prop name="NumberPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
+        <prop name="NumberPropertyEditor-icon-size" title="Icon Size" type="number">10</prop>
+      </props>
+    </node>
+
+    <node id="ObjectListPropertyEditor" title="ObjectListPropertyEditor" x="2916.1235370101795" y="2605.132658006688" z="0">
+      <description>Dynamic list editor for arrays of objects with collapsible items, add/remove buttons, and nested property editors with zinc styling.</description>
+      <props>
+        <prop name="item-bg-color" title="Item Background" type="color">#27272a</prop>
+        <prop name="item-border-color" title="Item Border" type="color">#3f3f46</prop>
+        <prop name="ObjectListPropertyEditor-header-bg-color" title="Header Background" type="color">#27272a</prop>
+        <prop name="header-border-color" title="Header Border" type="color">#3f3f46</prop>
+        <prop name="ObjectListPropertyEditor-button-hover-bg" title="Button Hover Background" type="color">#3f3f46</prop>
+        <prop name="ObjectListPropertyEditor-icon-color" title="Icon Color" type="color">#71717a</prop>
+        <prop name="title-text-color" title="Title Text Color" type="color">#d4d4d8</prop>
+        <prop name="empty-text-color" title="Empty Text Color" type="color">#71717a</prop>
+        <prop name="add-button-size" title="Add Button Size" type="number">24</prop>
+        <prop name="remove-button-size" title="Remove Button Size" type="number">24</prop>
+        <prop name="item-spacing" title="Item Spacing" type="text">space-y-2</prop>
+        <prop name="content-padding" title="Content Padding" type="text">p-2</prop>
+        <prop name="content-spacing" title="Content Field Spacing" type="text">space-y-1.5</prop>
+        <prop name="ObjectListPropertyEditor-border-radius" title="Border Radius" type="number">6</prop>
+        <prop name="default-collapsed" title="Default Collapsed State" type="boolean">false</prop>
+      </props>
+    </node>
+
+    <node id="ObjectPropertyEditor" title="ObjectPropertyEditor" x="2585.4787383669104" y="2596.3490320783744" z="0">
+      <description>Collapsible object editor for grouped properties with chevron expansion indicator and nested property editors with zinc styling.</description>
+      <props>
+        <prop name="container-bg-color" title="Container Background" type="color">#27272a</prop>
+        <prop name="container-border-color" title="Container Border" type="color">#3f3f46</prop>
+        <prop name="ObjectPropertyEditor-header-bg-color" title="Header Background" type="color">#27272a</prop>
+        <prop name="ObjectPropertyEditor-header-border-color" title="Header Border" type="color">#3f3f46</prop>
+        <prop name="ObjectPropertyEditor-title-text-color" title="Title Text Color" type="color">#d4d4d8</prop>
+        <prop name="ObjectPropertyEditor-icon-color" title="Icon Color" type="color">#71717a</prop>
+        <prop name="ObjectPropertyEditor-content-padding" title="Content Padding" type="text">p-2</prop>
+        <prop name="ObjectPropertyEditor-content-spacing" title="Content Field Spacing" type="text">space-y-2</prop>
+        <prop name="header-padding" title="Header Padding" type="text">px-2 py-1.5</prop>
+        <prop name="ObjectPropertyEditor-border-radius" title="Border Radius" type="number">6</prop>
+        <prop name="ObjectPropertyEditor-icon-size" title="Icon Size" type="number">16</prop>
+        <prop name="ObjectPropertyEditor-default-collapsed" title="Default Collapsed State" type="boolean">false</prop>
+        <prop name="ObjectPropertyEditor-cursor-style" title="Header Cursor Style" type="select">
+          <value>pointer</value>
+          <options>
+          <option>pointer</option>
+          <option>default</option>
+          </options>
+        </prop>
+        <prop name="empty-message" title="Empty Fields Message" type="text">No fields defined for this group.</prop>
+        <prop name="show-empty-message" title="Show Empty Message" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="RadioPropertyEditor" title="RadioPropertyEditor" x="1363.3860527910188" y="2607.724911641722" z="0">
+      <description>Radio button group editor with vertical layout and zinc-styled radio buttons with labels for single-option selection.</description>
+      <props>
+        <prop name="radio-scale" title="Radio Button Scale" type="number">0.75</prop>
+        <prop name="RadioPropertyEditor-label-color" title="Label Color" type="color">#d4d4d8</prop>
+        <prop name="RadioPropertyEditor-label-font-size" title="Label Font Size" type="text">text-xs</prop>
+        <prop name="RadioPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
+        <prop name="RadioPropertyEditor-group-spacing" title="Group Item Spacing" type="text">space-y-1</prop>
+        <prop name="radio-bg-color" title="Radio Background" type="color">#27272a</prop>
+        <prop name="radio-border-color" title="Radio Border" type="color">#52525b</prop>
+        <prop name="radio-selected-bg" title="Selected Background" type="color">#2563eb</prop>
+        <prop name="radio-selected-border" title="Selected Border" type="color">#2563eb</prop>
+        <prop name="radio-dot-color" title="Radio Dot Color" type="color">#ffffff</prop>
+        <prop name="RadioPropertyEditor-hover-bg-color" title="Hover Background" type="color">#3f3f46</prop>
+        <prop name="RadioPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+        <prop name="RadioPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
+        <prop name="RadioPropertyEditor-animation-duration" title="Animation Duration (ms)" type="number">150</prop>
+        <prop name="radio-size" title="Radio Button Size" type="number">16</prop>
+      </props>
+    </node>
+
+    <node id="SelectPropertyEditor" title="SelectPropertyEditor" x="1665.6612287036883" y="2607.724911641722" z="0">
+      <description>Dropdown select editor with option previewing on hover and zinc-styled select component for single option selection.</description>
+      <props>
+        <prop name="SelectPropertyEditor-select-bg-color" title="Select Background" type="color">#27272a</prop>
+        <prop name="SelectPropertyEditor-select-border-color" title="Select Border" type="color">#3f3f46</prop>
+        <prop name="SelectPropertyEditor-select-text-color" title="Select Text Color" type="color">#ffffff</prop>
+        <prop name="SelectPropertyEditor-dropdown-bg-color" title="Dropdown Background" type="color">#27272a</prop>
+        <prop name="SelectPropertyEditor-dropdown-border-color" title="Dropdown Border" type="color">#3f3f46</prop>
+        <prop name="SelectPropertyEditor-option-hover-color" title="Option Hover Color" type="color">#3f3f46</prop>
+        <prop name="option-focus-color" title="Option Focus Color" type="color">#3f3f46</prop>
+        <prop name="disabled-text-color" title="Disabled Text Color" type="color">#71717a</prop>
+        <prop name="SelectPropertyEditor-select-height" title="Select Height" type="number">28</prop>
+        <prop name="SelectPropertyEditor-font-size" title="Font Size" type="text">text-xs</prop>
+        <prop name="SelectPropertyEditor-placeholder-text" title="Placeholder Text" type="text">Select option...</prop>
+        <prop name="loading-placeholder" title="Loading Placeholder" type="text">Loading options...</prop>
+        <prop name="no-options-text" title="No Options Text" type="text">No options available</prop>
+        <prop name="SelectPropertyEditor-preview-on-hover" title="Preview on Hover" type="boolean">true</prop>
+        <prop name="SelectPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+      </props>
+    </node>
+
+    <node id="SliderPropertyEditor" title="SliderPropertyEditor" x="1965.6612287036883" y="2607.724911641722" z="0">
+      <description>Slider control for numeric ranges with custom zinc styling and configurable min/max/step values using shadcn/ui slider component.</description>
+      <props>
+        <prop name="track-bg-color" title="Track Background" type="color">#3f3f46</prop>
+        <prop name="range-bg-color" title="Range Background" type="color">#ffffff</prop>
+        <prop name="thumb-color" title="Thumb Color" type="color">#ffffff</prop>
+        <prop name="thumb-border-color" title="Thumb Border" type="color">#52525b</prop>
+        <prop name="track-height" title="Track Height" type="number">4</prop>
+        <prop name="thumb-size" title="Thumb Size" type="number">12</prop>
+        <prop name="SliderPropertyEditor-container-padding" title="Container Padding" type="text">px-1</prop>
+        <prop name="SliderPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+        <prop name="hover-thumb-color" title="Hover Thumb Color" type="color">#f1f5f9</prop>
+        <prop name="active-thumb-color" title="Active Thumb Color" type="color">#e2e8f0</prop>
+        <prop name="SliderPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
+        <prop name="SliderPropertyEditor-animation-duration" title="Animation Duration (ms)" type="number">200</prop>
+        <prop name="step-marks" title="Show Step Marks" type="boolean">false</prop>
+        <prop name="value-tooltip" title="Show Value Tooltip" type="boolean">false</prop>
+        <prop name="default-value" title="Default Value" type="number">50</prop>
+      </props>
+    </node>
+
+    <node id="TextAreaPropertyEditor" title="TextAreaPropertyEditor" x="2265.6612287036883" y="2607.724911641722" z="0">
+      <description>Adaptive text editor that switches between input and textarea based on content length and line breaks, with zinc styling and focus preservation.</description>
+      <props>
+        <prop name="TextAreaPropertyEditor-input-bg-color" title="Input Background" type="color">#27272a</prop>
+        <prop name="TextAreaPropertyEditor-input-border-color" title="Input Border" type="color">#3f3f46</prop>
+        <prop name="TextAreaPropertyEditor-input-text-color" title="Input Text Color" type="color">#ffffff</prop>
+        <prop name="TextAreaPropertyEditor-placeholder-color" title="Placeholder Color" type="color">#71717a</prop>
+        <prop name="TextAreaPropertyEditor-focus-border-color" title="Focus Border Color" type="color">#3b82f6</prop>
+        <prop name="TextAreaPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
+        <prop name="textarea-height" title="Textarea Height" type="text">h-24</prop>
+        <prop name="TextAreaPropertyEditor-font-size" title="Font Size" type="text">text-xs</prop>
+        <prop name="font-weight" title="Font Weight" type="text">font-medium</prop>
+        <prop name="TextAreaPropertyEditor-line-height" title="Line Height" type="select">
+          <value>leading-relaxed</value>
+          <options>
+          <option>leading-tight</option>
+          <option>leading-normal</option>
+          <option>leading-relaxed</option>
+          </options>
+        </prop>
+        <prop name="multiline-threshold" title="Multiline Threshold" type="number">25</prop>
+        <prop name="TextAreaPropertyEditor-placeholder-text" title="Placeholder Text" type="text">Enter text...</prop>
+        <prop name="auto-focus-on-switch" title="Auto Focus on Switch" type="boolean">true</prop>
+        <prop name="preserve-cursor-position" title="Preserve Cursor Position" type="boolean">true</prop>
+        <prop name="TextAreaPropertyEditor-border-radius" title="Border Radius" type="number">6</prop>
+      </props>
+    </node>
+
+    <node id="PropertyEditorIndex" title="PropertyEditorIndex" x="1293.1981981349186" y="561.9391891607133" z="0">
+      <description>Main property editor router component that selects the appropriate editor based on property type, handling all supported editor types with change and preview callbacks.</description>
+      <props>
+        <prop name="default-bg-color" title="Default Background" type="color">transparent</prop>
+        <prop name="unsupported-text-color" title="Unsupported Text Color" type="color">#71717a</prop>
+        <prop name="unsupported-font-size" title="Unsupported Font Size" type="text">text-xs</prop>
+        <prop name="error-message-prefix" title="Error Message Prefix" type="text">Editor not implemented for type:</prop>
+        <prop name="supported-types" title="Supported Property Types" type="object-list">
+        <item index="0">
+          <field name="type" title="Type" type="text">font</field>
+          <field name="component" title="Component" type="text">FontPropertyEditor</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Type" type="text">text</field>
+          <field name="component" title="Component" type="text">TextAreaPropertyEditor</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Type" type="text">object</field>
+          <field name="component" title="Component" type="text">ObjectPropertyEditor</field>
+        </item>
+        <item index="3">
+          <field name="type" title="Type" type="text">object-list</field>
+          <field name="component" title="Component" type="text">ObjectListPropertyEditor</field>
+        </item>
+        <item index="4">
+          <field name="type" title="Type" type="text">color</field>
+          <field name="component" title="Component" type="text">ColorPropertyEditor</field>
+        </item>
+        <item index="5">
+          <field name="type" title="Type" type="text">select</field>
+          <field name="component" title="Component" type="text">SelectPropertyEditor</field>
+        </item>
+        <item index="6">
+          <field name="type" title="Type" type="text">number</field>
+          <field name="component" title="Component" type="text">NumberPropertyEditor</field>
+        </item>
+        <item index="7">
+          <field name="type" title="Type" type="text">boolean</field>
+          <field name="component" title="Component" type="text">BooleanPropertyEditor</field>
+        </item>
+        <item index="8">
+          <field name="type" title="Type" type="text">checkbox</field>
+          <field name="component" title="Component" type="text">CheckboxPropertyEditor</field>
+        </item>
+        <item index="9">
+          <field name="type" title="Type" type="text">radio</field>
+          <field name="component" title="Component" type="text">RadioPropertyEditor</field>
+        </item>
+        <item index="10">
+          <field name="type" title="Type" type="text">slider</field>
+          <field name="component" title="Component" type="text">SliderPropertyEditor</field>
+        </item>
+      </prop>
+        <prop name="show-preview-callbacks" title="Show Preview Callbacks" type="boolean">true</prop>
+        <prop name="callback-debounce" title="Callback Debounce (ms)" type="number">0</prop>
+        <prop name="auto-validation" title="Auto Validation" type="boolean">false</prop>
+        <prop name="error-handling-mode" title="Error Handling Mode" type="select">
+          <value>console</value>
+          <options>
+          <option>silent</option>
+          <option>console</option>
+          <option>throw</option>
+          </options>
+        </prop>
+        <prop name="fallback-editor" title="Fallback Editor Type" type="select">
+          <value>none</value>
+          <options>
+          <option>text</option>
+          <option>none</option>
+          </options>
+        </prop>
+        <prop name="type-checking" title="Enable Type Checking" type="boolean">true</prop>
+        <prop name="cache-editors" title="Cache Editor Instances" type="boolean">false</prop>
+        <prop name="default-props" title="Default Props" type="object">
+        <field name="className" title="CSS Class" type="text"></field>
+        <field name="disabled" title="Disabled" type="boolean">false</field>
+      </prop>
+        <prop name="animation-support" title="Animation Support" type="boolean">true</prop>
+        <prop name="accessibility-mode" title="Accessibility Mode" type="select">
+          <value>standard</value>
+          <options>
+          <option>standard</option>
+          <option>enhanced</option>
+          <option>minimal</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="home-page" title="Home Page" x="1043.3952686118214" y="-1014.6253675754789" z="0">
+      <description>Main application page component that handles project management interface with resizable panels, graph view, and chat functionality</description>
+      <props>
+        <prop name="edit-mode-default" title="Default Edit Mode" type="boolean">true</prop>
+        <prop name="loading-message" title="Loading Message" type="text">Loading...</prop>
+        <prop name="setup-message-title" title="Setup Message Title" type="text">Setting up your project...</prop>
+        <prop name="default-panel-config" title="Default Panel Configuration" type="select">
+          <value>files-hidden</value>
+          <options>
+          <option>files-hidden</option>
+          <option>files-visible</option>
+          <option>graph-only</option>
+          <option>sidebar-only</option>
+          </options>
+        </prop>
+        <prop name="sidebar-default-size" title="Sidebar Default Size (%)" type="slider">16</prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
+    <edge id="FloatingChat-MessageRenderer" source="FloatingChat" target="MessageRenderer" role="uses"/>
+    <edge id="FloatingChat-SelectionBadge" source="FloatingChat" target="SelectionBadge" role="uses"/>
+    <edge id="GraphView-SelectedNodeSidebar" source="GraphView" target="SelectedNodeSidebar" role="connects-to"/>
+    <edge id="SelectedNodeSidebar-PropertyEditorIndex" source="SelectedNodeSidebar" target="PropertyEditorIndex" role="uses"/>
+    <edge id="PropertyEditorIndex-BasePropertyEditor" source="PropertyEditorIndex" target="BasePropertyEditor" role="extends"/>
+    <edge id="PropertyEditorIndex-ColorPropertyEditor" source="PropertyEditorIndex" target="ColorPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-BooleanPropertyEditor" source="PropertyEditorIndex" target="BooleanPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-CheckboxPropertyEditor" source="PropertyEditorIndex" target="CheckboxPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-FontPropertyEditor" source="PropertyEditorIndex" target="FontPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-NumberPropertyEditor" source="PropertyEditorIndex" target="NumberPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-ObjectListPropertyEditor" source="PropertyEditorIndex" target="ObjectListPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-ObjectPropertyEditor" source="PropertyEditorIndex" target="ObjectPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-RadioPropertyEditor" source="PropertyEditorIndex" target="RadioPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-SelectPropertyEditor" source="PropertyEditorIndex" target="SelectPropertyEditor" role="routes-to"/>
+    <edge id="PropertyEditorIndex-TextAreaPropertyEditor" source="PropertyEditorIndex" target="TextAreaPropertyEditor" role="routes-to"/>
+    <edge id="BooleanPropertyEditor-BasePropertyEditor" source="BooleanPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="CheckboxPropertyEditor-BasePropertyEditor" source="CheckboxPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="ColorPropertyEditor-BasePropertyEditor" source="ColorPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="FontPropertyEditor-BasePropertyEditor" source="FontPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="NumberPropertyEditor-BasePropertyEditor" source="NumberPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="ObjectListPropertyEditor-BasePropertyEditor" source="ObjectListPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="ObjectPropertyEditor-BasePropertyEditor" source="ObjectPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="RadioPropertyEditor-BasePropertyEditor" source="RadioPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="SelectPropertyEditor-BasePropertyEditor" source="SelectPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="SliderPropertyEditor-BasePropertyEditor" source="SliderPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="TextAreaPropertyEditor-BasePropertyEditor" source="TextAreaPropertyEditor" target="BasePropertyEditor" role="extends"/>
+    <edge id="ObjectListPropertyEditor-PropertyEditorIndex" source="ObjectListPropertyEditor" target="PropertyEditorIndex" role="uses"/>
+    <edge id="ObjectPropertyEditor-PropertyEditorIndex" source="ObjectPropertyEditor" target="PropertyEditorIndex" role="uses"/>
+    <edge id="GraphView-FloatingChat" source="GraphView" target="FloatingChat" role="renders-with"/>
+    <edge id="TopBar-GraphView" source="TopBar" target="GraphView" role="header-for"/>
+    <edge id="home-page-TopBar" source="home-page" target="TopBar" role="renders header"/>
+    <edge id="home-page-GraphView" source="home-page" target="GraphView" role="contains main view"/>
+    <edge id="home-page-FloatingChat" source="home-page" target="FloatingChat" role="renders overlay"/>
+    <edge id="home-page-WelcomeScreen" source="home-page" target="WelcomeScreen" role="conditionally shows"/>
+    <edge id="WelcomeScreen-home-page" source="WelcomeScreen" target="home-page" role="navigates to"/>
   </edges>
 </graph>

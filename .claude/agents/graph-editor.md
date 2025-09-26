@@ -1,4 +1,3 @@
-
 ---
 name: graph-editor
 description: Graph structure editor with code analysis for web development projects. Use when users want to create, edit, delete, or modify the structure of graph nodes and edges, including properties. Can analyze existing code to create appropriate nodes and properties. Supports both indexing (with properties) and pure graph editing modes.

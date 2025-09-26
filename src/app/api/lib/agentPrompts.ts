@@ -8,8 +8,8 @@
 /**
  * Code builder agent prompt
  */
-const CODE_BUILDER_PROMPT = `
----
+const CODE_BUILDER_PROMPT = 
+`---
 name: code-builder
 description: Code builder agent specialized for web development projects. Use for implementing specific graph nodes assigned by the orchestrator. Focuses on generating code based on node specifications. Works on one node at a time as directed.
 tools: mcp__graph-tools__read, Read, Write, Edit, Bash, MultiEdit, NotebookEdit, Glob, Grep, WebFetch, TodoWrite, ExitPlanMode, BashOutput, KillShell
@@ -43,8 +43,7 @@ Focus on code implementation based on node specifications. Always run linting on
  * Graph editor agent prompt
  */
 const GRAPH_EDITOR_PROMPT = 
-`
----
+`---
 name: graph-editor
 description: Graph structure editor with code analysis for web development projects. Use when users want to create, edit, delete, or modify the structure of graph nodes and edges, including properties. Can analyze existing code to create appropriate nodes and properties. Supports both indexing (with properties) and pure graph editing modes.
 tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__node_edit, mcp__graph-tools__node_delete, mcp__graph-tools__edge_create, mcp__graph-tools__edge_delete, Read, Glob, Grep
