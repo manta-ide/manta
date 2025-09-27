@@ -1169,5 +1169,34 @@
     <edge id="project-store-graph-diff-service" source="project-store" target="graph-diff-service" role="uses"/>
     <edge id="chat-service-project-store" source="chat-service" target="project-store" role="reads-state-from"/>
     <edge id="project-store-ui-utils" source="project-store" target="ui-utils" role="uses"/>
+    <edge id="FloatingChat-chat-service" source="FloatingChat" target="chat-service" role="uses"/>
+    <edge id="FloatingChat-project-store" source="FloatingChat" target="project-store" role="uses"/>
+    <edge id="GraphView-project-store" source="GraphView" target="project-store" role="uses"/>
+    <edge id="GraphView-graph-api-route" source="GraphView" target="graph-api-route" role="calls"/>
+    <edge id="GraphView-graph-xml-converter" source="GraphView" target="graph-xml-converter" role="uses"/>
+    <edge id="GraphView-graph-diff-service" source="GraphView" target="graph-diff-service" role="uses"/>
+    <edge id="SelectedNodeSidebar-project-store" source="SelectedNodeSidebar" target="project-store" role="uses"/>
+    <edge id="SelectedNodeSidebar-chat-service" source="SelectedNodeSidebar" target="chat-service" role="uses"/>
+    <edge id="TopBar-project-store" source="TopBar" target="project-store" role="uses"/>
+    <edge id="WelcomeScreen-files-api-route" source="WelcomeScreen" target="files-api-route" role="calls"/>
+    <edge id="BasePropertyEditor-graph-service" source="BasePropertyEditor" target="graph-service" role="uses"/>
+    <edge id="graph-api-route-graph-xml-converter" source="graph-api-route" target="graph-xml-converter" role="uses"/>
+    <edge id="graph-api-route-graph-diff-service" source="graph-api-route" target="graph-diff-service" role="uses"/>
+    <edge id="agent-request-api-graph-service" source="agent-request-api" target="graph-service" role="uses"/>
+    <edge id="agent-request-api-graph-xml-converter" source="agent-request-api" target="graph-xml-converter" role="uses"/>
+    <edge id="agent-request-api-graph-editor-tools" source="agent-request-api" target="graph-editor-tools" role="uses"/>
+    <edge id="project-store-graph-xml-converter" source="project-store" target="graph-xml-converter" role="uses"/>
+    <edge id="BooleanPropertyEditor-graph-service" source="BooleanPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="ColorPropertyEditor-graph-service" source="ColorPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="NumberPropertyEditor-graph-service" source="NumberPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="SelectPropertyEditor-graph-service" source="SelectPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="TextAreaPropertyEditor-graph-service" source="TextAreaPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="SliderPropertyEditor-graph-service" source="SliderPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="CheckboxPropertyEditor-graph-service" source="CheckboxPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="RadioPropertyEditor-graph-service" source="RadioPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="FontPropertyEditor-graph-service" source="FontPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="ObjectPropertyEditor-graph-service" source="ObjectPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="ObjectListPropertyEditor-graph-service" source="ObjectListPropertyEditor" target="graph-service" role="updates-via"/>
+    <edge id="home-page-project-store" source="home-page" target="project-store" role="initializes"/>
   </edges>
 </graph>
