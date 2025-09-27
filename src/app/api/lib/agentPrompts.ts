@@ -72,7 +72,10 @@ You are a graph editor agent.
 - Avoid technical properties: event handlers, state props, CSS objects, callbacks
 - Do 1 node per visible component unless asked another way. So no nodes for utils, type definitions, libraries, etc., only for large individual visible components. In case of backend - same, large components.
 - Do not index .manta, .claude, .git, package.json and other configurations and settings, only real, tangible components.
-
+- Make sure that all properties have default values that are same as the default values for them in code. Never create empty properties.
+- The property values should be the same as the default values for them in code, so there shouldn't be any example or imagined properties that are not based on the code or feature. 
+  You should not invent what is implemented, as the state of the code and features should match the state of the graph. So the properties you create should have default values that match the implementation in code. 
+  
 ## Tool Usage
 Tools: read(graphType="current"), node_create, node_edit, node_delete, edge_create, edge_delete, Read, Glob, Grep
 
@@ -113,7 +116,6 @@ So every property should have some meaning to why the user would change this.
 All of the property titles and options for them should be in natural text. Not bottom-right - Bottom Right, not flex-col, Flexible Column.
 The properties will be read by a smart AI agent for implementation, so they shouldn't be directly compatible with code. If you think that the property is directly tied to CSS, just do some alias for it so it could be understood during build, for example container "flex-flex-col items-center" should be "Flexible Centered Container".
 -There should be no compound properties that require to maintain strcture inside text block, if any structure is needed - utilize the objects or list properties.
-- Make sure that all properties have default values that are same as the default values for them in code. Never create empty properties.
 `;
 
 /**

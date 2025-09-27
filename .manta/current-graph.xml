@@ -1,454 +1,521 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="graph-visualization-system" title="Graph Visualization System" x="-188.96926386894245" y="1058.4596404333795" z="0">
-      <description>The core graph visualization engine powered by ReactFlow, providing an interactive canvas for creating, editing, and navigating component graphs. Handles visual rendering, layout algorithms, zoom controls, and real-time graph synchronization.</description>
+    <node id="canvas" title="Canvas" x="290.3075090990069" y="-362.49150467084235" z="0">
+      <description>Main drawing area where graph nodes and edges are rendered with zoom, pan, and selection capabilities.</description>
       <props>
-        <prop name="layout-algorithm" title="Layout Algorithm" type="select">
-          <value>ELK Layered</value>
-          <options>
-          <option>ELK Layered</option>
-          <option>Force Directed</option>
-          <option>Hierarchical</option>
-          <option>Grid</option>
-          <option>Circular</option>
-          </options>
-        </prop>
-        <prop name="zoom-behavior" title="Zoom Behavior" type="select">
-          <value>Pinch and Scroll</value>
-          <options>
-          <option>Pinch and Scroll</option>
-          <option>Scroll Only</option>
-          <option>Button Controls</option>
-          <option>Disabled</option>
-          </options>
-        </prop>
-        <prop name="pan-mode" title="Pan Interaction Mode" type="select">
-          <value>Right Click Drag</value>
-          <options>
-          <option>Right Click Drag</option>
-          <option>Two Finger Pan</option>
-          <option>Middle Mouse</option>
-          <option>Left Click Drag</option>
-          </options>
-        </prop>
-        <prop name="node-styling" title="Node Visual Styling" type="object">
-        <field name="background-color" title="Background Color" type="color">#ffffff</field>
-        <field name="border-radius" title="Border Radius (px)" type="number">8px</field>
-        <field name="shadow-enabled" title="Drop Shadow" type="boolean">true</field>
-        <field name="selection-highlight" title="Selection Color" type="color">#2563eb</field>
+        <prop name="visuals" title="Visual Settings" type="object">
+        <field name="backgroundColor" title="Background Color" type="color">#141617</field>
+        <field name="gridColor" title="Grid Color" type="color">#374151</field>
+        <field name="gridSize" title="Grid Size" type="number">20</field>
+        <field name="selectionColor" title="Selection Color" type="color">#2563eb</field>
       </prop>
-        <prop name="canvas-theme" title="Canvas Theme" type="select">
-          <value>Dark Mode</value>
-          <options>
-          <option>Dark Mode</option>
-          <option>Light Mode</option>
-          <option>Auto</option>
-          <option>High Contrast</option>
-          </options>
-        </prop>
-        <prop name="minimap-enabled" title="Show Minimap" type="boolean">true</prop>
-        <prop name="controls-position" title="Controls Position" type="select">
-          <value>Bottom Right</value>
-          <options>
-          <option>Bottom Right</option>
-          <option>Bottom Left</option>
-          <option>Top Right</option>
-          <option>Top Left</option>
-          <option>Hidden</option>
-          </options>
-        </prop>
-        <prop name="connection-mode" title="Connection Creation" type="select">
-          <value>Loose Handles</value>
-          <options>
-          <option>Loose Handles</option>
-          <option>Strict Handles</option>
-          <option>Auto Connect</option>
-          <option>Disabled</option>
-          </options>
-        </prop>
-        <prop name="real-time-sync" title="Real-time Synchronization" type="boolean">true</prop>
+        <prop name="behavior" title="Interaction Settings" type="object">
+        <field name="panOnScroll" title="Pan on Scroll" type="boolean">true</field>
+        <field name="zoomOnPinch" title="Zoom on Pinch" type="boolean">true</field>
+        <field name="minZoom" title="Minimum Zoom" type="number">0.1</field>
+        <field name="maxZoom" title="Maximum Zoom" type="number">2</field>
+      </prop>
       </props>
     </node>
 
-    <node id="property-editor-suite" title="Property Editor Suite" x="424.82847417028876" y="1178.6388715253306" z="0">
-      <description>A comprehensive collection of property editors supporting various input types (color, text, number, select, boolean, slider, object, etc.). Provides real-time editing with debounced backend updates and visual feedback for component customization.</description>
+    <node id="toolbar" title="Toolbar" x="1287.1866334567417" y="-238.0070648199529" z="0">
+      <description>Tool selection interface with select, pan, and add-node tools for graph interaction.</description>
       <props>
-        <prop name="editor-theme" title="Editor Theme" type="select">
-          <value>Dark</value>
+        <prop name="toolbar-visuals" title="Visual Settings" type="object">
+        <field name="position" title="Position" type="select">
+          <value>left</value>
           <options>
-          <option>Dark</option>
-          <option>Light</option>
-          <option>Auto</option>
-          <option>High Contrast</option>
-          </options>
-        </prop>
-        <prop name="debounce-delay" title="Update Delay (ms)" type="number">500</prop>
-        <prop name="preview-mode" title="Live Preview" type="boolean">true</prop>
-        <prop name="validation-enabled" title="Input Validation" type="boolean">true</prop>
-        <prop name="compact-layout" title="Compact Layout" type="boolean">false</prop>
-        <prop name="editor-styling" title="Editor Visual Style" type="object">
-        <field name="background-color" title="Background Color" type="color">#18181b</field>
-        <field name="border-color" title="Border Color" type="color">#3f3f46</field>
-        <field name="text-color" title="Text Color" type="color">#ffffff</field>
-        <field name="accent-color" title="Accent Color" type="color">#3b82f6</field>
-      </prop>
-        <prop name="auto-save" title="Auto-save Changes" type="boolean">true</prop>
-        <prop name="undo-history" title="Undo History Depth" type="number">20</prop>
-      </props>
-    </node>
-
-    <node id="ai-chat-interface" title="AI Chat Interface" x="818.3984262058166" y="1844.3255673110941" z="0">
-      <description>A floating, draggable chat interface for AI-powered assistance. Provides contextual help with file content, graph nodes, and selections. Features markdown rendering, message history, and intelligent context inclusion.</description>
-      <props>
-        <prop name="initial-position" title="Initial Position" type="select">
-          <value>Bottom Left</value>
-          <options>
-          <option>Bottom Left</option>
-          <option>Bottom Right</option>
-          <option>Top Left</option>
-          <option>Top Right</option>
-          <option>Center</option>
-          </options>
-        </prop>
-        <prop name="chat-styling" title="Chat Window Style" type="object">
-        <field name="width" title="Window Width (px)" type="number">288</field>
-        <field name="max-height" title="Max Height" type="text">60vh</field>
-        <field name="background-color" title="Background Color" type="color">#111827</field>
-        <field name="border-color" title="Border Color" type="color">#374151</field>
-        <field name="border-radius" title="Border Radius (px)" type="number">6</field>
-      </prop>
-        <prop name="message-history" title="Message History Limit" type="number">50</prop>
-        <prop name="auto-context" title="Auto-include Context" type="boolean">true</prop>
-        <prop name="markdown-rendering" title="Markdown Support" type="boolean">true</prop>
-        <prop name="typing-animation" title="Typing Animation" type="boolean">true</prop>
-        <prop name="draggable-window" title="Draggable Window" type="boolean">true</prop>
-        <prop name="minimize-enabled" title="Allow Minimize" type="boolean">true</prop>
-        <prop name="streaming-responses" title="Streaming Responses" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="project-management-system" title="Project Management System" x="1720.6451639202107" y="1500.1760701143392" z="0">
-      <description>Handles project initialization, file system operations, template installation, and project status tracking. Manages NextJS project detection, partial template installation, and dynamic agent generation.</description>
-      <props>
-        <prop name="auto-install-templates" title="Auto-install Templates" type="boolean">true</prop>
-        <prop name="project-detection" title="Project Type Detection" type="select">
-          <value>Automatic</value>
-          <options>
-          <option>Automatic</option>
-          <option>Manual</option>
-          <option>Disabled</option>
-          </options>
-        </prop>
-        <prop name="file-watching" title="File System Watching" type="boolean">true</prop>
-        <prop name="template-branches" title="Available Templates" type="object-list">
-        <item index="0">
-          <field name="name" title="Template Name" type="text">Partial Template</field>
-          <field name="branch" title="Git Branch" type="text">partial</field>
-          <field name="description" title="Description" type="text">Sample components for existing projects</field>
-        </item>
-        <item index="1">
-          <field name="name" title="Template Name" type="text">Full Template</field>
-          <field name="branch" title="Git Branch" type="text">main</field>
-          <field name="description" title="Description" type="text">Complete starter project</field>
-        </item>
-      </prop>
-        <prop name="status-checking" title="Status Check Interval" type="select">
-          <value>On Demand</value>
-          <options>
-          <option>On Demand</option>
-          <option>Every 5 minutes</option>
-          <option>Every 15 minutes</option>
-          <option>Disabled</option>
-          </options>
-        </prop>
-        <prop name="agent-generation" title="Dynamic Agent Generation" type="boolean">true</prop>
-        <prop name="backup-enabled" title="Project Backup" type="boolean">false</prop>
-      </props>
-    </node>
-
-    <node id="api-orchestration-layer" title="API Orchestration Layer" x="1330.8359565811807" y="1491.4568512118024" z="0">
-      <description>Backend API system managing graph operations, file handling, chat requests, and Claude Code integration. Provides RESTful endpoints with real-time updates via Server-Sent Events and MCP tool integration.</description>
-      <props>
-        <prop name="api-versioning" title="API Version" type="select">
-          <value>v1</value>
-          <options>
-          <option>v1</option>
-          <option>v2</option>
-          <option>beta</option>
-          </options>
-        </prop>
-        <prop name="rate-limiting" title="Rate Limiting" type="boolean">false</prop>
-        <prop name="request-timeout" title="Request Timeout (ms)" type="number">30000</prop>
-        <prop name="sse-enabled" title="Server-Sent Events" type="boolean">true</prop>
-        <prop name="error-handling" title="Error Response Format" type="select">
-          <value>Detailed</value>
-          <options>
-          <option>Detailed</option>
-          <option>Simple</option>
-          <option>Development Only</option>
-          </options>
-        </prop>
-        <prop name="cors-settings" title="CORS Configuration" type="object">
-        <field name="enabled" title="CORS Enabled" type="boolean">true</field>
-        <field name="origins" title="Allowed Origins" type="object-list">
-        <item index="0">
-          <field name="origin" title="Origin" type="text"></field>
-        </item>
-      </field>
-        <field name="methods" title="Allowed Methods" type="object-list">
-        <item index="0">
-          <field name="method" title="HTTP Method" type="select">
-          <value></value>
-          <options>
-          <option>GET</option>
-          <option>POST</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-          <option>OPTIONS</option>
-          <option>PATCH</option>
+          <option>left</option>
+          <option>right</option>
+          <option>top</option>
+          <option>bottom</option>
           </options>
         </field>
+        <field name="backgroundColor" title="Background Color" type="color">#3f3f46</field>
+        <field name="selectedColor" title="Selected Tool Color" type="color">#2563eb</field>
+        <field name="hoverColor" title="Hover Color" type="color">#52525b</field>
+      </prop>
+        <prop name="tools" title="Available Tools" type="object-list">
+        <item index="0">
+          <field name="name" title="Tool Name" type="text">Select Tool</field>
+          <field name="icon" title="Icon Name" type="text">SquareDashed</field>
+          <field name="tooltip" title="Tooltip Text" type="text">Click to select nodes/edges, drag to select multiple</field>
         </item>
         <item index="1">
-          <field name="method" title="HTTP Method" type="select">
-          <value></value>
-          <options>
-          <option>GET</option>
-          <option>POST</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-          <option>OPTIONS</option>
-          <option>PATCH</option>
-          </options>
-        </field>
+          <field name="name" title="Tool Name" type="text">Pan Tool</field>
+          <field name="icon" title="Icon Name" type="text">Hand</field>
+          <field name="tooltip" title="Tooltip Text" type="text">Click and drag to pan the view</field>
         </item>
         <item index="2">
-          <field name="method" title="HTTP Method" type="select">
-          <value></value>
+          <field name="name" title="Tool Name" type="text">Add Node Tool</field>
+          <field name="icon" title="Icon Name" type="text">StickyNote</field>
+          <field name="tooltip" title="Tooltip Text" type="text">Click anywhere on canvas to create a new node</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="minimap" title="Minimap" x="1281.3716482106367" y="-462.67236555849223" z="0">
+      <description>Overview navigation component showing a small-scale view of the entire graph for quick navigation.</description>
+      <props>
+        <prop name="minimap-visuals" title="Visual Settings" type="object">
+        <field name="builtNodeColor" title="Built Node Color" type="color">#9ca3af</field>
+        <field name="unbuiltNodeColor" title="Unbuilt Node Color" type="color">#fbbf24</field>
+        <field name="visible" title="Show Minimap" type="boolean">true</field>
+      </prop>
+        <prop name="minimap-behavior" title="Interaction Settings" type="object">
+        <field name="clickToNavigate" title="Click to Navigate" type="boolean">true</field>
+        <field name="showViewport" title="Show Viewport Indicator" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="nodes" title="Nodes" x="106.41344105745307" y="218.3005111302374" z="0">
+      <description>Graph node rendering system with visual states, content display, and interaction handling.</description>
+      <props>
+        <prop name="nodes-visuals" title="Visual Settings" type="object">
+        <field name="width" title="Node Width" type="number">260</field>
+        <field name="minHeight" title="Minimum Height" type="number">160</field>
+        <field name="borderRadius" title="Border Radius" type="number">8</field>
+        <field name="backgroundColor" title="Background Color" type="color">#ffffff</field>
+        <field name="selectedBackgroundColor" title="Selected Background Color" type="color">#f8fafc</field>
+        <field name="borderColor" title="Border Color" type="color">#e5e7eb</field>
+        <field name="selectedBorderColor" title="Selected Border Color" type="color">#2563eb</field>
+      </prop>
+        <prop name="content" title="Content Display" type="object">
+        <field name="titleFontSize" title="Title Font Size" type="number">16</field>
+        <field name="titleColor" title="Title Color" type="color">#1f2937</field>
+        <field name="descriptionFontSize" title="Description Font Size" type="number">13</field>
+        <field name="descriptionColor" title="Description Color" type="color">#6b7280</field>
+        <field name="metadataFontSize" title="Metadata Font Size" type="number">12</field>
+        <field name="metadataColor" title="Metadata Color" type="color">#9ca3af</field>
+      </prop>
+        <prop name="states" title="Node States" type="object">
+        <field name="unbuiltIndicatorColor" title="Unbuilt Indicator Color" type="color">#ef4444</field>
+        <field name="showStateIndicator" title="Show State Indicator" type="boolean">true</field>
+        <field name="zoomThreshold" title="Zoom Threshold for Details" type="number">0.8</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="edges" title="Edges" x="409.43971851842605" y="223.5077718530913" z="0">
+      <description>Connection lines between graph nodes with visual states and interaction capabilities.</description>
+      <props>
+        <prop name="edges-visuals" title="Visual Settings" type="object">
+        <field name="defaultColor" title="Default Color" type="color">#9ca3af</field>
+        <field name="selectedColor" title="Selected Color" type="color">#3b82f6</field>
+        <field name="unbuiltColor" title="Unbuilt Color" type="color">#ef4444</field>
+        <field name="defaultStrokeWidth" title="Default Stroke Width" type="number">2</field>
+        <field name="selectedStrokeWidth" title="Selected Stroke Width" type="number">4</field>
+        <field name="unbuiltStrokeWidth" title="Unbuilt Stroke Width" type="number">3</field>
+      </prop>
+        <prop name="edges-behavior" title="Edge Behavior" type="object">
+        <field name="unbuiltDashArray" title="Unbuilt Dash Pattern" type="text">20,30</field>
+        <field name="opacity" title="Default Opacity" type="slider">0.8</field>
+        <field name="selectedOpacity" title="Selected Opacity" type="slider">1</field>
+        <field name="unbuiltOpacity" title="Unbuilt Opacity" type="slider">0.9</field>
+        <field name="interactionWidth" title="Click Target Width" type="number">24</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="controls" title="Controls" x="705.6638311110556" y="215.95599703835052" z="0">
+      <description>Zoom, pan, and fit controls for graph navigation and viewport management.</description>
+      <props>
+        <prop name="controls-visuals" title="Visual Settings" type="object">
+        <field name="position" title="Position" type="select">
+          <value>bottom-right</value>
           <options>
-          <option>GET</option>
-          <option>POST</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-          <option>OPTIONS</option>
-          <option>PATCH</option>
+          <option>top-left</option>
+          <option>top-right</option>
+          <option>bottom-left</option>
+          <option>bottom-right</option>
           </options>
         </field>
+        <field name="backgroundColor" title="Background Color" type="color">#ffffff</field>
+        <field name="borderColor" title="Border Color" type="color">#e5e7eb</field>
+        <field name="iconColor" title="Icon Color" type="color">#374151</field>
+      </prop>
+        <prop name="controls-behavior" title="Control Options" type="object">
+        <field name="showZoom" title="Show Zoom Controls" type="boolean">true</field>
+        <field name="showFitView" title="Show Fit View Button" type="boolean">true</field>
+        <field name="showFullscreen" title="Show Fullscreen Button" type="boolean">false</field>
+        <field name="fitViewPadding" title="Fit View Padding" type="slider">0.2</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="build-button" title="Build Button" x="1608.989506485394" y="349.7099274392159" z="0">
+      <description>Build execution trigger that analyzes graph changes and implements code for nodes requiring updates.</description>
+      <props>
+        <prop name="build-button-visuals" title="Visual Settings" type="object">
+        <field name="position" title="Position" type="select">
+          <value>top-right</value>
+          <options>
+          <option>top-left</option>
+          <option>top-right</option>
+          <option>bottom-left</option>
+          <option>bottom-right</option>
+          </options>
+        </field>
+        <field name="backgroundColor" title="Background Color" type="color">#3f3f46</field>
+        <field name="textColor" title="Text Color" type="color">#9ca3af</field>
+        <field name="hoverBackgroundColor" title="Hover Background Color" type="color">#52525b</field>
+        <field name="loadingColor" title="Loading Spinner Color" type="color">#2563eb</field>
+      </prop>
+        <prop name="build-button-behavior" title="Build Behavior" type="object">
+        <field name="autoRefreshOnComplete" title="Auto Refresh on Complete" type="boolean">true</field>
+        <field name="showProgressUpdates" title="Show Progress Updates" type="boolean">true</field>
+        <field name="streamResults" title="Stream Build Results" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="ai-chat" title="AI Chat" x="1284.0447661052706" y="348.83834554956655" z="0">
+      <description>Floating chat interface for AI assistance with context-aware messaging and drag-and-drop positioning.</description>
+      <props>
+        <prop name="ai-chat-visuals" title="Visual Settings" type="object">
+        <field name="width" title="Chat Width" type="number">288</field>
+        <field name="backgroundColor" title="Background Color" type="color">#18181b</field>
+        <field name="borderColor" title="Border Color" type="color">#52525b</field>
+        <field name="headerBackgroundColor" title="Header Background Color" type="color">#27272a</field>
+        <field name="textColor" title="Text Color" type="color">#ffffff</field>
+      </prop>
+        <prop name="ai-chat-behavior" title="Chat Behavior" type="object">
+        <field name="draggable" title="Allow Dragging" type="boolean">true</field>
+        <field name="minimizable" title="Allow Minimizing" type="boolean">true</field>
+        <field name="defaultPosition" title="Default Position" type="select">
+          <value>bottom-left</value>
+          <options>
+          <option>bottom-left</option>
+          <option>bottom-right</option>
+          <option>top-left</option>
+          <option>top-right</option>
+          </options>
+        </field>
+        <field name="maxHeight" title="Maximum Height" type="text">60vh</field>
+        <field name="autoIncludeContext" title="Auto Include Context" type="boolean">true</field>
+      </prop>
+        <prop name="messages" title="Message Display" type="object">
+        <field name="maxVisibleMessages" title="Max Visible Messages" type="number">2</field>
+        <field name="userMessageColor" title="User Message Background" type="color">#27272a</field>
+        <field name="assistantMessageColor" title="Assistant Message Background" type="color">#18181b</field>
+        <field name="enableTypingAnimation" title="Enable Typing Animation" type="boolean">true</field>
+        <field name="animationSpeed" title="Animation Speed" type="slider">1.5</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="sidebar" title="Sidebar" x="-712.569261808918" y="158.7761326955685" z="0">
+      <description>Property panels container with resizable layout for editing selected node properties and viewing node details.</description>
+      <props>
+        <prop name="sidebar-visuals" title="Visual Settings" type="object">
+        <field name="backgroundColor" title="Background Color" type="color">#18181b</field>
+        <field name="borderColor" title="Border Color" type="color">#3f3f46</field>
+        <field name="textColor" title="Text Color" type="color">#ffffff</field>
+        <field name="defaultWidth" title="Default Width Percentage" type="number">16</field>
+      </prop>
+        <prop name="layout" title="Layout Settings" type="object">
+        <field name="resizable" title="Allow Resizing" type="boolean">true</field>
+        <field name="collapsible" title="Allow Collapsing" type="boolean">false</field>
+        <field name="minWidth" title="Minimum Width Percentage" type="number">15.5</field>
+        <field name="position" title="Sidebar Position" type="select">
+          <value>left</value>
+          <options>
+          <option>left</option>
+          <option>right</option>
+          </options>
+        </field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="property-editors" title="Property Editors" x="-703.9495225890718" y="458.9892112618977" z="0">
+      <description>Form controls for editing node properties including text, color, number, boolean, select, object, and object-list types with real-time preview.</description>
+      <props>
+        <prop name="input-types" title="Input Types" type="object-list">
+        <item index="0">
+          <field name="type" title="Type" type="text">text</field>
+          <field name="title" title="Display Name" type="text">Text Input</field>
+          <field name="description" title="Description" type="text">Single-line text input</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Type" type="text">color</field>
+          <field name="title" title="Display Name" type="text">Color Picker</field>
+          <field name="description" title="Description" type="text">Color selection with hex values</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Type" type="text">number</field>
+          <field name="title" title="Display Name" type="text">Number Input</field>
+          <field name="description" title="Description" type="text">Numeric input with min/max validation</field>
         </item>
         <item index="3">
-          <field name="method" title="HTTP Method" type="select">
-          <value></value>
-          <options>
-          <option>GET</option>
-          <option>POST</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-          <option>OPTIONS</option>
-          <option>PATCH</option>
-          </options>
-        </field>
+          <field name="type" title="Type" type="text">boolean</field>
+          <field name="title" title="Display Name" type="text">Boolean Toggle</field>
+          <field name="description" title="Description" type="text">True/false switch control</field>
         </item>
-      </field>
-        <field name="credentials" title="Allow Credentials" type="boolean">false</field>
+        <item index="4">
+          <field name="type" title="Type" type="text">select</field>
+          <field name="title" title="Display Name" type="text">Dropdown Select</field>
+          <field name="description" title="Description" type="text">Single selection from options</field>
+        </item>
+        <item index="5">
+          <field name="type" title="Type" type="text">slider</field>
+          <field name="title" title="Display Name" type="text">Range Slider</field>
+          <field name="description" title="Description" type="text">Numeric input with visual slider</field>
+        </item>
+        <item index="6">
+          <field name="type" title="Type" type="text">object</field>
+          <field name="title" title="Display Name" type="text">Object Editor</field>
+          <field name="description" title="Description" type="text">Nested property groups</field>
+        </item>
+        <item index="7">
+          <field name="type" title="Type" type="text">object-list</field>
+          <field name="title" title="Display Name" type="text">List Editor</field>
+          <field name="description" title="Description" type="text">Array of objects with add/remove</field>
+        </item>
       </prop>
-        <prop name="logging-level" title="API Logging Level" type="select">
-          <value>Info</value>
-          <options>
-          <option>Debug</option>
-          <option>Info</option>
-          <option>Warn</option>
-          <option>Error</option>
-          <option>Off</option>
-          </options>
-        </prop>
+        <prop name="property-editors-visuals" title="Editor Styling" type="object">
+        <field name="inputBackgroundColor" title="Input Background Color" type="color">#27272a</field>
+        <field name="inputBorderColor" title="Input Border Color" type="color">#3f3f46</field>
+        <field name="inputTextColor" title="Input Text Color" type="color">#ffffff</field>
+        <field name="labelColor" title="Label Color" type="color">#d4d4d8</field>
+        <field name="focusBorderColor" title="Focus Border Color" type="color">#2563eb</field>
+      </prop>
+        <prop name="property-editors-behavior" title="Editor Behavior" type="object">
+        <field name="debounceDelay" title="Save Delay (ms)" type="number">300</field>
+        <field name="previewMode" title="Enable Preview Mode" type="boolean">true</field>
+        <field name="autoSave" title="Auto Save Changes" type="boolean">true</field>
+        <field name="validateOnChange" title="Validate on Change" type="boolean">true</field>
+      </prop>
       </props>
     </node>
 
-    <node id="ui-component-library" title="UI Component Library" x="417.76865306520756" y="1524.8214507596067" z="0">
-      <description>A comprehensive collection of reusable UI components built on shadcn/ui and Tailwind CSS. Includes forms, navigation, data display, feedback components, and specialized elements for the IDE interface.</description>
+    <node id="graph-management" title="Graph Management" x="-278.7653434558897" y="2028.6755166951457" z="0">
+      <description>Core graph data structure operations including node/edge CRUD, state management, and real-time synchronization.</description>
       <props>
-        <prop name="design-system" title="Design System" type="select">
-          <value>shadcn/ui</value>
-          <options>
-          <option>shadcn/ui</option>
-          <option>Headless UI</option>
-          <option>Radix UI</option>
-          <option>Custom</option>
-          </options>
-        </prop>
-        <prop name="theme-configuration" title="Theme Settings" type="object">
-        <field name="primary-color" title="Primary Color" type="color">#3b82f6</field>
-        <field name="secondary-color" title="Secondary Color" type="color">#6b7280</field>
-        <field name="background-color" title="Background Color" type="color">#111827</field>
-        <field name="surface-color" title="Surface Color" type="color">#1f2937</field>
-        <field name="text-color" title="Text Color" type="color">#f9fafb</field>
-        <field name="border-radius" title="Border Radius" type="text">6px</field>
+        <prop name="data-structure" title="Data Structure" type="object">
+        <field name="currentGraph" title="Current Graph Description" type="text">working graph state</field>
+        <field name="baseGraph" title="Base Graph Description" type="text">last built version</field>
+        <field name="autoLayout" title="Auto Layout Missing Positions" type="boolean">true</field>
+        <field name="xmlFormat" title="Use XML Storage Format" type="boolean">true</field>
       </prop>
-        <prop name="animation-preferences" title="Animation Settings" type="object">
-        <field name="transitions-enabled" title="Enable Transitions" type="boolean">true</field>
-        <field name="duration" title="Default Duration" type="select">
-          <value>200ms</value>
+        <prop name="synchronization" title="Real-time Sync" type="object">
+        <field name="sseEnabled" title="Enable Server-Sent Events" type="boolean">true</field>
+        <field name="optimisticUpdates" title="Enable Optimistic Updates" type="boolean">true</field>
+        <field name="conflictResolution" title="Conflict Resolution Strategy" type="select">
+          <value>reconcile</value>
           <options>
-          <option>100ms</option>
-          <option>150ms</option>
-          <option>200ms</option>
-          <option>300ms</option>
-          <option>500ms</option>
-          </options>
-        </field>
-        <field name="easing" title="Easing Function" type="select">
-          <value>ease-in-out</value>
-          <options>
-          <option>linear</option>
-          <option>ease</option>
-          <option>ease-in</option>
-          <option>ease-out</option>
-          <option>ease-in-out</option>
-          </options>
-        </field>
-        <field name="reduced-motion" title="Respect Reduced Motion" type="boolean">false</field>
-      </prop>
-        <prop name="component-density" title="Component Density" type="select">
-          <value>Comfortable</value>
-          <options>
-          <option>Compact</option>
-          <option>Comfortable</option>
-          <option>Spacious</option>
-          </options>
-        </prop>
-        <prop name="icon-library" title="Icon Library" type="select">
-          <value>Lucide React</value>
-          <options>
-          <option>Lucide React</option>
-          <option>Heroicons</option>
-          <option>Feather</option>
-          <option>React Icons</option>
-          </options>
-        </prop>
-        <prop name="responsive-breakpoints" title="Responsive Design" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="graph-data-management" title="Graph Data Management" x="447.19051607840686" y="853.3319356050343" z="0">
-      <description>Handles graph persistence, XML serialization, diff calculation, and state synchronization between current and built graphs. Manages optimistic updates, real-time collaboration, and version control for graph structures.</description>
-      <props>
-        <prop name="storage-format" title="Storage Format" type="select">
-          <value>XML</value>
-          <options>
-          <option>XML</option>
-          <option>JSON</option>
-          <option>YAML</option>
-          <option>Binary</option>
-          </options>
-        </prop>
-        <prop name="auto-save-interval" title="Auto-save Interval (ms)" type="number">2000</prop>
-        <prop name="version-control" title="Version Control" type="boolean">true</prop>
-        <prop name="optimistic-updates" title="Optimistic Updates" type="boolean">true</prop>
-        <prop name="conflict-resolution" title="Conflict Resolution" type="select">
-          <value>Last Write Wins</value>
-          <options>
-          <option>Last Write Wins</option>
-          <option>Manual Merge</option>
-          <option>Auto Merge</option>
-          <option>Version Branches</option>
-          </options>
-        </prop>
-        <prop name="compression-enabled" title="Data Compression" type="boolean">false</prop>
-        <prop name="backup-strategy" title="Backup Configuration" type="object">
-        <field name="enabled" title="Enable Backups" type="boolean">true</field>
-        <field name="frequency" title="Backup Frequency" type="select">
-          <value>daily</value>
-          <options>
-          <option>hourly</option>
-          <option>daily</option>
-          <option>weekly</option>
+          <option>reconcile</option>
+          <option>overwrite</option>
           <option>manual</option>
           </options>
         </field>
-        <field name="retention-days" title="Retention (days)" type="number">30</field>
-        <field name="location" title="Backup Location" type="select">
-          <value>local</value>
-          <options>
-          <option>local</option>
-          <option>cloud</option>
-          <option>both</option>
-          </options>
-        </field>
+        <field name="suppressDuration" title="SSE Suppression Duration (ms)" type="number">2000</field>
       </prop>
-        <prop name="graph-data-management-real-time-sync" title="Real-time Sync" type="boolean">true</prop>
+        <prop name="operations" title="Graph Operations" type="object">
+        <field name="enableUndo" title="Enable Undo" type="boolean">false</field>
+        <field name="enableRedo" title="Enable Redo" type="boolean">false</field>
+        <field name="autoSave" title="Auto Save Changes" type="boolean">true</field>
+        <field name="batchUpdates" title="Batch Multiple Updates" type="boolean">true</field>
+      </prop>
       </props>
     </node>
 
-    <node id="claude-code-integration" title="Claude Code Integration" x="1341.9135783400623" y="609.0167488246076" z="0">
-      <description>Orchestrates AI-powered code generation and editing through Claude Code CLI. Handles tool selection, execution context, permission management, and streaming responses for intelligent development assistance.</description>
+    <node id="agent-orchestrator" title="Agent Orchestrator" x="931.8339588027304" y="1521.9264517687202" z="0">
+      <description>Main coordination system that analyzes user requests, identifies task types, and delegates to specialized subagents for graph editing and code building.</description>
       <props>
-        <prop name="execution-mode" title="Execution Mode" type="select">
-          <value>Interactive</value>
-          <options>
-          <option>Interactive</option>
-          <option>Automatic</option>
-          <option>Planning Only</option>
-          <option>Review Required</option>
-          </options>
-        </prop>
-        <prop name="permission-level" title="Permission Level" type="select">
-          <value>Accept Edits</value>
-          <options>
-          <option>Bypass Permissions</option>
-          <option>Accept Edits</option>
-          <option>Default Prompts</option>
-          <option>Plan Mode</option>
-          </options>
-        </prop>
-        <prop name="model-selection" title="AI Model" type="select">
-          <value>claude-3-5-sonnet-20241022</value>
+        <prop name="delegation" title="Delegation Settings" type="object">
+        <field name="indexingMode" title="indexingMode" type="text">INDEXING</field>
+        <field name="editingMode" title="editingMode" type="text">GRAPH_EDITING</field>
+        <field name="autoModeDetection" title="autoModeDetection" type="text">true</field>
+        <field name="maxConcurrentTasks" title="maxConcurrentTasks" type="text">3</field>
+      </prop>
+        <prop name="coordination" title="Coordination Settings" type="object">
+        <field name="verifyCompletion" title="verifyCompletion" type="text">true</field>
+        <field name="maxResponseLength" title="maxResponseLength" type="text">1 paragraph</field>
+        <field name="streamUpdates" title="streamUpdates" type="text">true</field>
+        <field name="errorRetryCount" title="errorRetryCount" type="text">2</field>
+      </prop>
+        <prop name="prompts" title="Agent Prompts" type="object">
+        <field name="indexing" title="Indexing Workflow Prompt" type="text"></field>
+        <field name="building" title="Build Workflow Prompt" type="text"></field>
+        <field name="directBuild" title="Direct Build Workflow Prompt" type="text"></field>
+        <field name="graphEditing" title="Graph Editing Workflow Prompt" type="text"></field>
+      </prop>
+        <prop name="settings" title="Claude Code Settings" type="object">
+        <field name="model" title="AI Model" type="select">
+          <value></value>
           <options>
           <option>claude-3-5-sonnet-20241022</option>
           <option>claude-3-5-haiku-20241022</option>
           <option>claude-3-opus-20240229</option>
           </options>
-        </prop>
-        <prop name="max-turns" title="Max Conversation Turns" type="number">20</prop>
-        <prop name="timeout-settings" title="Timeout Configuration" type="object">
-        <field name="request-timeout" title="Request Timeout (ms)" type="number">30000</field>
-        <field name="streaming-timeout" title="Streaming Timeout (ms)" type="number">60000</field>
-        <field name="tool-timeout" title="Tool Execution Timeout (ms)" type="number">10000</field>
+        </field>
+        <field name="maxTurns" title="Maximum Turns" type="number">0</field>
+        <field name="maxThinkingTokens" title="Maximum Thinking Tokens" type="number">0</field>
+        <field name="permissionMode" title="Permission Mode" type="select">
+          <value></value>
+          <options>
+          <option>default</option>
+          <option>acceptEdits</option>
+          <option>bypassPermissions</option>
+          <option>plan</option>
+          </options>
+        </field>
+        <field name="includePartialMessages" title="Include Partial Messages" type="boolean">false</field>
       </prop>
-        <prop name="tool-restrictions" title="Allowed Tools" type="object-list">
+      </props>
+    </node>
+
+    <node id="subagents-system" title="Subagents System" x="-160.53139904063028" y="1639.1537710019713" z="0">
+      <description>Specialized agent implementations including graph-editor for structure changes and code-builder for implementation tasks.</description>
+      <props>
+        <prop name="graph-editor" title="Graph Editor Agent" type="object">
+        <field name="indexingMode" title="Supports Indexing Mode" type="boolean">true</field>
+        <field name="editingMode" title="Supports Editing Mode" type="boolean">true</field>
+        <field name="autoSyncToBase" title="Auto Sync During Indexing" type="boolean">true</field>
+        <field name="maxNodesPerOperation" title="Max Nodes Per Operation" type="number">50</field>
+      </prop>
+        <prop name="code-builder" title="Code Builder Agent" type="object">
+        <field name="modernConventions" title="Use Modern Web Conventions" type="boolean">true</field>
+        <field name="autoLinting" title="Auto Run Linting" type="boolean">true</field>
+        <field name="singleNodeFocus" title="Single Node Focus" type="boolean">true</field>
+        <field name="reportCompletion" title="Report Task Completion" type="boolean">true</field>
+      </prop>
+        <prop name="subagents-system-tools" title="Available Tools" type="object-list">
         <item index="0">
-          <field name="tool" title="Tool Name" type="text">mcp__graph-tools__read</field>
+          <field name="agent" title="Agent Name" type="text">graph-editor</field>
+          <field name="tools" title="Available Tools" type="text">graph tools, Read, Glob, Grep</field>
         </item>
         <item index="1">
-          <field name="tool" title="Tool Name" type="text">mcp__graph-tools__node_create</field>
-        </item>
-        <item index="2">
-          <field name="tool" title="Tool Name" type="text">mcp__graph-tools__node_edit</field>
-        </item>
-        <item index="3">
-          <field name="tool" title="Tool Name" type="text">Read</field>
-        </item>
-        <item index="4">
-          <field name="tool" title="Tool Name" type="text">Grep</field>
+          <field name="agent" title="Agent Name" type="text">code-builder</field>
+          <field name="tools" title="Available Tools" type="text">Read, Write, Edit, Bash, MultiEdit, Glob, Grep</field>
         </item>
       </prop>
-        <prop name="streaming-enabled" title="Enable Streaming" type="boolean">true</prop>
-        <prop name="thinking-tokens" title="Max Thinking Tokens" type="number">0</prop>
+        <prop name="agentPrompts" title="Agent Prompts" type="object">
+        <field name="codeBuilder" title="Code Builder Agent Prompt" type="text"></field>
+        <field name="graphEditor" title="Graph Editor Agent Prompt" type="text"></field>
+        <field name="orchestrator" title="Orchestrator Agent Prompt" type="text"></field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="api-routes" title="API Routes" x="209.17425836191296" y="2079.516495545022" z="0">
+      <description>Backend endpoints for handling graph operations, file management, agent requests, and real-time communication.</description>
+      <props>
+        <prop name="endpoints" title="API Endpoints" type="object-list">
+        <item index="0">
+          <field name="path" title="Endpoint Path" type="text">/api/graph-api</field>
+          <field name="method" title="HTTP Methods" type="text">GET/PUT/PATCH</field>
+          <field name="description" title="Description" type="text">Graph CRUD operations with SSE support</field>
+        </item>
+        <item index="1">
+          <field name="path" title="Endpoint Path" type="text">/api/files</field>
+          <field name="method" title="HTTP Methods" type="text">GET/PUT</field>
+          <field name="description" title="Description" type="text">File system operations</field>
+        </item>
+        <item index="2">
+          <field name="path" title="Endpoint Path" type="text">/api/agent-request</field>
+          <field name="method" title="HTTP Methods" type="text">POST</field>
+          <field name="description" title="Description" type="text">Agent orchestration requests</field>
+        </item>
+        <item index="3">
+          <field name="path" title="Endpoint Path" type="text">/api/chat</field>
+          <field name="method" title="HTTP Methods" type="text">POST</field>
+          <field name="description" title="Description" type="text">AI chat interactions</field>
+        </item>
+        <item index="4">
+          <field name="path" title="Endpoint Path" type="text">/api/project-status</field>
+          <field name="method" title="HTTP Methods" type="text">GET/POST</field>
+          <field name="description" title="Description" type="text">Project initialization and status</field>
+        </item>
+      </prop>
+        <prop name="communication" title="Communication" type="object">
+        <field name="sseSupport" title="Server-Sent Events Support" type="boolean">true</field>
+        <field name="streamingResponses" title="Streaming Response Support" type="boolean">true</field>
+        <field name="xmlFormat" title="Primary XML Format" type="boolean">true</field>
+        <field name="jsonFallback" title="JSON Fallback Support" type="boolean">true</field>
+      </prop>
+        <prop name="security" title="Security Settings" type="object">
+        <field name="corsEnabled" title="CORS Support" type="boolean">true</field>
+        <field name="requestValidation" title="Request Validation" type="boolean">true</field>
+        <field name="rateLimiting" title="Rate Limiting" type="boolean">false</field>
+        <field name="authentication" title="Authentication Required" type="boolean">false</field>
+      </prop>
+        <prop name="api-routes-agentPrompts" title="Agent Prompts" type="object">
+        <field name="codeBuilder" title="Code Builder Agent Prompt" type="text"></field>
+        <field name="graphEditor" title="Graph Editor Agent Prompt" type="text"></field>
+        <field name="orchestrator" title="Orchestrator Agent Prompt" type="text"></field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="file-operations" title="File Operations" x="523.5579654449773" y="1771.9264517687202" z="0">
+      <description>Read, write, and edit file system operations for code management and project structure handling.</description>
+      <props>
+        <prop name="file-operations-operations" title="File Operations" type="object-list">
+        <item index="0">
+          <field name="operation" title="Operation Name" type="text">Read</field>
+          <field name="description" title="Description" type="text">Read file contents with support for images, PDFs, notebooks</field>
+        </item>
+        <item index="1">
+          <field name="operation" title="Operation Name" type="text">Write</field>
+          <field name="description" title="Description" type="text">Create or overwrite file contents</field>
+        </item>
+        <item index="2">
+          <field name="operation" title="Operation Name" type="text">Edit</field>
+          <field name="description" title="Description" type="text">Modify existing files with patches</field>
+        </item>
+        <item index="3">
+          <field name="operation" title="Operation Name" type="text">MultiEdit</field>
+          <field name="description" title="Description" type="text">Batch edit multiple files</field>
+        </item>
+        <item index="4">
+          <field name="operation" title="Operation Name" type="text">Glob</field>
+          <field name="description" title="Description" type="text">Pattern-based file discovery</field>
+        </item>
+        <item index="5">
+          <field name="operation" title="Operation Name" type="text">Grep</field>
+          <field name="description" title="Description" type="text">Content search across files</field>
+        </item>
+      </prop>
+        <prop name="caching" title="File Caching" type="object">
+        <field name="enableCache" title="Enable File Caching" type="boolean">true</field>
+        <field name="cacheSize" title="Cache Size Limit" type="text">unlimited</field>
+        <field name="invalidateOnChange" title="Invalidate on Change" type="boolean">true</field>
+        <field name="memoryStorage" title="Use Memory Storage" type="boolean">true</field>
+      </prop>
+        <prop name="restrictions" title="Access Restrictions" type="object">
+        <field name="allowedExtensions" title="Allowed File Extensions" type="text">all</field>
+        <field name="excludedPaths" title="Excluded Paths" type="text">.manta, .claude, .git, node_modules</field>
+        <field name="maxFileSize" title="Max File Size" type="text">10MB</field>
+        <field name="binarySupport" title="Binary File Support" type="boolean">true</field>
+      </prop>
+        <prop name="file-operations-agentPrompts" title="Agent Prompts" type="object">
+        <field name="codeBuilder" title="Code Builder Agent Prompt" type="text"></field>
+        <field name="graphEditor" title="Graph Editor Agent Prompt" type="text"></field>
+        <field name="orchestrator" title="Orchestrator Agent Prompt" type="text"></field>
+      </prop>
       </props>
     </node>
   </nodes>
 
   <edges>
-    <edge id="graph-visualization-system-property-editor-suite" source="graph-visualization-system" target="property-editor-suite" role="integrates-with"/>
-    <edge id="graph-visualization-system-graph-data-management" source="graph-visualization-system" target="graph-data-management" role="depends-on"/>
-    <edge id="property-editor-suite-ui-component-library" source="property-editor-suite" target="ui-component-library" role="built-with"/>
-    <edge id="ai-chat-interface-api-orchestration-layer" source="ai-chat-interface" target="api-orchestration-layer" role="communicates-with"/>
-    <edge id="api-orchestration-layer-claude-code-integration" source="api-orchestration-layer" target="claude-code-integration" role="orchestrates"/>
-    <edge id="api-orchestration-layer-graph-data-management" source="api-orchestration-layer" target="graph-data-management" role="manages"/>
-    <edge id="project-management-system-api-orchestration-layer" source="project-management-system" target="api-orchestration-layer" role="coordinates-with"/>
-    <edge id="graph-visualization-system-ui-component-library" source="graph-visualization-system" target="ui-component-library" role="built-with"/>
-    <edge id="ai-chat-interface-ui-component-library" source="ai-chat-interface" target="ui-component-library" role="built-with"/>
-    <edge id="property-editor-suite-graph-data-management" source="property-editor-suite" target="graph-data-management" role="updates"/>
-    <edge id="claude-code-integration-graph-data-management" source="claude-code-integration" target="graph-data-management" role="modifies"/>
+    <edge id="canvas-nodes" source="canvas" target="nodes" role="links-to"/>
+    <edge id="canvas-edges" source="canvas" target="edges" role="links-to"/>
+    <edge id="canvas-minimap" source="canvas" target="minimap" role="links-to"/>
+    <edge id="canvas-controls" source="canvas" target="controls" role="links-to"/>
+    <edge id="canvas-toolbar" source="canvas" target="toolbar" role="links-to"/>
+    <edge id="sidebar-property-editors" source="sidebar" target="property-editors" role="links-to"/>
+    <edge id="build-button-agent-orchestrator" source="build-button" target="agent-orchestrator" role="links-to"/>
+    <edge id="ai-chat-agent-orchestrator" source="ai-chat" target="agent-orchestrator" role="links-to"/>
+    <edge id="agent-orchestrator-subagents-system" source="agent-orchestrator" target="subagents-system" role="links-to"/>
+    <edge id="subagents-system-graph-management" source="subagents-system" target="graph-management" role="links-to"/>
+    <edge id="subagents-system-file-operations" source="subagents-system" target="file-operations" role="links-to"/>
+    <edge id="graph-management-api-routes" source="graph-management" target="api-routes" role="links-to"/>
+    <edge id="property-editors-graph-management" source="property-editors" target="graph-management" role="links-to"/>
+    <edge id="nodes-sidebar" source="nodes" target="sidebar" role="links-to"/>
   </edges>
 </graph>
