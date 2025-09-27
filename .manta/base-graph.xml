@@ -1,1191 +1,454 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="FloatingChat" title="FloatingChat" x="100" y="100" z="0">
-      <description>A draggable floating chat interface with dark zinc-themed styling, containing a header, message display area, and input field with context badges.</description>
+    <node id="graph-visualization-system" title="Graph Visualization System" x="100" y="100" z="0">
+      <description>The core graph visualization engine powered by ReactFlow, providing an interactive canvas for creating, editing, and navigating component graphs. Handles visual rendering, layout algorithms, zoom controls, and real-time graph synchronization.</description>
       <props>
-        <prop name="chat-bg-color" title="Chat Background" type="color">#18181b</prop>
-        <prop name="header-bg-color" title="Header Background" type="color">#27272a</prop>
-        <prop name="border-color" title="Border Color" type="color">#52525b</prop>
-        <prop name="text-color" title="Text Color" type="color">#ffffff</prop>
-        <prop name="input-bg-color" title="Input Background" type="color">#27272a</prop>
-        <prop name="button-bg-color" title="Button Background" type="color">#3f3f46</prop>
-        <prop name="button-hover-color" title="Button Hover Color" type="color">#52525b</prop>
-        <prop name="shimmer-color" title="Shimmer Color" type="color">#ffffff</prop>
-        <prop name="shimmer-bg-color" title="Shimmer Background Color" type="color">#71717a</prop>
-        <prop name="chat-width" title="Chat Width" type="number">288</prop>
-        <prop name="border-radius" title="Border Radius" type="number">8</prop>
-        <prop name="shadow-opacity" title="Shadow Opacity" type="slider">[0.8]</prop>
-        <prop name="minimized-show-count" title="Show Message Count When Minimized" type="boolean">true</prop>
-        <prop name="typing-animation-speed" title="Typing Animation Speed" type="number">1.5</prop>
-        <prop name="position-constraint" title="Position Constraint Mode" type="select">
-          <value>constrained</value>
+        <prop name="layout-algorithm" title="Layout Algorithm" type="select">
+          <value>ELK Layered</value>
           <options>
-          <option>free</option>
-          <option>constrained</option>
-          <option>snap-to-grid</option>
+          <option>ELK Layered</option>
+          <option>Force Directed</option>
+          <option>Hierarchical</option>
+          <option>Grid</option>
+          <option>Circular</option>
           </options>
         </prop>
+        <prop name="zoom-behavior" title="Zoom Behavior" type="select">
+          <value>Pinch and Scroll</value>
+          <options>
+          <option>Pinch and Scroll</option>
+          <option>Scroll Only</option>
+          <option>Button Controls</option>
+          <option>Disabled</option>
+          </options>
+        </prop>
+        <prop name="pan-mode" title="Pan Interaction Mode" type="select">
+          <value>Right Click Drag</value>
+          <options>
+          <option>Right Click Drag</option>
+          <option>Two Finger Pan</option>
+          <option>Middle Mouse</option>
+          <option>Left Click Drag</option>
+          </options>
+        </prop>
+        <prop name="node-styling" title="Node Visual Styling" type="object">
+        <field name="background-color" title="Background Color" type="color">#ffffff</field>
+        <field name="border-radius" title="Border Radius (px)" type="number">8px</field>
+        <field name="shadow-enabled" title="Drop Shadow" type="boolean">true</field>
+        <field name="selection-highlight" title="Selection Color" type="color">#2563eb</field>
+      </prop>
+        <prop name="canvas-theme" title="Canvas Theme" type="select">
+          <value>Dark Mode</value>
+          <options>
+          <option>Dark Mode</option>
+          <option>Light Mode</option>
+          <option>Auto</option>
+          <option>High Contrast</option>
+          </options>
+        </prop>
+        <prop name="minimap-enabled" title="Show Minimap" type="boolean">true</prop>
+        <prop name="controls-position" title="Controls Position" type="select">
+          <value>Bottom Right</value>
+          <options>
+          <option>Bottom Right</option>
+          <option>Bottom Left</option>
+          <option>Top Right</option>
+          <option>Top Left</option>
+          <option>Hidden</option>
+          </options>
+        </prop>
+        <prop name="connection-mode" title="Connection Creation" type="select">
+          <value>Loose Handles</value>
+          <options>
+          <option>Loose Handles</option>
+          <option>Strict Handles</option>
+          <option>Auto Connect</option>
+          <option>Disabled</option>
+          </options>
+        </prop>
+        <prop name="real-time-sync" title="Real-time Synchronization" type="boolean">true</prop>
       </props>
     </node>
 
-    <node id="GraphView" title="GraphView" x="400" y="100" z="0">
-      <description>The main graph visualization component with ReactFlow, featuring custom nodes, edges, minimap, controls, and a dark background with tool buttons for select/pan/add-node modes.</description>
+    <node id="property-editor-suite" title="Property Editor Suite" x="500" y="100" z="0">
+      <description>A comprehensive collection of property editors supporting various input types (color, text, number, select, boolean, slider, object, etc.). Provides real-time editing with debounced backend updates and visual feedback for component customization.</description>
       <props>
-        <prop name="background-color" title="Background Color" type="color">#374151</prop>
-        <prop name="node-selected-bg" title="Selected Node Background" type="color">#f8fafc</prop>
-        <prop name="node-unselected-bg" title="Unselected Node Background" type="color">#ffffff</prop>
-        <prop name="node-border-color" title="Node Border Color" type="color">#e5e7eb</prop>
-        <prop name="node-selected-border" title="Selected Node Border" type="color">#2563eb</prop>
-        <prop name="edge-default-color" title="Default Edge Color" type="color">#9ca3af</prop>
-        <prop name="edge-selected-color" title="Selected Edge Color" type="color">#3b82f6</prop>
-        <prop name="edge-unbuilt-color" title="Unbuilt Edge Color" type="color">#ef4444</prop>
-        <prop name="handle-bg-color" title="Handle Background" type="color">#ffffff</prop>
-        <prop name="handle-border-color" title="Handle Border Color" type="color">#9ca3af</prop>
-        <prop name="minimap-built-color" title="Minimap Built Node Color" type="color">#9ca3af</prop>
-        <prop name="minimap-unbuilt-color" title="Minimap Unbuilt Node Color" type="color">#fbbf24</prop>
-        <prop name="grid-gap" title="Background Grid Gap" type="number">20</prop>
-        <prop name="zoom-sensitivity" title="Zoom Sensitivity" type="slider">[1]</prop>
-        <prop name="pan-mode" title="Pan Mode" type="select">
-          <value>trackpad</value>
-          <options>
-          <option>trackpad</option>
-          <option>mouse</option>
-          <option>both</option>
-          </options>
-        </prop>
-      </props>
-    </node>
-
-    <node id="MessageRenderer" title="MessageRenderer" x="700" y="100" z="0">
-      <description>A content renderer for parsing and displaying code blocks with Monaco Editor, featuring syntax highlighting and auto-calculated heights.</description>
-      <props>
-        <prop name="code-block-bg" title="Code Block Background" type="color">#18181b</prop>
-        <prop name="code-header-bg" title="Code Header Background" type="color">#27272a</prop>
-        <prop name="code-border-color" title="Code Border Color" type="color">#3f3f46</prop>
-        <prop name="code-text-color" title="Code Text Color" type="color">#d4d4d8</prop>
         <prop name="editor-theme" title="Editor Theme" type="select">
-          <value>vs-dark</value>
+          <value>Dark</value>
           <options>
-          <option>vs-dark</option>
-          <option>vs</option>
+          <option>Dark</option>
+          <option>Light</option>
+          <option>Auto</option>
+          <option>High Contrast</option>
           </options>
         </prop>
-        <prop name="font-size" title="Font Size" type="number">12</prop>
-        <prop name="line-height" title="Line Height" type="number">18</prop>
-        <prop name="min-height" title="Minimum Height" type="number">40</prop>
-        <prop name="max-height" title="Maximum Height" type="number">400</prop>
-        <prop name="show-line-numbers" title="Show Line Numbers" type="boolean">true</prop>
-        <prop name="word-wrap" title="Word Wrap" type="select">
-          <value>off</value>
+        <prop name="debounce-delay" title="Update Delay (ms)" type="number">500</prop>
+        <prop name="preview-mode" title="Live Preview" type="boolean">true</prop>
+        <prop name="validation-enabled" title="Input Validation" type="boolean">true</prop>
+        <prop name="compact-layout" title="Compact Layout" type="boolean">false</prop>
+        <prop name="editor-styling" title="Editor Visual Style" type="object">
+        <field name="background-color" title="Background Color" type="color">#18181b</field>
+        <field name="border-color" title="Border Color" type="color">#3f3f46</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="accent-color" title="Accent Color" type="color">#3b82f6</field>
+      </prop>
+        <prop name="auto-save" title="Auto-save Changes" type="boolean">true</prop>
+        <prop name="undo-history" title="Undo History Depth" type="number">20</prop>
+      </props>
+    </node>
+
+    <node id="ai-chat-interface" title="AI Chat Interface" x="900" y="100" z="0">
+      <description>A floating, draggable chat interface for AI-powered assistance. Provides contextual help with file content, graph nodes, and selections. Features markdown rendering, message history, and intelligent context inclusion.</description>
+      <props>
+        <prop name="initial-position" title="Initial Position" type="select">
+          <value>Bottom Left</value>
           <options>
-          <option>off</option>
-          <option>on</option>
-          <option>bounded</option>
+          <option>Bottom Left</option>
+          <option>Bottom Right</option>
+          <option>Top Left</option>
+          <option>Top Right</option>
+          <option>Center</option>
           </options>
         </prop>
-        <prop name="scrollbar-size" title="Scrollbar Size" type="number">8</prop>
-        <prop name="MessageRenderer-border-radius" title="Border Radius" type="number">6</prop>
-        <prop name="show-minimap" title="Show Minimap" type="boolean">false</prop>
-        <prop name="smooth-scrolling" title="Smooth Scrolling" type="boolean">true</prop>
+        <prop name="chat-styling" title="Chat Window Style" type="object">
+        <field name="width" title="Window Width (px)" type="number">288</field>
+        <field name="max-height" title="Max Height" type="text">60vh</field>
+        <field name="background-color" title="Background Color" type="color">#111827</field>
+        <field name="border-color" title="Border Color" type="color">#374151</field>
+        <field name="border-radius" title="Border Radius (px)" type="number">6</field>
+      </prop>
+        <prop name="message-history" title="Message History Limit" type="number">50</prop>
+        <prop name="auto-context" title="Auto-include Context" type="boolean">true</prop>
+        <prop name="markdown-rendering" title="Markdown Support" type="boolean">true</prop>
+        <prop name="typing-animation" title="Typing Animation" type="boolean">true</prop>
+        <prop name="draggable-window" title="Draggable Window" type="boolean">true</prop>
+        <prop name="minimize-enabled" title="Allow Minimize" type="boolean">true</prop>
+        <prop name="streaming-responses" title="Streaming Responses" type="boolean">true</prop>
       </props>
     </node>
 
-    <node id="SelectedNodeSidebar" title="SelectedNodeSidebar" x="1000" y="100" z="0">
-      <description>A sidebar panel for editing selected node properties with dark zinc styling, containing title/description inputs and property editors with debounced saving.</description>
+    <node id="project-management-system" title="Project Management System" x="300" y="400" z="0">
+      <description>Handles project initialization, file system operations, template installation, and project status tracking. Manages NextJS project detection, partial template installation, and dynamic agent generation.</description>
       <props>
-        <prop name="sidebar-bg-color" title="Sidebar Background" type="color">#18181b</prop>
-        <prop name="SelectedNodeSidebar-border-color" title="Border Color" type="color">#3f3f46</prop>
-        <prop name="SelectedNodeSidebar-text-color" title="Text Color" type="color">#ffffff</prop>
-        <prop name="label-color" title="Label Color" type="color">#d4d4d8</prop>
-        <prop name="SelectedNodeSidebar-input-bg-color" title="Input Background" type="color">#27272a</prop>
-        <prop name="input-border-color" title="Input Border" type="color">#3f3f46</prop>
-        <prop name="input-focus-border" title="Input Focus Border" type="color">#3b82f6</prop>
-        <prop name="multi-select-bg" title="Multi-select Background" type="color">#27272a</prop>
-        <prop name="multi-select-border" title="Multi-select Border" type="color">#3f3f46</prop>
-        <prop name="children-bg" title="Children Background" type="color">#27272a</prop>
-        <prop name="error-text-color" title="Error Text Color" type="color">#fca5a5</prop>
-        <prop name="success-text-color" title="Success Text Color" type="color">#86efac</prop>
-        <prop name="title-debounce-delay" title="Title Save Delay (ms)" type="number">300</prop>
-        <prop name="description-debounce-delay" title="Description Save Delay (ms)" type="number">500</prop>
-        <prop name="property-throttle" title="Property Update Throttle (ms)" type="number">60</prop>
-      </props>
-    </node>
-
-    <node id="SelectionBadge" title="SelectionBadge" x="1300" y="100" z="0">
-      <description>Badge components for displaying file, area, and node selections with icons and remove buttons, featuring outline styling with zinc colors.</description>
-      <props>
-        <prop name="badge-bg-color" title="Badge Background" type="color">transparent</prop>
-        <prop name="badge-border-color" title="Badge Border" type="color">#52525b</prop>
-        <prop name="badge-text-color" title="Badge Text" type="color">#ffffff</prop>
-        <prop name="icon-color" title="Icon Color" type="color">#ffffff</prop>
-        <prop name="remove-button-color" title="Remove Button Color" type="color">#a1a1aa</prop>
-        <prop name="remove-button-hover" title="Remove Button Hover" type="color">#ffffff</prop>
-        <prop name="badge-padding" title="Badge Padding" type="text">gap-1 pr-1</prop>
-        <prop name="icon-size" title="Icon Size" type="number">12</prop>
-        <prop name="text-size" title="Text Size" type="text">text-xs</prop>
-        <prop name="remove-icon-size" title="Remove Icon Size" type="number">10</prop>
-        <prop name="badge-spacing" title="Badge Spacing" type="text">gap-2 p-2</prop>
-        <prop name="message-badge-spacing" title="Message Badge Spacing" type="text">gap-1.5 mb-2</prop>
-        <prop name="variant-light-style" title="Light Variant Style" type="text">border-zinc-600 text-white bg-transparent</prop>
-        <prop name="variant-dark-style" title="Dark Variant Style" type="text">border-zinc-600 text-white bg-transparent</prop>
-        <prop name="show-file-icon" title="Show File Icon" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="TopBar" title="TopBar" x="1600" y="100" z="0">
-      <description>A minimal top header bar with dark zinc styling and empty flex containers for future content expansion.</description>
-      <props>
-        <prop name="TopBar-header-bg-color" title="Header Background" type="color">#27272a</prop>
-        <prop name="TopBar-border-color" title="Bottom Border Color" type="color">#3f3f46</prop>
-        <prop name="padding-horizontal" title="Horizontal Padding" type="text">px-4</prop>
-        <prop name="padding-vertical" title="Vertical Padding" type="text">py-1.5</prop>
-        <prop name="height" title="Header Height" type="number">48</prop>
-        <prop name="justify-content" title="Content Justification" type="select">
-          <value>space-between</value>
+        <prop name="auto-install-templates" title="Auto-install Templates" type="boolean">true</prop>
+        <prop name="project-detection" title="Project Type Detection" type="select">
+          <value>Automatic</value>
           <options>
-          <option>space-between</option>
-          <option>center</option>
-          <option>flex-start</option>
-          <option>flex-end</option>
+          <option>Automatic</option>
+          <option>Manual</option>
+          <option>Disabled</option>
           </options>
         </prop>
-        <prop name="align-items" title="Items Alignment" type="select">
-          <value>center</value>
-          <options>
-          <option>center</option>
-          <option>flex-start</option>
-          <option>flex-end</option>
-          </options>
-        </prop>
-        <prop name="left-section-gap" title="Left Section Gap" type="text"></prop>
-        <prop name="right-section-gap" title="Right Section Gap" type="text">gap-3</prop>
-        <prop name="border-width" title="Border Width" type="number">1</prop>
-        <prop name="show-border" title="Show Bottom Border" type="boolean">true</prop>
-        <prop name="sticky-position" title="Sticky Position" type="boolean">false</prop>
-        <prop name="z-index" title="Z-Index" type="number">10</prop>
-        <prop name="backdrop-blur" title="Backdrop Blur" type="boolean">false</prop>
-        <prop name="shadow" title="Show Shadow" type="boolean">false</prop>
-      </props>
-    </node>
-
-    <node id="WelcomeScreen" title="WelcomeScreen" x="1900" y="100" z="0">
-      <description>A full-screen welcome interface displaying template cards with images, featuring dark zinc background and interactive template selection with loading states.</description>
-      <props>
-        <prop name="screen-bg-color" title="Screen Background" type="color">#18181b</prop>
-        <prop name="heading-color" title="Heading Color" type="color">#ffffff</prop>
-        <prop name="subheading-color" title="Subheading Color" type="color">#a1a1aa</prop>
-        <prop name="card-bg-color" title="Card Background" type="color">#ffffff</prop>
-        <prop name="card-hover-shadow" title="Card Hover Shadow" type="text">hover:shadow-lg</prop>
-        <prop name="card-selected-ring" title="Selected Card Ring" type="color">#3b82f6</prop>
-        <prop name="WelcomeScreen-button-bg-color" title="Install Button Background" type="color">#000000</prop>
-        <prop name="button-text-color" title="Install Button Text" type="color">#ffffff</prop>
-        <prop name="button-hover-bg" title="Install Button Hover" type="color">#000000</prop>
-        <prop name="card-image-height" title="Card Image Height" type="text">h-30</prop>
-        <prop name="grid-columns" title="Grid Columns" type="select">
-          <value>2</value>
-          <options>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          </options>
-        </prop>
-        <prop name="WelcomeScreen-grid-gap" title="Grid Gap" type="number">32</prop>
-        <prop name="max-width" title="Content Max Width" type="text">max-w-2xl</prop>
-        <prop name="screen-padding" title="Screen Padding" type="text">p-8</prop>
-        <prop name="loading-text-color" title="Loading Text Color" type="color">#a1a1aa</prop>
-      </props>
-    </node>
-
-    <node id="BasePropertyEditor" title="BasePropertyEditor" x="100" y="400" z="0">
-      <description>Base wrapper component for property editors with label styling and optional right slot for actions, using zinc color scheme.</description>
-      <props>
-        <prop name="BasePropertyEditor-label-color" title="Label Color" type="color">#d4d4d8</prop>
-        <prop name="label-font-size" title="Label Font Size" type="text">text-xs</prop>
-        <prop name="label-font-weight" title="Label Font Weight" type="text">font-medium</prop>
-        <prop name="container-gap" title="Container Gap" type="text">gap-2</prop>
-        <prop name="container-padding" title="Container Padding" type="text">py-1</prop>
-        <prop name="show-value-display" title="Show Value Display" type="boolean">false</prop>
-        <prop name="header-justify" title="Header Justification" type="select">
-          <value>space-between</value>
-          <options>
-          <option>space-between</option>
-          <option>flex-start</option>
-          <option>flex-end</option>
-          <option>center</option>
-          </options>
-        </prop>
-        <prop name="header-align" title="Header Alignment" type="select">
-          <value>center</value>
-          <options>
-          <option>center</option>
-          <option>flex-start</option>
-          <option>flex-end</option>
-          </options>
-        </prop>
-        <prop name="content-width" title="Content Width" type="text">w-full</prop>
-        <prop name="flex-direction" title="Flex Direction" type="select">
-          <value>column</value>
-          <options>
-          <option>column</option>
-          <option>row</option>
-          </options>
-        </prop>
-        <prop name="custom-class" title="Custom CSS Classes" type="text"></prop>
-        <prop name="show-right-slot" title="Show Right Slot" type="boolean">true</prop>
-        <prop name="label-text-transform" title="Label Text Transform" type="select">
-          <value>none</value>
-          <options>
-          <option>none</option>
-          <option>uppercase</option>
-          <option>lowercase</option>
-          <option>capitalize</option>
-          </options>
-        </prop>
-        <prop name="container-bg" title="Container Background" type="color">transparent</prop>
-        <prop name="border-style" title="Border Style" type="text">border-0</prop>
-      </props>
-    </node>
-
-    <node id="BooleanPropertyEditor" title="BooleanPropertyEditor" x="400" y="400" z="0">
-      <description>Boolean property editor with switch control and clickable On/Off labels, featuring blue/zinc color states and scaled styling.</description>
-      <props>
-        <prop name="switch-bg-unchecked" title="Switch Background (Off)" type="color">#3f3f46</prop>
-        <prop name="switch-bg-checked" title="Switch Background (On)" type="color">#2563eb</prop>
-        <prop name="label-color-active" title="Active Label Color" type="color">#ffffff</prop>
-        <prop name="label-color-inactive" title="Inactive Label Color" type="color">#71717a</prop>
-        <prop name="switch-scale" title="Switch Scale" type="number">0.75</prop>
-        <prop name="BooleanPropertyEditor-label-font-size" title="Label Font Size" type="text">text-xs</prop>
-        <prop name="BooleanPropertyEditor-label-font-weight" title="Label Font Weight" type="text">font-medium</prop>
-        <prop name="BooleanPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
-        <prop name="label-min-width" title="Label Min Width" type="text">min-w-[20px]</prop>
-        <prop name="off-label-text" title="Off Label Text" type="text">Off</prop>
-        <prop name="on-label-text" title="On Label Text" type="text">On</prop>
-        <prop name="cursor-style" title="Cursor Style" type="select">
-          <value>pointer</value>
-          <options>
-          <option>pointer</option>
-          <option>default</option>
-          <option>help</option>
-          </options>
-        </prop>
-        <prop name="label-alignment" title="Label Text Alignment" type="select">
-          <value>center</value>
-          <options>
-          <option>left</option>
-          <option>right</option>
-          <option>center</option>
-          </options>
-        </prop>
-        <prop name="hover-effect" title="Show Hover Effect" type="boolean">true</prop>
-        <prop name="disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
-      </props>
-    </node>
-
-    <node id="CheckboxPropertyEditor" title="CheckboxPropertyEditor" x="700" y="400" z="0">
-      <description>Checkbox property editor supporting both single boolean values and multi-select groups with zinc-styled checkboxes and labels.</description>
-      <props>
-        <prop name="checkbox-scale" title="Checkbox Scale" type="number">0.75</prop>
-        <prop name="CheckboxPropertyEditor-label-color" title="Label Color" type="color">#d4d4d8</prop>
-        <prop name="CheckboxPropertyEditor-label-font-size" title="Label Font Size" type="text">text-xs</prop>
-        <prop name="CheckboxPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
-        <prop name="group-spacing" title="Group Item Spacing" type="text">space-y-1</prop>
-        <prop name="checkbox-bg-color" title="Checkbox Background" type="color">#27272a</prop>
-        <prop name="checkbox-border-color" title="Checkbox Border" type="color">#52525b</prop>
-        <prop name="checkbox-checked-bg" title="Checked Background" type="color">#2563eb</prop>
-        <prop name="checkbox-checked-border" title="Checked Border" type="color">#2563eb</prop>
-        <prop name="hover-bg-color" title="Hover Background" type="color">#3f3f46</prop>
-        <prop name="focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-        <prop name="CheckboxPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
-        <prop name="checkmark-color" title="Checkmark Color" type="color">#ffffff</prop>
-        <prop name="CheckboxPropertyEditor-border-radius" title="Border Radius" type="number">4</prop>
-        <prop name="animation-duration" title="Animation Duration (ms)" type="number">150</prop>
-      </props>
-    </node>
-
-    <node id="ColorPropertyEditor" title="ColorPropertyEditor" x="1000" y="400" z="0">
-      <description>Color picker property editor with hex input, color preview button, and popover containing HexColorPicker component with dark zinc styling.</description>
-      <props>
-        <prop name="ColorPropertyEditor-input-bg-color" title="Input Background" type="color">#27272a</prop>
-        <prop name="ColorPropertyEditor-input-border-color" title="Input Border" type="color">#3f3f46</prop>
-        <prop name="input-text-color" title="Input Text Color" type="color">#ffffff</prop>
-        <prop name="preview-button-size" title="Preview Button Size" type="number">28</prop>
-        <prop name="popover-bg-color" title="Popover Background" type="color">#27272a</prop>
-        <prop name="popover-border-color" title="Popover Border" type="color">#3f3f46</prop>
-        <prop name="popover-width" title="Popover Width" type="number">256</prop>
-        <prop name="popover-spacing" title="Popover Content Spacing" type="text">space-y-3</prop>
-        <prop name="hex-input-height" title="Hex Input Height" type="number">36</prop>
-        <prop name="preview-border-radius" title="Preview Border Radius" type="text">rounded-l</prop>
-        <prop name="input-border-radius" title="Input Border Radius" type="text">rounded-r</prop>
-        <prop name="ColorPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-        <prop name="placeholder-color" title="Placeholder Color" type="color">#71717a</prop>
-        <prop name="max-hex-length" title="Max Hex Length" type="number">6</prop>
-        <prop name="default-color" title="Default Color" type="color">#000000</prop>
-      </props>
-    </node>
-
-    <node id="FontPropertyEditor" title="FontPropertyEditor" x="1300" y="400" z="0">
-      <description>Font family selector with dropdown containing default Google Fonts list and preview on hover, using dark zinc select styling.</description>
-      <props>
-        <prop name="select-bg-color" title="Select Background" type="color">#27272a</prop>
-        <prop name="select-border-color" title="Select Border" type="color">#3f3f46</prop>
-        <prop name="select-text-color" title="Select Text Color" type="color">#ffffff</prop>
-        <prop name="dropdown-bg-color" title="Dropdown Background" type="color">#27272a</prop>
-        <prop name="dropdown-border-color" title="Dropdown Border" type="color">#3f3f46</prop>
-        <prop name="option-hover-color" title="Option Hover Color" type="color">#3f3f46</prop>
-        <prop name="select-height" title="Select Height" type="number">28</prop>
-        <prop name="FontPropertyEditor-font-size" title="Font Size" type="text">text-xs</prop>
-        <prop name="FontPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
-        <prop name="placeholder-text" title="Placeholder Text" type="text">Select font family...</prop>
-        <prop name="preview-on-hover" title="Preview on Hover" type="boolean">true</prop>
-        <prop name="default-font-family" title="Default Font Family" type="select">
-          <value>Inter</value>
-          <options>
-          <option>Inter</option>
-          <option>Roboto</option>
-          <option>Open Sans</option>
-          <option>Lato</option>
-          <option>Montserrat</option>
-          </options>
-        </prop>
-        <prop name="show-font-count" title="Show Font Count" type="boolean">false</prop>
-        <prop name="sort-fonts" title="Sort Fonts Alphabetically" type="boolean">true</prop>
-        <prop name="FontPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-      </props>
-    </node>
-
-    <node id="NumberPropertyEditor" title="NumberPropertyEditor" x="1600" y="400" z="0">
-      <description>Number input with increment/decrement buttons using React Aria Components, featuring tabular-nums and zinc styling with step controls.</description>
-      <props>
-        <prop name="NumberPropertyEditor-input-bg-color" title="Input Background" type="color">#27272a</prop>
-        <prop name="NumberPropertyEditor-input-border-color" title="Input Border" type="color">#3f3f46</prop>
-        <prop name="NumberPropertyEditor-input-text-color" title="Input Text Color" type="color">#ffffff</prop>
-        <prop name="NumberPropertyEditor-button-bg-color" title="Button Background" type="color">#27272a</prop>
-        <prop name="button-border-color" title="Button Border" type="color">#3f3f46</prop>
-        <prop name="NumberPropertyEditor-button-text-color" title="Button Text Color" type="color">#a1a1aa</prop>
-        <prop name="NumberPropertyEditor-button-hover-bg" title="Button Hover Background" type="color">#3f3f46</prop>
-        <prop name="button-hover-text" title="Button Hover Text" type="color">#ffffff</prop>
-        <prop name="focus-border-color" title="Focus Border Color" type="color">#3b82f6</prop>
-        <prop name="NumberPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-        <prop name="input-height" title="Input Height" type="number">28</prop>
-        <prop name="button-width" title="Button Width" type="number">20</prop>
-        <prop name="font-variant" title="Font Variant" type="select">
-          <value>tabular-nums</value>
-          <options>
-          <option>tabular-nums</option>
-          <option>normal</option>
-          </options>
-        </prop>
-        <prop name="NumberPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
-        <prop name="NumberPropertyEditor-icon-size" title="Icon Size" type="number">10</prop>
-      </props>
-    </node>
-
-    <node id="ObjectListPropertyEditor" title="ObjectListPropertyEditor" x="1900" y="400" z="0">
-      <description>Dynamic list editor for arrays of objects with collapsible items, add/remove buttons, and nested property editors with zinc styling.</description>
-      <props>
-        <prop name="item-bg-color" title="Item Background" type="color">#27272a</prop>
-        <prop name="item-border-color" title="Item Border" type="color">#3f3f46</prop>
-        <prop name="ObjectListPropertyEditor-header-bg-color" title="Header Background" type="color">#27272a</prop>
-        <prop name="header-border-color" title="Header Border" type="color">#3f3f46</prop>
-        <prop name="ObjectListPropertyEditor-button-hover-bg" title="Button Hover Background" type="color">#3f3f46</prop>
-        <prop name="ObjectListPropertyEditor-icon-color" title="Icon Color" type="color">#71717a</prop>
-        <prop name="title-text-color" title="Title Text Color" type="color">#d4d4d8</prop>
-        <prop name="empty-text-color" title="Empty Text Color" type="color">#71717a</prop>
-        <prop name="add-button-size" title="Add Button Size" type="number">24</prop>
-        <prop name="remove-button-size" title="Remove Button Size" type="number">24</prop>
-        <prop name="item-spacing" title="Item Spacing" type="text">space-y-2</prop>
-        <prop name="content-padding" title="Content Padding" type="text">p-2</prop>
-        <prop name="content-spacing" title="Content Field Spacing" type="text">space-y-1.5</prop>
-        <prop name="ObjectListPropertyEditor-border-radius" title="Border Radius" type="number">6</prop>
-        <prop name="default-collapsed" title="Default Collapsed State" type="boolean">false</prop>
-      </props>
-    </node>
-
-    <node id="ObjectPropertyEditor" title="ObjectPropertyEditor" x="100" y="700" z="0">
-      <description>Collapsible object editor for grouped properties with chevron expansion indicator and nested property editors with zinc styling.</description>
-      <props>
-        <prop name="container-bg-color" title="Container Background" type="color">#27272a</prop>
-        <prop name="container-border-color" title="Container Border" type="color">#3f3f46</prop>
-        <prop name="ObjectPropertyEditor-header-bg-color" title="Header Background" type="color">#27272a</prop>
-        <prop name="ObjectPropertyEditor-header-border-color" title="Header Border" type="color">#3f3f46</prop>
-        <prop name="ObjectPropertyEditor-title-text-color" title="Title Text Color" type="color">#d4d4d8</prop>
-        <prop name="ObjectPropertyEditor-icon-color" title="Icon Color" type="color">#71717a</prop>
-        <prop name="ObjectPropertyEditor-content-padding" title="Content Padding" type="text">p-2</prop>
-        <prop name="ObjectPropertyEditor-content-spacing" title="Content Field Spacing" type="text">space-y-2</prop>
-        <prop name="header-padding" title="Header Padding" type="text">px-2 py-1.5</prop>
-        <prop name="ObjectPropertyEditor-border-radius" title="Border Radius" type="number">6</prop>
-        <prop name="ObjectPropertyEditor-icon-size" title="Icon Size" type="number">16</prop>
-        <prop name="ObjectPropertyEditor-default-collapsed" title="Default Collapsed State" type="boolean">false</prop>
-        <prop name="ObjectPropertyEditor-cursor-style" title="Header Cursor Style" type="select">
-          <value>pointer</value>
-          <options>
-          <option>pointer</option>
-          <option>default</option>
-          </options>
-        </prop>
-        <prop name="empty-message" title="Empty Fields Message" type="text">No fields defined for this group.</prop>
-        <prop name="show-empty-message" title="Show Empty Message" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="RadioPropertyEditor" title="RadioPropertyEditor" x="400" y="700" z="0">
-      <description>Radio button group editor with vertical layout and zinc-styled radio buttons with labels for single-option selection.</description>
-      <props>
-        <prop name="radio-scale" title="Radio Button Scale" type="number">0.75</prop>
-        <prop name="RadioPropertyEditor-label-color" title="Label Color" type="color">#d4d4d8</prop>
-        <prop name="RadioPropertyEditor-label-font-size" title="Label Font Size" type="text">text-xs</prop>
-        <prop name="RadioPropertyEditor-container-gap" title="Container Gap" type="text">gap-2</prop>
-        <prop name="RadioPropertyEditor-group-spacing" title="Group Item Spacing" type="text">space-y-1</prop>
-        <prop name="radio-bg-color" title="Radio Background" type="color">#27272a</prop>
-        <prop name="radio-border-color" title="Radio Border" type="color">#52525b</prop>
-        <prop name="radio-selected-bg" title="Selected Background" type="color">#2563eb</prop>
-        <prop name="radio-selected-border" title="Selected Border" type="color">#2563eb</prop>
-        <prop name="radio-dot-color" title="Radio Dot Color" type="color">#ffffff</prop>
-        <prop name="RadioPropertyEditor-hover-bg-color" title="Hover Background" type="color">#3f3f46</prop>
-        <prop name="RadioPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-        <prop name="RadioPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
-        <prop name="RadioPropertyEditor-animation-duration" title="Animation Duration (ms)" type="number">150</prop>
-        <prop name="radio-size" title="Radio Button Size" type="number">16</prop>
-      </props>
-    </node>
-
-    <node id="SelectPropertyEditor" title="SelectPropertyEditor" x="700" y="700" z="0">
-      <description>Dropdown select editor with option previewing on hover and zinc-styled select component for single option selection.</description>
-      <props>
-        <prop name="SelectPropertyEditor-select-bg-color" title="Select Background" type="color">#27272a</prop>
-        <prop name="SelectPropertyEditor-select-border-color" title="Select Border" type="color">#3f3f46</prop>
-        <prop name="SelectPropertyEditor-select-text-color" title="Select Text Color" type="color">#ffffff</prop>
-        <prop name="SelectPropertyEditor-dropdown-bg-color" title="Dropdown Background" type="color">#27272a</prop>
-        <prop name="SelectPropertyEditor-dropdown-border-color" title="Dropdown Border" type="color">#3f3f46</prop>
-        <prop name="SelectPropertyEditor-option-hover-color" title="Option Hover Color" type="color">#3f3f46</prop>
-        <prop name="option-focus-color" title="Option Focus Color" type="color">#3f3f46</prop>
-        <prop name="disabled-text-color" title="Disabled Text Color" type="color">#71717a</prop>
-        <prop name="SelectPropertyEditor-select-height" title="Select Height" type="number">28</prop>
-        <prop name="SelectPropertyEditor-font-size" title="Font Size" type="text">text-xs</prop>
-        <prop name="SelectPropertyEditor-placeholder-text" title="Placeholder Text" type="text">Select option...</prop>
-        <prop name="loading-placeholder" title="Loading Placeholder" type="text">Loading options...</prop>
-        <prop name="no-options-text" title="No Options Text" type="text">No options available</prop>
-        <prop name="SelectPropertyEditor-preview-on-hover" title="Preview on Hover" type="boolean">true</prop>
-        <prop name="SelectPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-      </props>
-    </node>
-
-    <node id="SliderPropertyEditor" title="SliderPropertyEditor" x="1000" y="700" z="0">
-      <description>Slider control for numeric ranges with custom zinc styling and configurable min/max/step values using shadcn/ui slider component.</description>
-      <props>
-        <prop name="track-bg-color" title="Track Background" type="color">#3f3f46</prop>
-        <prop name="range-bg-color" title="Range Background" type="color">#ffffff</prop>
-        <prop name="thumb-color" title="Thumb Color" type="color">#ffffff</prop>
-        <prop name="thumb-border-color" title="Thumb Border" type="color">#52525b</prop>
-        <prop name="track-height" title="Track Height" type="number">4</prop>
-        <prop name="thumb-size" title="Thumb Size" type="number">12</prop>
-        <prop name="SliderPropertyEditor-container-padding" title="Container Padding" type="text">px-1</prop>
-        <prop name="SliderPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-        <prop name="hover-thumb-color" title="Hover Thumb Color" type="color">#f1f5f9</prop>
-        <prop name="active-thumb-color" title="Active Thumb Color" type="color">#e2e8f0</prop>
-        <prop name="SliderPropertyEditor-disabled-opacity" title="Disabled Opacity" type="slider">[0.5]</prop>
-        <prop name="SliderPropertyEditor-animation-duration" title="Animation Duration (ms)" type="number">200</prop>
-        <prop name="step-marks" title="Show Step Marks" type="boolean">false</prop>
-        <prop name="value-tooltip" title="Show Value Tooltip" type="boolean">false</prop>
-        <prop name="default-value" title="Default Value" type="number">50</prop>
-      </props>
-    </node>
-
-    <node id="TextAreaPropertyEditor" title="TextAreaPropertyEditor" x="1300" y="700" z="0">
-      <description>Adaptive text editor that switches between input and textarea based on content length and line breaks, with zinc styling and focus preservation.</description>
-      <props>
-        <prop name="TextAreaPropertyEditor-input-bg-color" title="Input Background" type="color">#27272a</prop>
-        <prop name="TextAreaPropertyEditor-input-border-color" title="Input Border" type="color">#3f3f46</prop>
-        <prop name="TextAreaPropertyEditor-input-text-color" title="Input Text Color" type="color">#ffffff</prop>
-        <prop name="TextAreaPropertyEditor-placeholder-color" title="Placeholder Color" type="color">#71717a</prop>
-        <prop name="TextAreaPropertyEditor-focus-border-color" title="Focus Border Color" type="color">#3b82f6</prop>
-        <prop name="TextAreaPropertyEditor-focus-ring-color" title="Focus Ring Color" type="color">#3b82f6</prop>
-        <prop name="textarea-height" title="Textarea Height" type="text">h-24</prop>
-        <prop name="TextAreaPropertyEditor-font-size" title="Font Size" type="text">text-xs</prop>
-        <prop name="font-weight" title="Font Weight" type="text">font-medium</prop>
-        <prop name="TextAreaPropertyEditor-line-height" title="Line Height" type="select">
-          <value>leading-relaxed</value>
-          <options>
-          <option>leading-tight</option>
-          <option>leading-normal</option>
-          <option>leading-relaxed</option>
-          </options>
-        </prop>
-        <prop name="multiline-threshold" title="Multiline Threshold" type="number">25</prop>
-        <prop name="TextAreaPropertyEditor-placeholder-text" title="Placeholder Text" type="text">Enter text...</prop>
-        <prop name="auto-focus-on-switch" title="Auto Focus on Switch" type="boolean">true</prop>
-        <prop name="preserve-cursor-position" title="Preserve Cursor Position" type="boolean">true</prop>
-        <prop name="TextAreaPropertyEditor-border-radius" title="Border Radius" type="number">6</prop>
-      </props>
-    </node>
-
-    <node id="PropertyEditorIndex" title="PropertyEditorIndex" x="1600" y="700" z="0">
-      <description>Main property editor router component that selects the appropriate editor based on property type, handling all supported editor types with change and preview callbacks.</description>
-      <props>
-        <prop name="default-bg-color" title="Default Background" type="color">transparent</prop>
-        <prop name="unsupported-text-color" title="Unsupported Text Color" type="color">#71717a</prop>
-        <prop name="unsupported-font-size" title="Unsupported Font Size" type="text">text-xs</prop>
-        <prop name="error-message-prefix" title="Error Message Prefix" type="text">Editor not implemented for type:</prop>
-        <prop name="supported-types" title="Supported Property Types" type="object-list">
+        <prop name="file-watching" title="File System Watching" type="boolean">true</prop>
+        <prop name="template-branches" title="Available Templates" type="object-list">
         <item index="0">
-          <field name="type" title="Type" type="text">font</field>
-          <field name="component" title="Component" type="text">FontPropertyEditor</field>
+          <field name="name" title="Template Name" type="text">Partial Template</field>
+          <field name="branch" title="Git Branch" type="text">partial</field>
+          <field name="description" title="Description" type="text">Sample components for existing projects</field>
         </item>
         <item index="1">
-          <field name="type" title="Type" type="text">text</field>
-          <field name="component" title="Component" type="text">TextAreaPropertyEditor</field>
-        </item>
-        <item index="2">
-          <field name="type" title="Type" type="text">object</field>
-          <field name="component" title="Component" type="text">ObjectPropertyEditor</field>
-        </item>
-        <item index="3">
-          <field name="type" title="Type" type="text">object-list</field>
-          <field name="component" title="Component" type="text">ObjectListPropertyEditor</field>
-        </item>
-        <item index="4">
-          <field name="type" title="Type" type="text">color</field>
-          <field name="component" title="Component" type="text">ColorPropertyEditor</field>
-        </item>
-        <item index="5">
-          <field name="type" title="Type" type="text">select</field>
-          <field name="component" title="Component" type="text">SelectPropertyEditor</field>
-        </item>
-        <item index="6">
-          <field name="type" title="Type" type="text">number</field>
-          <field name="component" title="Component" type="text">NumberPropertyEditor</field>
-        </item>
-        <item index="7">
-          <field name="type" title="Type" type="text">boolean</field>
-          <field name="component" title="Component" type="text">BooleanPropertyEditor</field>
-        </item>
-        <item index="8">
-          <field name="type" title="Type" type="text">checkbox</field>
-          <field name="component" title="Component" type="text">CheckboxPropertyEditor</field>
-        </item>
-        <item index="9">
-          <field name="type" title="Type" type="text">radio</field>
-          <field name="component" title="Component" type="text">RadioPropertyEditor</field>
-        </item>
-        <item index="10">
-          <field name="type" title="Type" type="text">slider</field>
-          <field name="component" title="Component" type="text">SliderPropertyEditor</field>
+          <field name="name" title="Template Name" type="text">Full Template</field>
+          <field name="branch" title="Git Branch" type="text">main</field>
+          <field name="description" title="Description" type="text">Complete starter project</field>
         </item>
       </prop>
-        <prop name="show-preview-callbacks" title="Show Preview Callbacks" type="boolean">true</prop>
-        <prop name="callback-debounce" title="Callback Debounce (ms)" type="number">0</prop>
-        <prop name="auto-validation" title="Auto Validation" type="boolean">false</prop>
-        <prop name="error-handling-mode" title="Error Handling Mode" type="select">
-          <value>console</value>
+        <prop name="status-checking" title="Status Check Interval" type="select">
+          <value>On Demand</value>
           <options>
-          <option>silent</option>
-          <option>console</option>
-          <option>throw</option>
+          <option>On Demand</option>
+          <option>Every 5 minutes</option>
+          <option>Every 15 minutes</option>
+          <option>Disabled</option>
           </options>
         </prop>
-        <prop name="fallback-editor" title="Fallback Editor Type" type="select">
-          <value>none</value>
+        <prop name="agent-generation" title="Dynamic Agent Generation" type="boolean">true</prop>
+        <prop name="backup-enabled" title="Project Backup" type="boolean">false</prop>
+      </props>
+    </node>
+
+    <node id="api-orchestration-layer" title="API Orchestration Layer" x="700" y="400" z="0">
+      <description>Backend API system managing graph operations, file handling, chat requests, and Claude Code integration. Provides RESTful endpoints with real-time updates via Server-Sent Events and MCP tool integration.</description>
+      <props>
+        <prop name="api-versioning" title="API Version" type="select">
+          <value>v1</value>
           <options>
-          <option>text</option>
-          <option>none</option>
+          <option>v1</option>
+          <option>v2</option>
+          <option>beta</option>
           </options>
         </prop>
-        <prop name="type-checking" title="Enable Type Checking" type="boolean">true</prop>
-        <prop name="cache-editors" title="Cache Editor Instances" type="boolean">false</prop>
-        <prop name="default-props" title="Default Props" type="object">
-        <field name="className" title="CSS Class" type="text"></field>
-        <field name="disabled" title="Disabled" type="boolean">false</field>
-      </prop>
-        <prop name="animation-support" title="Animation Support" type="boolean">true</prop>
-        <prop name="accessibility-mode" title="Accessibility Mode" type="select">
-          <value>standard</value>
+        <prop name="rate-limiting" title="Rate Limiting" type="boolean">false</prop>
+        <prop name="request-timeout" title="Request Timeout (ms)" type="number">30000</prop>
+        <prop name="sse-enabled" title="Server-Sent Events" type="boolean">true</prop>
+        <prop name="error-handling" title="Error Response Format" type="select">
+          <value>Detailed</value>
           <options>
-          <option>standard</option>
-          <option>enhanced</option>
-          <option>minimal</option>
+          <option>Detailed</option>
+          <option>Simple</option>
+          <option>Development Only</option>
           </options>
         </prop>
-      </props>
-    </node>
-
-    <node id="home-page" title="Home Page" x="100" y="100" z="0">
-      <description>Main application page component that handles project management interface with resizable panels, graph view, and chat functionality</description>
-      <props>
-        <prop name="edit-mode-default" title="Default Edit Mode" type="boolean">true</prop>
-        <prop name="loading-message" title="Loading Message" type="text">Loading...</prop>
-        <prop name="setup-message-title" title="Setup Message Title" type="text">Setting up your project...</prop>
-        <prop name="default-panel-config" title="Default Panel Configuration" type="select">
-          <value>files-hidden</value>
-          <options>
-          <option>files-hidden</option>
-          <option>files-visible</option>
-          <option>graph-only</option>
-          <option>sidebar-only</option>
-          </options>
-        </prop>
-        <prop name="sidebar-default-size" title="Sidebar Default Size (%)" type="slider">16</prop>
-      </props>
-    </node>
-
-    <node id="chat-service" title="Chat Service" x="100" y="100" z="0">
-      <description>React hook for managing chat state and API communication. Handles message sending, chat history loading/saving, streaming responses, and context management including file selection and node selection.</description>
-      <props>
-        <prop name="enable-chat-persistence" title="Enable Chat Persistence" type="boolean">true</prop>
-        <prop name="streaming-enabled" title="Enable Streaming Responses" type="boolean">true</prop>
-        <prop name="context-settings" title="Context Settings" type="object">
-        <field name="includeFile" title="Include Current File" type="boolean">true</field>
-        <field name="includeSelection" title="Include UI Selection" type="boolean">true</field>
-        <field name="includeNodes" title="Include Selected Nodes" type="boolean">true</field>
-      </prop>
-        <prop name="api-endpoint" title="API Endpoint" type="text">/api/agent-request</prop>
-        <prop name="loading-indicator-text" title="Loading Indicator Text" type="text">Thinking...</prop>
-        <prop name="error-fallback-message" title="Error Fallback Message" type="text">I processed your request but received no response content.</prop>
-      </props>
-    </node>
-
-    <node id="project-store" title="Project Store" x="400" y="100" z="0">
-      <description>Zustand-based global state management store handling file system operations, graph state, selected nodes, and real-time updates via SSE. Manages the complete project state including files, graphs, and UI selections.</description>
-      <props>
-        <prop name="enable-sse-updates" title="Enable Real-time Updates" type="boolean">true</prop>
-        <prop name="graph-refresh-settings" title="Graph Refresh Settings" type="object">
-        <field name="autoRefresh" title="Auto Refresh Graph" type="boolean">true</field>
-        <field name="pollingInterval" title="Polling Interval (ms)" type="number">5000</field>
-        <field name="reconcileMode" title="Use Reconcile Mode" type="boolean">true</field>
-      </prop>
-        <prop name="file-operations-enabled" title="Enable File Operations" type="boolean">false</prop>
-        <prop name="optimistic-ui-duration" title="Optimistic UI Duration (ms)" type="number">1000</prop>
-        <prop name="max-file-cache-size" title="Max File Cache Size" type="number">1000</prop>
-        <prop name="sse-endpoint" title="SSE Endpoint" type="text">/api/graph-api?sse=true</prop>
-      </props>
-    </node>
-
-    <node id="graph-service" title="Graph Service" x="700" y="100" z="0">
-      <description>Core backend service for graph operations including reading/writing graphs from filesystem, SSE broadcasting, graph normalization, and state management. Handles both current and base graph persistence.</description>
-      <props>
-        <prop name="local-mode-enabled" title="Local Mode Enabled" type="boolean">true</prop>
-        <prop name="graph-storage-settings" title="Graph Storage Settings" type="object">
-        <field name="useXmlFormat" title="Use XML Format" type="boolean">true</field>
-        <field name="autoBackup" title="Auto Backup" type="boolean">true</field>
-        <field name="normalizeOnSave" title="Normalize On Save" type="boolean">true</field>
-      </prop>
-        <prop name="sse-broadcast-settings" title="SSE Broadcast Settings" type="object">
-        <field name="enabled" title="Enable SSE Broadcasting" type="boolean">true</field>
-        <field name="debounceMs" title="Debounce Time (ms)" type="number">100</field>
-        <field name="maxStreamsPerUser" title="Max Streams Per User" type="number">10</field>
-      </prop>
-        <prop name="graph-directory" title="Graph Directory" type="text">.manta</prop>
-        <prop name="current-graph-filename" title="Current Graph Filename" type="text">current-graph.xml</prop>
-        <prop name="base-graph-filename" title="Base Graph Filename" type="text">base-graph.xml</prop>
-      </props>
-    </node>
-
-    <node id="agent-request-api" title="Agent Request API" x="100" y="400" z="0">
-      <description>Main API endpoint for processing user requests through Claude Code. Handles request validation, context forwarding, and response streaming. Routes to Claude Code execution engine.</description>
-      <props>
-        <prop name="request-validation" title="Request Validation" type="object">
-        <field name="enableSchemaValidation" title="Enable Schema Validation" type="boolean">true</field>
-        <field name="strictMode" title="Strict Mode" type="boolean">false</field>
-        <field name="logErrors" title="Log Validation Errors" type="boolean">true</field>
-      </prop>
-        <prop name="auth-forwarding" title="Auth Forwarding" type="object">
-        <field name="forwardCookies" title="Forward Cookies" type="boolean">true</field>
-        <field name="forwardAuth" title="Forward Authorization" type="boolean">true</field>
-        <field name="enableHeaders" title="Enable Headers" type="boolean">true</field>
-      </prop>
-        <prop name="claude-code-endpoint" title="Claude Code Endpoint" type="text">/api/claude-code/execute</prop>
-        <prop name="default-user-id" title="Default User ID" type="text">default-user</prop>
-        <prop name="enable-streaming" title="Enable Streaming" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="schema-definitions" title="Schema Definitions" x="400" y="400" z="0">
-      <description>Zod-based schema definitions for type validation across the application. Defines structures for graphs, nodes, properties, messages, and API requests/responses.</description>
-      <props>
-        <prop name="property-types" title="Supported Property Types" type="object-list">
+        <prop name="cors-settings" title="CORS Configuration" type="object">
+        <field name="enabled" title="CORS Enabled" type="boolean">true</field>
+        <field name="origins" title="Allowed Origins" type="object-list">
         <item index="0">
-          <field name="name" title="Type Name" type="text">color</field>
-          <field name="description" title="Description" type="text">Color picker input</field>
+          <field name="origin" title="Origin" type="text"></field>
         </item>
-        <item index="1">
-          <field name="name" title="Type Name" type="text">text</field>
-          <field name="description" title="Description" type="text">Text input field</field>
-        </item>
-        <item index="2">
-          <field name="name" title="Type Name" type="text">number</field>
-          <field name="description" title="Description" type="text">Numeric input</field>
-        </item>
-        <item index="3">
-          <field name="name" title="Type Name" type="text">select</field>
-          <field name="description" title="Description" type="text">Dropdown selection</field>
-        </item>
-        <item index="4">
-          <field name="name" title="Type Name" type="text">boolean</field>
-          <field name="description" title="Description" type="text">True/false toggle</field>
-        </item>
-        <item index="5">
-          <field name="name" title="Type Name" type="text">checkbox</field>
-          <field name="description" title="Description" type="text">Multiple selection</field>
-        </item>
-        <item index="6">
-          <field name="name" title="Type Name" type="text">radio</field>
-          <field name="description" title="Description" type="text">Single choice selection</field>
-        </item>
-        <item index="7">
-          <field name="name" title="Type Name" type="text">slider</field>
-          <field name="description" title="Description" type="text">Range slider input</field>
-        </item>
-        <item index="8">
-          <field name="name" title="Type Name" type="text">font</field>
-          <field name="description" title="Description" type="text">Font selection</field>
-        </item>
-        <item index="9">
-          <field name="name" title="Type Name" type="text">object</field>
-          <field name="description" title="Description" type="text">Nested object structure</field>
-        </item>
-        <item index="10">
-          <field name="name" title="Type Name" type="text">object-list</field>
-          <field name="description" title="Description" type="text">Array of objects</field>
-        </item>
-      </prop>
-        <prop name="validation-settings" title="Validation Settings" type="object">
-        <field name="strictValidation" title="Strict Validation" type="boolean">true</field>
-        <field name="allowUnknownFields" title="Allow Unknown Fields" type="boolean">false</field>
-        <field name="validateNested" title="Validate Nested Objects" type="boolean">true</field>
-      </prop>
-        <prop name="xml-conversion" title="XML Conversion Settings" type="object">
-        <field name="preserveAttributes" title="Preserve Attributes" type="boolean">true</field>
-        <field name="formatOutput" title="Format Output" type="boolean">true</field>
-        <field name="escapeText" title="Escape Text Content" type="boolean">true</field>
-      </prop>
-        <prop name="default-encoding" title="Default Encoding" type="select">
-          <value>UTF-8</value>
-          <options>
-          <option>UTF-8</option>
-          <option>ASCII</option>
-          <option>ISO-8859-1</option>
-          </options>
-        </prop>
-      </props>
-    </node>
-
-    <node id="graph-diff-service" title="Graph Diff Service" x="700" y="400" z="0">
-      <description>Utility service for analyzing differences between base and current graphs. Automatically marks nodes as built/unbuilt based on changes and provides diff analysis for graph synchronization.</description>
-      <props>
-        <prop name="diff-analysis-settings" title="Diff Analysis Settings" type="object">
-        <field name="enableLogging" title="Enable Diff Logging" type="boolean">true</field>
-        <field name="deepCompare" title="Deep Compare Objects" type="boolean">true</field>
-        <field name="checkProperties" title="Check Property Changes" type="boolean">true</field>
-      </prop>
-        <prop name="node-state-marking" title="Node State Marking" type="object">
-        <field name="autoMarkUnbuilt" title="Auto Mark Unbuilt" type="boolean">true</field>
-        <field name="preserveExisting" title="Preserve Existing States" type="boolean">false</field>
-        <field name="markEdges" title="Mark Edge States" type="boolean">true</field>
-      </prop>
-        <prop name="comparison-fields" title="Fields to Compare" type="object-list">
-        <item index="0">
-          <field name="field" title="Field Name" type="text">title</field>
-          <field name="enabled" title="Include in Comparison" type="boolean">true</field>
-        </item>
-        <item index="1">
-          <field name="field" title="Field Name" type="text">prompt</field>
-          <field name="enabled" title="Include in Comparison" type="boolean">true</field>
-        </item>
-        <item index="2">
-          <field name="field" title="Field Name" type="text">properties</field>
-          <field name="enabled" title="Include in Comparison" type="boolean">true</field>
-        </item>
-        <item index="3">
-          <field name="field" title="Field Name" type="text">position</field>
-          <field name="enabled" title="Include in Comparison" type="boolean">false</field>
-        </item>
-      </prop>
-        <prop name="built-state-label" title="Built State Label" type="text">built</prop>
-        <prop name="unbuilt-state-label" title="Unbuilt State Label" type="text">unbuilt</prop>
-      </props>
-    </node>
-
-    <node id="graph-xml-converter" title="Graph XML Converter" x="100" y="700" z="0">
-      <description>Utility service for converting between Graph objects and XML format. Handles complex property serialization including nested objects, arrays, and various property types with proper escaping.</description>
-      <props>
-        <prop name="xml-formatting" title="XML Formatting" type="object">
-        <field name="indentation" title="Format with Indentation" type="boolean">true</field>
-        <field name="preserveWhitespace" title="Preserve Whitespace" type="boolean">false</field>
-        <field name="sortAttributes" title="Sort Attributes" type="boolean">true</field>
-      </prop>
-        <prop name="property-serialization" title="Property Serialization" type="object">
-        <field name="preserveTypes" title="Preserve Property Types" type="boolean">true</field>
-        <field name="nestedStructures" title="Support Nested Structures" type="boolean">true</field>
-        <field name="escapeContent" title="Escape XML Content" type="boolean">true</field>
-      </prop>
-        <prop name="xml-namespace" title="XML Namespace" type="text">urn:app:graph</prop>
-        <prop name="xml-version" title="XML Version" type="text">1</prop>
-        <prop name="encoding" title="Character Encoding" type="select">
-          <value>UTF-8</value>
-          <options>
-          <option>UTF-8</option>
-          <option>UTF-16</option>
-          <option>ASCII</option>
-          </options>
-        </prop>
-        <prop name="validation-mode" title="Validation Mode" type="select">
-          <value>strict</value>
-          <options>
-          <option>strict</option>
-          <option>lenient</option>
-          <option>disabled</option>
-          </options>
-        </prop>
-      </props>
-    </node>
-
-    <node id="ui-utils" title="UI Utils" x="400" y="700" z="0">
-      <description>Frontend utility functions for class name management and component styling. Provides Tailwind CSS class merging and conditional styling utilities using clsx and tailwind-merge.</description>
-      <props>
-        <prop name="class-merging" title="Class Merging Settings" type="object">
-        <field name="enableTailwindMerge" title="Enable Tailwind Merge" type="boolean">true</field>
-        <field name="enableClsx" title="Enable CLSX" type="boolean">true</field>
-        <field name="conflictResolution" title="Conflict Resolution" type="select">
-          <value>tailwind</value>
-          <options>
-          <option>tailwind</option>
-          <option>clsx</option>
-          <option>last-wins</option>
-          </options>
-        </field>
-      </prop>
-        <prop name="utility-function-name" title="Utility Function Name" type="text">cn</prop>
-        <prop name="debug-mode" title="Debug Mode" type="boolean">false</prop>
-        <prop name="supported-frameworks" title="Supported CSS Frameworks" type="object-list">
-        <item index="0">
-          <field name="name" title="Framework Name" type="text">Tailwind CSS</field>
-          <field name="version" title="Version" type="text">3.x</field>
-          <field name="priority" title="Priority" type="number">1</field>
-        </item>
-      </prop>
-      </props>
-    </node>
-
-    <node id="chat-api-route" title="Chat API Route" x="700" y="700" z="0">
-      <description>API endpoint for managing chat history persistence. Handles GET requests to load chat history, POST requests to save chat messages, and DELETE requests to clear conversation history.</description>
-      <props>
-        <prop name="persistence-settings" title="Persistence Settings" type="object">
-        <field name="enableDatabase" title="Enable Database Storage" type="boolean">true</field>
-        <field name="maxHistorySize" title="Max History Size" type="number">1000</field>
-        <field name="autoCleanup" title="Auto Cleanup Old Messages" type="boolean">true</field>
-      </prop>
-        <prop name="response-format" title="Response Format" type="select">
-          <value>json</value>
-          <options>
-          <option>json</option>
-          <option>text</option>
-          <option>stream</option>
-          </options>
-        </prop>
-        <prop name="error-handling" title="Error Handling" type="object">
-        <field name="return404OnEmpty" title="Return 404 on Empty History" type="boolean">true</field>
-        <field name="logErrors" title="Log Errors" type="boolean">true</field>
-        <field name="includeStackTrace" title="Include Stack Trace" type="boolean">false</field>
-      </prop>
-        <prop name="chat-api-route-default-user-id" title="Default User ID" type="text">default-user</prop>
-      </props>
-    </node>
-
-    <node id="graph-api-route" title="Graph API Route" x="1000" y="100" z="0">
-      <description>Main API endpoint for graph operations including reading/writing current and base graphs, SSE streaming, and property updates. Supports XML format and real-time synchronization.</description>
-      <props>
-        <prop name="supported-operations" title="Supported Operations" type="object-list">
+      </field>
+        <field name="methods" title="Allowed Methods" type="object-list">
         <item index="0">
           <field name="method" title="HTTP Method" type="select">
-          <value>GET</value>
+          <value></value>
           <options>
           <option>GET</option>
           <option>POST</option>
           <option>PUT</option>
-          <option>PATCH</option>
           <option>DELETE</option>
+          <option>OPTIONS</option>
+          <option>PATCH</option>
           </options>
         </field>
-          <field name="description" title="Description" type="text">Read graph data</field>
-          <field name="formats" title="Supported Formats" type="text">[&quot;xml&quot;,&quot;json&quot;]</field>
         </item>
         <item index="1">
           <field name="method" title="HTTP Method" type="select">
-          <value>PUT</value>
+          <value></value>
           <options>
           <option>GET</option>
           <option>POST</option>
           <option>PUT</option>
-          <option>PATCH</option>
           <option>DELETE</option>
+          <option>OPTIONS</option>
+          <option>PATCH</option>
           </options>
         </field>
-          <field name="description" title="Description" type="text">Write complete graph</field>
-          <field name="formats" title="Supported Formats" type="text">[&quot;xml&quot;]</field>
         </item>
         <item index="2">
           <field name="method" title="HTTP Method" type="select">
-          <value>PATCH</value>
+          <value></value>
           <options>
           <option>GET</option>
           <option>POST</option>
           <option>PUT</option>
-          <option>PATCH</option>
           <option>DELETE</option>
+          <option>OPTIONS</option>
+          <option>PATCH</option>
           </options>
         </field>
-          <field name="description" title="Description" type="text">Update single property</field>
-          <field name="formats" title="Supported Formats" type="text">[&quot;json&quot;]</field>
-        </item>
-      </prop>
-        <prop name="graph-types" title="Graph Types" type="object-list">
-        <item index="0">
-          <field name="type" title="Type" type="text">current</field>
-          <field name="description" title="Description" type="text">Working graph state</field>
-        </item>
-        <item index="1">
-          <field name="type" title="Type" type="text">base</field>
-          <field name="description" title="Description" type="text">Last built/deployed state</field>
-        </item>
-      </prop>
-        <prop name="sse-settings" title="SSE Settings" type="object">
-        <field name="enabled" title="Enable SSE" type="boolean">true</field>
-        <field name="heartbeatInterval" title="Heartbeat Interval (ms)" type="number">30000</field>
-        <field name="maxConnections" title="Max Connections" type="number">100</field>
-      </prop>
-        <prop name="content-type-xml" title="XML Content Type" type="text">application/xml</prop>
-        <prop name="enable-cors" title="Enable CORS" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="files-api-route" title="Files API Route" x="1000" y="400" z="0">
-      <description>API endpoint for file system operations including reading file trees, getting file contents, and updating files. Provides project file management with caching and tree structure support.</description>
-      <props>
-        <prop name="file-operations" title="Supported File Operations" type="object-list">
-        <item index="0">
-          <field name="operation" title="Operation" type="text">read</field>
-          <field name="method" title="HTTP Method" type="text">GET</field>
-          <field name="description" title="Description" type="text">Read file tree and contents</field>
-        </item>
-        <item index="1">
-          <field name="operation" title="Operation" type="text">write</field>
-          <field name="method" title="HTTP Method" type="text">PUT</field>
-          <field name="description" title="Description" type="text">Update file content</field>
-        </item>
-        <item index="2">
-          <field name="operation" title="Operation" type="text">create</field>
-          <field name="method" title="HTTP Method" type="text">POST</field>
-          <field name="description" title="Description" type="text">Create new file</field>
         </item>
         <item index="3">
-          <field name="operation" title="Operation" type="text">delete</field>
-          <field name="method" title="HTTP Method" type="text">DELETE</field>
-          <field name="description" title="Description" type="text">Delete file</field>
-        </item>
-      </prop>
-        <prop name="caching-settings" title="Caching Settings" type="object">
-        <field name="enableCache" title="Enable File Caching" type="boolean">true</field>
-        <field name="maxCacheSize" title="Max Cache Size (files)" type="number">10000</field>
-        <field name="cacheTtl" title="Cache TTL (ms)" type="number">300000</field>
-      </prop>
-        <prop name="file-tree-settings" title="File Tree Settings" type="object">
-        <field name="includeHidden" title="Include Hidden Files" type="boolean">false</field>
-        <field name="maxDepth" title="Max Directory Depth" type="number">10</field>
-        <field name="excludePatterns" title="Exclude Patterns" type="text">[&quot;.git&quot;,&quot;node_modules&quot;,&quot;.next&quot;]</field>
-      </prop>
-        <prop name="files-api-route-response-format" title="Response Format" type="select">
-          <value>json</value>
+          <field name="method" title="HTTP Method" type="select">
+          <value></value>
           <options>
-          <option>json</option>
-          <option>text</option>
-          </options>
-        </prop>
-        <prop name="enable-compression" title="Enable Response Compression" type="boolean">true</prop>
-      </props>
-    </node>
-
-    <node id="claude-code-execute" title="Claude Code Execute" x="1000" y="700" z="0">
-      <description>API endpoint that interfaces with Claude Code CLI for executing AI-powered development tasks. Handles prompt processing, streaming responses, and integration with the graph editing workflow.</description>
-      <props>
-        <prop name="execution-settings" title="Execution Settings" type="object">
-        <field name="maxTurns" title="Max Conversation Turns" type="number">50</field>
-        <field name="enableStreaming" title="Enable Streaming" type="boolean">true</field>
-        <field name="timeoutMs" title="Timeout (ms)" type="number">300000</field>
-      </prop>
-        <prop name="claude-code-options" title="Claude Code Options" type="object">
-        <field name="permissionMode" title="Permission Mode" type="select">
-          <value>default</value>
-          <options>
-          <option>default</option>
-          <option>acceptEdits</option>
-          <option>bypassPermissions</option>
-          <option>plan</option>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>OPTIONS</option>
+          <option>PATCH</option>
           </options>
         </field>
-        <field name="includePartialMessages" title="Include Partial Messages" type="boolean">true</field>
-        <field name="maxThinkingTokens" title="Max Thinking Tokens" type="number">20000</field>
+        </item>
+      </field>
+        <field name="credentials" title="Allow Credentials" type="boolean">false</field>
       </prop>
-        <prop name="model-settings" title="Model Settings" type="object">
-        <field name="primaryModel" title="Primary Model" type="text">claude-3-5-sonnet-20241022</field>
-        <field name="fallbackModel" title="Fallback Model" type="text">claude-3-haiku-20240307</field>
-        <field name="enableFallback" title="Enable Fallback" type="boolean">true</field>
-      </prop>
-        <prop name="claude-code-execute-response-format" title="Response Format" type="select">
-          <value>stream</value>
+        <prop name="logging-level" title="API Logging Level" type="select">
+          <value>Info</value>
           <options>
-          <option>stream</option>
-          <option>json</option>
-          <option>text</option>
+          <option>Debug</option>
+          <option>Info</option>
+          <option>Warn</option>
+          <option>Error</option>
+          <option>Off</option>
           </options>
         </prop>
-        <prop name="working-directory" title="Working Directory" type="text">/Users/makosst/dev/manta</prop>
       </props>
     </node>
 
-    <node id="graph-editor-tools" title="Graph Editor Tools" x="100" y="1000" z="0">
-      <description>Utility service providing graph editing capabilities including node creation, updates, deletion, and edge management. Supports both optimistic UI updates and persistent storage operations.</description>
+    <node id="ui-component-library" title="UI Component Library" x="100" y="700" z="0">
+      <description>A comprehensive collection of reusable UI components built on shadcn/ui and Tailwind CSS. Includes forms, navigation, data display, feedback components, and specialized elements for the IDE interface.</description>
       <props>
-        <prop name="editor-operations" title="Editor Operations" type="object-list">
-        <item index="0">
-          <field name="operation" title="Operation" type="text">node_create</field>
-          <field name="description" title="Description" type="text">Create new graph node</field>
-        </item>
-        <item index="1">
-          <field name="operation" title="Operation" type="text">node_edit</field>
-          <field name="description" title="Description" type="text">Edit existing node</field>
-        </item>
-        <item index="2">
-          <field name="operation" title="Operation" type="text">node_delete</field>
-          <field name="description" title="Description" type="text">Delete node</field>
-        </item>
-        <item index="3">
-          <field name="operation" title="Operation" type="text">edge_create</field>
-          <field name="description" title="Description" type="text">Create edge between nodes</field>
-        </item>
-        <item index="4">
-          <field name="operation" title="Operation" type="text">edge_delete</field>
-          <field name="description" title="Description" type="text">Delete edge</field>
-        </item>
-      </prop>
-        <prop name="graph-editor-tools-validation-settings" title="Validation Settings" type="object">
-        <field name="validateNodeIds" title="Validate Node IDs" type="boolean">true</field>
-        <field name="preventDuplicates" title="Prevent Duplicates" type="boolean">true</field>
-        <field name="checkReferences" title="Check References" type="boolean">true</field>
-      </prop>
-        <prop name="sync-mode" title="Sync Mode" type="select">
-          <value>immediate</value>
+        <prop name="design-system" title="Design System" type="select">
+          <value>shadcn/ui</value>
           <options>
-          <option>immediate</option>
-          <option>batched</option>
+          <option>shadcn/ui</option>
+          <option>Headless UI</option>
+          <option>Radix UI</option>
+          <option>Custom</option>
+          </options>
+        </prop>
+        <prop name="theme-configuration" title="Theme Settings" type="object">
+        <field name="primary-color" title="Primary Color" type="color">#3b82f6</field>
+        <field name="secondary-color" title="Secondary Color" type="color">#6b7280</field>
+        <field name="background-color" title="Background Color" type="color">#111827</field>
+        <field name="surface-color" title="Surface Color" type="color">#1f2937</field>
+        <field name="text-color" title="Text Color" type="color">#f9fafb</field>
+        <field name="border-radius" title="Border Radius" type="text">6px</field>
+      </prop>
+        <prop name="animation-preferences" title="Animation Settings" type="object">
+        <field name="transitions-enabled" title="Enable Transitions" type="boolean">true</field>
+        <field name="duration" title="Default Duration" type="select">
+          <value>200ms</value>
+          <options>
+          <option>100ms</option>
+          <option>150ms</option>
+          <option>200ms</option>
+          <option>300ms</option>
+          <option>500ms</option>
+          </options>
+        </field>
+        <field name="easing" title="Easing Function" type="select">
+          <value>ease-in-out</value>
+          <options>
+          <option>linear</option>
+          <option>ease</option>
+          <option>ease-in</option>
+          <option>ease-out</option>
+          <option>ease-in-out</option>
+          </options>
+        </field>
+        <field name="reduced-motion" title="Respect Reduced Motion" type="boolean">false</field>
+      </prop>
+        <prop name="component-density" title="Component Density" type="select">
+          <value>Comfortable</value>
+          <options>
+          <option>Compact</option>
+          <option>Comfortable</option>
+          <option>Spacious</option>
+          </options>
+        </prop>
+        <prop name="icon-library" title="Icon Library" type="select">
+          <value>Lucide React</value>
+          <options>
+          <option>Lucide React</option>
+          <option>Heroicons</option>
+          <option>Feather</option>
+          <option>React Icons</option>
+          </options>
+        </prop>
+        <prop name="responsive-breakpoints" title="Responsive Design" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="graph-data-management" title="Graph Data Management" x="500" y="700" z="0">
+      <description>Handles graph persistence, XML serialization, diff calculation, and state synchronization between current and built graphs. Manages optimistic updates, real-time collaboration, and version control for graph structures.</description>
+      <props>
+        <prop name="storage-format" title="Storage Format" type="select">
+          <value>XML</value>
+          <options>
+          <option>XML</option>
+          <option>JSON</option>
+          <option>YAML</option>
+          <option>Binary</option>
+          </options>
+        </prop>
+        <prop name="auto-save-interval" title="Auto-save Interval (ms)" type="number">2000</prop>
+        <prop name="version-control" title="Version Control" type="boolean">true</prop>
+        <prop name="optimistic-updates" title="Optimistic Updates" type="boolean">true</prop>
+        <prop name="conflict-resolution" title="Conflict Resolution" type="select">
+          <value>Last Write Wins</value>
+          <options>
+          <option>Last Write Wins</option>
+          <option>Manual Merge</option>
+          <option>Auto Merge</option>
+          <option>Version Branches</option>
+          </options>
+        </prop>
+        <prop name="compression-enabled" title="Data Compression" type="boolean">false</prop>
+        <prop name="backup-strategy" title="Backup Configuration" type="object">
+        <field name="enabled" title="Enable Backups" type="boolean">true</field>
+        <field name="frequency" title="Backup Frequency" type="select">
+          <value>daily</value>
+          <options>
+          <option>hourly</option>
+          <option>daily</option>
+          <option>weekly</option>
           <option>manual</option>
           </options>
-        </prop>
-        <prop name="enable-optimistic-updates" title="Enable Optimistic Updates" type="boolean">true</prop>
-        <prop name="base-url-override" title="Base URL Override" type="text"></prop>
+        </field>
+        <field name="retention-days" title="Retention (days)" type="number">30</field>
+        <field name="location" title="Backup Location" type="select">
+          <value>local</value>
+          <options>
+          <option>local</option>
+          <option>cloud</option>
+          <option>both</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="graph-data-management-real-time-sync" title="Real-time Sync" type="boolean">true</prop>
       </props>
     </node>
 
-    <node id="project-config" title="Project Config" x="400" y="1000" z="0">
-      <description>Configuration management service for project settings including development directory paths, environment detection, and project structure configuration.</description>
+    <node id="claude-code-integration" title="Claude Code Integration" x="900" y="700" z="0">
+      <description>Orchestrates AI-powered code generation and editing through Claude Code CLI. Handles tool selection, execution context, permission management, and streaming responses for intelligent development assistance.</description>
       <props>
-        <prop name="environment-detection" title="Environment Detection" type="object">
-        <field name="autoDetect" title="Auto Detect Environment" type="boolean">true</field>
-        <field name="defaultEnv" title="Default Environment" type="select">
-          <value>development</value>
+        <prop name="execution-mode" title="Execution Mode" type="select">
+          <value>Interactive</value>
           <options>
-          <option>development</option>
-          <option>production</option>
-          <option>staging</option>
-          <option>test</option>
+          <option>Interactive</option>
+          <option>Automatic</option>
+          <option>Planning Only</option>
+          <option>Review Required</option>
           </options>
-        </field>
-        <field name="enableOverrides" title="Enable Config Overrides" type="boolean">true</field>
+        </prop>
+        <prop name="permission-level" title="Permission Level" type="select">
+          <value>Accept Edits</value>
+          <options>
+          <option>Bypass Permissions</option>
+          <option>Accept Edits</option>
+          <option>Default Prompts</option>
+          <option>Plan Mode</option>
+          </options>
+        </prop>
+        <prop name="model-selection" title="AI Model" type="select">
+          <value>claude-3-5-sonnet-20241022</value>
+          <options>
+          <option>claude-3-5-sonnet-20241022</option>
+          <option>claude-3-5-haiku-20241022</option>
+          <option>claude-3-opus-20240229</option>
+          </options>
+        </prop>
+        <prop name="max-turns" title="Max Conversation Turns" type="number">20</prop>
+        <prop name="timeout-settings" title="Timeout Configuration" type="object">
+        <field name="request-timeout" title="Request Timeout (ms)" type="number">30000</field>
+        <field name="streaming-timeout" title="Streaming Timeout (ms)" type="number">60000</field>
+        <field name="tool-timeout" title="Tool Execution Timeout (ms)" type="number">10000</field>
       </prop>
-        <prop name="directory-settings" title="Directory Settings" type="object">
-        <field name="projectRoot" title="Project Root Directory" type="text">/Users/makosst/dev/manta</field>
-        <field name="configDir" title="Config Directory" type="text">.manta</field>
-        <field name="backupDir" title="Backup Directory" type="text">.manta/backups</field>
+        <prop name="tool-restrictions" title="Allowed Tools" type="object-list">
+        <item index="0">
+          <field name="tool" title="Tool Name" type="text">mcp__graph-tools__read</field>
+        </item>
+        <item index="1">
+          <field name="tool" title="Tool Name" type="text">mcp__graph-tools__node_create</field>
+        </item>
+        <item index="2">
+          <field name="tool" title="Tool Name" type="text">mcp__graph-tools__node_edit</field>
+        </item>
+        <item index="3">
+          <field name="tool" title="Tool Name" type="text">Read</field>
+        </item>
+        <item index="4">
+          <field name="tool" title="Tool Name" type="text">Grep</field>
+        </item>
       </prop>
-        <prop name="file-patterns" title="File Patterns" type="object">
-        <field name="includePatterns" title="Include Patterns" type="text">[&quot;**/*.ts&quot;,&quot;**/*.tsx&quot;,&quot;**/*.js&quot;,&quot;**/*.jsx&quot;]</field>
-        <field name="excludePatterns" title="Exclude Patterns" type="text">[&quot;node_modules/**&quot;,&quot;.git/**&quot;,&quot;.next/**&quot;]</field>
-      </prop>
-        <prop name="config-file-name" title="Config File Name" type="text">manta.config.json</prop>
+        <prop name="streaming-enabled" title="Enable Streaming" type="boolean">true</prop>
+        <prop name="thinking-tokens" title="Max Thinking Tokens" type="number">0</prop>
       </props>
     </node>
   </nodes>
 
   <edges>
-    <edge id="FloatingChat-MessageRenderer" source="FloatingChat" target="MessageRenderer" role="uses"/>
-    <edge id="FloatingChat-SelectionBadge" source="FloatingChat" target="SelectionBadge" role="uses"/>
-    <edge id="GraphView-SelectedNodeSidebar" source="GraphView" target="SelectedNodeSidebar" role="connects-to"/>
-    <edge id="SelectedNodeSidebar-PropertyEditorIndex" source="SelectedNodeSidebar" target="PropertyEditorIndex" role="uses"/>
-    <edge id="PropertyEditorIndex-BasePropertyEditor" source="PropertyEditorIndex" target="BasePropertyEditor" role="extends"/>
-    <edge id="PropertyEditorIndex-ColorPropertyEditor" source="PropertyEditorIndex" target="ColorPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-BooleanPropertyEditor" source="PropertyEditorIndex" target="BooleanPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-CheckboxPropertyEditor" source="PropertyEditorIndex" target="CheckboxPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-FontPropertyEditor" source="PropertyEditorIndex" target="FontPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-NumberPropertyEditor" source="PropertyEditorIndex" target="NumberPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-ObjectListPropertyEditor" source="PropertyEditorIndex" target="ObjectListPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-ObjectPropertyEditor" source="PropertyEditorIndex" target="ObjectPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-RadioPropertyEditor" source="PropertyEditorIndex" target="RadioPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-SelectPropertyEditor" source="PropertyEditorIndex" target="SelectPropertyEditor" role="routes-to"/>
-    <edge id="PropertyEditorIndex-TextAreaPropertyEditor" source="PropertyEditorIndex" target="TextAreaPropertyEditor" role="routes-to"/>
-    <edge id="BooleanPropertyEditor-BasePropertyEditor" source="BooleanPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="CheckboxPropertyEditor-BasePropertyEditor" source="CheckboxPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="ColorPropertyEditor-BasePropertyEditor" source="ColorPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="FontPropertyEditor-BasePropertyEditor" source="FontPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="NumberPropertyEditor-BasePropertyEditor" source="NumberPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="ObjectListPropertyEditor-BasePropertyEditor" source="ObjectListPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="ObjectPropertyEditor-BasePropertyEditor" source="ObjectPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="RadioPropertyEditor-BasePropertyEditor" source="RadioPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="SelectPropertyEditor-BasePropertyEditor" source="SelectPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="SliderPropertyEditor-BasePropertyEditor" source="SliderPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="TextAreaPropertyEditor-BasePropertyEditor" source="TextAreaPropertyEditor" target="BasePropertyEditor" role="extends"/>
-    <edge id="ObjectListPropertyEditor-PropertyEditorIndex" source="ObjectListPropertyEditor" target="PropertyEditorIndex" role="uses"/>
-    <edge id="ObjectPropertyEditor-PropertyEditorIndex" source="ObjectPropertyEditor" target="PropertyEditorIndex" role="uses"/>
-    <edge id="GraphView-FloatingChat" source="GraphView" target="FloatingChat" role="renders-with"/>
-    <edge id="TopBar-GraphView" source="TopBar" target="GraphView" role="header-for"/>
-    <edge id="home-page-TopBar" source="home-page" target="TopBar" role="renders header"/>
-    <edge id="home-page-GraphView" source="home-page" target="GraphView" role="contains main view"/>
-    <edge id="home-page-FloatingChat" source="home-page" target="FloatingChat" role="renders overlay"/>
-    <edge id="home-page-WelcomeScreen" source="home-page" target="WelcomeScreen" role="conditionally shows"/>
-    <edge id="WelcomeScreen-home-page" source="WelcomeScreen" target="home-page" role="navigates to"/>
-    <edge id="chat-service-agent-request-api" source="chat-service" target="agent-request-api" role="calls"/>
-    <edge id="chat-service-chat-api-route" source="chat-service" target="chat-api-route" role="persists-to"/>
-    <edge id="project-store-graph-service" source="project-store" target="graph-service" role="manages"/>
-    <edge id="project-store-graph-api-route" source="project-store" target="graph-api-route" role="communicates-with"/>
-    <edge id="project-store-files-api-route" source="project-store" target="files-api-route" role="loads-files-from"/>
-    <edge id="agent-request-api-claude-code-execute" source="agent-request-api" target="claude-code-execute" role="routes-to"/>
-    <edge id="graph-service-graph-xml-converter" source="graph-service" target="graph-xml-converter" role="uses"/>
-    <edge id="graph-service-graph-diff-service" source="graph-service" target="graph-diff-service" role="uses"/>
-    <edge id="graph-api-route-graph-service" source="graph-api-route" target="graph-service" role="delegates-to"/>
-    <edge id="graph-xml-converter-schema-definitions" source="graph-xml-converter" target="schema-definitions" role="validates-with"/>
-    <edge id="graph-editor-tools-graph-api-route" source="graph-editor-tools" target="graph-api-route" role="interacts-with"/>
-    <edge id="project-config-graph-service" source="project-config" target="graph-service" role="configures"/>
-    <edge id="claude-code-execute-graph-editor-tools" source="claude-code-execute" target="graph-editor-tools" role="uses"/>
-    <edge id="agent-request-api-schema-definitions" source="agent-request-api" target="schema-definitions" role="validates-with"/>
-    <edge id="project-store-graph-diff-service" source="project-store" target="graph-diff-service" role="uses"/>
-    <edge id="chat-service-project-store" source="chat-service" target="project-store" role="reads-state-from"/>
-    <edge id="project-store-ui-utils" source="project-store" target="ui-utils" role="uses"/>
-    <edge id="FloatingChat-chat-service" source="FloatingChat" target="chat-service" role="uses"/>
-    <edge id="FloatingChat-project-store" source="FloatingChat" target="project-store" role="uses"/>
-    <edge id="GraphView-project-store" source="GraphView" target="project-store" role="uses"/>
-    <edge id="GraphView-graph-api-route" source="GraphView" target="graph-api-route" role="calls"/>
-    <edge id="GraphView-graph-xml-converter" source="GraphView" target="graph-xml-converter" role="uses"/>
-    <edge id="GraphView-graph-diff-service" source="GraphView" target="graph-diff-service" role="uses"/>
-    <edge id="SelectedNodeSidebar-project-store" source="SelectedNodeSidebar" target="project-store" role="uses"/>
-    <edge id="SelectedNodeSidebar-chat-service" source="SelectedNodeSidebar" target="chat-service" role="uses"/>
-    <edge id="TopBar-project-store" source="TopBar" target="project-store" role="uses"/>
-    <edge id="WelcomeScreen-files-api-route" source="WelcomeScreen" target="files-api-route" role="calls"/>
-    <edge id="BasePropertyEditor-graph-service" source="BasePropertyEditor" target="graph-service" role="uses"/>
-    <edge id="graph-api-route-graph-xml-converter" source="graph-api-route" target="graph-xml-converter" role="uses"/>
-    <edge id="graph-api-route-graph-diff-service" source="graph-api-route" target="graph-diff-service" role="uses"/>
-    <edge id="agent-request-api-graph-service" source="agent-request-api" target="graph-service" role="uses"/>
-    <edge id="agent-request-api-graph-xml-converter" source="agent-request-api" target="graph-xml-converter" role="uses"/>
-    <edge id="agent-request-api-graph-editor-tools" source="agent-request-api" target="graph-editor-tools" role="uses"/>
-    <edge id="project-store-graph-xml-converter" source="project-store" target="graph-xml-converter" role="uses"/>
-    <edge id="home-page-project-store" source="home-page" target="project-store" role="initializes"/>
+    <edge id="graph-visualization-system-property-editor-suite" source="graph-visualization-system" target="property-editor-suite" role="integrates-with"/>
+    <edge id="graph-visualization-system-graph-data-management" source="graph-visualization-system" target="graph-data-management" role="depends-on"/>
+    <edge id="property-editor-suite-ui-component-library" source="property-editor-suite" target="ui-component-library" role="built-with"/>
+    <edge id="ai-chat-interface-api-orchestration-layer" source="ai-chat-interface" target="api-orchestration-layer" role="communicates-with"/>
+    <edge id="api-orchestration-layer-claude-code-integration" source="api-orchestration-layer" target="claude-code-integration" role="orchestrates"/>
+    <edge id="api-orchestration-layer-graph-data-management" source="api-orchestration-layer" target="graph-data-management" role="manages"/>
+    <edge id="project-management-system-api-orchestration-layer" source="project-management-system" target="api-orchestration-layer" role="coordinates-with"/>
+    <edge id="graph-visualization-system-ui-component-library" source="graph-visualization-system" target="ui-component-library" role="built-with"/>
+    <edge id="ai-chat-interface-ui-component-library" source="ai-chat-interface" target="ui-component-library" role="built-with"/>
+    <edge id="property-editor-suite-graph-data-management" source="property-editor-suite" target="graph-data-management" role="updates"/>
+    <edge id="claude-code-integration-graph-data-management" source="claude-code-integration" target="graph-data-management" role="modifies"/>
   </edges>
 </graph>
