@@ -1186,17 +1186,6 @@
     <edge id="agent-request-api-graph-xml-converter" source="agent-request-api" target="graph-xml-converter" role="uses"/>
     <edge id="agent-request-api-graph-editor-tools" source="agent-request-api" target="graph-editor-tools" role="uses"/>
     <edge id="project-store-graph-xml-converter" source="project-store" target="graph-xml-converter" role="uses"/>
-    <edge id="BooleanPropertyEditor-graph-service" source="BooleanPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="ColorPropertyEditor-graph-service" source="ColorPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="NumberPropertyEditor-graph-service" source="NumberPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="SelectPropertyEditor-graph-service" source="SelectPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="TextAreaPropertyEditor-graph-service" source="TextAreaPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="SliderPropertyEditor-graph-service" source="SliderPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="CheckboxPropertyEditor-graph-service" source="CheckboxPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="RadioPropertyEditor-graph-service" source="RadioPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="FontPropertyEditor-graph-service" source="FontPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="ObjectPropertyEditor-graph-service" source="ObjectPropertyEditor" target="graph-service" role="updates-via"/>
-    <edge id="ObjectListPropertyEditor-graph-service" source="ObjectListPropertyEditor" target="graph-service" role="updates-via"/>
     <edge id="home-page-project-store" source="home-page" target="project-store" role="initializes"/>
   </edges>
 </graph>

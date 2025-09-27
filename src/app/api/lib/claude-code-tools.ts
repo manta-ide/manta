@@ -122,7 +122,7 @@ export const createGraphTools = (baseUrl: string) => {
   // read (rich read)
   tool(
     'read',
-    'Read from current graph or base graph, or a specific node.',
+    'Read from current graph or base graph, or a specific node with all its connections.',
     {
       graphType: z.enum(['current', 'base']).default('current').describe('Which graph to read from: "current" (working graph) or "base" (completed implementations)'),
       nodeId: z.string().optional(),
@@ -155,8 +155,46 @@ export const createGraphTools = (baseUrl: string) => {
             return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
           }
           console.log('✅ TOOL: read found node:', node.title);
-          const result = JSON.stringify(node, null, 2);
-          console.log('📤 TOOL: read returning node data');
+
+          // Find all connections (edges) for this node
+          const edges = validatedGraph.edges || [];
+          const nodeConnections = edges.filter((e: any) => e.source === nodeId || e.target === nodeId);
+
+          // Create a map of node IDs to titles for better display
+          const nodeTitleMap = new Map<string, string>();
+          validatedGraph.nodes.forEach((n: any) => {
+            nodeTitleMap.set(n.id, n.title);
+          });
+
+          // Format the response with node data and connections
+          let result = `**Node: ${node.title} (${nodeId})**\n\n`;
+          result += `**Prompt:** ${node.prompt}\n\n`;
+
+          // Add properties if they exist
+          if (node.properties && node.properties.length > 0) {
+            result += `**Properties:**\n`;
+            node.properties.forEach((prop: any) => {
+              result += `- ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type})\n`;
+            });
+            result += '\n';
+          }
+
+          // Add connections
+          if (nodeConnections.length > 0) {
+            result += `**Connections (${nodeConnections.length}):**\n`;
+            nodeConnections.forEach((edge: any) => {
+              const isSource = edge.source === nodeId;
+              const otherNodeId = isSource ? edge.target : edge.source;
+              const otherNodeTitle = nodeTitleMap.get(otherNodeId) || otherNodeId;
+              const direction = isSource ? '→' : '←';
+              const role = edge.role ? ` (${edge.role})` : '';
+              result += `- ${direction} ${otherNodeTitle} (${otherNodeId})${role}\n`;
+            });
+          } else {
+            result += `**Connections:** None\n`;
+          }
+
+          console.log('📤 TOOL: read returning node data with connections');
           return { content: [{ type: 'text', text: result }] };
         } else {
           console.log('📋 TOOL: read returning all nodes summary');

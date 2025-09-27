@@ -12,11 +12,11 @@ interface BasePropertyEditorProps {
   rightSlot?: ReactNode; // optional action placed on the title row
 }
 
-export default function BasePropertyEditor({ 
-  title, 
-  children, 
-  value, 
-  showValue = false, 
+export default function BasePropertyEditor({
+  title,
+  children,
+  value,
+  showValue = false,
   className = '',
   rightSlot
 }: BasePropertyEditorProps) {
