@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useEffect, useState, useRef, memo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import {

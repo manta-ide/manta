@@ -369,7 +369,75 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ]);
 
       if (!currentRes.ok) {
-        throw new Error(`Failed to load current graph: ${currentRes.status}`);
+        // If graphs don't exist, automatically apply partial template
+        if (currentRes.status === 404) {
+          console.log('ℹ️ No graphs found, automatically applying partial template...');
+          try {
+            const templateRes = await fetch('/api/templates', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ templateBranch: 'partial' })
+            });
+
+            if (!templateRes.ok) {
+              throw new Error(`Failed to apply partial template: ${templateRes.status}`);
+            }
+
+            console.log('✅ Partial template applied, retrying graph load...');
+
+            // Retry loading graphs after applying template
+            const [retryCurrentRes, retryBaseRes] = await Promise.all([
+              fetch('/api/graph-api?type=current', { method: 'GET', headers: { Accept: 'application/xml' } }),
+              fetch('/api/graph-api?type=base', { method: 'GET', headers: { Accept: 'application/xml' } })
+            ]);
+
+            if (!retryCurrentRes.ok) {
+              throw new Error(`Failed to load current graph after template application: ${retryCurrentRes.status}`);
+            }
+
+            const currentXml = await retryCurrentRes.text();
+            let currentGraph = xmlToGraph(currentXml);
+            console.log('📄 Current graph parsed:', currentGraph.nodes?.length || 0, 'nodes');
+
+            let baseGraph = null;
+            if (retryBaseRes.ok) {
+              const baseXml = await retryBaseRes.text();
+              baseGraph = xmlToGraph(baseXml);
+              console.log('📄 Base graph parsed:', baseGraph.nodes?.length || 0, 'nodes');
+            } else {
+              console.log('ℹ️ No base graph found after template, using current graph as base');
+              baseGraph = JSON.parse(JSON.stringify(currentGraph));
+            }
+
+            console.log('🔍 Computing built/unbuilt states...');
+            // Apply built/unbuilt state based on comparison
+            const originalStates = currentGraph.nodes.map(n => ({ id: n.id, title: n.title, hasState: 'state' in n }));
+            currentGraph = autoMarkUnbuiltFromBaseGraph(currentGraph, baseGraph);
+
+            // Log state computation results
+            currentGraph.nodes.forEach((node, i) => {
+              const original = originalStates[i];
+              console.log(`   ${node.id} (${node.title}): ${'state' in node ? 'has computed state' : 'no state field'}`);
+            });
+
+            console.log('✅ Graphs loaded and states computed after template application');
+
+            set({
+              graph: currentGraph,
+              baseGraph,
+              graphLoading: false,
+              graphError: null
+            });
+
+            return { currentGraph, baseGraph };
+          } catch (templateError) {
+            console.error('❌ Failed to apply partial template:', templateError);
+            const errorMessage = templateError instanceof Error ? templateError.message : String(templateError);
+            throw new Error(`Failed to load current graph: ${currentRes.status} (and failed to auto-initialize: ${errorMessage})`);
+          }
+        } else {
+          throw new Error(`Failed to load current graph: ${currentRes.status}`);
+        }
       }
 
       const currentXml = await currentRes.text();
