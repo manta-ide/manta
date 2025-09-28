@@ -89,8 +89,8 @@ async function downloadAndApplyTemplate(branch: string, projectDir: string) {
   if (branch === 'partial') {
     console.log(`📦 Generating minimal partial template in memory`);
 
-    // Create minimal .manta structure
-    const mantaDir = path.join(projectDir, '.manta');
+    // Create minimal manta structure
+    const mantaDir = path.join(projectDir, 'manta');
     const claudeDir = path.join(projectDir, '.claude', 'agents');
 
     // Create directories

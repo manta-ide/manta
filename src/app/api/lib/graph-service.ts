@@ -45,13 +45,13 @@ function getProjectDir(): string {
   // Fallback to current directory if dev project directory doesn't exist
   try {
     const cwd = process.cwd();
-    if (fs.existsSync(path.join(cwd, '.manta'))) return cwd;
+    if (fs.existsSync(path.join(cwd, 'manta'))) return cwd;
     return cwd;
   } catch {
     return process.cwd();
   }
 }
-function getGraphDir(): string { return path.join(getProjectDir(), '.manta'); }
+function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
 function getCurrentGraphPath(): string { return path.join(getGraphDir(), 'current-graph.xml'); }
 function getBaseGraphPath(): string { return path.join(getGraphDir(), 'base-graph.xml'); }

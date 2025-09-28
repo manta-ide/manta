@@ -10,7 +10,8 @@ export async function GET() {
     return NextResponse.json({
       projectExists: exists,
       hasAnyFiles: hasFiles,
-      needsPartialTemplate: hasFiles
+      // Always require the partial template regardless of current directory state
+      needsPartialTemplate: true
     });
   } catch (error) {
     console.error('Error checking project status:', error);
@@ -142,5 +143,4 @@ async function analyzeProjectStructure(projectDir: string) {
 
   return analysis;
 }
-
 

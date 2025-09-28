@@ -10,8 +10,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SelectedNodeSidebar() {
-	// Set to false to disable debouncing and apply property changes immediately
-	const DEBOUNCE_PROPERTY_CHANGES = true;
 	
 	const {
 		selectedNodeId,
@@ -41,12 +39,8 @@ export default function SelectedNodeSidebar() {
 			.filter(Boolean);
 	};
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
-	const stagedPropertyValuesRef = useRef<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
-	const propertyChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const lastPropertyUpdate = useRef<{ [propertyId: string]: number }>({});
-	const PROPERTY_UPDATE_THROTTLE = 60; // Update every 60ms for smoother live updates
 	const titleDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const descriptionDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const TITLE_DEBOUNCE_DELAY = 300; // Wait 300ms after last change before saving title
@@ -69,12 +63,6 @@ export default function SelectedNodeSidebar() {
 		setRebuildError(null);
 		setRebuildSuccess(false);
 		
-		// Clear any pending property change timeout when node changes
-		if (propertyChangeTimeoutRef.current) {
-			clearTimeout(propertyChangeTimeoutRef.current);
-			propertyChangeTimeoutRef.current = null;
-		}
-		
 		// Initialize property values from current properties
 		if (selectedNode?.properties && selectedNode.properties.length > 0) {
 			const initialValues: Record<string, any> = {};
@@ -82,16 +70,12 @@ export default function SelectedNodeSidebar() {
 				initialValues[prop.id] = prop.value;
 			}
 			setPropertyValues(initialValues);
-			stagedPropertyValuesRef.current = initialValues;
 		}
-	}, [selectedNodeId]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
 
 	// Cleanup timeouts on unmount and when node changes
 	useEffect(() => {
 		return () => {
-			if (propertyChangeTimeoutRef.current) {
-				clearTimeout(propertyChangeTimeoutRef.current);
-			}
 			if (titleDebounceTimeoutRef.current) {
 				clearTimeout(titleDebounceTimeoutRef.current);
 			}
@@ -118,161 +102,20 @@ export default function SelectedNodeSidebar() {
 
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
-    const propMeta = selectedNode?.properties?.find(p => p.id === propertyId);
-    // Only treat truly high-frequency primitives as high-frequency; complex objects should re-render immediately
-    const isHighFrequency = ['color','slider'].includes((propMeta?.type as any) || '');
+		setPropertyValues(prev => ({ ...prev, [propertyId]: value }));
 
-		// Always update propertyValues for UI responsiveness, even for high-frequency properties
-    const newPropertyValues = {
-      ...propertyValues,
-      [propertyId]: value
-    };
-    setPropertyValues(newPropertyValues);
-
-    // For high-frequency properties, also update staged values for batch processing
-    if (isHighFrequency) {
-      stagedPropertyValuesRef.current = {
-        ...stagedPropertyValuesRef.current,
-        [propertyId]: value
-      };
-    }
-
-		// Skip heavy tracking to avoid lag
-
-		// For high-frequency properties, throttle in-memory graph updates to reduce re-renders
+		// Update in-memory graph for immediate UI feedback
 		if (selectedNodeId) {
-			const now = Date.now();
-			const lastLocalUpdate = lastPropertyUpdate.current[`${propertyId}_local`] || 0;
-
-			// Only update in-memory graph for high-frequency properties every 100ms
-			if (!isHighFrequency || now - lastLocalUpdate >= 100) {
-				lastPropertyUpdate.current[`${propertyId}_local`] = now;
-				updatePropertyLocal(selectedNodeId, propertyId, value);
-			}
-
-			// Always update vars for live preview, but throttle for high-frequency
-			const lastVarsUpdate = lastPropertyUpdate.current[`${propertyId}_vars`] || 0;
-			// if (!isHighFrequency || now - lastVarsUpdate >= 50) {
-			// 	lastPropertyUpdate.current[`${propertyId}_vars`] = now;
-			// 	postVarsUpdate({ [propertyId]: value });
-			// }
+			updatePropertyLocal(selectedNodeId, propertyId, value);
 		}
+	}, [selectedNodeId, updatePropertyLocal]);
 
-    // For high-frequency props (e.g., color), opportunistically persist faster (throttled)
-    if (isHighFrequency && selectedNodeId) {
-      const now = Date.now();
-      const last = lastPropertyUpdate.current[propertyId] || 0;
-      if (now - last >= 200) { // Increased throttle from 120ms to 200ms
-        lastPropertyUpdate.current[propertyId] = now;
-        updateProperty(selectedNodeId, propertyId, value).catch(() => {});
-      }
-    }
-
-		const nextValues = isHighFrequency ? { ...stagedPropertyValuesRef.current, [propertyId]: value } : { ...propertyValues, [propertyId]: value };
-		if (DEBOUNCE_PROPERTY_CHANGES) {
-			if (propertyChangeTimeoutRef.current) clearTimeout(propertyChangeTimeoutRef.current);
-			propertyChangeTimeoutRef.current = setTimeout(() => {
-            // Persist the latest staged values for all changed properties
-            applyPropertyChanges(nextValues);
-			}, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
-      } else {
-        if (selectedNodeId) updateProperty(selectedNodeId, propertyId, value);
-      }
-      if (!DEBOUNCE_PROPERTY_CHANGES) {
-        const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
-        applyPropertyChanges(payloadValues).catch(() => {});
-        return;
-      }
-
-		// Clear any existing timeout
-		if (propertyChangeTimeoutRef.current) {
-			clearTimeout(propertyChangeTimeoutRef.current);
+	const handleBackendUpdate = useCallback(async (propertyId: string, value: any) => {
+		if (selectedNodeId) {
+			await updateProperty(selectedNodeId, propertyId, value);
 		}
+	}, [selectedNodeId, updateProperty]);
 
-    // Debounce the persistence update only
-    propertyChangeTimeoutRef.current = setTimeout(async () => {
-      const payloadValues = isHighFrequency ? stagedPropertyValuesRef.current : { ...propertyValues, [propertyId]: value };
-      await applyPropertyChanges(payloadValues);
-    }, isHighFrequency ? 500 : 250); // Longer debounce for high-frequency properties
-  }, [propertyValues, selectedNodeId, selectedNode?.properties, DEBOUNCE_PROPERTY_CHANGES, updateProperty]);
-
-		// (preview handler defined above)
-
-  // Helper function to apply property changes (persist via API)
-  const applyPropertyChanges = useCallback(async (newPropertyValues: Record<string, any>) => {
-		if (selectedNode?.properties) {
-			try {
-				// Track which properties actually changed
-				const changedProperties: Array<{propertyId: string, oldValue: any, newValue: any}> = [];
-
-				// Check which properties changed
-				for (const prop of selectedNode.properties) {
-					const oldValue = propertyValues[prop.id];
-					const newValue = newPropertyValues[prop.id];
-
-					if (oldValue !== newValue) {
-						changedProperties.push({ propertyId: prop.id, oldValue, newValue });
-					}
-				}
-
-				if (changedProperties.length === 0) {
-					console.log('ℹ️ No properties were changed');
-					return;
-				}
-
-        console.log('🔄 Updating properties:', changedProperties);
-
-        // Save properties via API
-        const updatePromises = changedProperties.map(async ({ propertyId, oldValue, newValue }) => {
-          console.log(`🔄 Saving property ${propertyId}`);
-
-          // Persist
-          try {
-            await updateProperty(selectedNodeId!, propertyId, newValue);
-            console.log(`✅ Property ${propertyId} persisted`);
-
-						return {
-							propertyId,
-							oldValue,
-							newValue,
-							success: true
-						};
-          } catch (persistError) {
-            console.warn(`⚠️ Failed to persist property ${propertyId}:`, persistError);
-            return {
-              propertyId,
-              oldValue,
-              newValue,
-              success: false,
-              error: persistError
-            };
-          }
-        });
-
-				const results = await Promise.all(updatePromises);
-				const successfulUpdates = results.filter(r => r.success);
-				const failedUpdates = results.filter(r => !r.success);
-
-        if (successfulUpdates.length > 0) {
-          console.log('✅ Successfully saved properties:', successfulUpdates);
-        }
-
-				if (failedUpdates.length > 0) {
-					console.warn('⚠️ Some property updates failed:', failedUpdates);
-					setRebuildError(`Failed to update ${failedUpdates.length} properties. Please try again.`);
-					setTimeout(() => setRebuildError(null), 5000);
-				}
-			} catch (error) {
-				console.error('Failed to apply property changes:', error);
-				// Revert the local state change on error
-				setPropertyValues(propertyValues);
-
-				// Show error to user
-				setRebuildError(`Failed to update properties: ${error instanceof Error ? error.message : 'Unknown error'}`);
-				setTimeout(() => setRebuildError(null), 5000);
-			}
-		}
-	}, [selectedNode?.properties, selectedNodeId, propertyValues, setSelectedNode]);
 
 	// Debounced update functions for title and description
 	const debouncedUpdateTitle = useCallback((newTitle: string) => {
@@ -424,6 +267,7 @@ export default function SelectedNodeSidebar() {
 											}}
 											onChange={handlePropertyChange}
 											onPreview={handlePropertyPreview}
+											onBackendUpdate={handleBackendUpdate}
 										/>
 									</div>
 								))}
