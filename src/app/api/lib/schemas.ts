@@ -40,6 +40,11 @@ export const PropertySchema: z.ZodType<any> = z.lazy(() => z.object({
 }));
 export type Property = z.infer<typeof PropertySchema>;
 
+export const NodeMetadataSchema = z.object({
+  files: z.array(z.string().min(1).trim()).default([])
+});
+export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
+
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -47,7 +52,8 @@ export const GraphNodeSchema = z.object({
   properties: z.array(PropertySchema).optional(),
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
-  height: z.number().optional()
+  height: z.number().optional(),
+  metadata: NodeMetadataSchema.optional()
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 

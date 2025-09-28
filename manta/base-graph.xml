@@ -1,8 +1,1172 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="node-1759046118357382" title="Graph View" x="-38.528619999808" y="106.34639780450604" z="0">
+      <description>Interactive graph visualization component that renders nodes and edges using React Flow. Displays graph data with zoomed views, node states, and handles user interactions for selection, connection, and editing. Features draggable nodes, connection creation, and real-time updates.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="background-color" title="Background Color" type="color">#374151</prop>
+        <prop name="background-gap" title="Grid Gap" type="number">20</prop>
+        <prop name="node-width" title="Node Width" type="number">260</prop>
+        <prop name="node-height" title="Node Height" type="number">160</prop>
+        <prop name="edge-stroke" title="Default Edge Color" type="color">#9ca3af</prop>
+        <prop name="edge-width" title="Default Edge Width" type="number">2</prop>
+        <prop name="selected-edge-color" title="Selected Edge Color" type="color">#3b82f6</prop>
+        <prop name="selected-edge-width" title="Selected Edge Width" type="number">4</prop>
+        <prop name="unbuilt-edge-color" title="Unbuilt Edge Color" type="color">#ef4444</prop>
+        <prop name="handle-size-zoomed-out" title="Handle Size Zoomed Out" type="number">20</prop>
+        <prop name="handle-size-zoomed-in" title="Handle Size Zoomed In" type="number">12</prop>
+        <prop name="zoom-settings" title="Zoom Settings" type="object">
+        <field name="min-zoom" title="Minimum Zoom" type="number">0.1</field>
+        <field name="max-zoom" title="Maximum Zoom" type="number">2</field>
+      </prop>
+        <prop name="tool-button-styling" title="Tool Button Styling" type="object">
+        <field name="active-bg" title="Active Background" type="color">#2563eb</field>
+        <field name="inactive-bg" title="Inactive Background" type="color">#27272a</field>
+        <field name="hover-bg" title="Hover Background" type="color">#3f3f46</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046132554988" title="Selection Sidebar" x="918.4192063414667" y="101.64468462098208" z="0">
+      <description>Sidebar component for editing selected nodes. Displays node title, description, properties, and children. Provides editable fields for node customization with debounced updates and multi-selection support. Shows implementation files and connection information.</description>
+      <metadata>
+        <file>src/components/SelectedNodeSidebar.tsx</file>
+      </metadata>
+      <props>
+        <prop name="node-1759046132554988-background-color" title="Background Color" type="color">#18181b</prop>
+        <prop name="border-color" title="Border Color" type="color">#3f3f46</prop>
+        <prop name="text-color" title="Text Color" type="color">#ffffff</prop>
+        <prop name="input-background" title="Input Background" type="color">#27272a</prop>
+        <prop name="input-border" title="Input Border Color" type="color">#3f3f46</prop>
+        <prop name="focus-border" title="Focus Border Color" type="color">#3b82f6</prop>
+        <prop name="label-color" title="Label Text Color" type="color">#d4d4d8</prop>
+        <prop name="muted-text" title="Muted Text Color" type="color">#71717a</prop>
+        <prop name="debounce-settings" title="Debounce Settings" type="object">
+        <field name="title-delay" title="Title Save Delay (ms)" type="number">300</field>
+        <field name="description-delay" title="Description Save Delay (ms)" type="number">500</field>
+      </prop>
+        <prop name="spacing" title="Spacing Settings" type="object">
+        <field name="padding" title="Content Padding" type="number">12</field>
+        <field name="section-gap" title="Section Gap" type="number">12</field>
+        <field name="property-gap" title="Property Gap" type="number">6</field>
+      </prop>
+        <prop name="error-success-styling" title="Error &amp; Success Styling" type="object">
+        <field name="error-color" title="Error Color" type="color">#fca5a5</field>
+        <field name="error-bg" title="Error Background" type="color">#7f1d1d</field>
+        <field name="success-color" title="Success Color" type="color">#86efac</field>
+        <field name="success-bg" title="Success Background" type="color">#14532d</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-175904614468998" title="Topbar" x="118.82487706545578" y="682.1071552553311" z="0">
+      <description>Top navigation bar component that provides application-level controls and panel toggles. Features a minimal design with empty sections for potential future expansion of toolbar functionality.</description>
+      <metadata>
+        <file>src/components/TopBar.tsx</file>
+      </metadata>
+      <props>
+        <prop name="node-175904614468998-background-color" title="Background Color" type="color">#27272a</prop>
+        <prop name="node-175904614468998-border-color" title="Border Color" type="color">#3f3f46</prop>
+        <prop name="height" title="Toolbar Height" type="number">48</prop>
+        <prop name="padding" title="Horizontal Padding" type="number">16</prop>
+        <prop name="vertical-padding" title="Vertical Padding" type="number">6</prop>
+        <prop name="typography" title="Typography Settings" type="object">
+        <field name="font-family" title="Font Family" type="select">
+          <value>Inter</value>
+          <options>
+          <option>Inter</option>
+          <option>Arial</option>
+          <option>Helvetica</option>
+          <option>sans-serif</option>
+          </options>
+        </field>
+        <field name="font-size" title="Font Size" type="number">14</field>
+        <field name="font-weight" title="Font Weight" type="select">
+          <value>500</value>
+          <options>
+          <option>300</option>
+          <option>400</option>
+          <option>500</option>
+          <option>600</option>
+          <option>700</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="gap" title="Item Gap" type="number">12</prop>
+      </props>
+    </node>
+
+    <node id="node-1759046156239435" title="Graph Actions" x="466.6009829888161" y="712.8254571484335" z="0">
+      <description>Action buttons integrated within the GraphView component for graph-level operations. Includes tool selection buttons (select, pan, add-node) on the left side and build actions on the right side. Provides visual feedback for current tool state and build progress.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="tool-button-size" title="Tool Button Size" type="number">32</prop>
+        <prop name="button-gap" title="Button Gap" type="number">8</prop>
+        <prop name="position-offset" title="Position Offset" type="number">12</prop>
+        <prop name="active-button" title="Active Button Styling" type="object">
+        <field name="background" title="Background Color" type="color">#2563eb</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="border-color" title="Border Color" type="color">#2563eb</field>
+        <field name="hover-bg" title="Hover Background" type="color">#1d4ed8</field>
+      </prop>
+        <prop name="inactive-button" title="Inactive Button Styling" type="object">
+        <field name="background" title="Background Color" type="color">#27272a</field>
+        <field name="text-color" title="Text Color" type="color">#a1a1aa</field>
+        <field name="hover-bg" title="Hover Background" type="color">#3f3f46</field>
+        <field name="hover-text" title="Hover Text Color" type="color">#d4d4d8</field>
+      </prop>
+        <prop name="build-button" title="Build Button Styling" type="object">
+        <field name="background" title="Background Color" type="color">#27272a</field>
+        <field name="text-color" title="Text Color" type="color">#a1a1aa</field>
+        <field name="hover-bg" title="Hover Background" type="color">#3f3f46</field>
+        <field name="disabled-opacity" title="Disabled Opacity" type="slider">0.75</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046177690641" title="Build" x="545.3904016677984" y="1038.3501606379132" z="0">
+      <description>Build system functionality integrated into the project store that handles graph building operations. Manages the build process for converting graph changes into code implementation through agent orchestration and provides real-time build status updates.</description>
+      <metadata>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/agent-request/route.ts</file>
+      </metadata>
+      <props>
+        <prop name="build-button-text" title="Build Button Text" type="text">Build Graph</prop>
+        <prop name="building-text" title="Building Text" type="text">Building Graph...</prop>
+        <prop name="build-timeout" title="Build Timeout (seconds)" type="number">300</prop>
+        <prop name="status-messages" title="Status Messages" type="object-list">
+        <item index="0">
+          <field name="type" title="Message Type" type="select">
+          <value>success</value>
+          <options>
+          <option>success</option>
+          <option>error</option>
+          <option>warning</option>
+          <option>info</option>
+          </options>
+        </field>
+          <field name="text" title="Message Text" type="text">Build completed successfully</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Message Type" type="select">
+          <value>error</value>
+          <options>
+          <option>success</option>
+          <option>error</option>
+          <option>warning</option>
+          <option>info</option>
+          </options>
+        </field>
+          <field name="text" title="Message Text" type="text">Build failed - please check the logs</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Message Type" type="select">
+          <value>warning</value>
+          <options>
+          <option>success</option>
+          <option>error</option>
+          <option>warning</option>
+          <option>info</option>
+          </options>
+        </field>
+          <field name="text" title="Message Text" type="text">Build completed with warnings</field>
+        </item>
+        <item index="3">
+          <field name="type" title="Message Type" type="select">
+          <value>info</value>
+          <options>
+          <option>success</option>
+          <option>error</option>
+          <option>warning</option>
+          <option>info</option>
+          </options>
+        </field>
+          <field name="text" title="Message Text" type="text">Starting build process...</field>
+        </item>
+      </prop>
+        <prop name="build-indicators" title="Build Status Indicators" type="object">
+        <field name="spinner-color" title="Spinner Color" type="color">#3b82f6</field>
+        <field name="success-color" title="Success Color" type="color">#10b981</field>
+        <field name="error-color" title="Error Color" type="color">#ef4444</field>
+        <field name="warning-color" title="Warning Color" type="color">#f59e0b</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046194024917" title="Property Editors" x="937.7824407466779" y="393.65996079294496" z="0">
+      <description>Collection of specialized property editor components for different data types. Includes editors for colors, text, numbers, booleans, selections, sliders, objects, and more. Provides consistent UI patterns with debounced updates and preview functionality.</description>
+      <metadata>
+        <file>src/components/property-editors/index.tsx</file>
+        <file>src/components/property-editors/ColorPropertyEditor.tsx</file>
+        <file>src/components/property-editors/TextAreaPropertyEditor.tsx</file>
+        <file>src/components/property-editors/NumberPropertyEditor.tsx</file>
+        <file>src/components/property-editors/BooleanPropertyEditor.tsx</file>
+        <file>src/components/property-editors/SelectPropertyEditor.tsx</file>
+        <file>src/components/property-editors/SliderPropertyEditor.tsx</file>
+        <file>src/components/property-editors/ObjectPropertyEditor.tsx</file>
+        <file>src/components/property-editors/ObjectListPropertyEditor.tsx</file>
+        <file>src/components/property-editors/FontPropertyEditor.tsx</file>
+        <file>src/components/property-editors/CheckboxPropertyEditor.tsx</file>
+        <file>src/components/property-editors/RadioPropertyEditor.tsx</file>
+      </metadata>
+      <props>
+        <prop name="editor-spacing" title="Editor Spacing" type="object">
+        <field name="label-margin" title="Label Margin Bottom" type="number">6</field>
+        <field name="field-margin" title="Field Margin Bottom" type="number">12</field>
+        <field name="section-padding" title="Section Padding" type="number">8</field>
+      </prop>
+        <prop name="node-1759046194024917-typography" title="Typography Settings" type="object">
+        <field name="label-size" title="Label Font Size" type="number">12</field>
+        <field name="input-size" title="Input Font Size" type="number">12</field>
+        <field name="label-weight" title="Label Font Weight" type="select">
+          <value>500</value>
+          <options>
+          <option>400</option>
+          <option>500</option>
+          <option>600</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="color-scheme" title="Color Scheme" type="object">
+        <field name="label-color" title="Label Color" type="color">#d4d4d8</field>
+        <field name="input-bg" title="Input Background" type="color">#27272a</field>
+        <field name="input-border" title="Input Border" type="color">#3f3f46</field>
+        <field name="input-text" title="Input Text" type="color">#ffffff</field>
+        <field name="focus-border" title="Focus Border" type="color">#3b82f6</field>
+      </prop>
+        <prop name="debounce-timing" title="Debounce Timing" type="object">
+        <field name="high-frequency-delay" title="High Frequency Delay (ms)" type="number">500</field>
+        <field name="regular-delay" title="Regular Delay (ms)" type="number">250</field>
+        <field name="throttle-interval" title="Throttle Interval (ms)" type="number">200</field>
+      </prop>
+        <prop name="update-indicator" title="Update Indicator" type="object">
+        <field name="color" title="Indicator Color" type="color">#fbbf24</field>
+        <field name="size" title="Indicator Size" type="number">8</field>
+        <field name="opacity" title="Loading Opacity" type="slider">0.8</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046215036788" title="Main View" x="697.9395962127438" y="-415.50132035648005" z="0">
+      <description>Root layout component that orchestrates the main application interface. Combines the selection sidebar, graph view, and floating chat in a flexible layout. Handles the overall application structure and component positioning.</description>
+      <metadata>
+        <file>src/app/page.tsx</file>
+      </metadata>
+      <props>
+        <prop name="node-1759046215036788-background-color" title="Background Color" type="color">#09090b</prop>
+        <prop name="node-1759046215036788-text-color" title="Text Color" type="color">#fafafa</prop>
+        <prop name="layout-direction" title="Layout Direction" type="select">
+          <value>Horizontal</value>
+          <options>
+          <option>Horizontal</option>
+          <option>Vertical</option>
+          </options>
+        </prop>
+        <prop name="sidebar-width" title="Sidebar Width" type="number">320</prop>
+        <prop name="overflow-handling" title="Overflow Handling" type="select">
+          <value>Hidden</value>
+          <options>
+          <option>Hidden</option>
+          <option>Auto</option>
+          <option>Scroll</option>
+          </options>
+        </prop>
+        <prop name="responsive-breakpoints" title="Responsive Settings" type="object">
+        <field name="mobile-breakpoint" title="Mobile Breakpoint (px)" type="number">768</field>
+        <field name="sidebar-collapse" title="Auto-collapse Sidebar" type="boolean">true</field>
+        <field name="mobile-layout" title="Mobile Layout" type="select">
+          <value>Stack</value>
+          <options>
+          <option>Stack</option>
+          <option>Overlay</option>
+          <option>Tabs</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="node-1759046215036788-spacing" title="Spacing Settings" type="object">
+        <field name="component-gap" title="Component Gap" type="number">0</field>
+        <field name="container-padding" title="Container Padding" type="number">0</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046231641369" title="Nodes" x="-395.95423781631837" y="1052.569245893682" z="0">
+      <description>Custom node rendering component within GraphView that displays individual graph nodes. Features adaptive design with zoomed-in and zoomed-out views, state indicators, and connection handles. Supports node selection, dragging, and visual state feedback.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="node-dimensions" title="Node Dimensions" type="object">
+        <field name="width" title="Width" type="number">260</field>
+        <field name="height" title="Height" type="number">160</field>
+        <field name="border-radius" title="Border Radius" type="number">8</field>
+      </prop>
+        <prop name="default-styling" title="Default Node Styling" type="object">
+        <field name="background" title="Background Color" type="color">#ffffff</field>
+        <field name="border-color" title="Border Color" type="color">#e5e7eb</field>
+        <field name="border-width" title="Border Width" type="number">1</field>
+        <field name="text-color" title="Text Color" type="color">#1f2937</field>
+      </prop>
+        <prop name="selected-styling" title="Selected Node Styling" type="object">
+        <field name="background" title="Background Color" type="color">#f8fafc</field>
+        <field name="border-color" title="Border Color" type="color">#2563eb</field>
+        <field name="border-width" title="Border Width" type="number">3</field>
+        <field name="shadow-color" title="Shadow Color" type="color">#2563eb</field>
+      </prop>
+        <prop name="unbuilt-indicator" title="Unbuilt State Indicator" type="object">
+        <field name="color" title="Indicator Color" type="color">#ef4444</field>
+        <field name="size" title="Indicator Size" type="number">12</field>
+        <field name="position" title="Position" type="select">
+          <value>Top Right</value>
+          <options>
+          <option>Top Right</option>
+          <option>Top Left</option>
+          <option>Bottom Right</option>
+          <option>Bottom Left</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="node-1759046231641369-typography" title="Typography Settings" type="object">
+        <field name="title-size" title="Title Font Size" type="number">16</field>
+        <field name="title-weight" title="Title Font Weight" type="select">
+          <value>600</value>
+          <options>
+          <option>400</option>
+          <option>500</option>
+          <option>600</option>
+          <option>700</option>
+          </options>
+        </field>
+        <field name="description-size" title="Description Font Size" type="number">13</field>
+        <field name="meta-size" title="Metadata Font Size" type="number">12</field>
+      </prop>
+        <prop name="zoom-behavior" title="Zoom Behavior" type="object">
+        <field name="zoom-threshold" title="Zoom Threshold" type="slider">0.8</field>
+        <field name="large-title-size" title="Large Title Size (Zoomed Out)" type="number">24</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046241423750" title="Edges" x="-774.4833070099199" y="1079.4326101141119" z="0">
+      <description>Edge rendering and connection management within the GraphView component. Handles edge creation, styling, selection states, and visual indicators for built/unbuilt connections. Supports interactive edge selection and deletion with visual feedback.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="default-edge" title="Default Edge Styling" type="object">
+        <field name="stroke-color" title="Stroke Color" type="color">#9ca3af</field>
+        <field name="stroke-width" title="Stroke Width" type="number">2</field>
+        <field name="opacity" title="Opacity" type="slider">0.8</field>
+      </prop>
+        <prop name="selected-edge" title="Selected Edge Styling" type="object">
+        <field name="stroke-color" title="Stroke Color" type="color">#3b82f6</field>
+        <field name="stroke-width" title="Stroke Width" type="number">4</field>
+        <field name="opacity" title="Opacity" type="slider">1</field>
+      </prop>
+        <prop name="unbuilt-edge" title="Unbuilt Edge Styling" type="object">
+        <field name="stroke-color" title="Stroke Color" type="color">#ef4444</field>
+        <field name="stroke-width" title="Stroke Width" type="number">3</field>
+        <field name="dash-pattern" title="Dash Pattern" type="text">20,30</field>
+        <field name="opacity" title="Opacity" type="slider">0.9</field>
+        <field name="line-cap" title="Line Cap" type="select">
+          <value>Round</value>
+          <options>
+          <option>Round</option>
+          <option>Square</option>
+          <option>Butt</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="interaction" title="Interaction Settings" type="object">
+        <field name="interaction-width" title="Interaction Width" type="number">24</field>
+        <field name="focusable" title="Edges Focusable" type="boolean">true</field>
+        <field name="selectable" title="Edges Selectable" type="boolean">true</field>
+      </prop>
+        <prop name="connection-mode" title="Connection Settings" type="object">
+        <field name="connection-mode" title="Connection Mode" type="select">
+          <value>Loose</value>
+          <options>
+          <option>Strict</option>
+          <option>Loose</option>
+          </options>
+        </field>
+        <field name="validate-connections" title="Validate Connections" type="boolean">true</field>
+        <field name="prevent-self-connections" title="Prevent Self Connections" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-17590462604233" title="Canvas" x="-984.6615765412154" y="520.5749881763055" z="0">
+      <description>ReactFlow canvas area within GraphView that provides the interactive workspace for graph manipulation. Features background grid, minimap, controls, and pan/zoom functionality. Handles mouse interactions, selection rectangles, and viewport management.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="background" title="Background Settings" type="object">
+        <field name="color" title="Background Color" type="color">#374151</field>
+        <field name="gap" title="Grid Gap" type="number">20</field>
+        <field name="pattern" title="Pattern Type" type="select">
+          <value>Dots</value>
+          <options>
+          <option>Dots</option>
+          <option>Lines</option>
+          <option>Cross</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="viewport" title="Viewport Settings" type="object">
+        <field name="min-zoom" title="Minimum Zoom" type="slider">0.1</field>
+        <field name="max-zoom" title="Maximum Zoom" type="slider">2</field>
+        <field name="fit-padding" title="Fit View Padding" type="slider">0.2</field>
+      </prop>
+        <prop name="node-17590462604233-interaction" title="Interaction Settings" type="object">
+        <field name="pan-on-scroll" title="Pan on Scroll" type="boolean">true</field>
+        <field name="zoom-on-scroll" title="Zoom on Scroll" type="boolean">false</field>
+        <field name="zoom-on-pinch" title="Zoom on Pinch" type="boolean">true</field>
+        <field name="nodes-draggable" title="Nodes Draggable" type="boolean">true</field>
+      </prop>
+        <prop name="minimap" title="Minimap Settings" type="object">
+        <field name="enabled" title="Show Minimap" type="boolean">true</field>
+        <field name="built-node-color" title="Built Node Color" type="color">#9ca3af</field>
+        <field name="unbuilt-node-color" title="Unbuilt Node Color" type="color">#fbbf24</field>
+        <field name="position" title="Position" type="select">
+          <value>Bottom Left</value>
+          <options>
+          <option>Top Left</option>
+          <option>Top Right</option>
+          <option>Bottom Left</option>
+          <option>Bottom Right</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="controls" title="Controls Settings" type="object">
+        <field name="enabled" title="Show Controls" type="boolean">true</field>
+        <field name="show-zoom" title="Show Zoom Controls" type="boolean">true</field>
+        <field name="show-fit-view" title="Show Fit View" type="boolean">true</field>
+        <field name="show-interactive" title="Show Interactive Toggle" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046282108531" title="Floating Chat" x="1515.8869601331012" y="-6.487844766121377" z="0">
+      <description>Draggable AI chat interface that floats over the main application. Features minimizable design, context-aware messaging with file/selection/node context, and real-time conversation with streaming support. Includes markdown rendering and typing animations.</description>
+      <metadata>
+        <file>src/components/FloatingChat.tsx</file>
+      </metadata>
+      <props>
+        <prop name="chat-dimensions" title="Chat Dimensions" type="object">
+        <field name="width" title="Width" type="number">288</field>
+        <field name="max-height" title="Maximum Height" type="text">60vh</field>
+        <field name="min-button-size" title="Minimized Button Size" type="number">32</field>
+      </prop>
+        <prop name="chat-styling" title="Chat Styling" type="object">
+        <field name="background" title="Background Color" type="color">#18181b</field>
+        <field name="border-color" title="Border Color" type="color">#52525b</field>
+        <field name="header-bg" title="Header Background" type="color">#27272a</field>
+        <field name="border-radius" title="Border Radius" type="number">6</field>
+      </prop>
+        <prop name="message-styling" title="Message Styling" type="object">
+        <field name="user-bg" title="User Message Background" type="color">#27272a</field>
+        <field name="user-text" title="User Message Text" type="color">#e4e4e7</field>
+        <field name="assistant-bg" title="Assistant Message Background" type="color">#18181b</field>
+        <field name="assistant-text" title="Assistant Message Text" type="color">#e4e4e7</field>
+        <field name="code-bg" title="Code Background" type="color">#27272a</field>
+      </prop>
+        <prop name="input-area" title="Input Area" type="object">
+        <field name="background" title="Input Background" type="color">#27272a</field>
+        <field name="border-color" title="Input Border" type="color">#52525b</field>
+        <field name="text-color" title="Input Text" type="color">#ffffff</field>
+        <field name="placeholder-color" title="Placeholder Color" type="color">#a1a1aa</field>
+        <field name="max-height" title="Input Max Height" type="number">80</field>
+      </prop>
+        <prop name="animations" title="Animation Settings" type="object">
+        <field name="typing-speed" title="Typing Animation Speed" type="slider">1.5</field>
+        <field name="enable-typing" title="Enable Typing Animation" type="boolean">true</field>
+        <field name="shimmer-duration" title="Shimmer Duration (seconds)" type="slider">1</field>
+      </prop>
+        <prop name="positioning" title="Positioning Settings" type="object">
+        <field name="initial-x" title="Initial X Position" type="number">20</field>
+        <field name="initial-y" title="Initial Y Position" type="number">20</field>
+        <field name="constraint-margin" title="Screen Edge Margin" type="number">50</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759046296790980" title="Selection Badge" x="1808.494522379597" y="360.886949473959" z="0">
+      <description>Badge components for displaying current context selections in the chat interface. Shows file selections, text area selections, and node selections with appropriate icons and remove functionality. Provides both interactive and read-only variants.</description>
+      <metadata>
+        <file>src/components/SelectionBadge.tsx</file>
+      </metadata>
+      <props>
+        <prop name="badge-styling" title="Badge Styling" type="object">
+        <field name="border-color" title="Border Color" type="color">#52525b</field>
+        <field name="text-color" title="Text Color" type="color">#ffffff</field>
+        <field name="background" title="Background Color" type="color">transparent</field>
+        <field name="border-radius" title="Border Radius" type="number">4</field>
+      </prop>
+        <prop name="icon-settings" title="Icon Settings" type="object">
+        <field name="icon-size" title="Icon Size" type="number">12</field>
+        <field name="file-icon" title="File Icon" type="select">
+          <value>File</value>
+          <options>
+          <option>File</option>
+          <option>Document</option>
+          <option>Page</option>
+          <option>Text</option>
+          </options>
+        </field>
+        <field name="selection-icon" title="Selection Icon" type="select">
+          <value>MousePointer</value>
+          <options>
+          <option>MousePointer</option>
+          <option>Hand</option>
+          <option>Cursor</option>
+          <option>Target</option>
+          </options>
+        </field>
+        <field name="node-icon" title="Node Icon" type="select">
+          <value>GitBranch</value>
+          <options>
+          <option>GitBranch</option>
+          <option>Circle</option>
+          <option>Square</option>
+          <option>Diamond</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="node-1759046296790980-typography" title="Typography" type="object">
+        <field name="font-size" title="Font Size" type="number">12</field>
+        <field name="font-weight" title="Font Weight" type="select">
+          <value>400</value>
+          <options>
+          <option>400</option>
+          <option>500</option>
+          <option>600</option>
+          </options>
+        </field>
+      </prop>
+        <prop name="interactive-elements" title="Interactive Elements" type="object">
+        <field name="remove-button-size" title="Remove Button Size" type="number">16</field>
+        <field name="remove-icon-size" title="Remove Icon Size" type="number">10</field>
+        <field name="hover-color" title="Hover Text Color" type="color">#ffffff</field>
+        <field name="remove-color" title="Remove Button Color" type="color">#a1a1aa</field>
+      </prop>
+        <prop name="node-1759046296790980-spacing" title="Spacing Settings" type="object">
+        <field name="internal-gap" title="Internal Gap" type="number">4</field>
+        <field name="container-gap" title="Container Gap" type="number">6</field>
+        <field name="padding" title="Badge Padding" type="number">6</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759047950926250" title="Agent Orchestrator" x="1333.242659740594" y="798.7283366193973" z="0">
+      <description>Main orchestration agent that analyzes requests, identifies task types, and delegates to specialized subagents. Coordinates workflows between graph editing and code building, manages indexing flows, and ensures proper task completion verification.</description>
+      <metadata>
+        <file>src/app/api/lib/agentPrompts.ts</file>
+        <file>src/app/api/agent-request/route.ts</file>
+      </metadata>
+      <props>
+        <prop name="system-prompt" title="System Prompt" type="text">You are the Manta orchestrator agent. Your role is to analyze the current state, identify what needs to be built, and delegate specific implementation tasks to specialized subagents. You are responsible for coordinating workflows and ensuring proper task delegation.
+
+CRITICAL RULES:
+- You are an ORCHESTRATOR - analyze user requests, identify task type, delegate to appropriate subagents, coordinate workflows, and finalize results
+- NEVER edit graph structure or code directly - always use subagents
+- You CAN use analyze_diff() to understand what needs to be done and verify completion
+- All descriptions and summaries must be limited to 1 paragraph maximum
+- Track implementation metadata from subagents: ensure they call &apos;node_metadata_update&apos; so implementing file paths remain in sync and include those paths in changed/implemented node summaries</prop>
+        <prop name="task-workflows" title="Task Workflows" type="object-list">
+        <item index="0">
+          <field name="type" title="Workflow Type" type="select">
+          <value>Indexing Flow</value>
+          <options>
+          <option>Indexing Flow</option>
+          <option>Build Flow</option>
+          <option>Direct Build/Fix Flow</option>
+          <option>Direct Graph Editing Flow</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Code → Nodes with properties</field>
+          <field name="steps" title="Steps" type="text">Launch graph-editor subagent in INDEXING mode to analyze existing code and create nodes WITH CMS-style properties</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Workflow Type" type="select">
+          <value>Build Flow</value>
+          <options>
+          <option>Indexing Flow</option>
+          <option>Build Flow</option>
+          <option>Direct Build/Fix Flow</option>
+          <option>Direct Graph Editing Flow</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Graph Changes → Code implementation</field>
+          <field name="steps" title="Steps" type="text">Use analyze_diff() to identify what code changes are needed, create implementation instructions, launch code-builder subagent, then sync graph</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Workflow Type" type="select">
+          <value>Direct Build/Fix Flow</value>
+          <options>
+          <option>Indexing Flow</option>
+          <option>Build Flow</option>
+          <option>Direct Build/Fix Flow</option>
+          <option>Direct Graph Editing Flow</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Quick code fixes</field>
+          <field name="steps" title="Steps" type="text">Create implementation instructions, launch code-builder subagent directly for quick fixes</field>
+        </item>
+        <item index="3">
+          <field name="type" title="Workflow Type" type="select">
+          <value>Direct Graph Editing Flow</value>
+          <options>
+          <option>Indexing Flow</option>
+          <option>Build Flow</option>
+          <option>Direct Build/Fix Flow</option>
+          <option>Direct Graph Editing Flow</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Edit graph structure</field>
+          <field name="steps" title="Steps" type="text">Launch graph-editor subagent in GRAPH_EDITING mode to create/edit/delete nodes</field>
+        </item>
+      </prop>
+        <prop name="agent-modes" title="Agent Modes" type="object">
+        <field name="indexing-mode" title="Indexing Mode Settings" type="text">Creates nodes WITH CMS-style properties, uses alreadyImplemented=true for automatic per-node/edge syncing to base</field>
+        <field name="graph-editing-mode" title="Graph Editing Mode Settings" type="text">Creates nodes WITHOUT properties, no automatic syncing to base</field>
+      </prop>
+        <prop name="verification-process" title="Verification Process" type="object-list">
+        <item index="0">
+          <field name="step" title="Step" type="text">Run analyze_diff() before starting work to see initial state</field>
+          <field name="condition" title="Success Condition" type="text">Differences identified and understood</field>
+        </item>
+        <item index="1">
+          <field name="step" title="Step" type="text">Run analyze_diff() after sync_to_base_graph() to confirm completion</field>
+          <field name="condition" title="Success Condition" type="text">No remaining differences between current and base graphs</field>
+        </item>
+      </prop>
+        <prop name="coordination-settings" title="Coordination Settings" type="object">
+        <field name="max-summary-length" title="Maximum Summary Length" type="select">
+          <value>1 paragraph</value>
+          <options>
+          <option>1 sentence</option>
+          <option>1 paragraph</option>
+          <option>2 paragraphs</option>
+          </options>
+        </field>
+        <field name="metadata-tracking" title="Track Implementation Metadata" type="boolean">true</field>
+        <field name="auto-verification" title="Auto-run Verification" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759047972206532" title="Code Builder" x="1110.2873131397375" y="1116.3100803241057" z="0">
+      <description>Specialized agent for implementing specific graph nodes through code generation. Receives node implementation tasks from orchestrator, reads node specifications, and generates modern web development code based on node requirements.</description>
+      <metadata>
+        <file>src/app/api/lib/agentPrompts.ts</file>
+        <file>src/app/api/claude-code/execute/route.ts</file>
+      </metadata>
+      <props>
+        <prop name="agent-prompt" title="Agent System Prompt" type="text">You are the Manta code builder agent specialized for development projects.
+
+TASK EXECUTION:
+1. Receive specific node implementation task from orchestrator
+2. Read the node details using read(graphType=&quot;current&quot;, nodeId)
+3. Implement the code for the node based on its title and prompt
+4. Report completion when the specific node is fully implemented
+
+Rules:
+- Work on ONE SPECIFIC NODE at a time as assigned by the orchestrator
+- Focus on the assigned node: implement code based on the node&apos;s title and prompt
+- Report completion when the assigned node code implementation is ready
+- Do NOT worry about properties or property wiring - that&apos;s handled by the graph structure
+- Use modern web development conventions and patterns
+- When you touch code, call the &apos;node_metadata_update&apos; tool to capture the implementing file paths before you finish, and mention those paths in your summary</prop>
+        <prop name="available-tools" title="Available Tools" type="object-list">
+        <item index="0">
+          <field name="name" title="Tool Name" type="text">read</field>
+          <field name="description" title="Description" type="text">Read from current or base graph, or specific nodes</field>
+          <field name="usage" title="Usage Pattern" type="text">read(graphType=&quot;current&quot;, nodeId)</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Tool Name" type="text">Read</field>
+          <field name="description" title="Description" type="text">Read files from filesystem</field>
+          <field name="usage" title="Usage Pattern" type="text">Read file contents for analysis</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Tool Name" type="text">Write</field>
+          <field name="description" title="Description" type="text">Write new files</field>
+          <field name="usage" title="Usage Pattern" type="text">Create new implementation files</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Tool Name" type="text">Edit</field>
+          <field name="description" title="Description" type="text">Edit existing files</field>
+          <field name="usage" title="Usage Pattern" type="text">Modify existing code files</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Tool Name" type="text">Bash</field>
+          <field name="description" title="Description" type="text">Execute shell commands</field>
+          <field name="usage" title="Usage Pattern" type="text">Run linting, testing, build commands</field>
+        </item>
+        <item index="5">
+          <field name="name" title="Tool Name" type="text">MultiEdit</field>
+          <field name="description" title="Description" type="text">Edit multiple files</field>
+          <field name="usage" title="Usage Pattern" type="text">Make coordinated changes across files</field>
+        </item>
+        <item index="6">
+          <field name="name" title="Tool Name" type="text">Glob</field>
+          <field name="description" title="Description" type="text">Find files by pattern</field>
+          <field name="usage" title="Usage Pattern" type="text">Locate relevant files for implementation</field>
+        </item>
+        <item index="7">
+          <field name="name" title="Tool Name" type="text">Grep</field>
+          <field name="description" title="Description" type="text">Search file contents</field>
+          <field name="usage" title="Usage Pattern" type="text">Find existing patterns and implementations</field>
+        </item>
+      </prop>
+        <prop name="execution-settings" title="Execution Settings" type="object">
+        <field name="focus-mode" title="Focus Mode" type="select">
+          <value>Single Node</value>
+          <options>
+          <option>Single Node</option>
+          <option>Multi Node</option>
+          <option>Full Graph</option>
+          </options>
+        </field>
+        <field name="auto-lint" title="Auto-run Linting" type="boolean">true</field>
+        <field name="modern-patterns" title="Use Modern Patterns" type="boolean">true</field>
+        <field name="capture-metadata" title="Capture File Metadata" type="boolean">true</field>
+      </prop>
+        <prop name="development-standards" title="Development Standards" type="object-list">
+        <item index="0">
+          <field name="category" title="Category" type="select">
+          <value>Code Style</value>
+          <options>
+          <option>Code Style</option>
+          <option>Architecture</option>
+          <option>Performance</option>
+          <option>Accessibility</option>
+          <option>Testing</option>
+          </options>
+        </field>
+          <field name="rule" title="Rule" type="text">Use modern web development conventions and patterns</field>
+        </item>
+        <item index="1">
+          <field name="category" title="Category" type="select">
+          <value>Architecture</value>
+          <options>
+          <option>Code Style</option>
+          <option>Architecture</option>
+          <option>Performance</option>
+          <option>Accessibility</option>
+          <option>Testing</option>
+          </options>
+        </field>
+          <field name="rule" title="Rule" type="text">Follow component-based architecture principles</field>
+        </item>
+        <item index="2">
+          <field name="category" title="Category" type="select">
+          <value>Performance</value>
+          <options>
+          <option>Code Style</option>
+          <option>Architecture</option>
+          <option>Performance</option>
+          <option>Accessibility</option>
+          <option>Testing</option>
+          </options>
+        </field>
+          <field name="rule" title="Rule" type="text">Optimize for performance and bundle size</field>
+        </item>
+        <item index="3">
+          <field name="category" title="Category" type="select">
+          <value>Accessibility</value>
+          <options>
+          <option>Code Style</option>
+          <option>Architecture</option>
+          <option>Performance</option>
+          <option>Accessibility</option>
+          <option>Testing</option>
+          </options>
+        </field>
+          <field name="rule" title="Rule" type="text">Ensure accessibility compliance where applicable</field>
+        </item>
+        <item index="4">
+          <field name="category" title="Category" type="select">
+          <value>Testing</value>
+          <options>
+          <option>Code Style</option>
+          <option>Architecture</option>
+          <option>Performance</option>
+          <option>Accessibility</option>
+          <option>Testing</option>
+          </options>
+        </field>
+          <field name="rule" title="Rule" type="text">Include appropriate testing patterns when needed</field>
+        </item>
+      </prop>
+        <prop name="output-format" title="Output Format" type="object">
+        <field name="status-updates" title="Status Update Style" type="select">
+          <value>Short sentences</value>
+          <options>
+          <option>Short sentences</option>
+          <option>Detailed progress</option>
+          <option>Minimal</option>
+          </options>
+        </field>
+        <field name="summary-style" title="Summary Style" type="select">
+          <value>Concise</value>
+          <options>
+          <option>Concise</option>
+          <option>Detailed</option>
+          <option>Technical</option>
+          </options>
+        </field>
+        <field name="include-file-paths" title="Include File Paths in Summary" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="node-1759047982130308" title="Graph Editor" x="1452.4978451317497" y="1157.790144807986" z="0">
+      <description>Specialized agent for graph structure editing and code analysis. Handles creating, editing, deleting nodes and edges, analyzing existing code for indexing, and managing CMS-style properties. Operates in two modes: indexing with properties and pure graph editing.</description>
+      <metadata>
+        <file>src/app/api/lib/agentPrompts.ts</file>
+        <file>src/app/api/lib/graphEditorTools.ts</file>
+      </metadata>
+      <props>
+        <prop name="node-1759047982130308-agent-prompt" title="Agent System Prompt" type="text">You are a graph editor agent.
+
+## Core Rules
+- Use unique IDs for all nodes
+- Never edit source code - graph changes only
+- Delete template nodes if request requires different structure
+- The orchestrator will specify whether you are in INDEXING or GRAPH_EDITING mode
+- During INDEXING mode: Analyze existing code directly to identify components and create appropriate nodes WITH CMS-style properties. Use alreadyImplemented=true when creating nodes/edges to sync them immediately to base graph.
+- During GRAPH_EDITING mode: Create nodes WITHOUT properties (graph structure only). Do NOT use alreadyImplemented=true.
+- You can edit property values for existing nodes when specifically instructed
+- Add properties as needed for indexing and build flows, but NOT for direct graph editing
+- Use clear, descriptive titles and prompts for nodes.
+- Keep all node descriptions concise and focused - maximum 1 paragraph per node
+- Keep prompts concise and focused on essential functionality - no verbose explanations or feature lists
+- When indexing, inspect the codebase to identify implementation files and call the &apos;node_metadata_update&apos; tool so each node stores the correct project-relative paths</prop>
+        <prop name="operation-modes" title="Operation Modes" type="object">
+        <field name="indexing-mode" title="Indexing Mode" type="text">Analyze existing code directly to identify components and create appropriate nodes WITH CMS-style properties. Use alreadyImplemented=true for automatic syncing.</field>
+        <field name="graph-editing-mode" title="Graph Editing Mode" type="text">Create nodes WITHOUT properties (graph structure only). Do NOT use alreadyImplemented=true.</field>
+      </prop>
+        <prop name="code-analysis" title="Code Analysis Guidelines" type="object-list">
+        <item index="0">
+          <field name="focus" title="Analysis Focus" type="text">Identify components, utilities, and code structures</field>
+          <field name="approach" title="Approach" type="text">Use Read, Glob, and Grep tools to analyze existing code files</field>
+        </item>
+        <item index="1">
+          <field name="focus" title="Analysis Focus" type="text">Determine customizable aspects</field>
+          <field name="approach" title="Approach" type="text">Focus on CMS-style properties: content, colors, layout, simple settings</field>
+        </item>
+        <item index="2">
+          <field name="focus" title="Analysis Focus" type="text">Avoid technical properties</field>
+          <field name="approach" title="Approach" type="text">Skip event handlers, state props, CSS objects, callbacks</field>
+        </item>
+        <item index="3">
+          <field name="focus" title="Analysis Focus" type="text">Component granularity</field>
+          <field name="approach" title="Approach" type="text">1 node per visible component unless specified otherwise</field>
+        </item>
+        <item index="4">
+          <field name="focus" title="Analysis Focus" type="text">Exclude configurations</field>
+          <field name="approach" title="Approach" type="text">Do not index manta, .claude, .git, package.json and other config files</field>
+        </item>
+      </prop>
+        <prop name="property-guidelines" title="Property Creation Guidelines" type="object-list">
+        <item index="0">
+          <field name="type" title="Property Type" type="select">
+          <value>text</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For strings like titles, descriptions, labels</field>
+          <field name="example" title="Example Values" type="text">Welcome Message, Button Text</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Property Type" type="select">
+          <value>number</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For numeric values like sizes, padding, font sizes</field>
+          <field name="example" title="Example Values" type="text">16, 24, 320</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Property Type" type="select">
+          <value>color</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For color pickers, values in #ffffff format</field>
+          <field name="example" title="Example Values" type="text">#ffffff, #000000, #3b82f6</field>
+        </item>
+        <item index="3">
+          <field name="type" title="Property Type" type="select">
+          <value>boolean</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For true/false values like disabled, visible</field>
+          <field name="example" title="Example Values" type="text">true, false</field>
+        </item>
+        <item index="4">
+          <field name="type" title="Property Type" type="select">
+          <value>select</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For predefined options like size scales, layouts</field>
+          <field name="example" title="Example Values" type="text">Small, Medium, Large</field>
+        </item>
+        <item index="5">
+          <field name="type" title="Property Type" type="select">
+          <value>slider</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For ranged numeric values like opacity, spacing</field>
+          <field name="example" title="Example Values" type="text">0.8, 50, 100</field>
+        </item>
+        <item index="6">
+          <field name="type" title="Property Type" type="select">
+          <value>object</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For nested properties and grouped settings</field>
+          <field name="example" title="Example Values" type="text">Styling object with multiple color fields</field>
+        </item>
+        <item index="7">
+          <field name="type" title="Property Type" type="select">
+          <value>object-list</value>
+          <options>
+          <option>text</option>
+          <option>number</option>
+          <option>color</option>
+          <option>boolean</option>
+          <option>select</option>
+          <option>checkbox</option>
+          <option>radio</option>
+          <option>slider</option>
+          <option>font</option>
+          <option>object</option>
+          <option>object-list</option>
+          </options>
+        </field>
+          <field name="usage" title="Usage" type="text">For arrays of objects like menu items, links</field>
+          <field name="example" title="Example Values" type="text">Social media links, navigation items</field>
+        </item>
+      </prop>
+        <prop name="tool-usage" title="Available Tools" type="object-list">
+        <item index="0">
+          <field name="name" title="Tool Name" type="text">read</field>
+          <field name="purpose" title="Purpose" type="text">Read from current or base graph, or specific nodes</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Tool Name" type="text">node_create</field>
+          <field name="purpose" title="Purpose" type="text">Create new nodes with properties</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Tool Name" type="text">node_edit</field>
+          <field name="purpose" title="Purpose" type="text">Edit existing nodes and their properties</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Tool Name" type="text">node_delete</field>
+          <field name="purpose" title="Purpose" type="text">Delete nodes and their connections</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Tool Name" type="text">edge_create</field>
+          <field name="purpose" title="Purpose" type="text">Create connections between nodes</field>
+        </item>
+        <item index="5">
+          <field name="name" title="Tool Name" type="text">edge_delete</field>
+          <field name="purpose" title="Purpose" type="text">Remove connections between nodes</field>
+        </item>
+        <item index="6">
+          <field name="name" title="Tool Name" type="text">Read</field>
+          <field name="purpose" title="Purpose" type="text">Read files from the codebase</field>
+        </item>
+        <item index="7">
+          <field name="name" title="Tool Name" type="text">Glob</field>
+          <field name="purpose" title="Purpose" type="text">Find files by pattern matching</field>
+        </item>
+        <item index="8">
+          <field name="name" title="Tool Name" type="text">Grep</field>
+          <field name="purpose" title="Purpose" type="text">Search for content within files</field>
+        </item>
+      </prop>
+        <prop name="quality-standards" title="Quality Standards" type="object">
+        <field name="max-description-length" title="Max Description Length" type="select">
+          <value>1 paragraph</value>
+          <options>
+          <option>1 sentence</option>
+          <option>1 paragraph</option>
+          <option>2 paragraphs</option>
+          </options>
+        </field>
+        <field name="property-defaults" title="Require Property Defaults" type="boolean">true</field>
+        <field name="natural-language" title="Use Natural Language for Properties" type="boolean">true</field>
+        <field name="metadata-tracking" title="Track Implementation Files" type="boolean">true</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="toolbar-left-side" title="Left Toolbar" x="49.57741554682622" y="605.6995757422974" z="0">
+      <description>Left-side vertical toolbar containing interactive tool buttons for graph manipulation. Provides three main tools: Select Tool (SquareDashed icon) for node/edge selection and connection creation, Pan Tool (Hand icon) for view navigation, and Add Node Tool (StickyNote icon) for creating new nodes. Features responsive styling with active/inactive states and tooltips for user guidance.</description>
+      <metadata>
+        <file>../../../../../../../../../../../dev/manta/src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="position" title="Position" type="object">
+        <field name="left" title="left" type="text">12px</field>
+        <field name="top" title="top" type="text">50%</field>
+        <field name="transform" title="transform" type="text">translateY(-50%)</field>
+      </prop>
+        <prop name="layout" title="Layout" type="object">
+        <field name="direction" title="direction" type="text">column</field>
+        <field name="gap" title="gap" type="text">8px</field>
+        <field name="zIndex" title="zIndex" type="text">1000</field>
+      </prop>
+        <prop name="tools" title="Available Tools" type="object-list">
+        <item index="0">
+          <field name="name" title="name" type="text">select</field>
+          <field name="icon" title="icon" type="text">SquareDashed</field>
+          <field name="title" title="title" type="text">Select Tool</field>
+          <field name="description" title="description" type="text">Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items</field>
+        </item>
+        <item index="1">
+          <field name="name" title="name" type="text">pan</field>
+          <field name="icon" title="icon" type="text">Hand</field>
+          <field name="title" title="title" type="text">Pan Tool</field>
+          <field name="description" title="description" type="text">Click and drag to pan the view, right-click always pans</field>
+        </item>
+        <item index="2">
+          <field name="name" title="name" type="text">add-node</field>
+          <field name="icon" title="icon" type="text">StickyNote</field>
+          <field name="title" title="title" type="text">Add Node Tool</field>
+          <field name="description" title="description" type="text">Click anywhere on the canvas to create a new node</field>
+        </item>
+      </prop>
+        <prop name="button-styling" title="Button Styling" type="object">
+        <field name="size" title="size" type="text">32px x 32px</field>
+        <field name="padding" title="padding" type="text">0</field>
+        <field name="borderRadius" title="borderRadius" type="text">default</field>
+        <field name="activeStyles" title="activeStyles" type="text">{&quot;background&quot;:&quot;#2563eb&quot;,&quot;color&quot;:&quot;#ffffff&quot;,&quot;border&quot;:&quot;#2563eb&quot;,&quot;hover&quot;:&quot;#1d4ed8&quot;}</field>
+        <field name="inactiveStyles" title="inactiveStyles" type="text">{&quot;background&quot;:&quot;#27272a&quot;,&quot;color&quot;:&quot;#a1a1aa&quot;,&quot;border&quot;:&quot;none&quot;,&quot;hover&quot;:{&quot;background&quot;:&quot;#3f3f46&quot;,&quot;color&quot;:&quot;#d4d4d8&quot;}}</field>
+      </prop>
+        <prop name="current-tool-state" title="Current Tool State" type="select">
+          <value>select</value>
+          <options>
+          <option>select</option>
+          <option>pan</option>
+          <option>add-node</option>
+          </options>
+        </prop>
+        <prop name="interaction-behavior" title="Interaction Behavior" type="object">
+        <field name="selectTool" title="selectTool" type="text">{&quot;enablesSelection&quot;:true,&quot;enablesConnection&quot;:true,&quot;panMode&quot;:&quot;right-click&quot;,&quot;selectionOnDrag&quot;:true}</field>
+        <field name="panTool" title="panTool" type="text">{&quot;panMode&quot;:&quot;left-click&quot;,&quot;disablesConnection&quot;:true,&quot;selectionOnDrag&quot;:false}</field>
+        <field name="addNodeTool" title="addNodeTool" type="text">{&quot;clickToCreate&quot;:true,&quot;autoSwitchToSelect&quot;:true,&quot;centerAtCursor&quot;:true}</field>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
+    <edge id="node-1759046118357382-node-175904614468998" source="node-1759046118357382" target="node-175904614468998" role="links-to"/>
+    <edge id="node-1759046156239435-node-1759046118357382" source="node-1759046156239435" target="node-1759046118357382" role="links-to"/>
+    <edge id="node-1759046177690641-node-1759046156239435" source="node-1759046177690641" target="node-1759046156239435" role="links-to"/>
+    <edge id="node-1759046194024917-node-1759046132554988" source="node-1759046194024917" target="node-1759046132554988" role="links-to"/>
+    <edge id="node-1759046118357382-node-1759046215036788" source="node-1759046118357382" target="node-1759046215036788" role="links-to"/>
+    <edge id="node-1759046132554988-node-1759046215036788" source="node-1759046132554988" target="node-1759046215036788" role="links-to"/>
+    <edge id="node-1759046231641369-node-1759046118357382" source="node-1759046231641369" target="node-1759046118357382" role="links-to"/>
+    <edge id="node-1759046241423750-node-1759046118357382" source="node-1759046241423750" target="node-1759046118357382" role="links-to"/>
+    <edge id="node-17590462604233-node-1759046118357382" source="node-17590462604233" target="node-1759046118357382" role="links-to"/>
+    <edge id="node-1759046282108531-node-1759046215036788" source="node-1759046282108531" target="node-1759046215036788" role="links-to"/>
+    <edge id="node-1759046296790980-node-1759046282108531" source="node-1759046296790980" target="node-1759046282108531" role="links-to"/>
+    <edge id="node-1759047972206532-node-1759047950926250" source="node-1759047972206532" target="node-1759047950926250" role="links-to"/>
+    <edge id="node-1759047982130308-node-1759047950926250" source="node-1759047982130308" target="node-1759047950926250" role="links-to"/>
+    <edge id="node-1759046118357382-toolbar-left-side" source="node-1759046118357382" target="toolbar-left-side" role="contains"/>
+    <edge id="node-1759084963172360-node-1759046118357382" source="node-1759084963172360" target="node-1759046118357382" role="links-to"/>
   </edges>
 </graph>

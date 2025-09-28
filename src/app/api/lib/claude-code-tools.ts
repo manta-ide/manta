@@ -1,6 +1,8 @@
 import { tool } from '@anthropic-ai/claude-code';
+import path from 'path';
 import { z } from 'zod';
-import { GraphSchema, PropertySchema } from './schemas';
+import { GraphSchema, PropertySchema, NodeMetadataSchema } from './schemas';
+import type { NodeMetadata } from './schemas';
 import { loadCurrentGraphFromFile, loadGraphFromFile, loadBaseGraphFromFile, storeCurrentGraph, storeCurrentGraphFromAgent, storeBaseGraph } from './graph-service';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
@@ -87,6 +89,95 @@ const normalizeProperty = (prop: any): any => {
 const normalizeProperties = (properties?: any[]): any[] => {
   if (!Array.isArray(properties)) return [];
   return properties.map((p) => normalizeProperty(p));
+};
+
+/**
+ * Sanitizes and normalizes file path entries for node metadata.
+ *
+ * This function ensures all file paths are relative to the project root and properly formatted.
+ * It handles both absolute paths and malformed relative paths, converting them all to
+ * clean, project-root-relative paths (e.g., "src/components/Button.tsx").
+ *
+ * Examples:
+ * - "/Users/project/src/Button.tsx" → "src/components/Button.tsx"
+ * - "../../../../src/Button.tsx" → "src/components/Button.tsx"
+ * - "./src/Button.tsx" → "src/components/Button.tsx"
+ * - "src/Button.tsx" → "src/components/Button.tsx" (if already correct)
+ *
+ * @param entries Array of file path strings to sanitize
+ * @returns Array of normalized relative file paths
+ */
+const sanitizeMetadataFileEntries = (entries: Array<string | null | undefined>): string[] => {
+  const seen = new Set<string>();
+  const files: string[] = [];
+  const projectRoot = process.cwd();
+
+  for (const entry of entries) {
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+
+    let candidate = trimmed;
+
+    // Always convert to absolute path first, then make relative to project root
+    // This ensures we handle both absolute paths and incorrectly formatted relative paths
+    let absolutePath: string;
+    if (path.isAbsolute(trimmed)) {
+      absolutePath = trimmed;
+    } else {
+      // For relative paths, resolve them relative to the project root
+      absolutePath = path.resolve(projectRoot, trimmed);
+    }
+
+    // Now make it relative to project root
+    candidate = path.relative(projectRoot, absolutePath);
+
+    // Normalize path separators and remove leading ./
+    candidate = candidate.replace(/\\/g, '/');
+    if (candidate.startsWith('./')) {
+      candidate = candidate.substring(2);
+    }
+
+    // Skip if empty or already seen
+    if (!candidate || seen.has(candidate)) continue;
+    seen.add(candidate);
+    files.push(candidate);
+  }
+
+  return files;
+};
+
+const MetadataInputSchema = z.union([
+  NodeMetadataSchema,
+  z.array(z.string().min(1).trim()),
+  z.string().min(1).trim()
+]);
+
+const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
+  if (metadata === undefined || metadata === null) return undefined;
+
+  if (!Array.isArray(metadata) && typeof metadata !== 'string') {
+    const parsed = NodeMetadataSchema.safeParse(metadata);
+    if (parsed.success) {
+      return { files: sanitizeMetadataFileEntries(parsed.data.files) };
+    }
+  }
+
+  const rawFiles = Array.isArray(metadata)
+    ? metadata
+    : typeof metadata === 'string'
+      ? [metadata]
+      : Array.isArray((metadata as any)?.files)
+        ? (metadata as any).files
+        : [];
+
+  const files = sanitizeMetadataFileEntries(rawFiles);
+
+  if (files.length === 0) {
+    return undefined;
+  }
+
+  return { files };
 };
 
 // Filesystem helpers
@@ -387,9 +478,10 @@ export const createGraphTools = (baseUrl: string) => {
       properties: z.array(PropertySchema).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this node to base graph (used during indexing mode)'),
+      metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, title, prompt, properties, position, alreadyImplemented }) => {
-      console.log('➕ TOOL: node_create called', { nodeId, title, position: !!position });
+    async ({ nodeId, title, prompt, properties, position, alreadyImplemented, metadata }) => {
+      console.log('➕ TOOL: node_create called', { nodeId, title, position: !!position, metadata });
 
       try {
         // Use local FS read only
@@ -421,6 +513,10 @@ export const createGraphTools = (baseUrl: string) => {
           properties: properties || [],
           ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
         };
+        const normalizedMetadata = normalizeNodeMetadata(metadata);
+        if (normalizedMetadata) {
+          node.metadata = normalizedMetadata;
+        }
         console.log('🆕 TOOL: node_create creating new node:', { id: nodeId, title, propertiesCount: node.properties.length });
 
         validatedGraph.nodes.push(node);
@@ -713,9 +809,10 @@ export const createGraphTools = (baseUrl: string) => {
       properties: z.array(PropertySchema).optional(),
       children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
+      metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, mode = 'replace', title, prompt, properties, children, position }) => {
-      console.log('✏️ TOOL: node_edit called', { nodeId, mode, title: !!title, prompt: !!prompt, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position });
+    async ({ nodeId, mode = 'replace', title, prompt, properties, children, position, metadata }) => {
+      console.log('✏️ TOOL: node_edit called', { nodeId, mode, title: !!title, prompt: !!prompt, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
 
       try {
         // Use local FS read only
@@ -760,6 +857,15 @@ export const createGraphTools = (baseUrl: string) => {
           if (position !== undefined) {
             console.log('📍 TOOL: node_edit merging position:', position);
             next.position = { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 };
+          }
+          if (metadata !== undefined) {
+            const normalizedMetadata = normalizeNodeMetadata(metadata);
+            console.log('🗂️ TOOL: node_edit merging metadata, files:', normalizedMetadata?.files?.length ?? 'undefined');
+            if (normalizedMetadata) {
+              next.metadata = normalizedMetadata;
+            } else {
+              delete next.metadata;
+            }
           }
 
           // Special handling for properties: merge instead of replace
@@ -913,6 +1019,15 @@ export const createGraphTools = (baseUrl: string) => {
           console.log('📍 TOOL: node_edit replacing position:', position);
           next.position = { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 };
         }
+        if (metadata !== undefined) {
+          const normalizedMetadata = normalizeNodeMetadata(metadata);
+          console.log('🗂️ TOOL: node_edit replacing metadata, files:', normalizedMetadata?.files?.length ?? 'undefined');
+          if (normalizedMetadata) {
+            next.metadata = normalizedMetadata;
+          } else {
+            delete next.metadata;
+          }
+        }
         validatedGraph.nodes[idx] = next;
         console.log('💾 TOOL: node_edit saving updated graph (replace mode)');
         const saveResult = await saveGraph(validatedGraph);
@@ -931,6 +1046,78 @@ export const createGraphTools = (baseUrl: string) => {
       throw error;
     }
   }
+  ),
+
+  // node_metadata_update
+  tool(
+    'node_metadata_update',
+    'Update metadata for a node, including implementation file references.',
+    {
+      nodeId: z.string().min(1),
+      files: z.array(z.string().min(1)).optional().describe('Project-relative file paths to associate with this node.'),
+      merge: z.boolean().optional().describe('If true, merge with existing metadata instead of replacing it.'),
+    },
+    async ({ nodeId, files, merge = false }) => {
+      console.log('🗂️ TOOL: node_metadata_update called', { nodeId, filesCount: files?.length ?? 'undefined', merge });
+
+      try {
+        const graphData = await readLocalGraph();
+        if (!graphData) {
+          console.error('❌ TOOL: node_metadata_update no graph data available');
+          const errorMsg = 'No graph data available. Please ensure the graph file exists.';
+          return { content: [{ type: 'text', text: `Error: ${errorMsg}` }] };
+        }
+
+        const graph = graphData.graph;
+        const idx = graph.nodes.findIndex((n: any) => n.id === nodeId);
+        if (idx === -1) {
+          console.error('❌ TOOL: node_metadata_update node not found', nodeId);
+          return { content: [{ type: 'text', text: `Error: Node '${nodeId}' not found.` }] };
+        }
+
+        if (!files) {
+          console.error('❌ TOOL: node_metadata_update missing files array');
+          return { content: [{ type: 'text', text: 'Error: files array is required to update metadata.' }] };
+        }
+
+        const sanitizedInput = sanitizeMetadataFileEntries(files);
+        const existing = Array.isArray((graph.nodes[idx] as any)?.metadata?.files)
+          ? sanitizeMetadataFileEntries((graph.nodes[idx] as any).metadata.files)
+          : [];
+
+        const combined = merge
+          ? sanitizeMetadataFileEntries([...existing, ...sanitizedInput])
+          : sanitizedInput;
+
+        const nextGraph = cloneGraph(graph);
+        const nextNode = { ...nextGraph.nodes[idx] } as any;
+
+        if (combined.length === 0) {
+          delete nextNode.metadata;
+        } else {
+          nextNode.metadata = { files: combined } as NodeMetadata;
+        }
+
+        nextGraph.nodes[idx] = nextNode;
+
+        console.log('💾 TOOL: node_metadata_update saving graph with metadata files:', combined.length);
+        const saveResult = await saveGraph(nextGraph);
+        if (!saveResult.success) {
+          console.log('📤 TOOL: node_metadata_update returning save error:', saveResult.error);
+          return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
+        }
+
+        const summary = combined.length > 0
+          ? `Metadata updated for ${nodeId}. Files (${combined.length}): ${combined.join(', ')}`
+          : `Metadata cleared for ${nodeId}.`;
+        console.log('📤 TOOL: node_metadata_update returning success:', summary);
+        return { content: [{ type: 'text', text: summary }] };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('💥 TOOL: node_metadata_update error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to update metadata: ${errorMessage}` }] };
+      }
+    }
   ),
 
   // sync_to_base_graph

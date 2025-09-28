@@ -1,4 +1,4 @@
-import type { Graph, GraphNode, Property } from '@/app/api/lib/schemas';
+import type { Graph, GraphNode, Property, NodeMetadata } from '@/app/api/lib/schemas';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 
 // Configure XML parser for our use case
@@ -64,6 +64,49 @@ function parseAttrBlock(attrs: string): Record<string, string> {
     out[m[1]] = m[2];
   }
   return out;
+}
+
+function normalizeMetadataFiles(metadata?: NodeMetadata | null): string[] {
+  if (!metadata || !Array.isArray(metadata.files)) return [];
+  const seen = new Set<string>();
+  const files: string[] = [];
+  for (const entry of metadata.files) {
+    if (typeof entry !== 'string') continue;
+    const cleaned = entry.trim();
+    if (!cleaned || seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    files.push(cleaned);
+  }
+  return files;
+}
+
+function filesFromXml(metadataNode: any): string[] {
+  if (!metadataNode) return [];
+  const rawFiles = metadataNode.file;
+  const entries = Array.isArray(rawFiles) ? rawFiles : (rawFiles !== undefined ? [rawFiles] : []);
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    let value: string | undefined;
+    if (typeof entry === 'string') {
+      value = entry;
+    } else if (entry && typeof entry === 'object') {
+      if (typeof entry['#text'] === 'string') {
+        value = entry['#text'];
+      } else if (typeof entry['@_route'] === 'string') {
+        value = entry['@_route'];
+      }
+    }
+
+    if (!value) continue;
+    const cleaned = unescapeXml(repairTextEncoding(String(value))).trim();
+    if (!cleaned || seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    result.push(cleaned);
+  }
+
+  return result;
 }
 
 function extractTagContent(xml: string, tag: string): string | null {
@@ -303,6 +346,10 @@ export function graphToXml(graph: Graph): string {
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const metadataFiles = normalizeMetadataFiles((n as any).metadata);
+    const metadataXml = metadataFiles.length > 0
+      ? `\n      <metadata>\n${metadataFiles.map(file => `        <file>${escapeXml(file)}</file>`).join('\n')}\n      </metadata>`
+      : '';
     const props = Array.isArray((n as any).properties) && (n as any).properties.length > 0
       ? `\n      <props>\n${((n as any).properties as Property[]).map((p) => {
           const propType = (p as any)?.type;
@@ -334,7 +381,7 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -630,12 +677,15 @@ export function xmlToGraph(xml: string): Graph {
         }
       } catch {}
 
+      const metadataFiles = filesFromXml(nodeData.metadata);
+
       return {
         id,
         title,
         prompt: description,
         properties,
-        ...(position ? { position } : {})
+        ...(position ? { position } : {}),
+        ...(metadataFiles.length > 0 ? { metadata: { files: metadataFiles } } : {})
       } as GraphNode;
     });
 

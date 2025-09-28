@@ -5,6 +5,7 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
+import { StickyNote } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +30,12 @@ export default function SelectedNodeSidebar() {
 	const [titleDraft, setTitleDraft] = useState<string>('');
 	// Building state is tracked locally since node.state was removed
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
+	const metadataFiles = Array.from(new Set(
+		(selectedNode?.metadata?.files ?? [])
+			.filter((file): file is string => typeof file === 'string')
+			.map((file) => file.trim())
+			.filter((file) => file.length > 0)
+	));
 
 	// Helper function to get children from edges
 	const getNodeChildren = (nodeId: string) => {
@@ -289,6 +296,30 @@ export default function SelectedNodeSidebar() {
 								</div>
 							);
 						})()}
+
+						<div className="border-t border-zinc-700/30 pt-3">
+							<div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
+								<StickyNote className="w-3 h-3 text-zinc-400" />
+								<span>Implementation Files</span>
+							</div>
+							{metadataFiles.length > 0 ? (
+								<ul className="mt-2 space-y-1">
+									{metadataFiles.map((file) => (
+										<li
+											key={file}
+											title={file}
+											className="text-[11px] text-zinc-200 truncate font-mono"
+										>
+											{file}
+										</li>
+									))}
+								</ul>
+							) : (
+								<div className="mt-2 text-[11px] text-zinc-500">
+									No implementation files recorded yet.
+								</div>
+							)}
+						</div>
 					</>
 				)}
 				</div>
