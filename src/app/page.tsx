@@ -3,6 +3,7 @@
 import GraphView from '@/components/GraphView';
 import SelectedNodeSidebar from '@/components/SelectedNodeSidebar';
 import FloatingChat from '@/components/FloatingChat';
+import SearchOverlay from '@/components/SearchOverlay';
 
 export default function Home() {
   return (
@@ -11,6 +12,7 @@ export default function Home() {
         <SelectedNodeSidebar />
         <div className="relative flex-1">
           <GraphView />
+          <SearchOverlay />
           <FloatingChat />
         </div>
       </div>

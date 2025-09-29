@@ -49,6 +49,41 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
   const { zoom } = useViewport();
+  const {
+    searchResults,
+    searchActiveIndex,
+    searchQuery,
+    searchCaseSensitive,
+    searchOpen,
+  } = useProjectStore();
+
+  const activeResult = (Array.isArray(searchResults) && searchActiveIndex >= 0)
+    ? searchResults[searchActiveIndex]
+    : null;
+  const isSearchHit = searchOpen && Array.isArray(searchResults) &&
+    searchResults.length > 0 &&
+    (searchQuery || '').trim() !== '' &&
+    searchResults.some((r: any) => r.nodeId === node.id);
+  const isActiveSearchHit = !!(searchOpen && activeResult && activeResult.nodeId === node.id);
+
+  const highlightText = (text: string) => {
+    const q = (searchQuery || '').trim();
+    if (!q) return text;
+    const source = searchCaseSensitive ? text : text.toLowerCase();
+    const needle = searchCaseSensitive ? q : q.toLowerCase();
+    const idx = source.indexOf(needle);
+    if (idx === -1) return text;
+    const before = text.slice(0, idx);
+    const match = text.slice(idx, idx + q.length);
+    const after = text.slice(idx + q.length);
+    return (
+      <>
+        {before}
+        <span style={{ background: 'rgba(245,158,11,0.35)', borderRadius: '3px' }}>{match}</span>
+        {after}
+      </>
+    );
+  };
   
 
   // Helper: get all connected neighbors (incoming + outgoing)
@@ -142,6 +177,18 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           alignItems: 'center',
         }}
       >
+        {(isSearchHit || isActiveSearchHit) && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: '-4px',
+              border: isActiveSearchHit ? '2px solid #f59e0b' : '2px dashed #f59e0b',
+              borderRadius: '10px',
+              boxShadow: isActiveSearchHit ? '0 0 0 4px rgba(245,158,11,0.25)' : '0 0 0 2px rgba(245,158,11,0.15)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
         {/* State indicator - only show for unbuilt nodes */}
         {effectiveState === 'unbuilt' && (
           <div style={{
@@ -177,7 +224,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           }}
           title={node.title}
         >
-          {node.title}
+          {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
         </div>
         
         {/* Simple metadata for zoomed out view */}
@@ -249,6 +296,18 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
+      {(isSearchHit || isActiveSearchHit) && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: '-4px',
+            border: isActiveSearchHit ? '2px solid #f59e0b' : '2px dashed #f59e0b',
+            borderRadius: '10px',
+            boxShadow: isActiveSearchHit ? '0 0 0 4px rgba(245,158,11,0.25)' : '0 0 0 2px rgba(245,158,11,0.15)',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {/* State indicators - only show for unbuilt nodes */}
       {effectiveState === 'unbuilt' && (
         <div style={{
@@ -280,7 +339,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             lineHeight: '1.4',
           }}
         >
-          {node.title}
+          {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
         </div>
         
         {/* Prompt preview */}
@@ -299,7 +358,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           }}
           title={node.prompt}
         >
-          {node.prompt}
+          {typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt}
         </div>
       </div>
       
@@ -418,7 +477,11 @@ function GraphCanvas() {
     connectToGraphEvents,
     disconnectFromGraphEvents,
     deleteNode,
-    loadGraphs
+    loadGraphs,
+    // search state
+    searchResults,
+    searchActiveIndex,
+    searchOpen,
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
 
@@ -766,6 +829,35 @@ function GraphCanvas() {
       hasFittedRef.current = false;
     }
   }, [nodes, reactFlow]);
+
+  // Center viewport on active search result and select its node
+  useEffect(() => {
+    if (!Array.isArray(searchResults) || searchResults.length === 0) return;
+    if (searchActiveIndex == null || searchActiveIndex < 0 || searchActiveIndex >= searchResults.length) return;
+    // Only act while search UI is open
+    const { searchOpen } = useProjectStore.getState();
+    if (!searchOpen) return;
+    const result = searchResults[searchActiveIndex];
+    const id = result?.nodeId;
+    if (!id) return;
+    // Find the ReactFlow node for position
+    const rfNode = latestNodesRef.current.find((n) => n.id === id) || nodes.find((n) => n.id === id);
+    const graphNode = graph?.nodes?.find((n) => n.id === id);
+    if (!rfNode || !graphNode) return;
+
+    // Update selection to this node
+    try {
+      setSelectedNode(id, graphNode);
+      setSelectedNodeIds([id]);
+    } catch {}
+
+    // Center the viewport on the node with gentle zoom
+    const centerX = rfNode.position.x + 130; // node width/2
+    const centerY = rfNode.position.y + 80;  // node height/2
+    try {
+      reactFlow.setCenter(centerX, centerY, { zoom: 1, duration: 400 });
+    } catch {}
+  }, [searchResults, searchActiveIndex, searchOpen, nodes, graph, reactFlow, setSelectedNode, setSelectedNodeIds]);
 
   // Function to delete the graph (clear all nodes/edges via API)
   // const deleteGraph = useCallback(async () => {
