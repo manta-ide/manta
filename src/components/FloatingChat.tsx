@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Send, Trash2, Move, Minimize2, MessageCircle } from 'lucide-react';
+import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -21,7 +21,7 @@ interface Position {
 }
 
 export default function FloatingChat() {
-  const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph } = useProjectStore();
+  const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph, setSelectedNode, setSelectedNodeIds } = useProjectStore();
   const [input, setInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -31,6 +31,13 @@ export default function FloatingChat() {
   const [hasDragged, setHasDragged] = useState(false);
   const [typedTick, setTypedTick] = useState(0);
   const [positionInitialized, setPositionInitialized] = useState(false);
+  // Mention state (single mention at a time)
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionStart, setMentionStart] = useState<number | null>(null);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionedNodeId, setMentionedNodeId] = useState<string | null>(null);
+  const textareaDomId = 'floating-chat-input';
   
   // Local state to track what context should be included in the next message
   const [includeFile, setIncludeFile] = useState(false);
@@ -56,6 +63,20 @@ export default function FloatingChat() {
   useEffect(() => {
     if (selectedNodeIds.length > 0) setIncludeNodes(true);
   }, [selectedNodeIds]);
+
+  // Compute mention candidates when active
+  const mentionCandidates = useMemo(() => {
+    if (!mentionActive || !graph?.nodes) return [] as Array<{ id: string; title: string; prompt?: string }>;
+    const q = mentionQuery.trim().toLowerCase();
+    const list = graph.nodes
+      .map(n => ({ id: n.id, title: String(n.title ?? n.id), prompt: (n as any).prompt }))
+      .filter(n => !q || n.title.toLowerCase().includes(q) || n.id.toLowerCase().includes(q));
+    // Prioritize startsWith matches, then title length
+    const starts = list.filter(n => n.title.toLowerCase().startsWith(q));
+    const contains = list.filter(n => !n.title.toLowerCase().startsWith(q));
+    const sorted = [...starts.sort((a,b)=>a.title.localeCompare(b.title)), ...contains.sort((a,b)=>a.title.localeCompare(b.title))];
+    return sorted.slice(0, 8);
+  }, [mentionActive, mentionQuery, graph]);
 
   // Get only the last 2 messages
   const lastTwoMessages = messages.slice(-2);
@@ -168,6 +189,8 @@ export default function FloatingChat() {
     setIncludeFile(false);
     setIncludeSelection(false);
     setIncludeNodes(false);
+    setMentionedNodeId(null); // allow fresh mention for next message
+    setMentionActive(false);
 
     await sendMessage(messageToSend, {
       includeFile,
@@ -186,10 +209,118 @@ export default function FloatingChat() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Start mention on '@' (allow starting even if a previous node was mentioned)
+    if (e.key === '@' && !mentionActive) {
+      // Start a mention token at the current caret position - the '@' will be inserted by the browser
+      // Compute start as position before the '@' character
+      const pos = (e.currentTarget.selectionStart ?? 0);
+      setMentionActive(true);
+      setMentionStart(pos);
+      setMentionQuery('');
+      setMentionIndex(0);
+      return; // let it type '@'
+    }
+
+    if (mentionActive) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % Math.max(1, mentionCandidates.length || 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + Math.max(1, mentionCandidates.length || 1)) % Math.max(1, mentionCandidates.length || 1));
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionActive(false);
+        setMentionStart(null);
+        setMentionQuery('');
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (mentionCandidates.length > 0) {
+          e.preventDefault();
+          const idx = Math.min(Math.max(0, mentionIndex), mentionCandidates.length - 1);
+          const candidate = mentionCandidates[idx];
+          handleSelectMention(candidate.id);
+          return;
+        }
+        // fall through to submit if no candidates
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  // Track input changes to update mention query
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    // If user removed previous mention token, allow a new one
+    if (mentionedNodeId) {
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const title = node ? String((node as any).title ?? node.id) : '';
+      const tokenPresent = title ? val.includes(`@${title}`) : false;
+      if (!tokenPresent) {
+        setMentionedNodeId(null);
+      }
+    }
+    if (mentionActive && mentionStart !== null) {
+      const caret = e.target.selectionStart ?? val.length;
+      // If caret moved before mention start, cancel
+      if (caret < mentionStart) {
+        setMentionActive(false);
+        setMentionStart(null);
+        setMentionQuery('');
+        return;
+      }
+      // Extract typed query from after '@' up to caret
+      const q = val.slice(mentionStart + 1, caret);
+      setMentionQuery(q);
+      setMentionIndex(0);
+    }
+  };
+
+  // Replace the mention token with selected node title, update store selection
+  const handleSelectMention = (nodeId: string) => {
+    const node = graph?.nodes?.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Enforce single selection globally
+    setSelectedNode(node.id, node as any);
+    setSelectedNodeIds([node.id]);
+    setIncludeNodes(true);
+    setMentionedNodeId(node.id);
+
+    const el = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+    const val = input;
+    const caret = el?.selectionStart ?? val.length;
+    const start = Math.min(mentionStart ?? 0, val.length);
+    const end = Math.min(caret, val.length);
+    const mentionText = `@${String((node as any).title ?? node.id)} `;
+    const next = val.slice(0, start) + mentionText + val.slice(end);
+    setInput(next);
+
+    // Close mention UI
+    setMentionActive(false);
+    setMentionStart(null);
+    setMentionQuery('');
+    setMentionIndex(0);
+
+    // Restore caret just after inserted mention
+    requestAnimationFrame(() => {
+      const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+      if (el2) {
+        const pos = start + mentionText.length;
+        el2.focus();
+        el2.setSelectionRange(pos, pos);
+      }
+    });
   };
 
   // Drag handling
@@ -563,18 +694,39 @@ export default function FloatingChat() {
             selectedNodes={includeNodes ? selectedNodes : []}
             onRemoveFile={() => setIncludeFile(false)}
             onRemoveSelection={() => setIncludeSelection(false)}
-            onRemoveNodes={() => setIncludeNodes(false)}
+            onRemoveNodes={() => { setIncludeNodes(false); setMentionedNodeId(null); }}
           />
           
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end relative">
             <Textarea
+              id={textareaDomId}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Ask AI..."
+              placeholder="Ask AI... Use @ to target a node"
               disabled={false}
               className="flex-1 resize-none text-xs field-sizing-content max-h-20 min-h-0 py-1.5 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
             />
+            {/* Mention dropdown */}
+            {mentionActive && mentionCandidates.length > 0 && (
+              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
+                {mentionCandidates.map((n, i) => (
+                  <button
+                    type="button"
+                    key={n.id}
+                    onMouseDown={(ev) => { ev.preventDefault(); }}
+                    onClick={() => handleSelectMention(n.id)}
+                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-zinc-800 ${i === mentionIndex ? 'bg-zinc-800' : ''}`}
+                  >
+                    <GitBranch className="w-3.5 h-3.5 text-zinc-300" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-white leading-tight">{n.title}</span>
+                      <span className="text-[10px] text-zinc-400 leading-tight">{n.id}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
             <Button
               type="submit"
               size="icon"

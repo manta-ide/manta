@@ -93,6 +93,10 @@ export default function SliderPropertyEditor({ property, onChange }: SliderPrope
           aria-label={property.title}
           className="[&_[data-slot=slider-track]]:bg-zinc-700 [&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-thumb]]:h-3 [&_[data-slot=slider-thumb]]:w-3"
         />
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-[10px] text-zinc-500 tabular-nums select-none">{fmt(min)}</span>
+          <span className="text-[10px] text-zinc-500 tabular-nums select-none">{fmt(max)}</span>
+        </div>
       </div>
     </BasePropertyEditor>
   );

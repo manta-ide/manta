@@ -174,7 +174,9 @@ export const createGraphTools = (baseUrl: string) => {
           if (node.properties && node.properties.length > 0) {
             result += `**Properties:**\n`;
             node.properties.forEach((prop: any) => {
-              result += `- ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type})\n`;
+              const hasMinMax = (typeof prop.min === 'number') || (typeof prop.max === 'number');
+              const rangeText = hasMinMax ? ` [${prop.min ?? ''}..${prop.max ?? ''}${typeof prop.step === 'number' ? `, step ${prop.step}` : ''}]` : '';
+              result += `- ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type}${rangeText})\n`;
             });
             result += '\n';
           }

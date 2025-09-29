@@ -830,7 +830,7 @@ function GraphCanvas() {
     }
   }, [nodes, reactFlow]);
 
-  // Center viewport on active search result and select its node
+  // Select active search result node (no auto-pan or zoom)
   useEffect(() => {
     if (!Array.isArray(searchResults) || searchResults.length === 0) return;
     if (searchActiveIndex == null || searchActiveIndex < 0 || searchActiveIndex >= searchResults.length) return;
@@ -840,24 +840,16 @@ function GraphCanvas() {
     const result = searchResults[searchActiveIndex];
     const id = result?.nodeId;
     if (!id) return;
-    // Find the ReactFlow node for position
-    const rfNode = latestNodesRef.current.find((n) => n.id === id) || nodes.find((n) => n.id === id);
+    // Update selection for highlighting (do not pan/zoom)
     const graphNode = graph?.nodes?.find((n) => n.id === id);
-    if (!rfNode || !graphNode) return;
+    if (!graphNode) return;
 
     // Update selection to this node
     try {
       setSelectedNode(id, graphNode);
       setSelectedNodeIds([id]);
     } catch {}
-
-    // Center the viewport on the node with gentle zoom
-    const centerX = rfNode.position.x + 130; // node width/2
-    const centerY = rfNode.position.y + 80;  // node height/2
-    try {
-      reactFlow.setCenter(centerX, centerY, { zoom: 1, duration: 400 });
-    } catch {}
-  }, [searchResults, searchActiveIndex, searchOpen, nodes, graph, reactFlow, setSelectedNode, setSelectedNodeIds]);
+  }, [searchResults, searchActiveIndex, searchOpen, nodes, graph, reactFlow, setSelectedNode, setSelectedNodeIds, viewport.zoom]);
 
   // Function to delete the graph (clear all nodes/edges via API)
   // const deleteGraph = useCallback(async () => {
