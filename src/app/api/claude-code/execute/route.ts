@@ -17,13 +17,18 @@ interface ClaudeInstallation {
 }
 
 // Claude Code binary discovery functions
+function envVerbose(): boolean {
+  const v = String(process.env.VERBOSE_CLAUDE_LOGS || '').toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
+
 function findClaudeBinary(): string {
-  console.log('🔍 Searching for Claude Code binary...');
+  if (envVerbose()) console.log('🔍 Searching for Claude Code binary...');
 
   // First try the current approach (development/standalone detection)
   const quickPath = getQuickCliPath();
   if (quickPath && fs.existsSync(quickPath)) {
-    console.log(`✅ Found Claude Code via quick detection: ${quickPath}`);
+    if (envVerbose()) console.log(`✅ Found Claude Code via quick detection: ${quickPath}`);
     return quickPath;
   }
 
@@ -35,14 +40,16 @@ function findClaudeBinary(): string {
   }
 
   // Log all found installations
-  installations.forEach(install => {
-    console.log(`📍 Found Claude installation: ${install.path} (${install.source})`);
-  });
+  if (envVerbose()) {
+    installations.forEach(install => {
+      console.log(`📍 Found Claude installation: ${install.path} (${install.source})`);
+    });
+  }
 
   // Select the best installation
   const best = selectBestInstallation(installations);
   if (best) {
-    console.log(`🎯 Selected Claude installation: ${best.path} (${best.source})`);
+    if (envVerbose()) console.log(`🎯 Selected Claude installation: ${best.path} (${best.source})`);
     return best.path;
   }
 
@@ -296,14 +303,7 @@ export const dynamic = 'force-dynamic';
 // - Production/User project mode: Works in the current user project directory
 // The working directory is determined by MANTA_MODE and MANTA_PROJECT_DIR env vars
 
-// ---- Logging helpers ----
-const VERBOSE = process.env.VERBOSE_CLAUDE_LOGS !== '0';
-function logHeader(title: string) {
-  if (!VERBOSE) return; console.log(`\n====== ${title} ======`);
-}
-function logLine(prefix: string, message?: any) {
-  if (!VERBOSE) return; console.log(prefix, message ?? '');
-}
+// ---- Logging helpers (default: quiet) ----
 function pretty(obj: any) {
   try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
 }
@@ -316,6 +316,12 @@ function pretty(obj: any) {
 export async function POST(req: NextRequest) {
   try {
     const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
+
+    const envVerbose = String(process.env.VERBOSE_CLAUDE_LOGS || '').toLowerCase();
+    const defaultVerbose = envVerbose === '1' || envVerbose === 'true' || envVerbose === 'yes' || envVerbose === 'on';
+    const verbose = options?.verbose ?? defaultVerbose;
+    const logHeader = (title: string) => { if (!verbose) return; console.log(`\n====== ${title} ======`); };
+    const logLine = (prefix: string, message?: any) => { if (!verbose) return; console.log(prefix, message ?? ''); };
 
     logHeader('Claude Code Execute');
     logLine('🎯 Claude Code: User asked (full):', prompt);
@@ -338,6 +344,10 @@ export async function POST(req: NextRequest) {
         const encoder = new TextEncoder();
 
         try {
+          // Sync env-controlled verbosity with request options for discovery logs
+          if (options?.verbose === true) process.env.VERBOSE_CLAUDE_LOGS = '1';
+          if (options?.verbose === false) process.env.VERBOSE_CLAUDE_LOGS = '0';
+
           // Find the best Claude Code installation
           const cliPath = findClaudeBinary();
 
@@ -402,7 +412,7 @@ export async function POST(req: NextRequest) {
               }
 
               // Handle different message types with proper typing
-              if (VERBOSE && (message as any).type !== 'stream_event') {
+              if (verbose && (message as any).type !== 'stream_event') {
                 //logHeader(`SDK Message #${messageCount} (${(message as any).type})`);
                 //logLine('📥 Full message payload:', pretty(message));
               }
@@ -426,15 +436,15 @@ export async function POST(req: NextRequest) {
           }
 
           // If we get here without a result, send completion
-          console.log('🏁 Claude Code: Query completed without result');
-          console.log('🏁 Claude Code: Total messages processed:', messageCount);
+          logLine('🏁 Claude Code: Query completed without result');
+          logLine('🏁 Claude Code: Total messages processed:', messageCount);
 
           // Only close stream if not already closed
           if (!streamClosed) {
             streamClosed = true;
 
             if (!hasStartedStreaming) {
-              console.log('🎯 Claude Code: No response generated, sending fallback');
+              logLine('🎯 Claude Code: No response generated, sending fallback');
               controller.enqueue(encoder.encode('data: [STREAM_START]\n\n'));
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: "I apologize, but I couldn't generate a response. Please try again." })}\n\n`));
             }
