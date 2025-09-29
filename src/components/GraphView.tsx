@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useRef, memo } from 'react';
+import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   ReactFlow,
@@ -177,18 +177,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           alignItems: 'center',
         }}
       >
-        {(isSearchHit || isActiveSearchHit) && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: '-4px',
-              border: isActiveSearchHit ? '2px solid #f59e0b' : '2px dashed #f59e0b',
-              borderRadius: '10px',
-              boxShadow: isActiveSearchHit ? '0 0 0 4px rgba(245,158,11,0.25)' : '0 0 0 2px rgba(245,158,11,0.15)',
-              pointerEvents: 'none',
-            }}
-          />
-        )}
+        {/* No extra border for search hits; fading overlay handles focus */}
         {/* State indicator - only show for unbuilt nodes */}
         {effectiveState === 'unbuilt' && (
           <div style={{
@@ -296,18 +285,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
-      {(isSearchHit || isActiveSearchHit) && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: '-4px',
-            border: isActiveSearchHit ? '2px solid #f59e0b' : '2px dashed #f59e0b',
-            borderRadius: '10px',
-            boxShadow: isActiveSearchHit ? '0 0 0 4px rgba(245,158,11,0.25)' : '0 0 0 2px rgba(245,158,11,0.15)',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+      {/* No extra border for search hits; fading overlay handles focus */}
       {/* State indicators - only show for unbuilt nodes */}
       {effectiveState === 'unbuilt' && (
         <div style={{
@@ -508,6 +486,22 @@ function GraphCanvas() {
   const reactFlow = useReactFlow();
   // Auth removed; define placeholder to avoid TS errors
   const user: any = null;
+
+  // Compute focus rectangles in graph coordinates (no viewport dependency to avoid lag)
+  const focusRects = useMemo(() => {
+    if (!searchOpen) return [] as Array<{ left: number; top: number; width: number; height: number }>;
+    const ids = Array.from(new Set((Array.isArray(searchResults) ? searchResults : []).map((r: any) => r.nodeId).filter(Boolean)));
+    if (ids.length === 0) return [];
+    const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const id of ids) {
+      const rfNode = nodes.find((n) => n.id === id);
+      if (!rfNode) continue;
+      const nodeW = (rfNode.width ?? 260);
+      const nodeH = (rfNode.height ?? 160);
+      rects.push({ left: rfNode.position.x, top: rfNode.position.y, width: nodeW, height: nodeH });
+    }
+    return rects;
+  }, [nodes, searchResults, searchOpen]);
 
   // Generate unique node ID
   const generateNodeId = useCallback(() => {
@@ -1604,6 +1598,36 @@ function GraphCanvas() {
         <Controls />
         <Background color="#374151" gap={20} />
       </ReactFlow>
+
+      {/* Focus overlay: fade everything except all found nodes (when search is open) */}
+      {focusRects.length > 0 && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900 }}>
+          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
+            <defs>
+              <mask id="graph-focus-holes-mask">
+                {/* Start fully visible (white), then punch holes (black) where found nodes are */}
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
+                  {focusRects.map((r, i) => (
+                    <rect
+                      key={i}
+                      x={r.left}
+                      y={r.top}
+                      width={r.width}
+                      height={r.height}
+                      rx={0}
+                      ry={0}
+                      fill="black"
+                    />
+                  ))}
+                </g>
+              </mask>
+            </defs>
+            {/* Overlay rectangle uses the mask so holes are transparent */}
+            <rect x="0" y="0" width="100%" height="100%" fill="rgba(255,255,255,0.55)" mask="url(#graph-focus-holes-mask)" />
+          </svg>
+        </div>
+      )}
 
       {/* Tool Buttons - Left Side */}
       <div style={{

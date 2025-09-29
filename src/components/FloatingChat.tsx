@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,6 +38,7 @@ export default function FloatingChat() {
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionedNodeId, setMentionedNodeId] = useState<string | null>(null);
   const textareaDomId = 'floating-chat-input';
+  const [pendingCaretPos, setPendingCaretPos] = useState<number | null>(null);
   
   // Local state to track what context should be included in the next message
   const [includeFile, setIncludeFile] = useState(false);
@@ -52,15 +53,15 @@ export default function FloatingChat() {
   // No longer using job system - simplified logic
 
   // Reset context flags when actual selections change
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (currentFile) setIncludeFile(true);
   }, [currentFile]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selection) setIncludeSelection(true);
   }, [selection]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedNodeIds.length > 0) setIncludeNodes(true);
   }, [selectedNodeIds]);
 
@@ -84,8 +85,43 @@ export default function FloatingChat() {
   // Get selected nodes from graph
   const selectedNodes = graph?.nodes?.filter(node => selectedNodeIds.includes(node.id)) || [];
 
+  // Overlay/textarea refs to keep visual pill overlay aligned with scroll
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const syncOverlayScroll = useCallback(() => {
+    const st = textareaRef.current?.scrollTop ?? 0;
+    if (overlayRef.current) {
+      overlayRef.current.style.transform = `translateY(-${st}px)`;
+    }
+  }, []);
+
+  // Build overlay HTML to visually render mentions as pill tags
+  const overlayHtml = useMemo(() => {
+    const escape = (s: string) => s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    let html = escape(input || '');
+    // If a node is mentioned, style the exact token @Title (with NBSP for internal spaces)
+    if (mentionedNodeId) {
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      if (rawTitle) {
+        const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
+        const tokenEsc = escape(token);
+        const pill = `<span style=\"display:inline;background:#3f3f46;color:#e5e7eb;border-radius:4px;\">${escape('@' + rawTitle)}</span>`;
+        html = html.split(tokenEsc).join(pill);
+      }
+    }
+    return html;
+  }, [input, mentionedNodeId, graph]);
+
+  useLayoutEffect(() => { syncOverlayScroll(); }, [input, syncOverlayScroll]);
+
   // Position near bottom-left of GraphView on first mount (robust to late mount)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (positionInitialized) return;
 
     let cancelled = false;
@@ -209,6 +245,95 @@ export default function FloatingChat() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Arrow navigation: jump across tag instead of inside
+    if (!mentionActive && mentionedNodeId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      const el = e.currentTarget;
+      const val = input;
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      if (token) {
+        const start = val.indexOf(token);
+        if (start !== -1) {
+          const end = start + token.length;
+          const pos = el.selectionStart ?? 0;
+          if (e.key === 'ArrowLeft' && pos === end) {
+            e.preventDefault();
+            requestAnimationFrame(() => {
+              const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+              if (el2) el2.setSelectionRange(start, start);
+            });
+            return;
+          }
+          if (e.key === 'ArrowRight' && pos === start) {
+            e.preventDefault();
+            requestAnimationFrame(() => {
+              const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+              if (el2) el2.setSelectionRange(end, end);
+            });
+            return;
+          }
+        }
+      }
+    }
+    // Delete whole tag when caret is just before it and Delete is pressed
+    if (e.key === 'Delete' && !mentionActive && mentionedNodeId) {
+      const el = e.currentTarget;
+      const pos = el.selectionStart ?? 0;
+      const val = input;
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      if (token && val.slice(pos, pos + token.length) === token) {
+        e.preventDefault();
+        const before = val.slice(0, pos);
+        const after = val.slice(pos + token.length);
+        const next = before + after;
+        setInput(next);
+        setMentionedNodeId(null);
+        setIncludeNodes(false);
+        try { setSelectedNode(null, null); } catch {}
+        try { setSelectedNodeIds([]); } catch {}
+        requestAnimationFrame(() => {
+          const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+          if (el2) {
+            const newPos = before.length;
+            el2.focus();
+            el2.setSelectionRange(newPos, newPos);
+          }
+        });
+        return;
+      }
+    }
+    // Handle deleting a full mention tag @{Title} in one go when backspacing at its end
+    if (e.key === 'Backspace' && !mentionActive && mentionedNodeId) {
+      const el = e.currentTarget;
+      const pos = el.selectionStart ?? 0;
+      const val = input;
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      if (token && pos >= token.length && val.slice(pos - token.length, pos) === token) {
+        e.preventDefault();
+        const before = val.slice(0, pos - token.length);
+        const after = val.slice(pos);
+        const next = before + after;
+        setInput(next);
+        setMentionedNodeId(null);
+        setIncludeNodes(false);
+        try { setSelectedNode(null, null); } catch {}
+        try { setSelectedNodeIds([]); } catch {}
+        requestAnimationFrame(() => {
+          const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+          if (el2) {
+            const newPos = before.length;
+            el2.focus();
+            el2.setSelectionRange(newPos, newPos);
+          }
+        });
+        return;
+      }
+    }
     // Start mention on '@' (allow starting even if a previous node was mentioned)
     if (e.key === '@' && !mentionActive) {
       // Start a mention token at the current caret position - the '@' will be inserted by the browser
@@ -264,8 +389,9 @@ export default function FloatingChat() {
     // If user removed previous mention token, allow a new one
     if (mentionedNodeId) {
       const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-      const title = node ? String((node as any).title ?? node.id) : '';
-      const tokenPresent = title ? val.includes(`@${title}`) : false;
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      const tokenPresent = token ? val.includes(token) : false;
       if (!tokenPresent) {
         setMentionedNodeId(null);
       }
@@ -299,10 +425,13 @@ export default function FloatingChat() {
 
     const el = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
     const val = input;
-    const caret = el?.selectionStart ?? val.length;
-    const start = Math.min(mentionStart ?? 0, val.length);
-    const end = Math.min(caret, val.length);
-    const mentionText = `@${String((node as any).title ?? node.id)} `;
+    const baseStart = Math.min(mentionStart ?? 0, val.length);
+    const endByQuery = baseStart + 1 + (mentionQuery?.length ?? 0);
+    const end = Math.min(endByQuery, val.length);
+    const start = baseStart;
+    const rawTitle = String((node as any).title ?? node.id);
+    const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
+    const mentionText = `${token} `;
     const next = val.slice(0, start) + mentionText + val.slice(end);
     setInput(next);
 
@@ -311,19 +440,29 @@ export default function FloatingChat() {
     setMentionStart(null);
     setMentionQuery('');
     setMentionIndex(0);
-
-    // Restore caret just after inserted mention
-    requestAnimationFrame(() => {
-      const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
-      if (el2) {
-        const pos = start + mentionText.length;
-        el2.focus();
-        el2.setSelectionRange(pos, pos);
-      }
-    });
+    // Mark caret placement to finalize after re-render
+    setPendingCaretPos(start + mentionText.length);
   };
 
-  // Drag handling
+  // Ensure caret lands immediately after the inserted mention
+  useLayoutEffect(() => {
+    if (pendingCaretPos == null) return;
+    const pos = pendingCaretPos;
+    const place = () => {
+      try {
+        const el = textareaRef.current as HTMLTextAreaElement | null;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(pos, pos);
+        }
+      } catch {}
+    };
+    requestAnimationFrame(place);
+    setTimeout(place, 0);
+    setPendingCaretPos(null);
+  }, [pendingCaretPos]);
+
+  // Drag handling  // Drag handling
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement && e.target.closest('button, textarea, input')) {
       return; // Don't start dragging if clicking on interactive elements
@@ -380,7 +519,7 @@ export default function FloatingChat() {
     }, 100);
   }, [isDragging]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isDragging) {
       // Add event listeners to window to catch events even when cursor leaves the element
       const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
@@ -555,7 +694,7 @@ export default function FloatingChat() {
             const [shown, setShown] = useState('');
             const raf = useRef<number | null>(null);
             const idxRef = useRef(0);
-            useEffect(() => {
+            useLayoutEffect(() => {
               idxRef.current = 0;
               setShown('');
               // Base typing speed (ms per character). Apply multiplier: higher speed => faster typing.
@@ -638,7 +777,7 @@ export default function FloatingChat() {
                   <div className="md-ol-continue">
                     {m.content && m.content.trim() ? (
                       <>
-                        {console.log('🎨 FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
+                        {console.log('рџЋЁ FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
                           components={markdownComponents}
@@ -648,7 +787,7 @@ export default function FloatingChat() {
                       </>
                     ) : (
                       <>
-                        {console.log('💭 FloatingChat: Showing thinking indicator')}
+                        {console.log('рџ’­ FloatingChat: Showing thinking indicator')}
                         <ShimmeringText
                           text={'Thinking...'}
                           duration={1.0}
@@ -698,15 +837,68 @@ export default function FloatingChat() {
           />
           
           <div className="flex gap-2 items-end relative">
-            <Textarea
-              id={textareaDomId}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask AI... Use @ to target a node"
-              disabled={false}
-              className="flex-1 resize-none text-xs field-sizing-content max-h-20 min-h-0 py-1.5 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+            <div className="relative flex-1 bg-zinc-800 rounded-md overflow-hidden">
+              {/* Overlay that shows mentions as tags */}
+              <div
+                className="absolute inset-0 z-0 px-3 py-1.5 text-xs whitespace-pre-wrap break-all pointer-events-none rounded-md"
+                style={{ color: '#e5e7eb', fontFamily: 'inherit', transform: 'translateY(0px)', overflowWrap: 'anywhere' as any }}
+                ref={overlayRef}
+                dangerouslySetInnerHTML={{ __html: overlayHtml }}
+              />
+              <Textarea
+                id={textareaDomId}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                ref={textareaRef}
+                onScroll={syncOverlayScroll}
+                onMouseUp={(e) => {
+                  const el = e.currentTarget;
+                  const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+                  const rawTitle = node ? String((node as any).title ?? node.id) : '';
+                  const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+                  if (token) {
+                    requestAnimationFrame(() => {
+                      const val = el.value;
+                      const start = val.indexOf(token);
+                      if (start !== -1) {
+                        const end = start + token.length;
+                        let s = el.selectionStart ?? 0;
+                        let epos = el.selectionEnd ?? s;
+                        let changed = false;
+                        if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
+                        if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
+                        if (changed) el.setSelectionRange(s, epos);
+                      }
+                    });
+                  }
+                }}
+                onSelect={(e) => {
+                  const el = e.currentTarget;
+                  const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+                  const rawTitle = node ? String((node as any).title ?? node.id) : '';
+                  const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+                  if (token) {
+                    requestAnimationFrame(() => {
+                      const val = el.value;
+                      const start = val.indexOf(token);
+                      if (start !== -1) {
+                        const end = start + token.length;
+                        let s = el.selectionStart ?? 0;
+                        let epos = el.selectionEnd ?? s;
+                        let changed = false;
+                        if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
+                        if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
+                        if (changed) el.setSelectionRange(s, epos);
+                      }
+                    });
+                  }
+                }}
+                placeholder="Ask AI... Use @ to target a node"
+                disabled={false}
+                className="relative z-10 w-full resize-none text-xs field-sizing-content max-h-20 min-h-0 px-3 py-1.5 bg-transparent border-zinc-600 caret-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
             {/* Mention dropdown */}
             {mentionActive && mentionCandidates.length > 0 && (
               <div className="absolute bottom-10 left-0 w-full max-w-[18rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
@@ -742,3 +934,16 @@ export default function FloatingChat() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
