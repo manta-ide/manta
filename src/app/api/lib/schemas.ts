@@ -313,6 +313,8 @@ export const ClaudeCodeOptionsSchema = z.object({
   resume: z.string().optional(),
   stderr: z.any().optional(), // Function type
   strictMcpConfig: z.boolean().optional(),
+  // Control server-side verbosity for Claude Code execution logs
+  verbose: z.boolean().optional(),
 });
 
 export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;

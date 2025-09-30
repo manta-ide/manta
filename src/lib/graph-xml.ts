@@ -217,12 +217,16 @@ function valueToText(p: Property): string {
 
 function generateFieldXml(field: Property, fieldValue: any): string {
   const options = (field as any)?.options;
+  const min = (field as any)?.min;
+  const max = (field as any)?.max;
+  const step = (field as any)?.step;
+  const rangeAttrs = `${typeof min === 'number' ? ` min="${escapeXml(String(min))}"` : ''}${typeof max === 'number' ? ` max="${escapeXml(String(max))}"` : ''}${typeof step === 'number' ? ` step="${escapeXml(String(step))}"` : ''}`;
 
   // Handle any field type that has options
   if (Array.isArray(options) && options.length > 0) {
     // Field with options as XML elements
     const optionsXml = options.map(option => `          <option>${escapeXml(String(option))}</option>`).join('\n');
-    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">
+    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}"${rangeAttrs}>
           <value>${escapeXml(valueToText({...field, value: fieldValue}))}</value>
           <options>
 ${optionsXml}
@@ -230,10 +234,10 @@ ${optionsXml}
         </field>`;
   } else if ((field.type === 'object' && (field as any).fields) || field.type === 'object-list') {
     // Nested object or object-list
-    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${generateNestedXml({...field, value: fieldValue})}</field>`;
+    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}"${rangeAttrs}>${generateNestedXml({...field, value: fieldValue})}</field>`;
   } else {
     // Simple field
-    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}">${escapeXml(valueToText({...field, value: fieldValue}))}</field>`;
+    return `<field name="${escapeXml(field.id)}" title="${escapeXml(field.title)}" type="${escapeXml(field.type)}"${rangeAttrs}>${escapeXml(valueToText({...field, value: fieldValue}))}</field>`;
   }
 }
 
@@ -358,11 +362,19 @@ export function graphToXml(graph: Graph): string {
           if (propType === 'object' || propType === 'object-list') {
             // Use nested XML structure for objects and arrays
             const nestedContent = generateNestedXml(p);
-            return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(propType)}">${nestedContent}</prop>`;
+            const min = (p as any)?.min;
+            const max = (p as any)?.max;
+            const step = (p as any)?.step;
+            const rangeAttrs = `${typeof min === 'number' ? ` min="${escapeXml(String(min))}"` : ''}${typeof max === 'number' ? ` max="${escapeXml(String(max))}"` : ''}${typeof step === 'number' ? ` step="${escapeXml(String(step))}"` : ''}`;
+            return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(propType)}"${rangeAttrs}>${nestedContent}</prop>`;
           } else if (Array.isArray(options) && options.length > 0) {
             // Property with options - use XML format
             const optionsXml = options.map(option => `          <option>${escapeXml(String(option))}</option>`).join('\n');
-            return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}">
+            const min = (p as any)?.min;
+            const max = (p as any)?.max;
+            const step = (p as any)?.step;
+            const rangeAttrs = `${typeof min === 'number' ? ` min="${escapeXml(String(min))}"` : ''}${typeof max === 'number' ? ` max="${escapeXml(String(max))}"` : ''}${typeof step === 'number' ? ` step="${escapeXml(String(step))}"` : ''}`;
+            return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}"${rangeAttrs}>
           <value>${escapeXml(valueToText(p))}</value>
           <options>
 ${optionsXml}
@@ -370,7 +382,11 @@ ${optionsXml}
         </prop>`;
           } else {
             // Simple property without options
-            return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}">${escapeXml(valueToText(p))}</prop>`;
+            const min = (p as any)?.min;
+            const max = (p as any)?.max;
+            const step = (p as any)?.step;
+            const rangeAttrs = `${typeof min === 'number' ? ` min="${escapeXml(String(min))}"` : ''}${typeof max === 'number' ? ` max="${escapeXml(String(max))}"` : ''}${typeof step === 'number' ? ` step="${escapeXml(String(step))}"` : ''}`;
+            return `        <prop name="${escapeXml(String((p as any).id || ''))}" title="${escapeXml(String((p as any).title || (p as any).id || ''))}" type="${escapeXml(toPropTypeAttr(p))}"${rangeAttrs}>${escapeXml(valueToText(p))}</prop>`;
           }
         }).join("\n")}\n      </props>`
       : '';
@@ -494,12 +510,18 @@ export function xmlToGraph(xml: string): Graph {
           const fieldName = fieldData['@_name'] || '';
           const fieldTitle = fieldData['@_title'] || fieldName;
           const fieldType = (fieldData['@_type'] || 'string') as any;
+          const fieldMin = fieldData['@_min'];
+          const fieldMax = fieldData['@_max'];
+          const fieldStep = fieldData['@_step'];
 
           // Select with nested <value> and <options>
           if (fieldType === 'select') {
             const fieldValue = coerce('string', repairTextEncoding(fieldData.value?.['#text'] ?? fieldData.value ?? fieldData['#text'] ?? ''));
             const fieldOptions = readOptions(fieldData.options);
             const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: fieldValue };
+            if (fieldMin !== undefined && fieldMin !== null && fieldMin !== '') def.min = Number(fieldMin);
+            if (fieldMax !== undefined && fieldMax !== null && fieldMax !== '') def.max = Number(fieldMax);
+            if (fieldStep !== undefined && fieldStep !== null && fieldStep !== '') def.step = Number(fieldStep);
             if (fieldOptions.length) def.options = fieldOptions;
             return { value: fieldValue, def };
           }
@@ -515,6 +537,9 @@ export function xmlToGraph(xml: string): Graph {
               fields.push(parsed.def);
             });
             const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: obj };
+            if (fieldMin !== undefined && fieldMin !== null && fieldMin !== '') def.min = Number(fieldMin);
+            if (fieldMax !== undefined && fieldMax !== null && fieldMax !== '') def.max = Number(fieldMax);
+            if (fieldStep !== undefined && fieldStep !== null && fieldStep !== '') def.step = Number(fieldStep);
             if (fields.length) def.fields = fields;
             return { value: obj, def };
           }
@@ -544,6 +569,9 @@ export function xmlToGraph(xml: string): Graph {
               items.push(itemObj);
             });
             const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: items };
+            if (fieldMin !== undefined && fieldMin !== null && fieldMin !== '') def.min = Number(fieldMin);
+            if (fieldMax !== undefined && fieldMax !== null && fieldMax !== '') def.max = Number(fieldMax);
+            if (fieldStep !== undefined && fieldStep !== null && fieldStep !== '') def.step = Number(fieldStep);
             if (itemFields.length) def.itemFields = itemFields;
             return { value: items, def };
           }
@@ -552,6 +580,9 @@ export function xmlToGraph(xml: string): Graph {
           const text = repairTextEncoding(fieldData['#text'] ?? '');
           const coerced = coerce(fieldType, text);
           const def: any = { id: fieldName, title: fieldTitle, type: fieldType, value: coerced };
+          if (fieldMin !== undefined && fieldMin !== null && fieldMin !== '') def.min = Number(fieldMin);
+          if (fieldMax !== undefined && fieldMax !== null && fieldMax !== '') def.max = Number(fieldMax);
+          if (fieldStep !== undefined && fieldStep !== null && fieldStep !== '') def.step = Number(fieldStep);
           return { value: coerced, def };
         };
 
@@ -560,6 +591,9 @@ export function xmlToGraph(xml: string): Graph {
           const xmlTitle = propData['@_title'] || name;
           const xmlType = propData['@_type'] || 'string';
           const xmlOptions = propData['@_options'] || '';
+          const propMin = propData['@_min'];
+          const propMax = propData['@_max'];
+          const propStep = propData['@_step'];
 
           let value: any;
           let finalType: any = xmlType;
@@ -639,6 +673,10 @@ export function xmlToGraph(xml: string): Graph {
             type: finalType,
             value
           };
+
+          if (propMin !== undefined && propMin !== null && propMin !== '') property.min = Number(propMin);
+          if (propMax !== undefined && propMax !== null && propMax !== '') property.max = Number(propMax);
+          if (propStep !== undefined && propStep !== null && propStep !== '') property.step = Number(propStep);
 
           if (options.length > 0) {
             property.options = options;

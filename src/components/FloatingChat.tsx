@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Send, Trash2, Move, Minimize2, MessageCircle } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -21,7 +21,7 @@ interface Position {
 }
 
 export default function FloatingChat() {
-  const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph } = useProjectStore();
+  const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph, setSelectedNode, setSelectedNodeIds } = useProjectStore();
   const [input, setInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -31,6 +31,14 @@ export default function FloatingChat() {
   const [hasDragged, setHasDragged] = useState(false);
   const [typedTick, setTypedTick] = useState(0);
   const [positionInitialized, setPositionInitialized] = useState(false);
+  // Mention state (single mention at a time)
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionStart, setMentionStart] = useState<number | null>(null);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionedNodeId, setMentionedNodeId] = useState<string | null>(null);
+  const textareaDomId = 'floating-chat-input';
+  const [pendingCaretPos, setPendingCaretPos] = useState<number | null>(null);
   
   // Local state to track what context should be included in the next message
   const [includeFile, setIncludeFile] = useState(false);
@@ -45,17 +53,31 @@ export default function FloatingChat() {
   // No longer using job system - simplified logic
 
   // Reset context flags when actual selections change
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (currentFile) setIncludeFile(true);
   }, [currentFile]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selection) setIncludeSelection(true);
   }, [selection]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedNodeIds.length > 0) setIncludeNodes(true);
   }, [selectedNodeIds]);
+
+  // Compute mention candidates when active
+  const mentionCandidates = useMemo(() => {
+    if (!mentionActive || !graph?.nodes) return [] as Array<{ id: string; title: string; prompt?: string }>;
+    const q = mentionQuery.trim().toLowerCase();
+    const list = graph.nodes
+      .map(n => ({ id: n.id, title: String(n.title ?? n.id), prompt: (n as any).prompt }))
+      .filter(n => !q || n.title.toLowerCase().includes(q) || n.id.toLowerCase().includes(q));
+    // Prioritize startsWith matches, then title length
+    const starts = list.filter(n => n.title.toLowerCase().startsWith(q));
+    const contains = list.filter(n => !n.title.toLowerCase().startsWith(q));
+    const sorted = [...starts.sort((a,b)=>a.title.localeCompare(b.title)), ...contains.sort((a,b)=>a.title.localeCompare(b.title))];
+    return sorted.slice(0, 8);
+  }, [mentionActive, mentionQuery, graph]);
 
   // Get only the last 2 messages
   const lastTwoMessages = messages.slice(-2);
@@ -63,8 +85,43 @@ export default function FloatingChat() {
   // Get selected nodes from graph
   const selectedNodes = graph?.nodes?.filter(node => selectedNodeIds.includes(node.id)) || [];
 
+  // Overlay/textarea refs to keep visual pill overlay aligned with scroll
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const syncOverlayScroll = useCallback(() => {
+    const st = textareaRef.current?.scrollTop ?? 0;
+    if (overlayRef.current) {
+      overlayRef.current.style.transform = `translateY(-${st}px)`;
+    }
+  }, []);
+
+  // Build overlay HTML to visually render mentions as pill tags
+  const overlayHtml = useMemo(() => {
+    const escape = (s: string) => s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    let html = escape(input || '');
+    // If a node is mentioned, style the exact token @Title (with NBSP for internal spaces)
+    if (mentionedNodeId) {
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      if (rawTitle) {
+        const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
+        const tokenEsc = escape(token);
+        const pill = `<span style=\"display:inline;background:#3f3f46;color:#e5e7eb;border-radius:4px;\">${escape('@' + rawTitle)}</span>`;
+        html = html.split(tokenEsc).join(pill);
+      }
+    }
+    return html;
+  }, [input, mentionedNodeId, graph]);
+
+  useLayoutEffect(() => { syncOverlayScroll(); }, [input, syncOverlayScroll]);
+
   // Position near bottom-left of GraphView on first mount (robust to late mount)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (positionInitialized) return;
 
     let cancelled = false;
@@ -168,6 +225,8 @@ export default function FloatingChat() {
     setIncludeFile(false);
     setIncludeSelection(false);
     setIncludeNodes(false);
+    setMentionedNodeId(null); // allow fresh mention for next message
+    setMentionActive(false);
 
     await sendMessage(messageToSend, {
       includeFile,
@@ -186,13 +245,224 @@ export default function FloatingChat() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Arrow navigation: jump across tag instead of inside
+    if (!mentionActive && mentionedNodeId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      const el = e.currentTarget;
+      const val = input;
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      if (token) {
+        const start = val.indexOf(token);
+        if (start !== -1) {
+          const end = start + token.length;
+          const pos = el.selectionStart ?? 0;
+          if (e.key === 'ArrowLeft' && pos === end) {
+            e.preventDefault();
+            requestAnimationFrame(() => {
+              const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+              if (el2) el2.setSelectionRange(start, start);
+            });
+            return;
+          }
+          if (e.key === 'ArrowRight' && pos === start) {
+            e.preventDefault();
+            requestAnimationFrame(() => {
+              const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+              if (el2) el2.setSelectionRange(end, end);
+            });
+            return;
+          }
+        }
+      }
+    }
+    // Delete whole tag when caret is just before it and Delete is pressed
+    if (e.key === 'Delete' && !mentionActive && mentionedNodeId) {
+      const el = e.currentTarget;
+      const pos = el.selectionStart ?? 0;
+      const val = input;
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      if (token && val.slice(pos, pos + token.length) === token) {
+        e.preventDefault();
+        const before = val.slice(0, pos);
+        const after = val.slice(pos + token.length);
+        const next = before + after;
+        setInput(next);
+        setMentionedNodeId(null);
+        setIncludeNodes(false);
+        try { setSelectedNode(null, null); } catch {}
+        try { setSelectedNodeIds([]); } catch {}
+        requestAnimationFrame(() => {
+          const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+          if (el2) {
+            const newPos = before.length;
+            el2.focus();
+            el2.setSelectionRange(newPos, newPos);
+          }
+        });
+        return;
+      }
+    }
+    // Handle deleting a full mention tag @{Title} in one go when backspacing at its end
+    if (e.key === 'Backspace' && !mentionActive && mentionedNodeId) {
+      const el = e.currentTarget;
+      const pos = el.selectionStart ?? 0;
+      const val = input;
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      if (token && pos >= token.length && val.slice(pos - token.length, pos) === token) {
+        e.preventDefault();
+        const before = val.slice(0, pos - token.length);
+        const after = val.slice(pos);
+        const next = before + after;
+        setInput(next);
+        setMentionedNodeId(null);
+        setIncludeNodes(false);
+        try { setSelectedNode(null, null); } catch {}
+        try { setSelectedNodeIds([]); } catch {}
+        requestAnimationFrame(() => {
+          const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+          if (el2) {
+            const newPos = before.length;
+            el2.focus();
+            el2.setSelectionRange(newPos, newPos);
+          }
+        });
+        return;
+      }
+    }
+    // Start mention on '@' (allow starting even if a previous node was mentioned)
+    if (e.key === '@' && !mentionActive) {
+      // Start a mention token at the current caret position - the '@' will be inserted by the browser
+      // Compute start as position before the '@' character
+      const pos = (e.currentTarget.selectionStart ?? 0);
+      setMentionActive(true);
+      setMentionStart(pos);
+      setMentionQuery('');
+      setMentionIndex(0);
+      return; // let it type '@'
+    }
+
+    if (mentionActive) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % Math.max(1, mentionCandidates.length || 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + Math.max(1, mentionCandidates.length || 1)) % Math.max(1, mentionCandidates.length || 1));
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionActive(false);
+        setMentionStart(null);
+        setMentionQuery('');
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (mentionCandidates.length > 0) {
+          e.preventDefault();
+          const idx = Math.min(Math.max(0, mentionIndex), mentionCandidates.length - 1);
+          const candidate = mentionCandidates[idx];
+          handleSelectMention(candidate.id);
+          return;
+        }
+        // fall through to submit if no candidates
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
 
-  // Drag handling
+  // Track input changes to update mention query
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    // If user removed previous mention token, allow a new one
+    if (mentionedNodeId) {
+      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+      const tokenPresent = token ? val.includes(token) : false;
+      if (!tokenPresent) {
+        setMentionedNodeId(null);
+      }
+    }
+    if (mentionActive && mentionStart !== null) {
+      const caret = e.target.selectionStart ?? val.length;
+      // If caret moved before mention start, cancel
+      if (caret < mentionStart) {
+        setMentionActive(false);
+        setMentionStart(null);
+        setMentionQuery('');
+        return;
+      }
+      // Extract typed query from after '@' up to caret
+      const q = val.slice(mentionStart + 1, caret);
+      setMentionQuery(q);
+      setMentionIndex(0);
+    }
+  };
+
+  // Replace the mention token with selected node title, update store selection
+  const handleSelectMention = (nodeId: string) => {
+    const node = graph?.nodes?.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Enforce single selection globally
+    setSelectedNode(node.id, node as any);
+    setSelectedNodeIds([node.id]);
+    setIncludeNodes(true);
+    setMentionedNodeId(node.id);
+
+    const el = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+    const val = input;
+    const baseStart = Math.min(mentionStart ?? 0, val.length);
+    const endByQuery = baseStart + 1 + (mentionQuery?.length ?? 0);
+    const end = Math.min(endByQuery, val.length);
+    const start = baseStart;
+    const rawTitle = String((node as any).title ?? node.id);
+    const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
+    const mentionText = `${token} `;
+    const next = val.slice(0, start) + mentionText + val.slice(end);
+    setInput(next);
+
+    // Close mention UI
+    setMentionActive(false);
+    setMentionStart(null);
+    setMentionQuery('');
+    setMentionIndex(0);
+    // Mark caret placement to finalize after re-render
+    setPendingCaretPos(start + mentionText.length);
+  };
+
+  // Ensure caret lands immediately after the inserted mention
+  useLayoutEffect(() => {
+    if (pendingCaretPos == null) return;
+    const pos = pendingCaretPos;
+    const place = () => {
+      try {
+        const el = textareaRef.current as HTMLTextAreaElement | null;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(pos, pos);
+        }
+      } catch {}
+    };
+    requestAnimationFrame(place);
+    setTimeout(place, 0);
+    setPendingCaretPos(null);
+  }, [pendingCaretPos]);
+
+  // Drag handling  // Drag handling
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement && e.target.closest('button, textarea, input')) {
       return; // Don't start dragging if clicking on interactive elements
@@ -249,7 +519,7 @@ export default function FloatingChat() {
     }, 100);
   }, [isDragging]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isDragging) {
       // Add event listeners to window to catch events even when cursor leaves the element
       const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
@@ -424,7 +694,7 @@ export default function FloatingChat() {
             const [shown, setShown] = useState('');
             const raf = useRef<number | null>(null);
             const idxRef = useRef(0);
-            useEffect(() => {
+            useLayoutEffect(() => {
               idxRef.current = 0;
               setShown('');
               // Base typing speed (ms per character). Apply multiplier: higher speed => faster typing.
@@ -507,7 +777,7 @@ export default function FloatingChat() {
                   <div className="md-ol-continue">
                     {m.content && m.content.trim() ? (
                       <>
-                        {console.log('🎨 FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
+                        {console.log('рџЋЁ FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
                           components={markdownComponents}
@@ -517,7 +787,7 @@ export default function FloatingChat() {
                       </>
                     ) : (
                       <>
-                        {console.log('💭 FloatingChat: Showing thinking indicator')}
+                        {console.log('рџ’­ FloatingChat: Showing thinking indicator')}
                         <ShimmeringText
                           text={'Thinking...'}
                           duration={1.0}
@@ -563,18 +833,92 @@ export default function FloatingChat() {
             selectedNodes={includeNodes ? selectedNodes : []}
             onRemoveFile={() => setIncludeFile(false)}
             onRemoveSelection={() => setIncludeSelection(false)}
-            onRemoveNodes={() => setIncludeNodes(false)}
+            onRemoveNodes={() => { setIncludeNodes(false); setMentionedNodeId(null); }}
           />
           
-          <div className="flex gap-2 items-end">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask AI..."
-              disabled={false}
-              className="flex-1 resize-none text-xs field-sizing-content max-h-20 min-h-0 py-1.5 bg-zinc-800 border-zinc-600 text-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+          <div className="flex gap-2 items-end relative">
+            <div className="relative flex-1 bg-zinc-800 rounded-md overflow-hidden">
+              {/* Overlay that shows mentions as tags */}
+              <div
+                className="absolute inset-0 z-0 px-3 py-1.5 text-xs whitespace-pre-wrap break-all pointer-events-none rounded-md"
+                style={{ color: '#e5e7eb', fontFamily: 'inherit', transform: 'translateY(0px)', overflowWrap: 'anywhere' as any }}
+                ref={overlayRef}
+                dangerouslySetInnerHTML={{ __html: overlayHtml }}
+              />
+              <Textarea
+                id={textareaDomId}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                ref={textareaRef}
+                onScroll={syncOverlayScroll}
+                onMouseUp={(e) => {
+                  const el = e.currentTarget;
+                  const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+                  const rawTitle = node ? String((node as any).title ?? node.id) : '';
+                  const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+                  if (token) {
+                    requestAnimationFrame(() => {
+                      const val = el.value;
+                      const start = val.indexOf(token);
+                      if (start !== -1) {
+                        const end = start + token.length;
+                        let s = el.selectionStart ?? 0;
+                        let epos = el.selectionEnd ?? s;
+                        let changed = false;
+                        if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
+                        if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
+                        if (changed) el.setSelectionRange(s, epos);
+                      }
+                    });
+                  }
+                }}
+                onSelect={(e) => {
+                  const el = e.currentTarget;
+                  const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+                  const rawTitle = node ? String((node as any).title ?? node.id) : '';
+                  const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
+                  if (token) {
+                    requestAnimationFrame(() => {
+                      const val = el.value;
+                      const start = val.indexOf(token);
+                      if (start !== -1) {
+                        const end = start + token.length;
+                        let s = el.selectionStart ?? 0;
+                        let epos = el.selectionEnd ?? s;
+                        let changed = false;
+                        if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
+                        if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
+                        if (changed) el.setSelectionRange(s, epos);
+                      }
+                    });
+                  }
+                }}
+                placeholder="Ask AI... Use @ to target a node"
+                disabled={false}
+                className="relative z-10 w-full resize-none text-xs field-sizing-content max-h-20 min-h-0 px-3 py-1.5 bg-transparent border-zinc-600 caret-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            {/* Mention dropdown */}
+            {mentionActive && mentionCandidates.length > 0 && (
+              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
+                {mentionCandidates.map((n, i) => (
+                  <button
+                    type="button"
+                    key={n.id}
+                    onMouseDown={(ev) => { ev.preventDefault(); }}
+                    onClick={() => handleSelectMention(n.id)}
+                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-zinc-800 ${i === mentionIndex ? 'bg-zinc-800' : ''}`}
+                  >
+                    <GitBranch className="w-3.5 h-3.5 text-zinc-300" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-white leading-tight">{n.title}</span>
+                      <span className="text-[10px] text-zinc-400 leading-tight">{n.id}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
             <Button
               type="submit"
               size="icon"
@@ -590,3 +934,16 @@ export default function FloatingChat() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
