@@ -32,8 +32,7 @@ This makes it possible to create an architecture diagram, user flow, or a graph 
 Properties are generated based on your node or prompt, so you can decide which parts should be configurable.<br/>
 The properties are not affecting the code, they are used only to direct the coding agent to make a concrete change (color, padding, etc.)
 - **Indexing**: Indexing is done via agent, so you can work on high level of abstraction, or even the lowest one like a node per function or variable. <br/>
-You can also see how your app works from different angles, or check if there are any dependencies between modules that need to be removed for refactoring. 
-- **MCP compatibility**: Use any MCPs you like to make the agent better and more accurate for indexing or code creation. 
+You can also see how your app works from different angles, or check if there are any dependencies between modules that need to be removed for refactoring.  
 
 ## 🧑‍💻 Developers
 
