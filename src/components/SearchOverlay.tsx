@@ -21,6 +21,8 @@ export default function SearchOverlay() {
     prevSearchResult,
     setSearchActiveIndex,
     graph,
+    setSelectedNode,
+    setSelectedNodeIds,
   } = useProjectStore();
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -58,11 +60,35 @@ export default function SearchOverlay() {
         return;
       }
 
-      // When open, Enter navigates results
+          // When open, Enter selects current result and closes search
       if (searchOpen && key === "enter") {
         e.preventDefault();
         e.stopPropagation();
-        if (e.shiftKey) prevSearchResult(); else nextSearchResult();
+        // Select the currently active search result and close search
+        if (searchResults.length > 0 && searchActiveIndex >= 0) {
+          const result = searchResults[searchActiveIndex];
+          if (result && graph?.nodes) {
+            const node = graph.nodes.find(n => n.id === result.nodeId);
+            if (node) {
+              // Use the same selection logic as node clicking
+              setSelectedNode(result.nodeId, node);
+              setSelectedNodeIds([result.nodeId]);
+            }
+          }
+        }
+        setSearchOpen(false);
+        return;
+      }
+
+      // Arrow keys to navigate results
+      if (searchOpen && (key === "arrowup" || key === "arrowdown")) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (key === "arrowup") {
+          prevSearchResult();
+        } else {
+          nextSearchResult();
+        }
         return;
       }
 
@@ -77,7 +103,7 @@ export default function SearchOverlay() {
 
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true } as any);
-  }, [searchOpen, setSearchOpen, nextSearchResult, prevSearchResult]);
+  }, [searchOpen, setSearchOpen, nextSearchResult, prevSearchResult, searchResults, searchActiveIndex, graph, setSelectedNode, setSelectedNodeIds]);
 
   // Run search whenever options or query change while open (debounced)
   useEffect(() => {
@@ -89,6 +115,19 @@ export default function SearchOverlay() {
     }, 100);
     return () => clearTimeout(t);
   }, [searchOpen, localQuery, searchCaseSensitive, searchIncludeProperties, setSearchQuery, runSearch]);
+
+  // Auto-scroll to active search result
+  useEffect(() => {
+    if (!searchOpen || searchResults.length === 0 || searchActiveIndex < 0) return;
+
+    const activeResultElement = document.querySelector(`[data-search-index="${searchActiveIndex}"]`);
+    if (activeResultElement) {
+      activeResultElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [searchActiveIndex, searchOpen, searchResults.length]);
 
   if (!searchOpen) return null;
 
@@ -139,7 +178,7 @@ export default function SearchOverlay() {
               size="icon"
               className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
               style={{ width: '24px', height: '24px', padding: '0' }}
-              title="Previous (Shift+Enter)"
+              title="Previous (↑)"
               onClick={() => prevSearchResult()}
             >
               <ChevronUp className="h-3 w-3" />
@@ -149,7 +188,7 @@ export default function SearchOverlay() {
               size="icon"
               className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
               style={{ width: '24px', height: '24px', padding: '0' }}
-              title="Next (Enter)"
+              title="Next (↓)"
               onClick={() => nextSearchResult()}
             >
               <ChevronDown className="h-3 w-3" />
@@ -185,6 +224,7 @@ export default function SearchOverlay() {
                   return (
                     <button
                       key={`${r.nodeId}-${r.field}-${r.propertyId ?? ''}-${i}`}
+                      data-search-index={i}
                       onClick={() => setSearchActiveIndex(i)}
                       className={`block w-full px-3 py-2 text-sm hover:bg-zinc-800 ${isActive ? 'bg-zinc-800' : ''}`}
                     >
@@ -208,7 +248,7 @@ export default function SearchOverlay() {
                 })}
               </div>
               <div className="border-t border-zinc-700 px-2 py-1 text-center text-[11px] text-zinc-400">
-                Enter for next, Shift+Enter for previous
+                Enter to select, ↑↓ to navigate
               </div>
             </div>
           </>
