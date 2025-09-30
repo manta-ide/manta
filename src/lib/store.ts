@@ -96,6 +96,22 @@ interface ProjectStore {
   setOptimisticOperationsActive: (active: boolean) => void;
   // Temporarily suppress SSE updates for a stabilization window after mutations
   suppressSSE: (ms: number) => void;
+
+  // Search state
+  searchOpen: boolean;
+  searchQuery: string;
+  searchCaseSensitive: boolean;
+  searchIncludeProperties: boolean;
+  searchResults: Array<{ nodeId: string; field: 'title' | 'prompt' | 'property'; propertyId?: string; index: number; matchLength: number; value: string }>;
+  searchActiveIndex: number;
+  setSearchOpen: (open: boolean) => void;
+  setSearchQuery: (q: string) => void;
+  setSearchOptions: (opts: { caseSensitive?: boolean; includeProperties?: boolean }) => void;
+  setSearchActiveIndex: (i: number) => void;
+  runSearch: () => void;
+  clearSearch: () => void;
+  nextSearchResult: () => void;
+  prevSearchResult: () => void;
 }
 
 // Private variable to track the EventSource connection
@@ -164,6 +180,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   isBuildingGraph: false,
   optimisticOperationsActive: false,
   sseSuppressedUntil: null,
+  // Search state (defaults)
+  searchOpen: false,
+  searchQuery: '',
+  searchCaseSensitive: false,
+  searchIncludeProperties: true,
+  searchResults: [],
+  searchActiveIndex: -1,
   resetStore: () => set({
     files: new Map(),
     currentFile: null,
@@ -880,6 +903,113 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       }
     }, Math.max(0, ms || 0) + 5);
   },
+
+  // --- Search ---
+  setSearchOpen: (open) => set({ searchOpen: open }),
+  setSearchQuery: (q) => set({ searchQuery: q }),
+  setSearchOptions: (opts) => set((state) => ({
+    searchCaseSensitive: opts.caseSensitive ?? state.searchCaseSensitive,
+    searchIncludeProperties: opts.includeProperties ?? state.searchIncludeProperties,
+  })),
+  setSearchActiveIndex: (i) => set((state) => {
+    const len = state.searchResults.length;
+    if (len === 0) return { searchActiveIndex: -1 } as any;
+    const clamped = Math.max(0, Math.min(i, len - 1));
+    return { searchActiveIndex: clamped };
+  }),
+  runSearch: () => {
+    const state = get();
+    const graph = state.graph;
+    const queryRaw = state.searchQuery || '';
+
+    if (!graph || !Array.isArray(graph.nodes) || queryRaw.trim() === '') {
+      set({ searchResults: [], searchActiveIndex: -1 });
+      return;
+    }
+
+    const query = state.searchCaseSensitive ? queryRaw : queryRaw.toLowerCase();
+    const results: Array<{ nodeId: string; field: 'title' | 'prompt' | 'property'; propertyId?: string; index: number; matchLength: number; value: string }> = [];
+
+    const findAll = (haystack: string, needle: string) => {
+      const out: number[] = [];
+      if (!needle) return out;
+      let start = 0;
+      // Avoid infinite loop on zero-length
+      const step = Math.max(1, needle.length);
+      while (start <= haystack.length - needle.length) {
+        const idx = haystack.indexOf(needle, start);
+        if (idx === -1) break;
+        out.push(idx);
+        start = idx + step;
+      }
+      return out;
+    };
+
+    const norm = (s: any) => {
+      const str = String(s ?? '');
+      return state.searchCaseSensitive ? str : str.toLowerCase();
+    };
+
+    for (const n of graph.nodes) {
+      // Title
+      const title = n.title ?? '';
+      const titleNorm = norm(title);
+      for (const idx of findAll(titleNorm, query)) {
+        results.push({ nodeId: n.id, field: 'title', index: idx, matchLength: queryRaw.length, value: title });
+      }
+
+      // Prompt
+      const prompt = n.prompt ?? '';
+      const promptNorm = norm(prompt);
+      for (const idx of findAll(promptNorm, query)) {
+        results.push({ nodeId: n.id, field: 'prompt', index: idx, matchLength: queryRaw.length, value: prompt });
+      }
+
+      // Properties (optional)
+      if (state.searchIncludeProperties && Array.isArray((n as any).properties)) {
+        for (const p of (n as any).properties as any[]) {
+          // Prioritize value search, fall back to id/title if value empty
+          const sources: Array<{ value: string; kind: 'value' | 'id' | 'title' }>= [];
+          const val = p?.value;
+          if (val !== undefined && val !== null) {
+            try { sources.push({ value: typeof val === 'string' ? val : JSON.stringify(val), kind: 'value' }); } catch { sources.push({ value: String(val), kind: 'value' }); }
+          }
+          if (p?.id) sources.push({ value: String(p.id), kind: 'id' });
+          if (p?.title) sources.push({ value: String(p.title), kind: 'title' });
+
+          for (const s of sources) {
+            const sNorm = norm(s.value);
+            for (const idx of findAll(sNorm, query)) {
+              results.push({ nodeId: n.id, field: 'property', propertyId: p.id, index: idx, matchLength: queryRaw.length, value: s.value });
+            }
+          }
+        }
+      }
+    }
+
+    // Keep stable ordering by node order then field order then index
+    results.sort((a, b) => {
+      if (a.nodeId !== b.nodeId) return String(a.nodeId).localeCompare(String(b.nodeId));
+      const order = { title: 0, prompt: 1, property: 2 } as const;
+      if (order[a.field] !== order[b.field]) return order[a.field] - order[b.field];
+      return a.index - b.index;
+    });
+
+    set({ searchResults: results, searchActiveIndex: results.length > 0 ? 0 : -1 });
+  },
+  clearSearch: () => set({ searchQuery: '', searchResults: [], searchActiveIndex: -1 }),
+  nextSearchResult: () => set((state) => {
+    const len = state.searchResults.length;
+    if (len === 0) return {} as any;
+    const next = (state.searchActiveIndex + 1) % len;
+    return { searchActiveIndex: next };
+  }),
+  prevSearchResult: () => set((state) => {
+    const len = state.searchResults.length;
+    if (len === 0) return {} as any;
+    const prev = (state.searchActiveIndex - 1 + len) % len;
+    return { searchActiveIndex: prev };
+  }),
 })); 
 
 
