@@ -47,13 +47,63 @@ export async function GET() {
 // Apply template
 export async function POST(req: NextRequest) {
   try {
-    const { templateBranch } = await req.json();
+    const { templateBranch, ensurePartial } = await req.json();
+
+    const projectDir = getProjectDir();
+
+    if (ensurePartial) {
+      console.log('🔍 Ensuring partial template files are present...');
+
+      // Check if any required files are missing or contain placeholders
+      const requiredFiles = [
+        'manta/base-graph.xml',
+        'manta/current-graph.xml',
+        '.claude/agents/code-builder.md',
+        '.claude/agents/graph-editor.md'
+      ];
+
+      let needsUpdate = false;
+      for (const file of requiredFiles) {
+        const filePath = path.join(projectDir, file);
+        if (!fs.existsSync(filePath)) {
+          console.log(`📭 Missing file: ${file}`);
+          needsUpdate = true;
+          break;
+        }
+
+        // Check for placeholder content in agent files
+        if (file.includes('code-builder.md') || file.includes('graph-editor.md')) {
+          const content = fs.readFileSync(filePath, 'utf8');
+          if (content.includes('This agent configuration will be dynamically generated')) {
+            console.log(`📝 Placeholder content found in: ${file}`);
+            needsUpdate = true;
+            break;
+          }
+        }
+      }
+
+      if (needsUpdate) {
+        console.log('ℹ️ Some partial template files are missing or outdated, applying partial template...');
+        const result = await downloadAndApplyTemplate('partial', projectDir);
+        console.log('✅ Partial template applied to ensure missing/outdated files');
+        return NextResponse.json({
+          success: true,
+          message: 'Partial template applied successfully with project-specific agent configurations',
+          details: result
+        });
+      } else {
+        console.log('✅ All partial template files are present');
+        return NextResponse.json({
+          success: true,
+          message: 'All partial template files are present',
+          details: { added: [], updated: [], skipped: requiredFiles.map(f => f) }
+        });
+      }
+    }
 
     if (!templateBranch) {
       return NextResponse.json({ error: 'Template branch is required' }, { status: 400 });
     }
-
-    const projectDir = getProjectDir();
 
     console.log(`📦 Applying template from branch: ${templateBranch}`);
 
@@ -124,8 +174,69 @@ async function downloadAndApplyTemplate(branch: string, projectDir: string) {
       result.skipped.push(path.relative(process.cwd(), currentGraphPath));
     }
 
-    // Create placeholder agent files
-    const codeBuilderAgent = `---
+    // Generate proper agent configurations using project-status API
+    const codeBuilderPath = path.join(claudeDir, 'code-builder.md');
+    const graphEditorPath = path.join(claudeDir, 'graph-editor.md');
+
+    // Generate agents if they don't exist or contain placeholder text
+    const codeBuilderExists = fs.existsSync(codeBuilderPath);
+    const graphEditorExists = fs.existsSync(graphEditorPath);
+
+    let needsGeneration = !codeBuilderExists || !graphEditorExists;
+
+    // Check if existing files contain placeholder text
+    if (codeBuilderExists) {
+      const content = fs.readFileSync(codeBuilderPath, 'utf8');
+      if (content.includes('This agent configuration will be dynamically generated')) {
+        needsGeneration = true;
+      }
+    }
+
+    if (graphEditorExists) {
+      const content = fs.readFileSync(graphEditorPath, 'utf8');
+      if (content.includes('This agent configuration will be dynamically generated')) {
+        needsGeneration = true;
+      }
+    }
+
+    if (needsGeneration) {
+      try {
+        console.log('🤖 Generating agent configurations from project analysis...');
+
+        // Call the project-status API to generate agents
+        const { generateCodeBuilderAgent, generateGraphEditorAgent } = await import('@/app/api/lib/agentPrompts');
+
+        // Analyze project structure (same logic as project-status API)
+        const projectAnalysis = await analyzeProjectStructure(projectDir);
+
+        // Generate agents based on analysis
+        const codeBuilderAgent = generateCodeBuilderAgent(projectAnalysis);
+        const graphEditorAgent = generateGraphEditorAgent(projectAnalysis);
+
+        if (!codeBuilderExists) {
+          fs.writeFileSync(codeBuilderPath, codeBuilderAgent);
+          result.added.push(path.relative(process.cwd(), codeBuilderPath));
+          console.log('✅ Generated code-builder.md agent configuration');
+        } else {
+          fs.writeFileSync(codeBuilderPath, codeBuilderAgent);
+          result.updated.push(path.relative(process.cwd(), codeBuilderPath));
+          console.log('✅ Updated code-builder.md agent configuration');
+        }
+
+        if (!graphEditorExists) {
+          fs.writeFileSync(graphEditorPath, graphEditorAgent);
+          result.added.push(path.relative(process.cwd(), graphEditorPath));
+          console.log('✅ Generated graph-editor.md agent configuration');
+        } else {
+          fs.writeFileSync(graphEditorPath, graphEditorAgent);
+          result.updated.push(path.relative(process.cwd(), graphEditorPath));
+          console.log('✅ Updated graph-editor.md agent configuration');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to generate agent configurations, using placeholders:', error);
+
+        // Fallback to placeholder agents if generation fails
+        const codeBuilderAgent = `---
 name: code-builder
 description: Code builder agent. This is a placeholder that gets dynamically generated when the app starts based on your project structure.
 tools: mcp__graph-tools__read, Read, Write, Edit, Bash, MultiEdit, NotebookEdit, Glob, Grep, WebFetch, TodoWrite, ExitPlanMode, BashOutput, KillShell
@@ -133,7 +244,7 @@ tools: mcp__graph-tools__read, Read, Write, Edit, Bash, MultiEdit, NotebookEdit,
 
 This agent configuration will be dynamically generated based on your project structure when the app starts.`;
 
-    const graphEditorAgent = `---
+        const graphEditorAgent = `---
 name: graph-editor
 description: Graph structure editor with code analysis. This is a placeholder that gets dynamically generated when the app starts based on your project structure.
 tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__node_edit, mcp__graph-tools__node_delete, mcp__graph-tools__edge_create, mcp__graph-tools__edge_delete, Read, Glob, Grep
@@ -141,16 +252,24 @@ tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__
 
 This agent configuration will be dynamically generated based on your project structure when the app starts.`;
 
-    const codeBuilderPath = path.join(claudeDir, 'code-builder.md');
-    const graphEditorPath = path.join(claudeDir, 'graph-editor.md');
+        if (!fs.existsSync(codeBuilderPath)) {
+          fs.writeFileSync(codeBuilderPath, codeBuilderAgent);
+          result.added.push(path.relative(process.cwd(), codeBuilderPath));
+        } else {
+          result.skipped.push(path.relative(process.cwd(), codeBuilderPath));
+        }
 
-    fs.writeFileSync(codeBuilderPath, codeBuilderAgent);
-    fs.writeFileSync(graphEditorPath, graphEditorAgent);
-
-    result.added.push(
-      path.relative(process.cwd(), codeBuilderPath),
-      path.relative(process.cwd(), graphEditorPath)
-    );
+        if (!fs.existsSync(graphEditorPath)) {
+          fs.writeFileSync(graphEditorPath, graphEditorAgent);
+          result.added.push(path.relative(process.cwd(), graphEditorPath));
+        } else {
+          result.skipped.push(path.relative(process.cwd(), graphEditorPath));
+        }
+      }
+    } else {
+      result.skipped.push(path.relative(process.cwd(), codeBuilderPath));
+      result.skipped.push(path.relative(process.cwd(), graphEditorPath));
+    }
 
     return result;
   }
@@ -227,6 +346,70 @@ This agent configuration will be dynamically generated based on your project str
   console.log(`📝 Wrote ${written} files from template`);
 
   return result;
+}
+
+async function analyzeProjectStructure(projectDir: string) {
+  const analysis = {
+    hasNextJs: false,
+    hasReact: false,
+    hasTypeScript: false,
+    hasTailwind: false,
+    framework: 'unknown' as string,
+    components: [] as string[],
+    pages: [] as string[],
+    libs: [] as string[],
+    styling: 'unknown' as string
+  };
+
+  // Check for Next.js
+  if (fs.existsSync(path.join(projectDir, 'next.config.js')) ||
+    fs.existsSync(path.join(projectDir, 'next.config.mjs'))) {
+    analysis.hasNextJs = true;
+    analysis.framework = 'Next.js';
+  }
+
+  // Check for React
+  if (fs.existsSync(path.join(projectDir, 'package.json'))) {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(projectDir, 'package.json'), 'utf8')
+    );
+
+    if (packageJson.dependencies?.['react'] || packageJson.devDependencies?.['react']) {
+      analysis.hasReact = true;
+    }
+
+    if (packageJson.dependencies?.['typescript'] || packageJson.devDependencies?.['typescript']) {
+      analysis.hasTypeScript = true;
+    }
+
+    if (packageJson.dependencies?.['tailwindcss'] || packageJson.devDependencies?.['tailwindcss']) {
+      analysis.hasTailwind = true;
+      analysis.styling = 'Tailwind CSS';
+    }
+  }
+
+  // Check for components
+  const componentsDir = path.join(projectDir, 'src', 'components');
+  if (fs.existsSync(componentsDir)) {
+    const componentFiles = fs.readdirSync(componentsDir, { recursive: true })
+      .filter((file: any) => typeof file === 'string' && (file.endsWith('.tsx') || file.endsWith('.jsx')))
+      .map((file: any) => path.basename(file, path.extname(file)));
+    analysis.components = componentFiles;
+  }
+
+  // Check for pages/routes
+  const appDir = path.join(projectDir, 'src', 'app');
+  if (fs.existsSync(appDir)) {
+    const pageFiles = fs.readdirSync(appDir, { recursive: true })
+      .filter((file: any) => typeof file === 'string' && file === 'page.tsx')
+      .map((file: any) => {
+        const relativePath = path.relative(appDir, path.dirname(file as string));
+        return relativePath === '' ? '/' : `/${relativePath}`;
+      });
+    analysis.pages = pageFiles;
+  }
+
+  return analysis;
 }
 
 // Recursive directory copy function
