@@ -174,7 +174,7 @@ export default function SelectedNodeSidebar() {
 	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 	return (
-		<div className="flex-none  border-r border-zinc-700 bg-zinc-900 text-white">
+		<div className="flex-none w-80 max-w-sm border-r border-zinc-700 bg-zinc-900 text-white">
 			{/* Show Title only for single selection */}
 			{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
 				<div className="px-3 py-2 border-b border-zinc-700">
