@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, options: { verbose: false } })
+      body: JSON.stringify({ prompt, options: { verbose: true } })
     });
 
     if (!response.ok) {
