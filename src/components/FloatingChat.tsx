@@ -36,7 +36,7 @@ export default function FloatingChat() {
   const [mentionStart, setMentionStart] = useState<number | null>(null);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
-  const [mentionedNodeId, setMentionedNodeId] = useState<string | null>(null);
+  const [mentionedNodeIds, setMentionedNodeIds] = useState<string[]>([]);
   const textareaDomId = 'floating-chat-input';
   const [pendingCaretPos, setPendingCaretPos] = useState<number | null>(null);
   
@@ -85,6 +85,29 @@ export default function FloatingChat() {
   // Get selected nodes from graph
   const selectedNodes = graph?.nodes?.filter(node => selectedNodeIds.includes(node.id)) || [];
 
+  // Helper to find which mention contains the current caret position
+  const getMentionAtCaret = (caretPos: number, inputValue: string) => {
+    // Check all positions where any mention token appears
+    for (const nodeId of mentionedNodeIds) {
+      const node = graph?.nodes?.find(n => n.id === nodeId);
+      const rawTitle = node ? String((node as any).title ?? node.id) : '';
+      if (rawTitle) {
+        const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
+        let start = 0;
+        let index = inputValue.indexOf(token, start);
+        while (index !== -1) {
+          const end = index + token.length;
+          if (caretPos >= index && caretPos <= end) {
+            return { nodeId, start: index, end, token };
+          }
+          start = index + 1;
+          index = inputValue.indexOf(token, start);
+        }
+      }
+    }
+    return null;
+  };
+
   // Overlay/textarea refs to keep visual pill overlay aligned with scroll
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -104,19 +127,21 @@ export default function FloatingChat() {
       .replace(/\"/g, '&quot;')
       .replace(/'/g, '&#039;');
     let html = escape(input || '');
-    // If a node is mentioned, style the exact token @Title (with NBSP for internal spaces)
-    if (mentionedNodeId) {
-      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-      const rawTitle = node ? String((node as any).title ?? node.id) : '';
-      if (rawTitle) {
-        const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
-        const tokenEsc = escape(token);
-        const pill = `<span style=\"display:inline;background:#3f3f46;color:#e5e7eb;border-radius:4px;\">${escape('@' + rawTitle)}</span>`;
-        html = html.split(tokenEsc).join(pill);
-      }
+    // Style all @Title tokens that match mentioned nodes
+    if (graph?.nodes && mentionedNodeIds.length > 0) {
+      mentionedNodeIds.forEach(nodeId => {
+        const node = graph.nodes.find(n => n.id === nodeId);
+        const rawTitle = node ? String((node as any).title ?? node.id) : '';
+        if (rawTitle) {
+          const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
+          const tokenEsc = escape(token);
+          const pill = `<span style=\"display:inline;background:#3f3f46;color:transparent;border-radius:4px;padding:0 1px;\">${escape(token)}</span>`;
+          html = html.split(tokenEsc).join(pill);
+        }
+      });
     }
     return html;
-  }, [input, mentionedNodeId, graph]);
+  }, [input, mentionedNodeIds, graph]);
 
   useLayoutEffect(() => { syncOverlayScroll(); }, [input, syncOverlayScroll]);
 
@@ -225,7 +250,7 @@ export default function FloatingChat() {
     setIncludeFile(false);
     setIncludeSelection(false);
     setIncludeNodes(false);
-    setMentionedNodeId(null); // allow fresh mention for next message
+    setMentionedNodeIds([]); // allow fresh mention for next message
     setMentionActive(false);
 
     await sendMessage(messageToSend, {
@@ -246,92 +271,90 @@ export default function FloatingChat() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Arrow navigation: jump across tag instead of inside
-    if (!mentionActive && mentionedNodeId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    if (!mentionActive && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       const el = e.currentTarget;
-      const val = input;
-      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-      const rawTitle = node ? String((node as any).title ?? node.id) : '';
-      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
-      if (token) {
-        const start = val.indexOf(token);
-        if (start !== -1) {
-          const end = start + token.length;
-          const pos = el.selectionStart ?? 0;
-          if (e.key === 'ArrowLeft' && pos === end) {
-            e.preventDefault();
-            requestAnimationFrame(() => {
-              const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
-              if (el2) el2.setSelectionRange(start, start);
-            });
-            return;
-          }
-          if (e.key === 'ArrowRight' && pos === start) {
-            e.preventDefault();
-            requestAnimationFrame(() => {
-              const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
-              if (el2) el2.setSelectionRange(end, end);
-            });
-            return;
-          }
+      const pos = el.selectionStart ?? 0;
+      const mention = getMentionAtCaret(pos, input);
+      if (mention) {
+        const { start, end } = mention;
+        if (e.key === 'ArrowLeft' && pos === end) {
+          e.preventDefault();
+          requestAnimationFrame(() => {
+            const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+            if (el2) el2.setSelectionRange(start, start);
+          });
+          return;
+        }
+        if (e.key === 'ArrowRight' && pos === start) {
+          e.preventDefault();
+          requestAnimationFrame(() => {
+            const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+            if (el2) el2.setSelectionRange(end, end);
+          });
+          return;
         }
       }
     }
     // Delete whole tag when caret is just before it and Delete is pressed
-    if (e.key === 'Delete' && !mentionActive && mentionedNodeId) {
+    if (e.key === 'Delete' && !mentionActive) {
       const el = e.currentTarget;
       const pos = el.selectionStart ?? 0;
-      const val = input;
-      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-      const rawTitle = node ? String((node as any).title ?? node.id) : '';
-      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
-      if (token && val.slice(pos, pos + token.length) === token) {
-        e.preventDefault();
-        const before = val.slice(0, pos);
-        const after = val.slice(pos + token.length);
-        const next = before + after;
-        setInput(next);
-        setMentionedNodeId(null);
-        setIncludeNodes(false);
-        try { setSelectedNode(null, null); } catch {}
-        try { setSelectedNodeIds([]); } catch {}
-        requestAnimationFrame(() => {
-          const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
-          if (el2) {
-            const newPos = before.length;
-            el2.focus();
-            el2.setSelectionRange(newPos, newPos);
+      const mention = getMentionAtCaret(pos, input);
+      if (mention) {
+        const { token, nodeId } = mention;
+        if (input.slice(pos, pos + token.length) === token) {
+          e.preventDefault();
+          const before = input.slice(0, pos);
+          const after = input.slice(pos + token.length);
+          const next = before + after;
+          setInput(next);
+          setMentionedNodeIds(prev => prev.filter(id => id !== nodeId));
+          if (mentionedNodeIds.length === 1) { // If this was the last mention
+            setIncludeNodes(false);
+            try { setSelectedNode(null, null); } catch {}
+            try { setSelectedNodeIds([]); } catch {}
           }
-        });
-        return;
+          requestAnimationFrame(() => {
+            const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+            if (el2) {
+              const newPos = before.length;
+              el2.focus();
+              el2.setSelectionRange(newPos, newPos);
+            }
+          });
+          return;
+        }
       }
     }
     // Handle deleting a full mention tag @{Title} in one go when backspacing at its end
-    if (e.key === 'Backspace' && !mentionActive && mentionedNodeId) {
+    if (e.key === 'Backspace' && !mentionActive) {
       const el = e.currentTarget;
       const pos = el.selectionStart ?? 0;
-      const val = input;
-      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-      const rawTitle = node ? String((node as any).title ?? node.id) : '';
-      const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
-      if (token && pos >= token.length && val.slice(pos - token.length, pos) === token) {
-        e.preventDefault();
-        const before = val.slice(0, pos - token.length);
-        const after = val.slice(pos);
-        const next = before + after;
-        setInput(next);
-        setMentionedNodeId(null);
-        setIncludeNodes(false);
-        try { setSelectedNode(null, null); } catch {}
-        try { setSelectedNodeIds([]); } catch {}
-        requestAnimationFrame(() => {
-          const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
-          if (el2) {
-            const newPos = before.length;
-            el2.focus();
-            el2.setSelectionRange(newPos, newPos);
+      const mention = getMentionAtCaret(pos, input);
+      if (mention) {
+        const { token, nodeId } = mention;
+        if (pos >= token.length && input.slice(pos - token.length, pos) === token) {
+          e.preventDefault();
+          const before = input.slice(0, pos - token.length);
+          const after = input.slice(pos);
+          const next = before + after;
+          setInput(next);
+          setMentionedNodeIds(prev => prev.filter(id => id !== nodeId));
+          if (mentionedNodeIds.length === 1) { // If this was the last mention
+            setIncludeNodes(false);
+            try { setSelectedNode(null, null); } catch {}
+            try { setSelectedNodeIds([]); } catch {}
           }
-        });
-        return;
+          requestAnimationFrame(() => {
+            const el2 = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
+            if (el2) {
+              const newPos = before.length;
+              el2.focus();
+              el2.setSelectionRange(newPos, newPos);
+            }
+          });
+          return;
+        }
       }
     }
     // Start mention on '@' (allow starting even if a previous node was mentioned)
@@ -386,16 +409,13 @@ export default function FloatingChat() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
-    // If user removed previous mention token, allow a new one
-    if (mentionedNodeId) {
-      const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
+    // If user removed mention tokens, remove them from mentionedNodeIds
+    setMentionedNodeIds(prev => prev.filter(nodeId => {
+      const node = graph?.nodes?.find(n => n.id === nodeId);
       const rawTitle = node ? String((node as any).title ?? node.id) : '';
       const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
-      const tokenPresent = token ? val.includes(token) : false;
-      if (!tokenPresent) {
-        setMentionedNodeId(null);
-      }
-    }
+      return token && val.includes(token);
+    }));
     if (mentionActive && mentionStart !== null) {
       const caret = e.target.selectionStart ?? val.length;
       // If caret moved before mention start, cancel
@@ -421,7 +441,7 @@ export default function FloatingChat() {
     setSelectedNode(node.id, node as any);
     setSelectedNodeIds([node.id]);
     setIncludeNodes(true);
-    setMentionedNodeId(node.id);
+    setMentionedNodeIds(prev => [...prev.filter(id => id !== node.id), node.id]); // Add without duplicates
 
     const el = document.getElementById(textareaDomId) as HTMLTextAreaElement | null;
     const val = input;
@@ -833,15 +853,15 @@ export default function FloatingChat() {
             selectedNodes={includeNodes ? selectedNodes : []}
             onRemoveFile={() => setIncludeFile(false)}
             onRemoveSelection={() => setIncludeSelection(false)}
-            onRemoveNodes={() => { setIncludeNodes(false); setMentionedNodeId(null); }}
+            onRemoveNodes={() => { setIncludeNodes(false); setMentionedNodeIds([]); }}
           />
           
           <div className="flex gap-2 items-end relative">
             <div className="relative flex-1 bg-zinc-800 rounded-md overflow-hidden">
               {/* Overlay that shows mentions as tags */}
               <div
-                className="absolute inset-0 z-0 px-3 py-1.5 text-xs whitespace-pre-wrap break-all pointer-events-none rounded-md"
-                style={{ color: '#e5e7eb', fontFamily: 'inherit', transform: 'translateY(0px)', overflowWrap: 'anywhere' as any }}
+                className="absolute inset-0 z-0 px-3 py-1.5 text-xs whitespace-pre-wrap pointer-events-none rounded-md"
+                style={{ color: 'transparent', fontFamily: 'inherit', transform: 'translateY(0px)' }}
                 ref={overlayRef}
                 dangerouslySetInnerHTML={{ __html: overlayHtml }}
               />
@@ -854,43 +874,35 @@ export default function FloatingChat() {
                 onScroll={syncOverlayScroll}
                 onMouseUp={(e) => {
                   const el = e.currentTarget;
-                  const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-                  const rawTitle = node ? String((node as any).title ?? node.id) : '';
-                  const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
-                  if (token) {
+                  const pos = el.selectionStart ?? 0;
+                  const mention = getMentionAtCaret(pos, input);
+                  if (mention) {
+                    const { start, end } = mention;
                     requestAnimationFrame(() => {
                       const val = el.value;
-                      const start = val.indexOf(token);
-                      if (start !== -1) {
-                        const end = start + token.length;
-                        let s = el.selectionStart ?? 0;
-                        let epos = el.selectionEnd ?? s;
-                        let changed = false;
-                        if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
-                        if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
-                        if (changed) el.setSelectionRange(s, epos);
-                      }
+                      let s = el.selectionStart ?? 0;
+                      let epos = el.selectionEnd ?? s;
+                      let changed = false;
+                      if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
+                      if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
+                      if (changed) el.setSelectionRange(s, epos);
                     });
                   }
                 }}
                 onSelect={(e) => {
                   const el = e.currentTarget;
-                  const node = graph?.nodes?.find(n => n.id === mentionedNodeId);
-                  const rawTitle = node ? String((node as any).title ?? node.id) : '';
-                  const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
-                  if (token) {
+                  const pos = el.selectionStart ?? 0;
+                  const mention = getMentionAtCaret(pos, input);
+                  if (mention) {
+                    const { start, end } = mention;
                     requestAnimationFrame(() => {
                       const val = el.value;
-                      const start = val.indexOf(token);
-                      if (start !== -1) {
-                        const end = start + token.length;
-                        let s = el.selectionStart ?? 0;
-                        let epos = el.selectionEnd ?? s;
-                        let changed = false;
-                        if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
-                        if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
-                        if (changed) el.setSelectionRange(s, epos);
-                      }
+                      let s = el.selectionStart ?? 0;
+                      let epos = el.selectionEnd ?? s;
+                      let changed = false;
+                      if (s > start && s < end) { s = s - start < end - s ? start : end; changed = true; }
+                      if (epos > start && epos < end) { epos = epos - start < end - epos ? start : end; changed = true; }
+                      if (changed) el.setSelectionRange(s, epos);
                     });
                   }
                 }}
