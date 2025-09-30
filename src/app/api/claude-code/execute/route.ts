@@ -36,7 +36,7 @@ function findClaudeBinary(): string {
   const installations = discoverSystemInstallations();
 
   if (installations.length === 0) {
-    throw new Error('Claude Code not found. Please ensure it\'s installed in one of these locations: PATH, /usr/local/bin, /opt/homebrew/bin, ~/.nvm/versions/node/*/bin, ~/.claude/local, ~/.local/bin');
+    throw new Error(`Claude Code not found. Please ensure it's installed in one of these locations: ${process.platform === 'win32' ? 'PATH, %APPDATA%/npm, %LOCALAPPDATA%/Yarn/bin, %ProgramFiles%/nodejs, %LOCALAPPDATA%/Programs/nodejs, %NVM_HOME%, %NVM_SYMLINK%, %ChocolateyInstall%/bin, %USERPROFILE%/scoop/shims' : 'PATH, /usr/local/bin, /opt/homebrew/bin, ~/.nvm/versions/node/*/bin, ~/.claude/local, ~/.local/bin'}`);
   }
 
   // Log all found installations
@@ -80,15 +80,30 @@ function getQuickCliPath(): string | null {
 function discoverSystemInstallations(): ClaudeInstallation[] {
   const installations: ClaudeInstallation[] = [];
 
-  // 1. Try 'which' command first
+  // Allow explicit override via env var
+  const envPath = String(process.env.CLAUDE_CLI_PATH || '').trim();
+  if (envPath && fs.existsSync(envPath)) {
+    installations.push({
+      path: envPath,
+      version: getClaudeVersion(envPath),
+      source: 'env',
+      installationType: 'custom'
+    });
+  }
+
+  // 1. Try 'which/where' command first
   const whichInstall = tryWhichCommand();
   if (whichInstall) installations.push(whichInstall);
 
-  // 2. Check NVM paths
-  installations.push(...findNvmInstallations());
-
-  // 3. Check standard paths
-  installations.push(...findStandardInstallations());
+  if (process.platform === 'win32') {
+    // Windows-specific search
+    installations.push(...findWindowsInstallations());
+  } else {
+    // 2. Check NVM paths
+    installations.push(...findNvmInstallations());
+    // 3. Check standard paths
+    installations.push(...findStandardInstallations());
+  }
 
   // Remove duplicates by path
   const uniquePaths = new Set<string>();
@@ -101,29 +116,55 @@ function discoverSystemInstallations(): ClaudeInstallation[] {
 
 function tryWhichCommand(): ClaudeInstallation | null {
   try {
-    const result = spawnSync('which', ['claude'], { encoding: 'utf8' });
-    if (result.status === 0 && result.stdout) {
-      const output = result.stdout.trim();
-
-      // Parse aliased output: "claude: aliased to /path/to/claude"
-      let pathStr = output;
-      if (output.startsWith('claude:') && output.includes('aliased to')) {
-        const parts = output.split('aliased to');
-        if (parts[1]) pathStr = parts[1].trim();
+    if (process.platform === 'win32') {
+      const candidates = ['claude', 'claude-code'];
+      for (const cmd of candidates) {
+        const res = spawnSync('where', [cmd], { encoding: 'utf8' });
+        if (res.status === 0 && res.stdout) {
+          let lines = res.stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          const score = (p: string) => {
+            const ext = path.extname(p).toLowerCase();
+            if (ext === '.cmd') return 0;
+            if (ext === '.exe') return 1;
+            if (ext === '.bat') return 2;
+            if (ext === '.ps1') return 3;
+            return 4;
+          };
+          lines = lines.sort((a, b) => score(a) - score(b));
+          for (const p of lines) {
+            if (fs.existsSync(p)) {
+              const jsPath = resolveWindowsJsEntrypoint(p);
+              const version = getClaudeVersion(jsPath);
+              return { path: jsPath, version, source: 'which', installationType: 'system' };
+            }
+          }
+        }
       }
+    } else {
+      const result = spawnSync('which', ['claude'], { encoding: 'utf8' });
+      if (result.status === 0 && result.stdout) {
+        const output = result.stdout.trim();
 
-      if (fs.existsSync(pathStr)) {
-        const version = getClaudeVersion(pathStr);
-        return {
-          path: pathStr,
-          version,
-          source: 'which',
-          installationType: 'system'
-        };
+        // Parse aliased output: "claude: aliased to /path/to/claude"
+        let pathStr = output;
+        if (output.startsWith('claude:') && output.includes('aliased to')) {
+          const parts = output.split('aliased to');
+          if (parts[1]) pathStr = parts[1].trim();
+        }
+
+        if (fs.existsSync(pathStr)) {
+          const version = getClaudeVersion(pathStr);
+          return {
+            path: pathStr,
+            version,
+            source: 'which',
+            installationType: 'system'
+          };
+        }
       }
     }
   } catch (e) {
-    // which command failed, continue
+    // which/where command failed, continue
   }
   return null;
 }
@@ -212,9 +253,82 @@ function findStandardInstallations(): ClaudeInstallation[] {
   return installations;
 }
 
+// Windows-specific discovery across common locations and PATH
+function findWindowsInstallations(): ClaudeInstallation[] {
+  const installations: ClaudeInstallation[] = [];
+
+  const appData = process.env.APPDATA || '';
+  const localAppData = process.env.LOCALAPPDATA || '';
+  const programFiles = process.env['ProgramFiles'] || '';
+  const programFilesX86 = process.env['ProgramFiles(x86)'] || '';
+  const userProfile = process.env.USERPROFILE || '';
+  const nvmHome = process.env.NVM_HOME || '';
+  const nvmSymlink = process.env.NVM_SYMLINK || '';
+  const chocolatey = process.env.ChocolateyInstall || '';
+
+  const candidateDirs = [
+    path.join(appData, 'npm'),
+    path.join(localAppData, 'Yarn', 'bin'),
+    path.join(programFiles, 'nodejs'),
+    path.join(programFilesX86, 'nodejs'),
+    path.join(localAppData, 'Programs', 'nodejs'),
+    nvmHome,
+    nvmSymlink,
+    path.join(userProfile, 'scoop', 'shims'),
+    path.join(chocolatey, 'bin'),
+  ].filter(Boolean);
+
+  const pathEntries = String(process.env.PATH || '')
+    .split(';')
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  const allDirs = Array.from(new Set([...candidateDirs, ...pathEntries]));
+
+  const bases = ['claude', 'claude-code'];
+  const pathext = (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PS1')
+    .split(';')
+    .map(e => e.trim().toLowerCase());
+
+  // Prefer .cmd over .ps1 to avoid PowerShell wrapper when spawning
+  const preferredExts = ['.cmd', '.exe', '.bat', '.ps1', ''];
+  const exts = preferredExts.filter(e => e === '' || pathext.includes(e.toLowerCase()) || preferredExts.includes(e));
+
+  for (const dir of allDirs) {
+    for (const base of bases) {
+      for (const ext of exts) {
+        const candidate = path.join(dir, base + ext);
+        try {
+          if (fs.existsSync(candidate)) {
+            const jsPath = resolveWindowsJsEntrypoint(candidate);
+            const version = getClaudeVersion(jsPath);
+            installations.push({
+              path: jsPath,
+              version,
+              source: dir.toLowerCase().includes('appdata') ? 'npm-global' : 'PATH',
+              installationType: 'system'
+            });
+            break; // move to next base once found in this dir
+          }
+        } catch {
+          // ignore errors checking this candidate
+        }
+      }
+    }
+  }
+
+  return installations;
+}
+
 function getClaudeVersion(claudePath: string): string | undefined {
   try {
-    const result = spawnSync(claudePath, ['--version'], { encoding: 'utf8', timeout: 5000 });
+    const isPs1 = process.platform === 'win32' && /\.ps1$/i.test(claudePath);
+    const isJs = /\.(mjs|cjs|js|tsx?|jsx)$/i.test(claudePath);
+    const result = isPs1
+      ? spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', claudePath, '--version'], { encoding: 'utf8', timeout: 5000 })
+      : isJs
+        ? spawnSync(process.execPath, [claudePath, '--version'], { encoding: 'utf8', timeout: 5000 })
+        : spawnSync(claudePath, ['--version'], { encoding: 'utf8', timeout: 5000 });
     if (result.status === 0 && result.stdout) {
       return extractVersionFromOutput(result.stdout);
     }
@@ -222,6 +336,19 @@ function getClaudeVersion(claudePath: string): string | undefined {
     // Version check failed, continue
   }
   return undefined;
+}
+
+function resolveWindowsJsEntrypoint(p: string): string {
+  if (process.platform !== 'win32') return p;
+  const dir = path.dirname(p);
+  const tryPaths = [
+    path.join(dir, 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js'),
+    path.join(dir, 'node_modules', '@anthropic-ai', 'claude-code', 'dist', 'cli.js')
+  ];
+  for (const tp of tryPaths) {
+    try { if (fs.existsSync(tp)) return tp; } catch {}
+  }
+  return p;
 }
 
 function extractVersionFromOutput(stdout: string): string | undefined {
@@ -255,6 +382,7 @@ function selectBestInstallation(installations: ClaudeInstallation[]): ClaudeInst
 
 function sourcePreference(source: string): number {
   const preferences: Record<string, number> = {
+    'env': 0,
     'which': 1,
     'homebrew': 2,
     'system': 3,
