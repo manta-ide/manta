@@ -326,6 +326,98 @@ export const ClaudeCodeRequestSchema = z.object({
 
 export type ClaudeCodeRequest = z.infer<typeof ClaudeCodeRequestSchema>;
 
+// AI Provider schemas for multi-model support
+export const AIProviderEnum = z.enum(['claude', 'codex', 'qwen', 'gemini']);
+export type AIProvider = z.infer<typeof AIProviderEnum>;
+
+// Generic AI request options that work across providers
+export const AIRequestOptionsSchema = z.object({
+  model: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  max_tokens: z.number().min(1).max(8192).optional(),
+  top_p: z.number().min(0).max(1).optional(),
+  top_k: z.number().min(1).optional(),
+  frequency_penalty: z.number().min(-2).max(2).optional(),
+  presence_penalty: z.number().min(-2).max(2).optional(),
+  stop: z.array(z.string()).optional(),
+  stream: z.boolean().optional(),
+  verbose: z.boolean().optional(),
+  // Provider-specific fields
+  candidate_count: z.number().min(1).max(4).optional(), // Gemini
+  fallbackModel: z.string().optional(), // Claude
+});
+
+export type AIRequestOptions = z.infer<typeof AIRequestOptionsSchema>;
+
+export const AIRequestSchema = z.object({
+  prompt: z.string(),
+  provider: AIProviderEnum.default('claude'),
+  options: AIRequestOptionsSchema.optional(),
+});
+
+export type AIRequest = z.infer<typeof AIRequestSchema>;
+
+// Codex-specific schemas
+export const CodexRequestOptionsSchema = z.object({
+  model: z.string().default('code-davinci-002'),
+  temperature: z.number().min(0).max(2).default(0.1),
+  max_tokens: z.number().min(1).max(8192).default(2048),
+  top_p: z.number().min(0).max(1).default(1.0),
+  frequency_penalty: z.number().min(-2).max(2).default(0),
+  presence_penalty: z.number().min(-2).max(2).default(0),
+  stop: z.array(z.string()).optional(),
+  verbose: z.boolean().optional(),
+});
+
+export type CodexRequestOptions = z.infer<typeof CodexRequestOptionsSchema>;
+
+export const CodexRequestSchema = z.object({
+  prompt: z.string(),
+  options: CodexRequestOptionsSchema.optional(),
+});
+
+export type CodexRequest = z.infer<typeof CodexRequestSchema>;
+
+// Qwen-specific schemas
+export const QwenRequestOptionsSchema = z.object({
+  model: z.string().default('qwen-coder-plus'),
+  temperature: z.number().min(0).max(2).default(0.1),
+  max_tokens: z.number().min(1).max(8192).default(2048),
+  top_p: z.number().min(0).max(1).default(0.9),
+  stream: z.boolean().default(false),
+  verbose: z.boolean().optional(),
+});
+
+export type QwenRequestOptions = z.infer<typeof QwenRequestOptionsSchema>;
+
+export const QwenRequestSchema = z.object({
+  prompt: z.string(),
+  options: QwenRequestOptionsSchema.optional(),
+});
+
+export type QwenRequest = z.infer<typeof QwenRequestSchema>;
+
+// Gemini-specific schemas
+export const GeminiRequestOptionsSchema = z.object({
+  model: z.string().default('gemini-1.5-pro'),
+  temperature: z.number().min(0).max(2).default(0.1),
+  max_tokens: z.number().min(1).max(8192).default(2048),
+  top_p: z.number().min(0).max(1).default(0.95),
+  top_k: z.number().min(1).default(64),
+  candidate_count: z.number().min(1).max(4).default(1),
+  stream: z.boolean().default(false),
+  verbose: z.boolean().optional(),
+});
+
+export type GeminiRequestOptions = z.infer<typeof GeminiRequestOptionsSchema>;
+
+export const GeminiRequestSchema = z.object({
+  prompt: z.string(),
+  options: GeminiRequestOptionsSchema.optional(),
+});
+
+export type GeminiRequest = z.infer<typeof GeminiRequestSchema>;
+
 // Property code service schemas
 export const CodeUpdateSchema = z.object({
   file: z.string(),

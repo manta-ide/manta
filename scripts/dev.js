@@ -284,20 +284,80 @@ async function main() {
     return;
   }
 
+  if (command === "providers" || command === "provider") {
+    console.log('Checking AI provider status...');
+    try {
+      // Start a temporary server to check provider status
+      const envVars = {
+        ...process.env,
+        MANTA_MODE: "user-project",
+        MANTA_PROJECT_DIR: targetDir,
+      };
+
+      // Check for API keys
+      const providers = [
+        { name: 'Claude', key: 'ANTHROPIC_API_KEY', env: envVars.ANTHROPIC_API_KEY },
+        { name: 'Codex (OpenAI)', key: 'OPENAI_API_KEY', env: envVars.OPENAI_API_KEY },
+        { name: 'Qwen', key: 'DASHSCOPE_API_KEY or QWEN_API_KEY', env: envVars.DASHSCOPE_API_KEY || envVars.QWEN_API_KEY },
+        { name: 'Gemini', key: 'GOOGLE_API_KEY or GEMINI_API_KEY', env: envVars.GOOGLE_API_KEY || envVars.GEMINI_API_KEY },
+      ];
+
+      console.log('\nAI Provider Status:');
+      console.log('==================');
+      providers.forEach(provider => {
+        const status = provider.env ? '✅ Configured' : '❌ Not configured';
+        console.log(`${provider.name.padEnd(15)} | ${status.padEnd(15)} | ${provider.key}`);
+      });
+
+      const configuredCount = providers.filter(p => p.env).length;
+      console.log(`\nConfigured providers: ${configuredCount}/${providers.length}`);
+
+      if (configuredCount === 0) {
+        console.log('\n⚠️  No AI providers are configured!');
+        console.log('Please set up at least one API key to use Manta IDE with AI features.');
+        console.log('\nExample:');
+        console.log('  export ANTHROPIC_API_KEY="your-claude-api-key"');
+        console.log('  export OPENAI_API_KEY="your-openai-api-key"');
+        console.log('  export DASHSCOPE_API_KEY="your-qwen-api-key"');
+        console.log('  export GOOGLE_API_KEY="your-gemini-api-key"');
+      } else {
+        console.log('\n✅ Ready to use AI features with configured providers.');
+      }
+    } catch (error) {
+      console.error('Error checking providers:', error.message);
+    }
+    return;
+  }
+
   if (["help", "--help", "-h"].includes(command)) {
     console.log(`
-Manta IDE CLI
+Manta IDE CLI with Multi-AI Support
 
 Usage:
-  manta            Start prebuilt Manta IDE (default)
-  manta i          Download and install template from manta-ide/manta-template
-  manta run        Start Manta IDE targeting current directory
-  manta dev        Run dev server (only in local repo with src/)
-  manta help       Show this help
+  manta                Start prebuilt Manta IDE (default)
+  manta i              Download and install template from manta-ide/manta-template
+  manta run            Start Manta IDE targeting current directory
+  manta dev            Run dev server (only in local repo with src/)
+  manta providers      Check AI provider configuration status
+  manta help           Show this help
+
+AI Providers:
+  Claude (Anthropic)   Set ANTHROPIC_API_KEY
+  Codex (OpenAI)       Set OPENAI_API_KEY
+  Qwen (Alibaba)       Set DASHSCOPE_API_KEY or QWEN_API_KEY
+  Gemini (Google)      Set GOOGLE_API_KEY or GEMINI_API_KEY
 
 NPM Scripts (in package.json):
   npm run dev              Run Next.js dev server directly
   npm run dev:ide:turbo    Run Next.js dev server with turbopack
+
+Environment Variables:
+  MANTA_PROJECT_DIR        Override target project directory
+  VERBOSE_CLAUDE_LOGS      Enable verbose Claude logs (1/true)
+  VERBOSE_CODEX_LOGS       Enable verbose Codex logs (1/true)
+  VERBOSE_QWEN_LOGS        Enable verbose Qwen logs (1/true)
+  VERBOSE_GEMINI_LOGS      Enable verbose Gemini logs (1/true)
+  VERBOSE_AI_LOGS          Enable verbose logs for all AI providers (1/true)
 `);
     return;
   }

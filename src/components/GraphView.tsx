@@ -424,6 +424,46 @@ function GraphCanvas() {
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
+  // Soft alignment guide lines state (drawn while dragging)
+  const [alignmentGuides, setAlignmentGuides] = useState<
+    | {
+        v?: { x: number; y1: number; y2: number };
+        h?: { y: number; x1: number; x2: number };
+      }
+    | null
+  >(null);
+  // Snap locking state for brief stops
+  const dragSnapRef = useRef<{
+    lockV: boolean;
+    lockH: boolean;
+    anchorX: number;
+    anchorY: number;
+    freezeVXUntil: number;
+    freezeHYUntil: number;
+    snapStartPointerX: number;
+    snapStartPointerY: number;
+    approachDirX: number;
+    approachDirY: number;
+    relockVXUntil: number;
+    relockHYUntil: number;
+    disabledVX: Set<number>;
+    disabledHY: Set<number>;
+  }>({
+    lockV: false,
+    lockH: false,
+    anchorX: 0,
+    anchorY: 0,
+    freezeVXUntil: 0,
+    freezeHYUntil: 0,
+    snapStartPointerX: 0,
+    snapStartPointerY: 0,
+    approachDirX: 0,
+    approachDirY: 0,
+    relockVXUntil: 0,
+    relockHYUntil: 0,
+    disabledVX: new Set<number>(),
+    disabledHY: new Set<number>(),
+  });
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
   const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
@@ -1423,6 +1463,28 @@ function GraphCanvas() {
     } else {
       draggingNodeIdsRef.current.add(graphNode.id);
     }
+    // reset snapping state
+    dragSnapRef.current.lockV = false;
+    dragSnapRef.current.lockH = false;
+    dragSnapRef.current.anchorX = 0;
+    dragSnapRef.current.anchorY = 0;
+    dragSnapRef.current.freezeVXUntil = 0;
+    dragSnapRef.current.freezeHYUntil = 0;
+    dragSnapRef.current.relockVXUntil = 0;
+    dragSnapRef.current.relockHYUntil = 0;
+    dragSnapRef.current.approachDirX = 0;
+    dragSnapRef.current.approachDirY = 0;
+    dragSnapRef.current.disabledVX.clear();
+    dragSnapRef.current.disabledHY.clear();
+    const getPt = (e: any) => {
+      if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number') return { x: e.clientX, y: e.clientY };
+      const t = e?.touches?.[0] || e?.changedTouches?.[0];
+      if (t && typeof t.clientX === 'number' && typeof t.clientY === 'number') return { x: t.clientX, y: t.clientY };
+      return null;
+    };
+    const pt = getPt(event);
+    dragSnapRef.current.snapStartPointerX = pt?.x ?? 0;
+    dragSnapRef.current.snapStartPointerY = pt?.y ?? 0;
   }, []);
 
   const onNodeDrag = useCallback((event: any, node: Node) => {
@@ -1435,8 +1497,252 @@ function GraphCanvas() {
       if (now - lastBroadcast >= POSITION_BROADCAST_THROTTLE) {
         lastPositionBroadcast.current[graphNode.id] = now;
       }
+      // Soft alignment with snap and brief stop
+      const DEFAULT_NODE_WIDTH = 260;
+      const DEFAULT_NODE_HEIGHT = 160;
+      // Thresholds in screen pixels
+      const GUIDE_THRESHOLD_SCR = 8; // show guides within this
+      const BREAK_DISTANCE_SCR = 10; // distance to break out of snap
+      const CROSS_DISTANCE_SCR = 8; // after locking, move this much forward to break
+      const SNAP_FREEZE_MS = 120; // brief stop duration
+      const RELOCK_COOLDOWN_MS = 160; // prevent immediate re-lock to avoid jiggle
+
+      // Prepare selection set: all selected nodes (or this one as fallback)
+      const currentNodes = latestNodesRef.current || [];
+      const selectedIds = (currentNodes.filter((n) => n.selected).map((n) => n.id));
+      const activeIds = selectedIds.length > 0 ? new Set(selectedIds) : new Set([node.id]);
+      const selectedNodes = currentNodes.filter((n) => activeIds.has(n.id));
+      if (selectedNodes.length === 0) {
+        setAlignmentGuides(null);
+        return;
+      }
+
+      // Compute bounding box of selection
+      const rects = selectedNodes.map((n) => {
+        const w = (n.width ?? DEFAULT_NODE_WIDTH);
+        const h = (n.height ?? DEFAULT_NODE_HEIGHT);
+        return {
+          left: n.position.x,
+          top: n.position.y,
+          right: n.position.x + w,
+          bottom: n.position.y + h,
+          cx: n.position.x + w / 2,
+          cy: n.position.y + h / 2,
+        };
+      });
+      const sel = {
+        left: Math.min(...rects.map((r) => r.left)),
+        top: Math.min(...rects.map((r) => r.top)),
+        right: Math.max(...rects.map((r) => r.right)),
+        bottom: Math.max(...rects.map((r) => r.bottom)),
+      };
+      const selCx = (sel.left + sel.right) / 2;
+      const selCy = (sel.top + sel.bottom) / 2;
+
+      // Candidate lines for selection
+      const selV = [sel.left, selCx, sel.right];
+      const selH = [sel.top, selCy, sel.bottom];
+
+      // Anchor lines from all other nodes
+      const others = currentNodes.filter((n) => !activeIds.has(n.id));
+      const anchorsV: number[] = [];
+      const anchorsH: number[] = [];
+      for (const n of others) {
+        const w = (n.width ?? DEFAULT_NODE_WIDTH);
+        const h = (n.height ?? DEFAULT_NODE_HEIGHT);
+        anchorsV.push(n.position.x, n.position.x + w / 2, n.position.x + w);
+        anchorsH.push(n.position.y, n.position.y + h / 2, n.position.y + h);
+      }
+      if (anchorsV.length === 0 && anchorsH.length === 0) {
+        setAlignmentGuides(null);
+        return;
+      }
+
+      // Convert screen threshold to flow space using viewport zoom
+      const zoom = viewport.zoom || 1;
+      const THRESH = GUIDE_THRESHOLD_SCR / zoom;
+      const BREAK_FLOW = BREAK_DISTANCE_SCR / zoom;
+
+      const getPt = (e: any) => {
+        if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number') return { x: e.clientX, y: e.clientY };
+        const t = e?.touches?.[0] || e?.changedTouches?.[0];
+        if (t && typeof t.clientX === 'number' && typeof t.clientY === 'number') return { x: t.clientX, y: t.clientY };
+        return null;
+      };
+      const pt = getPt(event);
+
+      // Helper to round anchors for stable identity
+      const roundAnchor = (n: number) => Math.round(n);
+      // Find closest vertical alignment (x), excluding disabled anchors for this drag
+      let bestV: { dx: number; x: number } | null = null;
+      {
+        const candidates: { dx: number; x: number }[] = [];
+        for (const xSel of selV) {
+          for (const xA of anchorsV) {
+            const dx = xA - xSel;
+            const adx = Math.abs(dx);
+            if (adx <= THRESH && !dragSnapRef.current.disabledVX.has(roundAnchor(xA))) {
+              candidates.push({ dx, x: xA });
+            }
+          }
+        }
+        for (const c of candidates) {
+          if (!bestV || Math.abs(c.dx) < Math.abs(bestV.dx)) bestV = c;
+        }
+      }
+
+      // Find closest horizontal alignment (y), excluding disabled anchors for this drag
+      let bestH: { dy: number; y: number } | null = null;
+      {
+        const candidates: { dy: number; y: number }[] = [];
+        for (const ySel of selH) {
+          for (const yA of anchorsH) {
+            const dy = yA - ySel;
+            const ady = Math.abs(dy);
+            if (ady <= THRESH && !dragSnapRef.current.disabledHY.has(roundAnchor(yA))) {
+              candidates.push({ dy, y: yA });
+            }
+          }
+        }
+        for (const c of candidates) {
+          if (!bestH || Math.abs(c.dy) < Math.abs(bestH.dy)) bestH = c;
+        }
+      }
+
+      // Determine anchors to snap to (lock when entering)
+      const state = dragSnapRef.current;
+      const nowMs = Date.now();
+
+      // Enter locks if close to anchors
+      if (bestV && !state.lockV) {
+        if (nowMs >= state.relockVXUntil) {
+          state.lockV = true;
+          state.anchorX = bestV.x;
+          state.freezeVXUntil = nowMs + SNAP_FREEZE_MS;
+          state.approachDirX = Math.sign(bestV.dx) || 0;
+          if (pt) state.snapStartPointerX = pt.x;
+        }
+      }
+      if (bestH && !state.lockH) {
+        if (nowMs >= state.relockHYUntil) {
+          state.lockH = true;
+          state.anchorY = bestH.y;
+          state.freezeHYUntil = nowMs + SNAP_FREEZE_MS;
+          state.approachDirY = Math.sign(bestH.dy) || 0;
+          if (pt) state.snapStartPointerY = pt.y;
+        }
+      }
+
+      // Release locks if dragged far enough away after freeze window
+      const nearestDiffToAnchorX = (() => {
+        if (!state.lockV) return null;
+        const diffs = selV.map((xSel) => state.anchorX - xSel);
+        let best = diffs[0];
+        for (let i = 1; i < diffs.length; i++) if (Math.abs(diffs[i]) < Math.abs(best)) best = diffs[i];
+        return best;
+      })();
+      const nearestDiffToAnchorY = (() => {
+        if (!state.lockH) return null;
+        const diffs = selH.map((ySel) => state.anchorY - ySel);
+        let best = diffs[0];
+        for (let i = 1; i < diffs.length; i++) if (Math.abs(diffs[i]) < Math.abs(best)) best = diffs[i];
+        return best;
+      })();
+
+      // Break when going forward past the snap (pointer-based cross), regardless of freeze
+      if (state.lockV && pt) {
+        const moved = pt.x - state.snapStartPointerX;
+        if ((state.approachDirX !== 0) && Math.sign(moved) === state.approachDirX && Math.abs(moved) >= CROSS_DISTANCE_SCR) {
+          state.lockV = false;
+          state.relockVXUntil = nowMs + RELOCK_COOLDOWN_MS;
+          dragSnapRef.current.disabledVX.add(roundAnchor(state.anchorX));
+        }
+      }
+      if (state.lockH && pt) {
+        const moved = pt.y - state.snapStartPointerY;
+        if ((state.approachDirY !== 0) && Math.sign(moved) === state.approachDirY && Math.abs(moved) >= CROSS_DISTANCE_SCR) {
+          state.lockH = false;
+          state.relockHYUntil = nowMs + RELOCK_COOLDOWN_MS;
+          dragSnapRef.current.disabledHY.add(roundAnchor(state.anchorY));
+        }
+      }
+      // Fallback release: far away after freeze
+      if (state.lockV && nowMs > state.freezeVXUntil) {
+        if (nearestDiffToAnchorX != null && Math.abs(nearestDiffToAnchorX) > BREAK_FLOW) {
+          state.lockV = false;
+          state.relockVXUntil = nowMs + RELOCK_COOLDOWN_MS;
+          dragSnapRef.current.disabledVX.add(roundAnchor(state.anchorX));
+        }
+      }
+      if (state.lockH && nowMs > state.freezeHYUntil) {
+        if (nearestDiffToAnchorY != null && Math.abs(nearestDiffToAnchorY) > BREAK_FLOW) {
+          state.lockH = false;
+          state.relockHYUntil = nowMs + RELOCK_COOLDOWN_MS;
+          dragSnapRef.current.disabledHY.add(roundAnchor(state.anchorY));
+        }
+      }
+
+      // Build guide visuals using current lock or detected best
+      let guides: typeof alignmentGuides = null;
+      const vx = state.lockV ? state.anchorX : (nowMs >= state.relockVXUntil ? bestV?.x : undefined);
+      const hy = state.lockH ? state.anchorY : (nowMs >= state.relockHYUntil ? bestH?.y : undefined);
+      if (vx != null || hy != null) {
+        const allRects = [
+          ...rects,
+          ...others.map((n) => {
+            const w = (n.width ?? DEFAULT_NODE_WIDTH);
+            const h = (n.height ?? DEFAULT_NODE_HEIGHT);
+            return { left: n.position.x, top: n.position.y, right: n.position.x + w, bottom: n.position.y + h };
+          }),
+        ];
+        const minY = Math.min(...allRects.map((r) => r.top));
+        const maxY = Math.max(...allRects.map((r) => r.bottom));
+        const minX = Math.min(...allRects.map((r) => r.left));
+        const maxX = Math.max(...allRects.map((r) => r.right));
+        const g: any = {};
+        if (vx != null) g.v = { x: vx, y1: minY - 20, y2: maxY + 20 };
+        if (hy != null) g.h = { y: hy, x1: minX - 20, x2: maxX + 20 };
+        guides = g;
+      }
+      setAlignmentGuides(guides);
+
+      // Apply snapping offset exactly while locked or when entering proximity
+      let dxSnap = 0;
+      let dySnap = 0;
+      if (state.lockV || bestV) {
+        const anchorX = state.lockV ? state.anchorX : (bestV as any).x;
+        // find nearest candidate to anchor and compute delta
+        let nearest = selV[0];
+        for (let i = 1; i < selV.length; i++) if (Math.abs(anchorX - selV[i]) < Math.abs(anchorX - nearest)) nearest = selV[i];
+        dxSnap = anchorX - nearest;
+      }
+      if (state.lockH || bestH) {
+        const anchorY = state.lockH ? state.anchorY : (bestH as any).y;
+        let nearest = selH[0];
+        for (let i = 1; i < selH.length; i++) if (Math.abs(anchorY - selH[i]) < Math.abs(anchorY - nearest)) nearest = selH[i];
+        dySnap = anchorY - nearest;
+      }
+
+      if (dxSnap !== 0 || dySnap !== 0) {
+        setNodes((nds) =>
+          nds.map((n) =>
+            activeIds.has(n.id)
+              ? {
+                  ...n,
+                  position: {
+                    x: n.position.x + dxSnap,
+                    y: n.position.y + dySnap,
+                  },
+                }
+              : n,
+          ),
+        );
+      } else if (!vx && !hy) {
+        // Clear guides when no close alignment
+        if (alignmentGuides) setAlignmentGuides(null);
+      }
     } catch {}
-  }, []);
+  }, [viewport.zoom, alignmentGuides, setNodes]);
 
   // Handle final node position changes (drag stop) - ensure final persistence
   const onNodeDragStop = useCallback(async (event: any, node: Node) => {
@@ -1465,6 +1771,13 @@ function GraphCanvas() {
     } catch (error) {
       console.error('Error saving final node position(s):', error);
     }
+    // Clear alignment guides after drag ends
+    setAlignmentGuides(null);
+    // Reset snap locks
+    dragSnapRef.current.lockV = false;
+    dragSnapRef.current.lockH = false;
+    dragSnapRef.current.disabledVX.clear();
+    dragSnapRef.current.disabledHY.clear();
     // Release drag locks for all selected nodes (or the primary as fallback)
     const selectedIds = (latestNodesRef.current || [])
       .filter((n) => n.selected)
@@ -1598,6 +1911,40 @@ function GraphCanvas() {
         <Controls />
         <Background color="#374151" gap={20} />
       </ReactFlow>
+
+      {/* Alignment guides overlay (soft suggestions) */}
+      {alignmentGuides && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 850 }}>
+          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
+            <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
+              {alignmentGuides.v && (
+                <line
+                  x1={alignmentGuides.v.x}
+                  y1={alignmentGuides.v.y1}
+                  x2={alignmentGuides.v.x}
+                  y2={alignmentGuides.v.y2}
+                  stroke="#60a5fa"
+                  strokeOpacity={0.9}
+                  strokeWidth={Math.max(1, 2 / (viewport.zoom || 1))}
+                  strokeDasharray="4 4"
+                />
+              )}
+              {alignmentGuides.h && (
+                <line
+                  x1={alignmentGuides.h.x1}
+                  y1={alignmentGuides.h.y}
+                  x2={alignmentGuides.h.x2}
+                  y2={alignmentGuides.h.y}
+                  stroke="#60a5fa"
+                  strokeOpacity={0.9}
+                  strokeWidth={Math.max(1, 2 / (viewport.zoom || 1))}
+                  strokeDasharray="4 4"
+                />
+              )}
+            </g>
+          </svg>
+        </div>
+      )}
 
       {/* Focus overlay: fade everything except all found nodes (when search is open) */}
       {focusRects.length > 0 && (
