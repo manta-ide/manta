@@ -15,6 +15,7 @@ import {
   NodeMouseHandler,
   EdgeMouseHandler,
   OnEdgesChange,
+  OnNodesChange,
   Handle,
   Position,
   useViewport,
@@ -23,6 +24,7 @@ import {
   useReactFlow,
   ReactFlowProvider,
   applyEdgeChanges,
+  applyNodeChanges,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
@@ -33,6 +35,7 @@ import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
 import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
+import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
 const isValidConnection = (connection: Connection | Edge) => {
@@ -419,11 +422,25 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 });
 
 function GraphCanvas() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [nodes, setNodes] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
+
+  // Helper lines functionality
+  const { rebuildIndex, updateHelperLines, HelperLines } = useHelperLines();
+
+  // Custom onNodesChange that integrates helper lines
+  const onNodesChange: OnNodesChange = useCallback(
+    (changes) => {
+      setNodes((nodes) => {
+        const updatedChanges = updateHelperLines(changes, nodes);
+        return applyNodeChanges(updatedChanges, nodes);
+      });
+    },
+    [setNodes, updateHelperLines],
+  );
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
   const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
@@ -1471,7 +1488,10 @@ function GraphCanvas() {
       .map((n) => n.id);
     const idsToClear = selectedIds.length > 0 ? selectedIds : [node.id];
     for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
-  }, [updateNode]);
+
+    // Rebuild helper lines spatial index after drag
+    rebuildIndex(nodes);
+  }, [updateNode, rebuildIndex, nodes]);
 
   // Handle background mouse down for node creation
   const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {
@@ -1597,6 +1617,7 @@ function GraphCanvas() {
         />
         <Controls />
         <Background color="#374151" gap={20} />
+        <HelperLines />
       </ReactFlow>
 
       {/* Focus overlay: fade everything except all found nodes (when search is open) */}
