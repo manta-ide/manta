@@ -1,16 +1,14 @@
 #!/usr/bin/env node
-import { spawn } from "child_process";
+import { execa } from "execa";
 import { join } from "path";
-import { existsSync, readdirSync } from "fs";
+import { readdirSync, statSync } from "fs";
+import { rm } from "fs/promises";
 
 const packageRoot = join(process.cwd());
 
-function run(cmd, args, opts = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: "inherit", ...opts });
-    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(" ")} -> ${code}`))));
-    child.on("error", reject);
-  });
+async function run(cmd, args, opts = {}) {
+  // Use execa for robust cross-platform process execution
+  await execa(cmd, args, { stdio: "inherit", ...opts });
 }
 
 async function main() {
@@ -42,7 +40,10 @@ async function main() {
     if (packedFiles.length === 0) {
       throw new Error("No packed file found");
     }
-    const packedFile = packedFiles[0]; // Take the first (and likely only) match
+    // Choose the most recently modified tgz to avoid picking an old one
+    const packedFile = packedFiles
+      .map(name => ({ name, mtimeMs: statSync(join(packageRoot, name)).mtimeMs }))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)[0].name;
     console.log(`📦 Found packed file: ${packedFile}`);
 
     // Step 5: Install the packed file globally
@@ -52,7 +53,8 @@ async function main() {
 
     // Step 6: Clean up the packed file
     console.log("🧹 Cleaning up packed file...");
-    await run("rm", [packedFile]);
+    // Use Node's fs to remove the packed file (cross-platform)
+    await rm(packedFile, { force: true });
     console.log("✅ Cleanup completed");
 
     console.log("🎉 Global reinstall process completed successfully!");
