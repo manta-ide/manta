@@ -130,15 +130,55 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
     return result;
   })();
 
-  // Determine styling based on node state (built/unbuilt)
+  // Helper function to get issue count from node properties
+  const getIssueCount = (node: GraphNode): number => {
+    if (!node.properties) return 0;
+    const issueCountProp = node.properties.find((prop: any) => prop.id && prop.id.includes('issue-count'));
+    if (!issueCountProp) return 0;
+    const value = typeof issueCountProp.value === 'number' ? issueCountProp.value : parseInt(String(issueCountProp.value), 10);
+    return isNaN(value) ? 0 : value;
+  };
+
+  // Helper function to get color based on issue count (green to red gradient)
+  const getIssueCountColor = (issueCount: number): string => {
+    // Find min and max issue counts across all nodes in the graph
+    const allNodes = data.graph?.nodes || [];
+    const allIssueCounts = allNodes.map((n: any) => getIssueCount(n)).filter((count: number) => count > 0);
+
+    if (allIssueCounts.length === 0) return '#ffffff';
+
+    const minIssues = Math.min(...allIssueCounts);
+    const maxIssues = Math.max(...allIssueCounts);
+
+    // If all nodes have the same issue count, return a neutral color
+    if (minIssues === maxIssues) return '#f0f9ff'; // Light blue
+
+    // Normalize issue count to 0-1 range
+    const normalized = (issueCount - minIssues) / (maxIssues - minIssues);
+
+    // Create green to red gradient
+    // Green: rgb(34, 197, 94) - Red: rgb(239, 68, 68)
+    const red = Math.round(34 + (239 - 34) * normalized);
+    const green = Math.round(197 + (68 - 197) * normalized);
+    const blue = Math.round(94 + (68 - 94) * normalized);
+
+    return `rgb(${red}, ${green}, ${blue})`;
+  };
+
+  // Determine styling based on node state (built/unbuilt) and issue count
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '3px' : '0px';
+    const issueCount = getIssueCount(node);
+    const issueColor = getIssueCountColor(issueCount);
+
+    // If selected, use a lighter version of the issue color
+    const backgroundColor = selected ? '#f8fafc' : issueColor;
 
     switch (effectiveState) {
       case 'built':
       case 'unbuilt': // Unbuilt nodes look the same as built nodes visually
         return {
-          background: selected ? '#f8fafc' : '#ffffff',
+          background: backgroundColor,
           border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
           boxShadow: selected
             ? '0 0 0 2px #2563eb'
@@ -148,7 +188,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 
       default: // Any other state - treat as unbuilt
         return {
-          background: selected ? '#f8fafc' : '#ffffff',
+          background: backgroundColor,
           border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
           boxShadow: selected
             ? '0 0 0 2px #2563eb'
@@ -160,6 +200,14 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   
   if (isZoomedOut) {
     const nodeStyles = getNodeStyles();
+    const issueCount = getIssueCount(node);
+    // Make badge larger when zoomed out
+    const badgeScale = zoom < 0.8 ? 2.5 : 1;
+    const badgeFontSize = 14 * badgeScale;
+    const badgePadding = `${4 * badgeScale}px ${12 * badgeScale}px`;
+    const badgeMinWidth = 28 * badgeScale;
+    const badgeBorderRadius = 16 * badgeScale;
+
     return (
       <div
         className={`custom-node-simple ${selected ? 'selected' : ''}`}
@@ -177,6 +225,27 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           alignItems: 'center',
         }}
       >
+        {/* Issue count badge */}
+        {issueCount > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            borderRadius: `${badgeBorderRadius}px`,
+            padding: badgePadding,
+            fontSize: `${badgeFontSize}px`,
+            fontWeight: '700',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+            zIndex: 10,
+            minWidth: `${badgeMinWidth}px`,
+            textAlign: 'center',
+          }}>
+            {issueCount}
+          </div>
+        )}
+
         {/* No extra border for search hits; fading overlay handles focus */}
         {/* State indicator - only show for unbuilt nodes */}
         {effectiveState === 'unbuilt' && (
@@ -269,6 +338,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   
   // Full detailed view when zoomed in
   const nodeStyles = getNodeStyles();
+  const issueCount = getIssueCount(node);
   return (
     <div
       className={`custom-node ${selected ? 'selected' : ''}`}
@@ -285,6 +355,27 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
+      {/* Issue count badge */}
+      {issueCount > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: '4px',
+          right: '4px',
+          background: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          borderRadius: '16px',
+          padding: '4px 12px',
+          fontSize: '14px',
+          fontWeight: '700',
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+          zIndex: 10,
+          minWidth: '28px',
+          textAlign: 'center',
+        }}>
+          {issueCount}
+        </div>
+      )}
+
       {/* No extra border for search hits; fading overlay handles focus */}
       {/* State indicators - only show for unbuilt nodes */}
       {effectiveState === 'unbuilt' && (
@@ -1578,21 +1669,45 @@ function GraphCanvas() {
         <MiniMap
           nodeColor={(node: any) => {
             const nd = node.data?.node;
-            const baseGraph = node.data?.baseGraph;
+            if (!nd) return '#ffffff';
 
-            // Compute state dynamically using the same logic as node state computation
-            let nodeState = 'unbuilt';
-            if (baseGraph && nd) {
-              const baseNode = baseGraph.nodes.find((n: any) => n.id === nd.id);
-              if (baseNode) {
-                // Use the same diff logic - compares title, prompt, AND properties
-                const isSame = !nodesAreDifferent(baseNode, nd);
-                nodeState = isSame ? 'built' : 'unbuilt';
-              }
-            }
+            // Helper function to get issue count from node properties
+            const getIssueCount = (node: any): number => {
+              if (!node.properties) return 0;
+              const issueCountProp = node.properties.find((prop: any) => prop.id && prop.id.includes('issue-count'));
+              if (!issueCountProp) return 0;
+              const value = typeof issueCountProp.value === 'number' ? issueCountProp.value : parseInt(String(issueCountProp.value), 10);
+              return isNaN(value) ? 0 : value;
+            };
 
-            if (nodeState === 'built') return '#9ca3af';
-            return '#fbbf24'; // unbuilt
+            // Helper function to get color based on issue count (green to red gradient)
+            const getIssueCountColor = (issueCount: number): string => {
+              // Find min and max issue counts across all nodes in the graph
+              const allNodes = graph?.nodes || [];
+              const allIssueCounts = allNodes.map((n: any) => getIssueCount(n)).filter((count: number) => count > 0);
+
+              if (allIssueCounts.length === 0) return '#ffffff';
+
+              const minIssues = Math.min(...allIssueCounts);
+              const maxIssues = Math.max(...allIssueCounts);
+
+              // If all nodes have the same issue count, return a neutral color
+              if (minIssues === maxIssues) return '#f0f9ff'; // Light blue
+
+              // Normalize issue count to 0-1 range
+              const normalized = (issueCount - minIssues) / (maxIssues - minIssues);
+
+              // Create green to red gradient
+              // Green: rgb(34, 197, 94) - Red: rgb(239, 68, 68)
+              const red = Math.round(34 + (239 - 34) * normalized);
+              const green = Math.round(197 + (68 - 197) * normalized);
+              const blue = Math.round(94 + (68 - 94) * normalized);
+
+              return `rgb(${red}, ${green}, ${blue})`;
+            };
+
+            const issueCount = getIssueCount(nd);
+            return getIssueCountColor(issueCount);
           }}
         />
         <Controls />

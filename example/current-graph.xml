@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="runtime-core" title="Runtime Core" x="40.860138292831934" y="-27.999292282780218" z="0">
+      <description>Core runtime entry points and fundamental systems including main entry point (bun.zig), CLI orchestration (cli.zig), and core infrastructure components.</description>
+      <metadata>
+        <file>src/bun.zig</file>
+        <file>src/cli.zig</file>
+        <file>src/main.zig</file>
+        <file>src/runtime.zig</file>
+      </metadata>
+      <props>
+        <prop name="component-type" title="Component Type" type="select">
+          <value>runtime</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="key-responsibilities" title="Key Responsibilities" type="text">Main entry point, CLI command orchestration, core infrastructure, fundamental runtime systems</prop>
+        <prop name="performance-characteristics" title="Performance Characteristics" type="text">High-performance native code, optimized for speed and low memory usage</prop>
+        <prop name="key-files" title="Key Files" type="text">bun.zig, cli.zig, main.zig, runtime.zig</prop>
+        <prop name="issue-count" title="Issue Count" type="number">379</prop>
+      </props>
+    </node>
+
+    <node id="javascript-parser" title="JavaScript Parser &amp; Transpiler" x="-288.67288103516705" y="114.0581480769689" z="0">
+      <description>JavaScript parsing, lexing, printing, and transpilation system. High-performance parser that handles modern JavaScript/TypeScript syntax with sourcemap support.</description>
+      <metadata>
+        <file>src/js_parser.zig</file>
+        <file>src/js_lexer.zig</file>
+        <file>src/js_printer.zig</file>
+        <file>src/transpiler.zig</file>
+      </metadata>
+      <props>
+        <prop name="javascript-parser-component-type" title="Component Type" type="select">
+          <value>parser</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="javascript-parser-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="javascript-parser-key-responsibilities" title="Key Responsibilities" type="text">JavaScript/TypeScript parsing, lexical analysis, code printing, transpilation with sourcemap support</prop>
+        <prop name="javascript-parser-performance-characteristics" title="Performance Characteristics" type="text">Extremely fast parsing, optimized for large codebases, efficient memory usage</prop>
+        <prop name="javascript-parser-key-files" title="Key Files" type="text">js_parser.zig, js_lexer.zig, js_printer.zig, transpiler.zig</prop>
+        <prop name="javascript-parser-issue-count" title="Issue Count" type="number">181</prop>
+      </props>
+    </node>
+
+    <node id="module-resolver" title="Module Resolution System" x="-8.76115474386097" y="293.61105973679696" z="0">
+      <description>Module resolution system that handles import/require resolution, package.json processing, and TypeScript configuration. Supports Node.js and modern ES module resolution.</description>
+      <metadata>
+        <file>src/resolver/resolver.zig</file>
+        <file>src/resolver/package_json.zig</file>
+        <file>src/resolver/tsconfig_json.zig</file>
+      </metadata>
+      <props>
+        <prop name="module-resolver-component-type" title="Component Type" type="select">
+          <value>infrastructure</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="module-resolver-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="module-resolver-key-responsibilities" title="Key Responsibilities" type="text">Module import resolution, package.json processing, tsconfig.json handling, path resolution</prop>
+        <prop name="module-resolver-performance-characteristics" title="Performance Characteristics" type="text">Fast resolution with caching, optimized for large dependency trees</prop>
+        <prop name="module-resolver-key-files" title="Key Files" type="text">resolver/resolver.zig, resolver/package_json.zig, resolver/tsconfig_json.zig</prop>
+        <prop name="module-resolver-issue-count" title="Issue Count" type="number">298</prop>
+      </props>
+    </node>
+
+    <node id="custom-allocators" title="Custom Memory Allocators" x="-681.2894958918922" y="-179.3113068063219" z="0">
+      <description>Custom memory allocation systems optimized for performance. Includes specialized allocators for different use cases to minimize memory overhead and maximize speed.</description>
+      <metadata>
+        <file>src/allocators.zig</file>
+        <file>src/memory.zig</file>
+        <file>src/pool.zig</file>
+      </metadata>
+      <props>
+        <prop name="custom-allocators-component-type" title="Component Type" type="select">
+          <value>infrastructure</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="custom-allocators-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="custom-allocators-key-responsibilities" title="Key Responsibilities" type="text">Memory allocation strategies, performance optimization, memory pool management</prop>
+        <prop name="custom-allocators-performance-characteristics" title="Performance Characteristics" type="text">Highly optimized allocation patterns, reduced fragmentation, fast allocation/deallocation</prop>
+        <prop name="custom-allocators-key-files" title="Key Files" type="text">allocators.zig, memory.zig, pool.zig</prop>
+        <prop name="custom-allocators-issue-count" title="Issue Count" type="number">334</prop>
+      </props>
+    </node>
+
+    <node id="javascriptcore-bindings" title="JavaScriptCore Bindings Layer" x="574.7191646499177" y="-339.0560671517504" z="0">
+      <description>C++ bindings that interface with WebKit&apos;s JavaScriptCore engine. Provides the bridge between Zig runtime and JavaScript execution, including class implementations and JSC API wrappers.</description>
+      <metadata>
+        <file>src/bun.js/bindings</file>
+      </metadata>
+      <props>
+        <prop name="javascriptcore-bindings-component-type" title="Component Type" type="select">
+          <value>runtime</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="javascriptcore-bindings-primary-language" title="Primary Language" type="select">
+          <value>C++</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="javascriptcore-bindings-key-responsibilities" title="Key Responsibilities" type="text">JavaScriptCore integration, JavaScript class implementations, JSC API bridging, memory management</prop>
+        <prop name="javascriptcore-bindings-performance-characteristics" title="Performance Characteristics" type="text">Optimized for JavaScriptCore integration, efficient object lifecycle management</prop>
+        <prop name="javascriptcore-bindings-key-files" title="Key Files" type="text">bindings/*.cpp, bindings/*.h, generated classes from .classes.ts</prop>
+        <prop name="javascriptcore-bindings-issue-count" title="Issue Count" type="number">417</prop>
+      </props>
+    </node>
+
+    <node id="bun-apis" title="Bun-Specific APIs" x="570.4918361843147" y="518.235092405988" z="0">
+      <description>Core Bun APIs including HTTP server (Bun.serve), FFI, crypto operations, file I/O, and other Bun-specific functionality. High-performance implementations of key runtime features.</description>
+      <metadata>
+        <file>src/bun.js/api/server.zig</file>
+        <file>src/bun.js/api/ffi.zig</file>
+        <file>src/bun.js/api/crypto.zig</file>
+        <file>src/bun.js/api/glob.zig</file>
+      </metadata>
+      <props>
+        <prop name="bun-apis-component-type" title="Component Type" type="select">
+          <value>api</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="bun-apis-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="bun-apis-key-responsibilities" title="Key Responsibilities" type="text">HTTP server implementation, FFI, crypto operations, file I/O, glob matching, timers</prop>
+        <prop name="bun-apis-performance-characteristics" title="Performance Characteristics" type="text">High-performance server, efficient crypto operations, fast file I/O</prop>
+        <prop name="bun-apis-key-files" title="Key Files" type="text">api/server.zig, api/ffi.zig, api/crypto.zig, api/glob.zig</prop>
+        <prop name="bun-apis-issue-count" title="Issue Count" type="number">438</prop>
+      </props>
+    </node>
+
+    <node id="nodejs-compatibility" title="Node.js Compatibility Layer" x="1120.3377467922387" y="-462.9353019415613" z="0">
+      <description>Node.js API compatibility implementations including fs, path, crypto, process, buffer, and other Node.js modules. Ensures compatibility with existing Node.js applications.</description>
+      <metadata>
+        <file>src/bun.js/node</file>
+      </metadata>
+      <props>
+        <prop name="nodejs-compatibility-component-type" title="Component Type" type="select">
+          <value>api</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="nodejs-compatibility-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="nodejs-compatibility-key-responsibilities" title="Key Responsibilities" type="text">Node.js API implementation, fs operations, process management, buffer handling, compatibility shims</prop>
+        <prop name="nodejs-compatibility-performance-characteristics" title="Performance Characteristics" type="text">Performance-optimized Node.js APIs, often faster than Node.js native implementations</prop>
+        <prop name="nodejs-compatibility-key-files" title="Key Files" type="text">node/node_fs.zig, node/node_process.zig, node/buffer.zig, node/path.zig</prop>
+        <prop name="nodejs-compatibility-issue-count" title="Issue Count" type="number">556</prop>
+      </props>
+    </node>
+
+    <node id="web-apis" title="Web API Implementations" x="1166.4038572901438" y="31.328875839301574" z="0">
+      <description>Web standard API implementations including Fetch, Streams, Blob, Request, Response, WebSocket, and other web platform APIs. Provides modern web API compatibility.</description>
+      <metadata>
+        <file>src/bun.js/webcore</file>
+      </metadata>
+      <props>
+        <prop name="web-apis-component-type" title="Component Type" type="select">
+          <value>api</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="web-apis-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="web-apis-key-responsibilities" title="Key Responsibilities" type="text">Fetch API, Web Streams, Blob handling, Request/Response objects, WebSocket support, text encoding</prop>
+        <prop name="web-apis-performance-characteristics" title="Performance Characteristics" type="text">High-performance web APIs, efficient streaming, optimized for both server and edge runtime use</prop>
+        <prop name="web-apis-key-files" title="Key Files" type="text">webcore/fetch.zig, webcore/streams.zig, webcore/Blob.zig, webcore/Request.zig, webcore/Response.zig</prop>
+        <prop name="web-apis-issue-count" title="Issue Count" type="number">151</prop>
+      </props>
+    </node>
+
+    <node id="event-loop" title="Event Loop &amp; Task Management" x="31.523303621401965" y="-378.16059428352315" z="0">
+      <description>Event loop implementation and task scheduling system. Manages asynchronous operations, timers, I/O events, and coordinates between JavaScript and native code execution.</description>
+      <metadata>
+        <file>src/bun.js/event_loop.zig</file>
+        <file>src/bun.js/VirtualMachine.zig</file>
+        <file>src/work_pool.zig</file>
+      </metadata>
+      <props>
+        <prop name="event-loop-component-type" title="Component Type" type="select">
+          <value>runtime</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="event-loop-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="event-loop-key-responsibilities" title="Key Responsibilities" type="text">Event loop management, task scheduling, async operation coordination, timer management</prop>
+        <prop name="event-loop-performance-characteristics" title="Performance Characteristics" type="text">High-performance event loop, efficient task scheduling, low-latency async operations</prop>
+        <prop name="event-loop-key-files" title="Key Files" type="text">event_loop.zig, VirtualMachine.zig, work_pool.zig</prop>
+        <prop name="event-loop-issue-count" title="Issue Count" type="number">240</prop>
+      </props>
+    </node>
+
+    <node id="bundler-core" title="JavaScript Bundler Core" x="-154.87949341196867" y="1045.9167832300639" z="0">
+      <description>Advanced JavaScript bundler with tree-shaking, code splitting, CSS processing, and HTML handling. High-performance bundling system for modern web applications.</description>
+      <metadata>
+        <file>src/bundler</file>
+      </metadata>
+      <props>
+        <prop name="bundler-core-component-type" title="Component Type" type="select">
+          <value>bundler</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="bundler-core-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="bundler-core-key-responsibilities" title="Key Responsibilities" type="text">JavaScript bundling, tree-shaking, code splitting, dependency analysis, chunk generation</prop>
+        <prop name="bundler-core-performance-characteristics" title="Performance Characteristics" type="text">Extremely fast bundling, efficient tree-shaking, parallel processing capabilities</prop>
+        <prop name="bundler-core-key-files" title="Key Files" type="text">bundler/bundle_v2.zig, bundler/Graph.zig, bundler/Chunk.zig, bundler/LinkerContext.zig</prop>
+        <prop name="bundler-core-issue-count" title="Issue Count" type="number">282</prop>
+      </props>
+    </node>
+
+    <node id="package-manager" title="Package Manager" x="1251.1184521975779" y="781.3813496443533" z="0">
+      <description>High-performance package manager with lockfile handling, npm registry client, dependency resolution, and lifecycle script execution. Compatible with npm, yarn, and pnpm ecosystems.</description>
+      <metadata>
+        <file>src/install</file>
+      </metadata>
+      <props>
+        <prop name="package-manager-component-type" title="Component Type" type="select">
+          <value>package-manager</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="package-manager-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="package-manager-key-responsibilities" title="Key Responsibilities" type="text">Package installation, dependency resolution, lockfile management, npm registry communication, lifecycle scripts</prop>
+        <prop name="package-manager-performance-characteristics" title="Performance Characteristics" type="text">Fast package installation, efficient dependency resolution, parallel downloads</prop>
+        <prop name="package-manager-key-files" title="Key Files" type="text">install/install.zig, install/npm.zig, install/lockfile.zig, install/lifecycle_script_runner.zig</prop>
+        <prop name="package-manager-issue-count" title="Issue Count" type="number">288</prop>
+      </props>
+    </node>
+
+    <node id="shell-implementation" title="Cross-Platform Shell" x="878.8738250781934" y="1104.4668786983577" z="0">
+      <description>Cross-platform shell implementation (Bun.$) providing shell scripting capabilities with built-in commands, process management, and I/O handling across different operating systems.</description>
+      <metadata>
+        <file>src/shell</file>
+      </metadata>
+      <props>
+        <prop name="shell-implementation-component-type" title="Component Type" type="select">
+          <value>api</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="shell-implementation-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="shell-implementation-key-responsibilities" title="Key Responsibilities" type="text">Shell script parsing, built-in command execution, process spawning, I/O redirection, cross-platform compatibility</prop>
+        <prop name="shell-implementation-performance-characteristics" title="Performance Characteristics" type="text">Fast shell execution, efficient process management, cross-platform performance</prop>
+        <prop name="shell-implementation-key-files" title="Key Files" type="text">shell/shell.zig, shell/interpreter.zig, shell/Builtin.zig, shell/subproc.zig</prop>
+        <prop name="shell-implementation-issue-count" title="Issue Count" type="number">662</prop>
+      </props>
+    </node>
+
+    <node id="css-processor" title="CSS Parser &amp; Processor" x="-592.8457884914117" y="701.9874293187687" z="0">
+      <description>CSS parsing and processing system with support for CSS modules, media queries, vendor prefixes, and modern CSS features. Integrates with the bundler for CSS optimization.</description>
+      <metadata>
+        <file>src/css</file>
+      </metadata>
+      <props>
+        <prop name="css-processor-component-type" title="Component Type" type="select">
+          <value>parser</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="css-processor-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="css-processor-key-responsibilities" title="Key Responsibilities" type="text">CSS parsing, CSS modules support, vendor prefix handling, media query processing, CSS optimization</prop>
+        <prop name="css-processor-performance-characteristics" title="Performance Characteristics" type="text">Fast CSS parsing, efficient CSS transformations, optimized output generation</prop>
+        <prop name="css-processor-key-files" title="Key Files" type="text">css/css_parser.zig, css/css_modules.zig, css/printer.zig, css/prefixes.zig</prop>
+        <prop name="css-processor-issue-count" title="Issue Count" type="number">56</prop>
+      </props>
+    </node>
+
+    <node id="http-client" title="HTTP Client &amp; WebSocket" x="1180.7282316002875" y="410.6832163087062" z="0">
+      <description>HTTP client implementation with WebSocket support including deflate compression. Provides the foundation for fetch API and WebSocket connections.</description>
+      <metadata>
+        <file>src/http.zig</file>
+      </metadata>
+      <props>
+        <prop name="http-client-component-type" title="Component Type" type="select">
+          <value>infrastructure</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="http-client-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="http-client-key-responsibilities" title="Key Responsibilities" type="text">HTTP client operations, WebSocket connections, compression support, network protocol handling</prop>
+        <prop name="http-client-performance-characteristics" title="Performance Characteristics" type="text">High-performance HTTP operations, efficient WebSocket handling, optimized network I/O</prop>
+        <prop name="http-client-key-files" title="Key Files" type="text">http.zig, websocket_client/, boringssl.zig</prop>
+        <prop name="http-client-issue-count" title="Issue Count" type="number">784</prop>
+      </props>
+    </node>
+
+    <node id="sql-integrations" title="SQL Database Integrations" x="224.66036407010841" y="702.571195211117" z="0">
+      <description>SQL database integration layer supporting MySQL and PostgreSQL connections. Provides native database connectivity for JavaScript applications.</description>
+      <metadata>
+        <file>src/sql/mysql.zig</file>
+        <file>src/sql/postgres.zig</file>
+      </metadata>
+      <props>
+        <prop name="sql-integrations-component-type" title="Component Type" type="select">
+          <value>api</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="sql-integrations-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="sql-integrations-key-responsibilities" title="Key Responsibilities" type="text">MySQL and PostgreSQL client implementations, SQL query execution, database connection management</prop>
+        <prop name="sql-integrations-performance-characteristics" title="Performance Characteristics" type="text">High-performance database operations, efficient connection pooling, optimized query execution</prop>
+        <prop name="sql-integrations-key-files" title="Key Files" type="text">sql/mysql.zig, sql/postgres.zig</prop>
+        <prop name="sql-integrations-issue-count" title="Issue Count" type="number">113</prop>
+      </props>
+    </node>
+
+    <node id="bake-framework" title="Bake SSR Framework" x="519.390038071516" y="964.1461941292905" z="0">
+      <description>Server-side rendering framework that combines bundling and serving capabilities. Provides hot-reloading development server, server components, and framework integration tools.</description>
+      <metadata>
+        <file>src/bake.zig</file>
+        <file>src/bake/DevServer.zig</file>
+        <file>src/bake/FrameworkRouter.zig</file>
+      </metadata>
+      <props>
+        <prop name="bake-framework-component-type" title="Component Type" type="select">
+          <value>api</value>
+          <options>
+          <option>runtime</option>
+          <option>parser</option>
+          <option>api</option>
+          <option>bundler</option>
+          <option>package-manager</option>
+          <option>infrastructure</option>
+          </options>
+        </prop>
+        <prop name="bake-framework-primary-language" title="Primary Language" type="select">
+          <value>Zig</value>
+          <options>
+          <option>Zig</option>
+          <option>C++</option>
+          <option>TypeScript</option>
+          <option>Mixed</option>
+          </options>
+        </prop>
+        <prop name="bake-framework-key-responsibilities" title="Key Responsibilities" type="text">Server-side rendering, hot-reloading dev server, server components, framework router integration</prop>
+        <prop name="bake-framework-performance-characteristics" title="Performance Characteristics" type="text">Fast SSR performance, efficient hot-reloading, optimized for framework development</prop>
+        <prop name="bake-framework-key-files" title="Key Files" type="text">bake.zig, bake/DevServer.zig, bake/FrameworkRouter.zig</prop>
+        <prop name="bake-framework-issue-count" title="Issue Count" type="number">20</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="runtime-core-javascript-parser" source="runtime-core" target="javascript-parser" role="uses"/>
+    <edge id="runtime-core-module-resolver" source="runtime-core" target="module-resolver" role="uses"/>
+    <edge id="runtime-core-custom-allocators" source="runtime-core" target="custom-allocators" role="uses"/>
+    <edge id="runtime-core-javascriptcore-bindings" source="runtime-core" target="javascriptcore-bindings" role="integrates-with"/>
+    <edge id="javascriptcore-bindings-event-loop" source="javascriptcore-bindings" target="event-loop" role="manages"/>
+    <edge id="bun-apis-javascriptcore-bindings" source="bun-apis" target="javascriptcore-bindings" role="exposed-through"/>
+    <edge id="nodejs-compatibility-javascriptcore-bindings" source="nodejs-compatibility" target="javascriptcore-bindings" role="exposed-through"/>
+    <edge id="web-apis-javascriptcore-bindings" source="web-apis" target="javascriptcore-bindings" role="exposed-through"/>
+    <edge id="web-apis-http-client" source="web-apis" target="http-client" role="uses"/>
+    <edge id="bundler-core-javascript-parser" source="bundler-core" target="javascript-parser" role="uses"/>
+    <edge id="bundler-core-module-resolver" source="bundler-core" target="module-resolver" role="uses"/>
+    <edge id="bundler-core-css-processor" source="bundler-core" target="css-processor" role="integrates-with"/>
+    <edge id="package-manager-http-client" source="package-manager" target="http-client" role="uses"/>
+    <edge id="package-manager-shell-implementation" source="package-manager" target="shell-implementation" role="uses"/>
+    <edge id="bake-framework-bundler-core" source="bake-framework" target="bundler-core" role="uses"/>
+    <edge id="bake-framework-bun-apis" source="bake-framework" target="bun-apis" role="uses"/>
+    <edge id="sql-integrations-javascriptcore-bindings" source="sql-integrations" target="javascriptcore-bindings" role="exposed-through"/>
+    <edge id="shell-implementation-javascriptcore-bindings" source="shell-implementation" target="javascriptcore-bindings" role="exposed-through"/>
+    <edge id="event-loop-custom-allocators" source="event-loop" target="custom-allocators" role="uses"/>
+    <edge id="javascript-parser-custom-allocators" source="javascript-parser" target="custom-allocators" role="uses"/>
+    <edge id="bundler-core-custom-allocators" source="bundler-core" target="custom-allocators" role="uses"/>
+  </edges>
+</graph>
