@@ -11,6 +11,15 @@
   overflow: hidden;
 }
 
+/* Helper lines canvas styling */
+.helper-lines-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

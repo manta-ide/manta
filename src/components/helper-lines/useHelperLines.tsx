@@ -75,7 +75,9 @@ export function useHelperLines() {
       if (
         !spatialIndexRef.current ||
         changes.length === 0 ||
-        changes.length > 2
+        changes.length > 2 ||
+        !nodes ||
+        nodes.length === 0
       ) {
         return changes;
       }
@@ -122,7 +124,9 @@ export function useHelperLines() {
       const internalNode = getInternalNode(node.id);
 
       if (!internalNode) {
-        throw new Error(`Node with id ${node.id} not found in internal nodes`);
+        // If internal node is not found, skip helper lines processing
+        // This can happen during node updates or graph rebuilds
+        return changes;
       }
 
       const parentNode = getInternalNode(internalNode.parentId ?? '');
@@ -226,12 +230,18 @@ export function useHelperLines() {
   );
 
   const HelperLines = useCallback(() => {
-    return (
-      <HelperLinesRenderer
-        horizontal={helperLineHorizontal}
-        vertical={helperLineVertical}
-      />
-    );
+    try {
+      return (
+        <HelperLinesRenderer
+          horizontal={helperLineHorizontal}
+          vertical={helperLineVertical}
+        />
+      );
+    } catch (error) {
+      // If helper lines rendering fails, don't crash the entire graph view
+      console.warn('Helper lines rendering failed:', error);
+      return null;
+    }
   }, [helperLineHorizontal, helperLineVertical]);
 
   return {
