@@ -29,6 +29,9 @@ interface ProjectStore {
   refreshTrigger: number;
   
   // Graph state
+  layers: string[];
+  activeLayer: string | null;
+  layersSidebarOpen: boolean;
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
   selectedNodeIds: string[];
@@ -61,6 +64,14 @@ interface ProjectStore {
   triggerRefresh: () => void;
   setIframeReady: (ready: boolean) => void;
   setResetting: (resetting: boolean) => void;
+  // Layer operations
+  loadLayers: () => Promise<void>;
+  createLayer: (name?: string) => Promise<string | null>;
+  cloneLayer: (from: string, name?: string) => Promise<string | null>;
+  setActiveLayer: (name: string) => Promise<void>;
+  deleteLayer: (name: string) => Promise<void>;
+  setLayersSidebarOpen: (open: boolean) => void;
+  toggleLayersSidebar: () => void;
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
@@ -167,6 +178,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   refreshTrigger: 0,
 
   // Graph state
+  layers: [],
+  activeLayer: null,
+  layersSidebarOpen: true,
   selectedNodeId: null,
   selectedNode: null,
   selectedNodeIds: [],
@@ -194,6 +208,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     fileTree: [],
     selection: null,
     refreshTrigger: 0,
+    layers: [],
+    activeLayer: null,
+    layersSidebarOpen: true,
     selectedNodeId: null,
     selectedNode: null,
     selectedNodeIds: [],
@@ -215,6 +232,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
       // Load graph data (non-blocking for files)
       try {
+        await get().loadLayers();
         await get().loadGraph();
         console.log('✅ Graph load initiated');
       } catch (graphErr) {
@@ -328,6 +346,61 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   triggerRefresh: () => set(state => ({ refreshTrigger: state.refreshTrigger + 1 })),
   setIframeReady: (ready) => set({ iframeReady: ready }),
   setResetting: (resetting) => set({ resetting }),
+
+  // Layer operations
+  loadLayers: async () => {
+    try {
+      const res = await fetch('/api/layers', { method: 'GET' });
+      if (!res.ok) return;
+      const data = await res.json();
+      set({ layers: Array.isArray(data.layers) ? data.layers : [], activeLayer: data.activeLayer ?? null });
+    } catch (e) {
+      console.warn('Failed to load layers:', e);
+    }
+  },
+  createLayer: async (name?: string) => {
+    try {
+      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      await get().loadLayers();
+      return data?.name ?? null;
+    } catch (e) {
+      console.warn('Failed to create layer:', e);
+      return null;
+    }
+  },
+  cloneLayer: async (from: string, name?: string) => {
+    try {
+      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cloneFrom: from, name, setActive: true }) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      await get().loadLayers();
+      if (data?.name) {
+        // Switch to the cloned layer
+        await get().setActiveLayer(data.name);
+      }
+      return data?.name ?? null;
+    } catch (e) {
+      console.warn('Failed to clone layer:', e);
+      return null;
+    }
+  },
+  setActiveLayer: async (name: string) => {
+    await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    // Update immediately for UI feedback; SSE will also refresh graph
+    set({ activeLayer: name });
+    // Refresh graphs after switch
+    await get().loadGraph();
+  },
+  deleteLayer: async (name: string) => {
+    await fetch(`/api/layers?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+    await get().loadLayers();
+    // Reload graph in case active layer changed
+    await get().loadGraph();
+  },
+  setLayersSidebarOpen: (open: boolean) => set({ layersSidebarOpen: open }),
+  toggleLayersSidebar: () => set((state) => ({ layersSidebarOpen: !state.layersSidebarOpen })),
   
   // Graph operations
   loadGraph: async () => {
@@ -855,6 +928,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             if (data?.type === 'base-graph-update' && data.baseGraph) {
               console.log('📊 SSE: Received base graph update');
               set({ baseGraph: data.baseGraph, graphLoading: false, graphError: null, graphConnected: true });
+              return;
+            }
+
+            // Handle active layer changes
+            if (data?.type === 'active-layer-changed') {
+              console.log('🔁 SSE: Active layer changed to', data.activeLayer);
+              set({ activeLayer: data.activeLayer ?? null, graphLoading: true });
+              get().loadGraph().catch(() => {});
               return;
             }
 

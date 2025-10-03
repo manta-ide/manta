@@ -13,6 +13,11 @@ export function getDevProjectDir(): string {
     return process.env.MANTA_PROJECT_DIR;
   }
 
+  // Support explicit dev project directory override
+  if (process.env.MANTA_DEV_PROJECT_DIR) {
+    return process.env.MANTA_DEV_PROJECT_DIR;
+  }
+
   // Otherwise, use the configured dev project directory (development mode)
   const devProjectDir = process.env.DEV_PROJECT_DIR || 'test-project';
   return path.join(process.cwd(), devProjectDir);
