@@ -1,12 +1,5 @@
-import { ReactFlowState, useStore } from '@xyflow/react';
-import { useEffect, useRef } from 'react';
+import { useViewport } from '@xyflow/react';
 import { HelperLine } from './types';
-
-const storeSelector = (state: ReactFlowState) => ({
-  width: state.width,
-  height: state.height,
-  transform: state.transform,
-});
 
 export type HelperLinesProps = {
   horizontal?: HelperLine;
@@ -16,56 +9,48 @@ export type HelperLinesProps = {
 const DEFAULT_COLOR = '#0041d0';
 
 // a simple component to display the helper lines
-// it puts a canvas on top of the React Flow pane and draws the lines using the canvas API
+// uses SVG overlay positioned over the React Flow pane
 function HelperLinesRenderer({ horizontal, vertical }: HelperLinesProps) {
-  const { width, height, transform } = useStore(storeSelector);
+  const viewport = useViewport();
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-
-    if (!ctx || !canvas) {
-      return;
-    }
-
-    const dpi = window.devicePixelRatio;
-    canvas.width = width * dpi;
-    canvas.height = height * dpi;
-
-    ctx.scale(dpi, dpi);
-    ctx.strokeStyle = DEFAULT_COLOR;
-
-    if (vertical) {
-      // Set color of stroke to helper line color
-      ctx.beginPath();
-
-      if (vertical.anchorName === 'centerX') {
-        // If we are snapping to the center of a node, we use a dashed line to visually differentiate it
-        ctx.setLineDash([5, 5]);
-      }
-      ctx.strokeStyle = vertical.color || DEFAULT_COLOR;
-      ctx.moveTo(vertical.position * transform[2] + transform[0], 0);
-      ctx.lineTo(vertical.position * transform[2] + transform[0], height);
-      ctx.stroke();
-    }
-
-    if (horizontal) {
-      ctx.beginPath();
-
-      if (horizontal.anchorName === 'centerY') {
-        // If we are snapping to the center of a node, we use a dashed line to visually differentiate it
-        ctx.setLineDash([5, 5]);
-      }
-      ctx.strokeStyle = horizontal.color || DEFAULT_COLOR;
-      ctx.moveTo(0, horizontal.position * transform[2] + transform[1]);
-      ctx.lineTo(width, horizontal.position * transform[2] + transform[1]);
-      ctx.stroke();
-    }
-  }, [width, height, transform, horizontal, vertical]);
-
-  return <canvas ref={canvasRef} className="helper-lines-canvas" />;
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        pointerEvents: 'none',
+        zIndex: 100
+      }}
+    >
+      <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
+        {vertical && (
+          <line
+            x1={vertical.position}
+            y1={-10000} // Extend far beyond viewport
+            x2={vertical.position}
+            y2={10000}
+            stroke={vertical.color || DEFAULT_COLOR}
+            strokeWidth={1 / viewport.zoom} // Keep constant width regardless of zoom
+            strokeDasharray={vertical.anchorName === 'centerX' ? '5,5' : undefined}
+          />
+        )}
+        {horizontal && (
+          <line
+            x1={-10000} // Extend far beyond viewport
+            y1={horizontal.position}
+            x2={10000}
+            y2={horizontal.position}
+            stroke={horizontal.color || DEFAULT_COLOR}
+            strokeWidth={1 / viewport.zoom} // Keep constant width regardless of zoom
+            strokeDasharray={horizontal.anchorName === 'centerY' ? '5,5' : undefined}
+          />
+        )}
+      </g>
+    </svg>
+  );
 }
 
 export default HelperLinesRenderer;
