@@ -34,7 +34,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
+import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, RotateCcw } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -453,6 +453,8 @@ function GraphCanvas() {
     setSelectedNodeIds,
     buildEntireGraph,
     isBuildingGraph,
+    resetGraph,
+    resetting,
     baseGraph,
     setBaseGraph,
     loadBaseGraph
@@ -1739,7 +1741,31 @@ function GraphCanvas() {
             </>
           )}
         </Button>
-        
+
+        {/* Reset Base Graph Button */}
+        <Button
+          onClick={resetGraph}
+          disabled={resetting || !baseGraph}
+          variant="outline"
+          size="sm"
+          className={`bg-zinc-800 text-red-400 border-0 hover:bg-red-900/20 hover:text-red-300 ${
+            resetting ? 'cursor-not-allowed opacity-75' : ''
+          }`}
+          title={resetting ? "Resetting base graph..." : "Reset base graph - clear images and mark current nodes as unbuilt"}
+        >
+          {resetting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Resetting...
+            </>
+          ) : (
+            <>
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset Base Graph
+            </>
+          )}
+        </Button>
+
         {/* Rebuild Full Graph Button */}
         {/* <Button
           onClick={rebuildFullGraph}

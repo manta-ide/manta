@@ -34,6 +34,7 @@ interface ProjectStore {
   selectedNodeIds: string[];
   graph: Graph | null;
   baseGraph: Graph | null; // Last built version of the graph
+  lastGeneratedImage: any | null; // Last generated image data
   graphLoading: boolean;
   graphError: string | null;
   graphConnected: boolean;
@@ -77,6 +78,7 @@ interface ProjectStore {
   setBaseGraph: (graph: Graph | null) => void;
   setIsBuildingGraph: (building: boolean) => void;
   buildEntireGraph: () => Promise<void>;
+  resetGraph: () => Promise<void>;
   calculateGraphDiff: () => any;
   loadBaseGraph: () => Promise<Graph | null>;
   loadGraphs: () => Promise<{ currentGraph: Graph; baseGraph: Graph | null } | null>;
@@ -172,6 +174,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectedNodeIds: [],
   graph: null,
   baseGraph: null,
+  lastGeneratedImage: null,
   graphLoading: true,
   graphError: null,
   graphConnected: false,
@@ -577,6 +580,52 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setIsBuildingGraph: (building) => set({ isBuildingGraph: building }),
 
+  resetGraph: async () => {
+    const state = get();
+    if (!state.baseGraph) {
+      console.error('❌ No base graph to reset');
+      return;
+    }
+
+    set({ resetting: true });
+
+    try {
+      console.log('🔄 Resetting base graph...');
+
+      // Call the reset API to clear images
+      const response = await fetch('/api/graph-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reset graph');
+      }
+
+      const result = await response.json();
+      console.log('✅ Base graph reset successfully:', result);
+
+      // Reset base graph to empty state (current graph remains unchanged)
+      const emptyBaseGraph = { nodes: [], edges: [] };
+      set({
+        resetting: false,
+        baseGraph: emptyBaseGraph,
+        lastGeneratedImage: null,
+        graphError: null
+      });
+
+      console.log('🎉 Base graph reset complete');
+
+    } catch (error) {
+      console.error('❌ Error resetting base graph:', error);
+      set({
+        graphError: error instanceof Error ? error.message : 'Failed to reset base graph',
+        resetting: false
+      });
+    }
+  },
+
   buildEntireGraph: async () => {
     const state = get();
     if (!state.graph) {
@@ -587,70 +636,147 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ isBuildingGraph: true });
 
     try {
-      // Calculate the diff between current and base graphs
+      // First generate the image
+      console.log('🎨 Generating image for graph...');
+
+
+
+      // Calculate what changed since last build
       const diff = state.calculateGraphDiff();
 
-      // Send build request - subagent will analyze diff itself
-      const response = await fetch('/api/agent-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: {
-            role: 'user',
-            content: 'Build the graph - analyze changes and implement code for all nodes that need building'
-          },
-          currentGraph: state.graph
-        }),
-      });
+      // Build a comprehensive description of what the current graph represents
+      const allNodes = state.graph?.nodes || [];
+      const descriptions: string[] = [];
 
-      if (!response.ok) {
-        throw new Error('Failed to start graph build');
+      for (const node of allNodes) {
+        if (node.title && node.prompt) {
+          descriptions.push(`${node.title}: ${node.prompt}`);
+        } else if (node.title) {
+          descriptions.push(node.title);
+        }
       }
 
-      console.log('✅ Graph build started successfully');
+      let imagePrompt = 'Generate an image showing ';
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
+      if (descriptions.length > 0) {
+        imagePrompt += descriptions.join('. ') + '.';
+      } else {
+        imagePrompt += 'the current application interface.';
       }
 
-      const decoder = new TextDecoder();
-      let buffer = '';
+      // Add context about changes if any
+      const addedNodes = diff.changes.filter((c: any) => c.type === 'node-added');
+      const modifiedNodes = diff.changes.filter((c: any) => c.type === 'node-modified');
+      const deletedNodes = diff.changes.filter((c: any) => c.type === 'node-deleted');
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      if (addedNodes.length > 0 || modifiedNodes.length > 0 || deletedNodes.length > 0) {
+        const changeDescriptions: string[] = [];
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-          for (const line of lines) {
-            if (line.trim()) {
-              console.log('Build progress:', line);
-              if (line.includes('completed successfully') || line.includes('build process is now complete') || line.includes('[STREAM_END]')) {
-                console.log('✅ Graph build completed successfully');
-                set({ isBuildingGraph: false });
-                // Refresh the graph to show any changes
-                state.refreshGraph();
-                return;
-              } else if (line.includes('failed')) {
-                console.error('❌ Graph build failed:', line);
-                set({ graphError: 'Graph build failed', isBuildingGraph: false });
-                return;
-              }
-            }
+        if (addedNodes.length > 0) {
+          const newDescriptions = addedNodes
+            .map((c: any) => c.node.prompt ? `${c.node.title}: ${c.node.prompt}` : c.node.title)
+            .filter(Boolean);
+          if (newDescriptions.length > 0) {
+            changeDescriptions.push(`New features: ${newDescriptions.join(', ')}`);
           }
         }
-      } catch (error) {
-        console.error('❌ Error reading build stream:', error);
-        set({ graphError: 'Failed to read build status', isBuildingGraph: false });
+
+        if (modifiedNodes.length > 0) {
+          const modifiedTitles = modifiedNodes.map((c: any) => c.newNode.title).filter(Boolean);
+          if (modifiedTitles.length > 0) {
+            changeDescriptions.push(`Updated: ${modifiedTitles.join(', ')}`);
+          }
+        }
+
+        if (deletedNodes.length > 0) {
+          const deletedTitles = deletedNodes.map((c: any) => c.node.title).filter(Boolean);
+          if (deletedTitles.length > 0) {
+            changeDescriptions.push(`Removed: ${deletedTitles.join(', ')}`);
+          }
+        }
+
+        if (changeDescriptions.length > 0) {
+          imagePrompt += ' Recent changes: ' + changeDescriptions.join('. ') + '.';
+        }
       }
+
+      imagePrompt += ' Create a realistic software application interface screenshot showing these components working together.';
+
+      // Call image generation API with previous image if available
+      const imageRequestBody: any = {
+        prompt: imagePrompt,
+        aspectRatio: '16:9'
+      };
+
+      // Include previous image if available for iterative generation
+      if (state.lastGeneratedImage?.data) {
+        imageRequestBody.previousImage = {
+          data: state.lastGeneratedImage.data,
+          mimeType: state.lastGeneratedImage.mimeType
+        };
+        console.log('🖼️ Including previous image in generation request');
+      }
+
+      const imageResponse = await fetch('/api/image-generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(imageRequestBody),
+      });
+
+      if (!imageResponse.ok) {
+        const errorData = await imageResponse.json();
+        throw new Error(errorData.error || 'Failed to generate image');
+      }
+
+      const imageData = await imageResponse.json();
+      console.log('✅ Image generated successfully');
+
+      // Store the generated image for future iterations
+      set({ lastGeneratedImage: imageData.image });
+
+      // Now sync the graph to base
+      console.log('🔄 Syncing graph to base via API...');
+
+      const syncResponse = await fetch('/api/graph-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!syncResponse.ok) {
+        const errorData = await syncResponse.json();
+        throw new Error(errorData.error || 'Failed to sync graph');
+      }
+
+      const syncResult = await syncResponse.json();
+      console.log('✅ Graph synced successfully:', syncResult);
+
+      // Refresh the base graph in local state
+      try {
+        const baseGraphResponse = await fetch('/api/graph-api?graphType=base');
+        if (baseGraphResponse.ok) {
+          const baseGraphData = await baseGraphResponse.json();
+          if (baseGraphData.success) {
+            set({ baseGraph: baseGraphData.graph });
+          }
+        }
+      } catch (refreshError) {
+        console.warn('⚠️ Could not refresh base graph after sync:', refreshError);
+      }
+
+      // Update local state - only set loading to false after both operations complete
+      set({
+        isBuildingGraph: false,
+        graphError: null
+      });
+
+      console.log(`🎉 Image generated and synced ${syncResult.syncedNodes} node(s) and ${syncResult.syncedEdges} edge(s) to base graph`);
+
     } catch (error) {
-      console.error('❌ Error building graph:', error);
-      set({ graphError: 'Failed to build graph', isBuildingGraph: false });
+      console.error('❌ Error in build process:', error);
+      set({
+        graphError: error instanceof Error ? error.message : 'Failed to build graph',
+        isBuildingGraph: false
+      });
     }
   },
 
