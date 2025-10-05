@@ -4,6 +4,7 @@ import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
+import { activeLayerDir, getActiveLayer, getActiveLayerGraphPaths, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo } from '@/lib/layers';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
@@ -53,8 +54,26 @@ function getProjectDir(): string {
 }
 function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
-function getCurrentGraphPath(): string { return path.join(getGraphDir(), 'current-graph.xml'); }
-function getBaseGraphPath(): string { return path.join(getGraphDir(), 'base-graph.xml'); }
+function getCurrentGraphPath(): string {
+  // Prefer active layer if configured
+  try {
+    const paths = getActiveLayerGraphPaths();
+    if (paths.current && fs.existsSync(path.dirname(paths.current))) {
+      return paths.current;
+    }
+  } catch {}
+  return path.join(getGraphDir(), 'current-graph.xml');
+}
+function getBaseGraphPath(): string {
+  // Prefer active layer if configured
+  try {
+    const paths = getActiveLayerGraphPaths();
+    if (paths.base && fs.existsSync(path.dirname(paths.base))) {
+      return paths.base;
+    }
+  } catch {}
+  return path.join(getGraphDir(), 'base-graph.xml');
+}
 function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
 function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
 function readGraphFromFs(): Graph | null {
@@ -442,3 +461,11 @@ export async function initializeGraphsFromFiles(): Promise<void> {
   }
   // Note: base graph is loaded on-demand, not pre-loaded here
 }
+
+// ---- Layer management helpers (exposed for API routes) ----
+export function getActiveLayerName(): string | null { return getActiveLayer(); }
+export function setActiveLayer(name: string | null): void {
+  persistActiveLayer(name ?? null);
+}
+export function ensureLayersDir(): void { ensureLayersRoot(); }
+export function getLayersState(): { layers: string[]; activeLayer: string | null } { return getLayersInfo(); }

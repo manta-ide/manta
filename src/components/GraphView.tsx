@@ -34,7 +34,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link } from 'lucide-react';
+import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -479,6 +479,8 @@ function GraphCanvas() {
     searchOpen,
   } = useProjectStore();
   const { suppressSSE } = useProjectStore.getState();
+  const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
+  const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
 
   // Edge visual styles
   const defaultEdgeStyle = {
@@ -1713,6 +1715,7 @@ function GraphCanvas() {
         top: '12px',
         right: '12px',
         display: 'flex',
+        flexDirection: 'column',
         gap: '8px',
         zIndex: 1000,
       }}>
@@ -1739,6 +1742,22 @@ function GraphCanvas() {
             </>
           )}
         </Button>
+        {/* Open Layers Sidebar button (shown only when sidebar is closed) */}
+        {!layersSidebarOpen && (
+          <Button
+            onClick={() => {
+              try { window.dispatchEvent(new CustomEvent('manta:open-layers')); } catch {}
+              setLayersSidebarOpen(true);
+            }}
+            variant="outline"
+            size="sm"
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            title="Open Layers Sidebar"
+          >
+            <LayersIcon className="w-4 h-4 mr-2" />
+            Layers
+          </Button>
+        )}
         
         {/* Rebuild Full Graph Button */}
         {/* <Button
