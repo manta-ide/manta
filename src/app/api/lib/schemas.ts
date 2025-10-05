@@ -49,6 +49,7 @@ export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
   prompt: z.string(),
+  image: z.string().optional(),
   properties: z.array(PropertySchema).optional(),
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
@@ -674,6 +675,7 @@ export function graphToXml(graph: Graph): string {
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const img = n.image ? `\n      <image>${escapeXml(n.image)}</image>` : '';
     const props = Array.isArray((n as any).properties) && (n as any).properties.length > 0
       ? `\n      <props>\n${((n as any).properties as Property[]).map((p) => {
           const propType = (p as any)?.type;
@@ -704,7 +706,7 @@ ${optionsXml}
     const yAttr = hasPos ? ` y="${escapeXml(String((n as any).position.y))}"` : '';
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${img}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -784,6 +786,8 @@ export function xmlToGraph(xml: string): Graph {
       }
 
       const description = (nodeData.description?.['#text'] || nodeData.description || '').trim();
+      const image = (nodeData.image?.['#text'] || nodeData.image || '').trim();
+      console.log('🔄 Parsing node', id, 'image:', image);
 
       // Parse properties using fast-xml-parser
       const propsData = nodeData.props;
@@ -999,6 +1003,7 @@ export function xmlToGraph(xml: string): Graph {
         id,
         title,
         prompt: unescapeXml(description),
+        ...(image ? { image: unescapeXml(image) } : {}),
         properties,
         ...(position ? { position } : {})
       } as GraphNode;

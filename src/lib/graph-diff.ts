@@ -84,8 +84,19 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
  * Compares two nodes to determine if they are different
  */
 export function nodesAreDifferent(node1: any, node2: any): boolean {
+  const normalizeImage = (value: unknown) => {
+    if (typeof value === 'string') return value.trim();
+    if (value === null || value === undefined) return '';
+    return String(value);
+  };
+
   // Compare title and prompt
   if (node1.title !== node2.title || node1.prompt !== node2.prompt) {
+    return true;
+  }
+
+  // Compare node-level image identifiers
+  if (normalizeImage(node1.image) !== normalizeImage(node2.image)) {
     return true;
   }
 

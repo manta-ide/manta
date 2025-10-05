@@ -5,10 +5,11 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import { Property } from '@/app/api/lib/schemas';
-import { StickyNote } from 'lucide-react';
+import { StickyNote, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 export default function SelectedNodeSidebar() {
 	
@@ -48,6 +49,8 @@ export default function SelectedNodeSidebar() {
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
+	const [isUploadingImage, setIsUploadingImage] = useState(false);
+	const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 	const titleDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const descriptionDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const TITLE_DEBOUNCE_DELAY = 300; // Wait 300ms after last change before saving title
@@ -60,6 +63,52 @@ export default function SelectedNodeSidebar() {
             updatePropertyLocal(selectedNodeId, propertyId, value);
         }
     }, [selectedNodeId, updatePropertyLocal]);
+
+    // Image upload handler
+    const handleImageUpload = useCallback(async (file: File) => {
+        if (!selectedNodeId || !selectedNode) return;
+
+        setIsUploadingImage(true);
+        setImageUploadError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch('/api/upload-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to upload image');
+            }
+
+            // Update the node with the new image ID
+            await updateNode(selectedNodeId, { image: result.image.id });
+            console.log('✅ Image uploaded and node updated:', result.image.id);
+
+        } catch (error) {
+            console.error('❌ Image upload failed:', error);
+            setImageUploadError(error instanceof Error ? error.message : 'Failed to upload image');
+        } finally {
+            setIsUploadingImage(false);
+        }
+    }, [selectedNodeId, selectedNode, updateNode]);
+
+    const handleImageRemove = useCallback(async () => {
+        if (!selectedNodeId) return;
+
+        try {
+            await updateNode(selectedNodeId, { image: '' });
+            console.log('✅ Image removed from node');
+        } catch (error) {
+            console.error('❌ Failed to remove image:', error);
+            setImageUploadError('Failed to remove image');
+        }
+    }, [selectedNodeId, updateNode]);
 
     // Removed iframe connection checks
 
@@ -78,7 +127,7 @@ export default function SelectedNodeSidebar() {
 			}
 			setPropertyValues(initialValues);
 		}
-	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties, selectedNode?.image]);
 
 	// Cleanup timeouts on unmount and when node changes
 	useEffect(() => {
@@ -193,6 +242,78 @@ export default function SelectedNodeSidebar() {
 					/>
 				</div>
 			)}
+
+			{/* Image Section */}
+			{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
+				<div className="px-3 py-2 border-b border-zinc-700">
+					<div className="text-xs font-medium text-zinc-300 mb-2">
+						Image
+					</div>
+					<div className="space-y-2">
+						{selectedNode.image ? (
+							<div className="space-y-2">
+								<div className="relative">
+									<img
+										src={`/uploaded-images/${selectedNode.image}`}
+										alt="Node image"
+										className="w-full h-24 object-cover rounded border border-zinc-600"
+									/>
+									<Button
+										onClick={handleImageRemove}
+										size="sm"
+										variant="destructive"
+										className="absolute top-1 right-1 h-6 w-6 p-0"
+										title="Remove image"
+									>
+										<X className="h-3 w-3" />
+									</Button>
+								</div>
+								<div className="text-[11px] text-zinc-400 truncate">
+									{selectedNode.image}
+								</div>
+							</div>
+						) : (
+							<div className="border-2 border-dashed border-zinc-600 rounded-lg p-4 text-center">
+								<ImageIcon className="mx-auto h-8 w-8 text-zinc-500 mb-2" />
+								<div className="text-xs text-zinc-400 mb-2">No image uploaded</div>
+								<label className="cursor-pointer">
+									<Button
+										asChild
+										size="sm"
+										variant="outline"
+										disabled={isUploadingImage}
+										className="bg-zinc-800 border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+									>
+										<span>
+											<Upload className="h-3 w-3 mr-1" />
+											{isUploadingImage ? 'Uploading...' : 'Upload Image'}
+										</span>
+									</Button>
+									<input
+										type="file"
+										accept="image/*"
+										className="hidden"
+										onChange={(e) => {
+											const file = e.target.files?.[0];
+											if (file) {
+												handleImageUpload(file);
+											}
+											// Reset input
+											e.target.value = '';
+										}}
+									/>
+								</label>
+							</div>
+						)}
+						{imageUploadError && (
+							<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
+								{imageUploadError}
+							</div>
+						)}
+					</div>
+				</div>
+			)}
+
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
 				<div className="space-y-3 pr-2">
 				{/* Multi-select summary */}

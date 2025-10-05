@@ -200,6 +200,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           }
         `}</style>
         
+
         {/* Large title text */}
         <div
           style={{
@@ -244,6 +245,30 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             </div>
           )}
         </div>
+
+        {/* Node Image Preview - Zoomed Out - Material/ComfyUI Style */}
+        {node.image && (
+          <div style={{
+            width: '100%',
+            aspectRatio: '1',
+            marginTop: '12px',
+            borderRadius: '8px',
+            border: '2px solid #e5e7eb',
+            overflow: 'hidden',
+            backgroundColor: '#f9fafb',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          }}>
+            <img
+              src={`/uploaded-images/${node.image}`}
+              alt={`${node.title} preview`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          </div>
+        )}
 
         {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
         {/* Top */}
@@ -322,7 +347,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         >
           {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
         </div>
-        
+
+
         {/* Prompt preview */}
         <div
           style={{
@@ -344,11 +370,35 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       </div>
       
       {/* Bottom metadata section */}
-      <div style={{ 
-        borderTop: '1px solid #f3f4f6', 
+      <div style={{
+        borderTop: '1px solid #f3f4f6',
         paddingTop: '12px',
         marginTop: '12px'
       }}>
+        {/* Node Image Preview - Material/ComfyUI Style */}
+        {node.image && (
+          <div style={{
+            width: '100%',
+            aspectRatio: '1',
+            marginBottom: '8px',
+            borderRadius: '8px',
+            border: '2px solid #e5e7eb',
+            overflow: 'hidden',
+            backgroundColor: '#f9fafb',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          }}>
+            <img
+              src={`/uploaded-images/${node.image}`}
+              alt={`${node.title} preview`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          </div>
+        )}
+
         {/* Connections count */}
         {(() => {
           const connections = getNodeConnections(node.id);
@@ -368,7 +418,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             </div>
           );
         })()}
-        
+
         {/* Properties count */}
         {node.properties && node.properties.length > 0 && (
           <div
@@ -452,6 +502,7 @@ function GraphCanvas() {
     selectedNodeIds,
     setSelectedNodeIds,
     buildEntireGraph,
+    buildSelectedGraph,
     isBuildingGraph,
     resetGraph,
     resetting,
@@ -480,6 +531,26 @@ function GraphCanvas() {
     searchActiveIndex,
     searchOpen,
   } = useProjectStore();
+
+  // Handle selection changes (including drag selection)
+  const onSelectionChange = useCallback(
+    ({ nodes: selectedNodes, edges: selectedEdges }: { nodes: Node[]; edges: Edge[] }) => {
+      // Update store with selected node IDs
+      const nodeIds = selectedNodes.map((node: Node) => node.id);
+      setSelectedNodeIds(nodeIds);
+
+      // Update main selected node (first selected or null)
+      if (nodeIds.length > 0) {
+        const firstNode = graph?.nodes?.find(n => n.id === nodeIds[0]);
+        if (firstNode) {
+          setSelectedNode(nodeIds[0], firstNode);
+        }
+      } else {
+        setSelectedNode(null, null);
+      }
+    },
+    [setSelectedNodeIds, setSelectedNode, graph],
+  );
   const { suppressSSE } = useProjectStore.getState();
 
   // Edge visual styles
@@ -538,6 +609,7 @@ function GraphCanvas() {
       id: newNodeId,
       title: 'New Node',
       prompt: '',
+      image: '',
       position: { x: position.x, y: position.y, z: 0 }
     };
 
@@ -1048,7 +1120,13 @@ function GraphCanvas() {
 
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
-        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position })),
+        nodes: graph.nodes.map(n => ({
+          id: n.id,
+          title: n.title,
+          prompt: n.prompt,
+          image: typeof n.image === 'string' ? n.image.trim() : '',
+          position: n.position,
+        })),
         edges: graph.edges || []
       });
 
@@ -1569,6 +1647,7 @@ function GraphCanvas() {
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
+        onSelectionChange={onSelectionChange}
         onEdgesChange={onEdgesChangeWithStyle}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
@@ -1652,6 +1731,7 @@ function GraphCanvas() {
         </div>
       )}
 
+
       {/* Tool Buttons - Left Side */}
       <div style={{
         position: 'absolute',
@@ -1718,6 +1798,36 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
+        {/* Build Selected Nodes Button */}
+        <Button
+          onClick={() => buildSelectedGraph(selectedNodeIds || [])}
+          disabled={isBuildingGraph || !graph || !selectedNodeIds || selectedNodeIds.length === 0}
+          variant="outline"
+          size="sm"
+          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+            isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
+          }`}
+          title={
+            isBuildingGraph
+              ? "Building selected nodes..."
+              : selectedNodeIds && selectedNodeIds.length > 0
+                ? `Build ${selectedNodeIds.length} selected node${selectedNodeIds.length !== 1 ? 's' : ''}`
+                : "Select nodes to build"
+          }
+        >
+          {isBuildingGraph ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Building Selected...
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 mr-2" />
+              Build Selected ({selectedNodeIds?.length || 0})
+            </>
+          )}
+        </Button>
+
         {/* Build Entire Graph Button */}
         <Button
           onClick={buildEntireGraph}

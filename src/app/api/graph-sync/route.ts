@@ -8,6 +8,10 @@ export async function POST(req: NextRequest) {
   try {
     console.log('🔄 Syncing graph to base via API...');
 
+    // Parse request body to check for selectedNodeIds
+    const body = await req.json().catch(() => ({}));
+    const { selectedNodeIds } = body;
+
     // Read both current and base graphs
     const currentGraph = await loadCurrentGraphFromFile('default-user');
     const baseGraphResult = await loadBaseGraphFromFile('default-user');
@@ -29,9 +33,16 @@ export async function POST(req: NextRequest) {
     let syncedNodes = 0;
     let syncedEdges = 0;
 
-    // Sync all nodes
-    if (currentGraph.nodes && currentGraph.nodes.length > 0) {
-      for (const currentNode of currentGraph.nodes) {
+    // Filter nodes to sync based on selectedNodeIds if provided
+    const nodesToSync = selectedNodeIds && Array.isArray(selectedNodeIds)
+      ? currentGraph.nodes?.filter(node => selectedNodeIds.includes(node.id)) || []
+      : currentGraph.nodes || [];
+
+    console.log(selectedNodeIds ? `🔍 Syncing only selected nodes: ${selectedNodeIds.join(', ')}` : '🔍 Syncing all nodes');
+
+    // Sync nodes (filtered or all)
+    if (nodesToSync.length > 0) {
+      for (const currentNode of nodesToSync) {
         const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === currentNode.id) ?? -1;
 
         if (baseNodeIdx >= 0) {
@@ -48,9 +59,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Sync all edges
-    if (currentGraph.edges && currentGraph.edges.length > 0) {
-      for (const currentEdge of currentGraph.edges) {
+    // Sync edges (filtered or all)
+    const edgesToSync = selectedNodeIds && Array.isArray(selectedNodeIds)
+      ? currentGraph.edges?.filter(edge => selectedNodeIds.includes(edge.source) && selectedNodeIds.includes(edge.target)) || []
+      : currentGraph.edges || [];
+
+    console.log(selectedNodeIds ? `🔍 Syncing edges connected to selected nodes only` : '🔍 Syncing all edges');
+
+    if (edgesToSync.length > 0) {
+      for (const currentEdge of edgesToSync) {
         const baseEdgeIdx = baseGraph.edges?.findIndex((e: any) => e.id === currentEdge.id) ?? -1;
 
         if (baseEdgeIdx >= 0) {

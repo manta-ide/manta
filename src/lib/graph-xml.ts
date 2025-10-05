@@ -350,6 +350,7 @@ export function graphToXml(graph: Graph): string {
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const img = n.image ? `\n      <image>${escapeXml(n.image)}</image>` : '';
     const metadataFiles = normalizeMetadataFiles((n as any).metadata);
     const metadataXml = metadataFiles.length > 0
       ? `\n      <metadata>\n${metadataFiles.map(file => `        <file>${escapeXml(file)}</file>`).join('\n')}\n      </metadata>`
@@ -397,7 +398,7 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${metadataXml}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${img}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -479,6 +480,8 @@ export function xmlToGraph(xml: string): Graph {
       }
 
       const description = repairTextEncoding((nodeData.description?.['#text'] || nodeData.description || '').trim());
+      const imageText = (nodeData.image?.['#text'] || nodeData.image || '').trim();
+      const image = imageText ? repairTextEncoding(imageText) : '';
 
       // Parse properties using fast-xml-parser
       const propsData = nodeData.props;
@@ -723,6 +726,7 @@ export function xmlToGraph(xml: string): Graph {
         prompt: description,
         properties,
         ...(position ? { position } : {}),
+        ...(image ? { image } : {}),
         ...(metadataFiles.length > 0 ? { metadata: { files: metadataFiles } } : {})
       } as GraphNode;
     });

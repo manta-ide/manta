@@ -19,6 +19,21 @@ const isLocalMode = (): boolean => {
   }
 };
 
+// Utility function to convert blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/png;base64,")
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
 interface ProjectStore {
   // File system state
   files: Map<string, string>;
@@ -78,6 +93,7 @@ interface ProjectStore {
   setBaseGraph: (graph: Graph | null) => void;
   setIsBuildingGraph: (building: boolean) => void;
   buildEntireGraph: () => Promise<void>;
+  buildSelectedGraph: (selectedNodeIds: string[]) => Promise<void>;
   resetGraph: () => Promise<void>;
   calculateGraphDiff: () => any;
   loadBaseGraph: () => Promise<Graph | null>;
@@ -626,6 +642,170 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
+  buildSelectedGraph: async (selectedNodeIds: string[]) => {
+    const state = get();
+    if (!state.graph) {
+      console.error('❌ No current graph to build');
+      return;
+    }
+
+    if (!selectedNodeIds || selectedNodeIds.length === 0) {
+      console.error('❌ No selected nodes to build');
+      return;
+    }
+
+    set({ isBuildingGraph: true });
+
+    try {
+      console.log('🎨 Generating image for selected nodes:', selectedNodeIds);
+
+      // Filter to only selected nodes
+      const selectedNodes = state.graph.nodes.filter(node => selectedNodeIds.includes(node.id));
+      const descriptions: string[] = [];
+      const nodeImages: { nodeId: string; image: string; title: string }[] = [];
+
+      for (const node of selectedNodes) {
+        if (node.title && node.prompt) {
+          descriptions.push(`${node.title}: ${node.prompt}`);
+        } else if (node.title) {
+          descriptions.push(node.title);
+        }
+
+        // Collect images from selected nodes
+        if (node.image) {
+          nodeImages.push({
+            nodeId: node.id,
+            image: node.image,
+            title: node.title
+          });
+        }
+      }
+
+      let imagePrompt = 'Generate an image showing ';
+
+      if (descriptions.length > 0) {
+        imagePrompt += descriptions.join('. ') + '.';
+      } else {
+        imagePrompt += 'the selected application interface elements.';
+      }
+
+      // Add node images to the prompt
+      if (nodeImages.length > 0) {
+        const imageDescriptions = nodeImages.map(ni => `image from node ${ni.nodeId} (${ni.title})`);
+        imagePrompt += ` Incorporate these reference images: ${imageDescriptions.join(', ')}.`;
+      }
+
+      imagePrompt += ' Create a realistic image showing these elements and details.';
+
+      // Call image generation API with previous images if available
+      const imageRequestBody: any = {
+        prompt: imagePrompt,
+        aspectRatio: '16:9'
+      };
+
+      // Include node images as previous images for reference
+      const previousImages: any[] = [];
+
+      // Add cached previous image if available
+      if (state.lastGeneratedImage?.data) {
+        previousImages.push({
+          data: state.lastGeneratedImage.data,
+          mimeType: state.lastGeneratedImage.mimeType
+        });
+        console.log('🖼️ Including cached previous image in generation request');
+      }
+
+      // Add selected node images as references
+      for (const nodeImage of nodeImages) {
+        try {
+          console.log(`🖼️ Fetching image for node ${nodeImage.nodeId}: ${nodeImage.image}`);
+          const imageResponse = await fetch(`/uploaded-images/${nodeImage.image}`);
+          if (imageResponse.ok) {
+            const imageBlob = await imageResponse.blob();
+            const base64Data = await blobToBase64(imageBlob);
+            const mimeType = imageBlob.type || 'image/png';
+            previousImages.push({
+              data: base64Data,
+              mimeType: mimeType
+            });
+            console.log(`✅ Added image from node ${nodeImage.nodeId} to generation request`);
+          } else {
+            console.warn(`⚠️ Failed to fetch image for node ${nodeImage.nodeId}: ${imageResponse.status}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error fetching image for node ${nodeImage.nodeId}:`, error);
+        }
+      }
+
+      if (previousImages.length > 0) {
+        imageRequestBody.previousImages = previousImages;
+        console.log(`🖼️ Including ${previousImages.length} reference images in generation request`);
+      }
+
+      const imageResponse = await fetch('/api/image-generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(imageRequestBody),
+      });
+
+      if (!imageResponse.ok) {
+        const errorData = await imageResponse.json();
+        throw new Error(errorData.error || 'Failed to generate image');
+      }
+
+      const imageData = await imageResponse.json();
+      console.log('✅ Image generated successfully');
+
+      // Store the generated image for future iterations
+      set({ lastGeneratedImage: imageData.image });
+
+      // Now sync only selected nodes to base
+      console.log('🔄 Syncing selected nodes to base via API...');
+
+      const syncResponse = await fetch('/api/graph-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedNodeIds }) // Pass selected node IDs
+      });
+
+      if (!syncResponse.ok) {
+        const errorData = await syncResponse.json();
+        throw new Error(errorData.error || 'Failed to sync selected nodes');
+      }
+
+      const syncResult = await syncResponse.json();
+      console.log('✅ Selected nodes synced successfully:', syncResult);
+
+      // Refresh the base graph in local state
+      try {
+        const baseGraphResponse = await fetch('/api/graph-api?graphType=base');
+        if (baseGraphResponse.ok) {
+          const baseGraphData = await baseGraphResponse.json();
+          if (baseGraphData.success) {
+            set({ baseGraph: baseGraphData.graph });
+          }
+        }
+      } catch (refreshError) {
+        console.warn('⚠️ Could not refresh base graph after sync:', refreshError);
+      }
+
+      // Update local state - only set loading to false after both operations complete
+      set({
+        isBuildingGraph: false,
+        graphError: null
+      });
+
+      console.log(`🎉 Image generated and synced ${syncResult.syncedNodes} selected node(s) and ${syncResult.syncedEdges} edge(s) to base graph`);
+
+    } catch (error) {
+      console.error('❌ Error in build selected process:', error);
+      set({
+        graphError: error instanceof Error ? error.message : 'Failed to build selected nodes',
+        isBuildingGraph: false
+      });
+    }
+  },
+
   buildEntireGraph: async () => {
     const state = get();
     if (!state.graph) {
@@ -647,12 +827,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Build a comprehensive description of what the current graph represents
       const allNodes = state.graph?.nodes || [];
       const descriptions: string[] = [];
+      const nodeImages: { nodeId: string; image: string; title: string }[] = [];
 
       for (const node of allNodes) {
         if (node.title && node.prompt) {
           descriptions.push(`${node.title}: ${node.prompt}`);
         } else if (node.title) {
           descriptions.push(node.title);
+        }
+
+        // Collect images from nodes
+        if (node.image) {
+          nodeImages.push({
+            nodeId: node.id,
+            image: node.image,
+            title: node.title
+          });
         }
       }
 
@@ -700,21 +890,57 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         }
       }
 
-      imagePrompt += ' Create a realistic software application interface screenshot showing these components working together.';
+      // Add node images to the prompt
+      if (nodeImages.length > 0) {
+        const imageDescriptions = nodeImages.map(ni => `image from node ${ni.nodeId} (${ni.title})`);
+        imagePrompt += ` Incorporate these reference images: ${imageDescriptions.join(', ')}.`;
+      }
 
-      // Call image generation API with previous image if available
+      imagePrompt += ' Create a realistic image showing these elements and details.';
+
+      // Call image generation API with previous images if available
       const imageRequestBody: any = {
         prompt: imagePrompt,
         aspectRatio: '16:9'
       };
 
-      // Include previous image if available for iterative generation
+      // Include node images as previous images for reference
+      const previousImages: any[] = [];
+
+      // Add cached previous image if available
       if (state.lastGeneratedImage?.data) {
-        imageRequestBody.previousImage = {
+        previousImages.push({
           data: state.lastGeneratedImage.data,
           mimeType: state.lastGeneratedImage.mimeType
-        };
-        console.log('🖼️ Including previous image in generation request');
+        });
+        console.log('🖼️ Including cached previous image in generation request');
+      }
+
+      // Add node images as references
+      for (const nodeImage of nodeImages) {
+        try {
+          console.log(`🖼️ Fetching image for node ${nodeImage.nodeId}: ${nodeImage.image}`);
+          const imageResponse = await fetch(`/uploaded-images/${nodeImage.image}`);
+          if (imageResponse.ok) {
+            const imageBlob = await imageResponse.blob();
+            const base64Data = await blobToBase64(imageBlob);
+            const mimeType = imageBlob.type || 'image/png';
+            previousImages.push({
+              data: base64Data,
+              mimeType: mimeType
+            });
+            console.log(`✅ Added image from node ${nodeImage.nodeId} to generation request`);
+          } else {
+            console.warn(`⚠️ Failed to fetch image for node ${nodeImage.nodeId}: ${imageResponse.status}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error fetching image for node ${nodeImage.nodeId}:`, error);
+        }
+      }
+
+      if (previousImages.length > 0) {
+        imageRequestBody.previousImages = previousImages;
+        console.log(`🖼️ Including ${previousImages.length} reference images in generation request`);
       }
 
       const imageResponse = await fetch('/api/image-generation', {
@@ -855,10 +1081,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateNode: async (nodeId: string, updates: Partial<GraphNode>) => {
     const state = get();
     if (!state.graph) return;
+
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
 
-    const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph);
+    // If this is the currently selected node, update the selectedNode state too
+    if (state.selectedNodeId === nodeId) {
+      const updatedNode = next.nodes.find(n => n.id === nodeId);
+      if (updatedNode) {
+        set({ selectedNode: updatedNode });
+      }
+    }
+
+    const xml = graphToXml(next);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 

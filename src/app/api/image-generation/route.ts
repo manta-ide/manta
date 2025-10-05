@@ -13,6 +13,10 @@ interface ImageGenerationRequest {
     data: string;
     mimeType: string;
   };
+  previousImages?: {
+    data: string;
+    mimeType: string;
+  }[];
 }
 
 export async function POST(req: NextRequest) {
@@ -29,7 +33,7 @@ export async function POST(req: NextRequest) {
       hasPrompt: !!body.prompt
     });
 
-    const { prompt, aspectRatio = '16:9', previousImage }: ImageGenerationRequest = body;
+    const { prompt, aspectRatio = '16:9', previousImage, previousImages }: ImageGenerationRequest = body;
 
     if (!prompt) {
       console.error(`❌ [${requestId}] Validation failed: Prompt is required`);
@@ -46,6 +50,7 @@ export async function POST(req: NextRequest) {
     console.log(`📝 [${requestId}] Prompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`);
     console.log(`📐 [${requestId}] Aspect ratio: ${aspectRatio}`);
     console.log(`🖼️ [${requestId}] Previous image included:`, !!previousImage);
+    console.log(`🖼️ [${requestId}] Previous images count:`, previousImages?.length || 0);
 
     // Initialize the Gemini client
     console.log(`🔧 [${requestId}] Initializing Gemini SDK client`);
@@ -54,15 +59,31 @@ export async function POST(req: NextRequest) {
     // Prepare content array for Gemini API
     const contents: any[] = [];
 
-    // Add previous image if available (for iterative generation)
+    // Add previous images if available (for iterative generation)
+    const allPreviousImages = [];
+
+    // Handle legacy single previousImage
     if (previousImage) {
+      allPreviousImages.push(previousImage);
+    }
+
+    // Handle new previousImages array
+    if (previousImages && previousImages.length > 0) {
+      allPreviousImages.push(...previousImages);
+    }
+
+    // Add all previous images to content
+    for (const image of allPreviousImages) {
       contents.push({
         inlineData: {
-          data: previousImage.data,
-          mimeType: previousImage.mimeType
+          data: image.data,
+          mimeType: image.mimeType
         }
       });
-      console.log(`📎 [${requestId}] Added previous image to content for iterative generation`);
+    }
+
+    if (allPreviousImages.length > 0) {
+      console.log(`📎 [${requestId}] Added ${allPreviousImages.length} reference images to content for iterative generation`);
     }
 
     // Add the prompt
