@@ -68,6 +68,7 @@ interface ProjectStore {
   loadLayers: () => Promise<void>;
   createLayer: (name?: string) => Promise<string | null>;
   cloneLayer: (from: string, name?: string) => Promise<string | null>;
+  renameLayer: (from: string, to: string) => Promise<string | null>;
   setActiveLayer: (name: string) => Promise<void>;
   deleteLayer: (name: string) => Promise<void>;
   setLayersSidebarOpen: (open: boolean) => void;
@@ -383,6 +384,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return data?.name ?? null;
     } catch (e) {
       console.warn('Failed to clone layer:', e);
+      return null;
+    }
+  },
+  renameLayer: async (from: string, to: string) => {
+    try {
+      const res = await fetch('/api/layers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to }) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      await get().loadLayers();
+      // Refresh graph in case active layer changed
+      await get().loadGraph();
+      return data?.name ?? null;
+    } catch (e) {
+      console.warn('Failed to rename layer:', e);
       return null;
     }
   },

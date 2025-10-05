@@ -140,6 +140,66 @@ export function deleteLayer(name: string): void {
   }
 }
 
+export function renameLayer(sourceName: string, newName: string): string {
+  ensureLayersRoot();
+  const srcDir = path.join(layersRootDir(), sourceName);
+  if (!fs.existsSync(srcDir)) {
+    throw new Error(`Source layer not found: ${sourceName}`);
+  }
+
+  // Sanitize and validate new name
+  const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9-_]/g, '').trim();
+  const targetName = sanitize(newName);
+  if (!targetName) {
+    throw new Error('Invalid layer name');
+  }
+
+  // Check if target name already exists
+  const existing = new Set(listLayers());
+  if (existing.has(targetName) && targetName !== sourceName) {
+    throw new Error(`Layer '${targetName}' already exists`);
+  }
+
+  if (targetName === sourceName) {
+    return sourceName; // No-op
+  }
+
+  const dstDir = path.join(layersRootDir(), targetName);
+
+  // Move the directory
+  try {
+    fs.renameSync(srcDir, dstDir);
+  } catch (error) {
+    // If rename fails (e.g., cross-device), fall back to copy+delete
+    fs.mkdirSync(dstDir, { recursive: true });
+    const srcPaths = getLayerGraphPaths(sourceName);
+    const dstPaths = getLayerGraphPaths(targetName);
+
+    if (fs.existsSync(srcPaths.base)) {
+      fs.copyFileSync(srcPaths.base, dstPaths.base);
+    }
+    if (fs.existsSync(srcPaths.current)) {
+      fs.copyFileSync(srcPaths.current, dstPaths.current);
+    }
+
+    // Remove old directory
+    const entries = fs.readdirSync(srcDir);
+    for (const e of entries) {
+      const p = path.join(srcDir, e);
+      try { fs.unlinkSync(p); } catch {}
+    }
+    try { fs.rmdirSync(srcDir); } catch {}
+  }
+
+  // Update active layer if needed
+  const active = getActiveLayer();
+  if (active === sourceName) {
+    setActiveLayer(targetName);
+  }
+
+  return targetName;
+}
+
 export function cloneLayer(sourceName: string, desiredName?: string): string {
   ensureLayersRoot();
   const srcDir = path.join(layersRootDir(), sourceName);

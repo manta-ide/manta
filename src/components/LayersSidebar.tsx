@@ -2,14 +2,16 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { Plus, Trash2, Layers as LayersIcon, RefreshCcw, X, Copy } from 'lucide-react';
+import { Plus, Trash2, Layers as LayersIcon, RefreshCcw, X, Pencil } from 'lucide-react';
 
 type Props = { open?: boolean; onClose?: () => void };
 
 export default function LayersSidebar({ open = true, onClose }: Props) {
-  const { layers, activeLayer, loadLayers, setActiveLayer, createLayer, deleteLayer, cloneLayer, graphLoading } = useProjectStore();
+  const { layers, activeLayer, loadLayers, setActiveLayer, createLayer, deleteLayer, renameLayer, graphLoading } = useProjectStore();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [editingLayer, setEditingLayer] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
 
   useEffect(() => { loadLayers(); }, [loadLayers]);
 
@@ -29,6 +31,40 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
     setNewName('');
     if (created) {
       await setActiveLayer(created);
+    }
+  };
+
+  const startEditing = (layerName: string) => {
+    setEditingLayer(layerName);
+    setEditingValue(layerName);
+  };
+
+  const cancelEditing = () => {
+    setEditingLayer(null);
+    setEditingValue('');
+  };
+
+  const saveEditing = async () => {
+    if (!editingLayer || !editingValue.trim()) return;
+
+    const newName = editingValue.trim();
+    if (newName === editingLayer) {
+      cancelEditing();
+      return;
+    }
+
+    const renamed = await renameLayer(editingLayer, newName);
+    if (renamed) {
+      // If this was the active layer, it should automatically switch
+      cancelEditing();
+    }
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveEditing();
+    } else if (e.key === 'Escape') {
+      cancelEditing();
     }
   };
 
@@ -64,25 +100,33 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
         )}
         {layers.map((name) => {
           const isActive = name === activeLayer;
+          const isEditing = editingLayer === name;
           return (
             <div key={name} className={`flex items-center justify-between rounded border px-2 py-1 ${isActive ? 'bg-zinc-800 border-blue-600' : 'bg-zinc-800/40 border-zinc-700'} gap-2`}>
-              <button
-                className={`text-left text-xs flex-1 truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}
-                onClick={() => setActiveLayer(name)}
-                title={isActive ? 'Active layer' : 'Set active'}
-              >
-                {name}
-              </button>
+              {isEditing ? (
+                <input
+                  className="text-left text-xs flex-1 bg-zinc-700 border border-blue-500 rounded px-1 outline-none"
+                  value={editingValue}
+                  onChange={(e) => setEditingValue(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  onBlur={saveEditing}
+                  autoFocus
+                />
+              ) : (
+                <button
+                  className={`text-left text-xs flex-1 truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}
+                  onClick={() => setActiveLayer(name)}
+                  title={isActive ? 'Active layer' : 'Set active'}
+                >
+                  {name}
+                </button>
+              )}
               <button
                 className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
-                onClick={async () => {
-                  const suggestion = `${name}-copy`;
-                  const newName = window.prompt('Clone layer as:', suggestion) || undefined;
-                  await cloneLayer(name, newName);
-                }}
-                title="Clone layer"
+                onClick={() => startEditing(name)}
+                title="Rename layer"
               >
-                <Copy size={14} />
+                <Pencil size={14} />
               </button>
               <button
                 className="text-xs px-2 py-1 rounded bg-red-600/80 hover:bg-red-600 disabled:opacity-50"

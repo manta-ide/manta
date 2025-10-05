@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLayer, deleteLayer, getLayersInfo, setActiveLayer, ensureLayersRoot, layersRootDir, mantaDir, cloneLayer } from '@/lib/layers';
+import { createLayer, deleteLayer, getLayersInfo, setActiveLayer, ensureLayersRoot, layersRootDir, mantaDir, cloneLayer, renameLayer } from '@/lib/layers';
 import { initializeGraphsFromFiles, broadcastGraphJson } from '@/app/api/lib/graph-service';
 import { graphToXml } from '@/lib/graph-xml';
 import { loadCurrentGraphFromFile } from '@/app/api/lib/graph-service';
@@ -50,6 +50,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, name });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to create layer' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const from = String(body?.from || '').trim();
+    const to = String(body?.to || '').trim();
+    if (!from || !to) return NextResponse.json({ error: 'from and to names required' }, { status: 400 });
+
+    const newName = renameLayer(from, to);
+
+    // Sync memory and notify
+    await initializeGraphsFromFiles();
+    const info = getLayersInfo();
+    broadcastGraphJson({ type: 'active-layer-changed', activeLayer: info.activeLayer });
+
+    return NextResponse.json({ success: true, name: newName });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to rename layer' }, { status: 500 });
   }
 }
 
