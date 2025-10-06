@@ -106,7 +106,7 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
 
-  const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'triangle') => {
+  const handleShapeChange = useCallback((newShape: 'rectangle') => {
     setShapeDraft(newShape);
     if (selectedNode) {
       const updatedNode = { ...selectedNode, shape: newShape } as any;
@@ -238,12 +238,12 @@ export default function SelectedNodeSidebar() {
 					<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
 					<SelectNative
 					  value={shapeDraft}
-					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle')}
+					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' )}
 					  className="bg-zinc-800 border-zinc-700 text-white"
 					>
 					  <option value="rectangle">Rectangle</option>
-					  <option value="circle">Circle</option>
-					  <option value="triangle">Triangle</option>
+					  {/* <option value="circle">Circle</option>
+					  <option value="triangle">Triangle</option> */}
 					</SelectNative>
 				</div>
 			)}
