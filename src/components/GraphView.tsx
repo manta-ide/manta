@@ -1187,14 +1187,46 @@ function GraphCanvas() {
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
+  // Helper function to infer handle positions based on node positions
+  const inferHandles = (sourceId: string, targetId: string, nodes: Node[]) => {
+    const sourceNode = nodes.find(n => n.id === sourceId);
+    const targetNode = nodes.find(n => n.id === targetId);
+    if (!sourceNode || !targetNode) return { sourceHandle: undefined, targetHandle: undefined };
+
+    const sp = sourceNode.position;
+    const tp = targetNode.position;
+    const dx = tp.x - sp.x;
+    const dy = tp.y - sp.y;
+
+    let sourceHandle: string;
+    let targetHandle: string;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      sourceHandle = dx >= 0 ? 'right' : 'left';
+      targetHandle = dx >= 0 ? 'left' : 'right';
+    } else {
+      sourceHandle = dy >= 0 ? 'bottom' : 'top';
+      targetHandle = dy >= 0 ? 'top' : 'bottom';
+    }
+
+    return { sourceHandle, targetHandle };
+  };
+
   const onConnect = useCallback(async (params: Connection) => {
+    // Infer handles based on node positions if not provided
+    const { sourceHandle: inferredSourceHandle, targetHandle: inferredTargetHandle } = inferHandles(
+      params.source!,
+      params.target!,
+      nodes
+    );
+
     // Store the new edge for potential rollback
     const newEdge = {
       id: `${params.source}-${params.target}`,
       source: params.source!,
       target: params.target!,
-      sourceHandle: params.sourceHandle || undefined,
-      targetHandle: params.targetHandle || undefined,
+      sourceHandle: params.sourceHandle || inferredSourceHandle,
+      targetHandle: params.targetHandle || inferredTargetHandle,
       type: 'default' as const,
       style: unbuiltEdgeStyle,
       interactionWidth: 24,
@@ -1268,8 +1300,8 @@ function GraphCanvas() {
         source: params.source,
         target: params.target,
         role: 'links-to',
-        sourceHandle: params.sourceHandle,
-        targetHandle: params.targetHandle,
+        sourceHandle: newEdge.sourceHandle,
+        targetHandle: newEdge.targetHandle,
       };
 
       // Add edge to graph if not existing (either direction)
@@ -1316,7 +1348,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [setEdges, setOptimisticOperationsActive]);
+  }, [setEdges, setOptimisticOperationsActive, nodes, suppressSSE, unbuiltEdgeStyle]);
 
   // Throttle position broadcasts to prevent spam
   const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
