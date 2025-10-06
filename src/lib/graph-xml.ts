@@ -397,7 +397,11 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${metadataXml}${props}\n    </node>`;
+    // Include shape attribute if present
+    const shape = (n as any).shape;
+    const shapeAttr = shape ? ` shape="${escapeXml(String(shape))}"` : '';
+
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -716,6 +720,9 @@ export function xmlToGraph(xml: string): Graph {
       } catch {}
 
       const metadataFiles = filesFromXml(nodeData.metadata);
+      // Optional shape
+      const shapeRaw = (nodeData as any)['@_shape'];
+      const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
 
       return {
         id,
@@ -723,7 +730,8 @@ export function xmlToGraph(xml: string): Graph {
         prompt: description,
         properties,
         ...(position ? { position } : {}),
-        ...(metadataFiles.length > 0 ? { metadata: { files: metadataFiles } } : {})
+        ...(metadataFiles.length > 0 ? { metadata: { files: metadataFiles } } : {}),
+        ...(shape ? { shape: shape as any } : {})
       } as GraphNode;
     });
 

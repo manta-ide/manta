@@ -1,20 +1,26 @@
 // next.config.mjs
+const isProd = process.env.NODE_ENV === 'production';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Keep dev simple to avoid stale chunk references on Windows.
+  ...(isProd ? { output: 'standalone' } : {}),
   eslint: { ignoreDuringBuilds: true },
   experimental: {
     externalDir: true, // safe for your env var MANTA_PROJECT_DIR
   },
-  // Ensure the Claude Code package is treated as an external runtime dep
-  serverExternalPackages: ['@anthropic-ai/claude-code'],
-  // Make sure standalone tracing copies the files into .next/standalone
-  outputFileTracingIncludes: {
-    // Key is a glob of server files that need this dep at runtime
-    'src/app/api/claude/**': ['node_modules/@anthropic-ai/claude-code/**'],
-  },
-  // Do NOT transpile the CLI package; keep it external/runtime
+  // Production-only externals/tracing for the Claude package
+  ...(isProd
+    ? {
+        serverExternalPackages: ['@anthropic-ai/claude-code'],
+        outputFileTracingIncludes: {
+          'src/app/api/claude/**': ['node_modules/@anthropic-ai/claude-code/**'],
+        },
+      }
+    : {}),
   transpilePackages: [],
+  // Ensure the dist directory is cleaned between builds
+  cleanDistDir: true,
 };
 
 export default nextConfig;

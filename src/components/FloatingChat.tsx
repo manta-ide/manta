@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
-import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch } from 'lucide-react';
+import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch, Play, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -37,6 +37,10 @@ export default function FloatingChat() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionedNodeIds, setMentionedNodeIds] = useState<string[]>([]);
+  // Slash command state
+  const [slashActive, setSlashActive] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashIndex, setSlashIndex] = useState(0);
   const textareaDomId = 'floating-chat-input';
   const [pendingCaretPos, setPendingCaretPos] = useState<number | null>(null);
   
@@ -243,6 +247,29 @@ export default function FloatingChat() {
     e.preventDefault();
     if (!input.trim()) return;
 
+    // Handle slash commands locally without invoking the agent
+    const trimmed = input.trim();
+    if (/^\/build\b/i.test(trimmed) || /^\/beautify\b/i.test(trimmed)) {
+      // Clear input and reset context/mention state
+      setInput('');
+      setIncludeFile(false);
+      setIncludeSelection(false);
+      setIncludeNodes(false);
+      setMentionedNodeIds([]);
+      setMentionActive(false);
+
+      try {
+        if (/^\/build\b/i.test(trimmed)) {
+          // Trigger the same behavior as the Build Graph button
+          window.dispatchEvent(new CustomEvent('manta:build-graph'));
+        } else if (/^\/beautify\b/i.test(trimmed)) {
+          // Trigger auto layout
+          window.dispatchEvent(new CustomEvent('manta:auto-layout'));
+        }
+      } catch {}
+      return;
+    }
+
     const messageToSend = input;
     setInput(''); // Clear input immediately
 
@@ -260,6 +287,23 @@ export default function FloatingChat() {
     });
   };
 
+  // Supported slash commands
+  const SLASH_COMMANDS = useMemo(() => ([
+    { id: 'build', label: '/build', description: 'Build the graph' },
+    { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
+  ]), []);
+
+  const slashCandidates = useMemo(() => {
+    if (!slashActive) return [] as Array<{ id: string; label: string; description: string }>;
+    const q = (slashQuery || '').toLowerCase();
+    const list = SLASH_COMMANDS.filter(c =>
+      !q || c.label.slice(1).toLowerCase().startsWith(q) ||
+      c.label.toLowerCase().includes(q) ||
+      c.description.toLowerCase().includes(q)
+    );
+    return list.slice(0, 8);
+  }, [slashActive, slashQuery, SLASH_COMMANDS]);
+
   const handleClear = async () => {
     setClearing(true);
     try {
@@ -270,6 +314,36 @@ export default function FloatingChat() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Slash command navigation & selection
+    if (slashActive) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % Math.max(1, slashCandidates.length || 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + Math.max(1, slashCandidates.length || 1)) % Math.max(1, slashCandidates.length || 1));
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSlashActive(false);
+        setSlashQuery('');
+        setSlashIndex(0);
+        return;
+      }
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+        if (slashCandidates.length > 0) {
+          e.preventDefault();
+          const idx = Math.min(Math.max(0, slashIndex), slashCandidates.length - 1);
+          const candidate = slashCandidates[idx];
+          handleSelectSlashCommand(candidate.id);
+          return;
+        }
+        // fall through to submit if no candidates
+      }
+    }
     // Arrow navigation: jump across tag instead of inside
     if (!mentionActive && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       const el = e.currentTarget;
@@ -409,6 +483,29 @@ export default function FloatingChat() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
+    // Slash command detection (only at start)
+    if (val.startsWith('/')) {
+      const caret = e.target.selectionStart ?? val.length;
+      const firstSpace = val.indexOf(' ');
+      if (firstSpace !== -1 && caret > firstSpace) {
+        if (slashActive) {
+          setSlashActive(false);
+          setSlashQuery('');
+          setSlashIndex(0);
+        }
+      } else {
+        setSlashActive(true);
+        const after = val.slice(1, firstSpace === -1 ? undefined : firstSpace);
+        const m = after.match(/^[^\s]*/);
+        const q = (m ? m[0] : '') || '';
+        setSlashQuery(q);
+        setSlashIndex(0);
+      }
+    } else if (slashActive) {
+      setSlashActive(false);
+      setSlashQuery('');
+      setSlashIndex(0);
+    }
     // If user removed mention tokens, remove them from mentionedNodeIds
     setMentionedNodeIds(prev => prev.filter(nodeId => {
       const node = graph?.nodes?.find(n => n.id === nodeId);
@@ -450,6 +547,22 @@ export default function FloatingChat() {
       setMentionQuery(q);
       setMentionIndex(0);
     }
+  };
+
+  // Replace the typed slash token with the full command label and a space
+  const handleSelectSlashCommand = (cmdId: string) => {
+    const cmd = SLASH_COMMANDS.find(c => c.id === cmdId);
+    if (!cmd) return;
+    const val = input;
+    const start = 0;
+    const end = Math.min(1 + (slashQuery?.length || 0), val.length);
+    const insert = `${cmd.label} `;
+    const next = insert + val.slice(end);
+    setInput(next);
+    setSlashActive(false);
+    setSlashQuery('');
+    setSlashIndex(0);
+    setPendingCaretPos(insert.length);
   };
 
   // Replace the mention token with selected node title, update store selection
@@ -921,7 +1034,7 @@ export default function FloatingChat() {
                     });
                   }
                 }}
-                placeholder="Ask AI... Use @ to target a node"
+                placeholder="Ask AI..., @ for node"
                 disabled={false}
                 className="relative z-10 w-full resize-none text-xs field-sizing-content max-h-20 min-h-0 px-3 py-1.5 bg-transparent border-zinc-600 caret-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
               />
@@ -941,6 +1054,30 @@ export default function FloatingChat() {
                     <div className="flex flex-col">
                       <span className="text-xs text-white leading-tight">{n.title}</span>
                       <span className="text-[10px] text-zinc-400 leading-tight">{n.id}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Slash command dropdown */}
+            {slashActive && slashCandidates.length > 0 && (
+              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
+                {slashCandidates.map((c, i) => (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onMouseDown={(ev) => { ev.preventDefault(); }}
+                    onClick={() => handleSelectSlashCommand(c.id)}
+                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-zinc-800 ${i === slashIndex ? 'bg-zinc-800' : ''}`}
+                  >
+                    {c.id === 'build' ? (
+                      <Play className="w-3.5 h-3.5 text-zinc-300" />
+                    ) : (
+                      <Wand2 className="w-3.5 h-3.5 text-zinc-300" />
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-xs text-white leading-tight">{c.label}</span>
+                      <span className="text-[10px] text-zinc-400 leading-tight">{c.description}</span>
                     </div>
                   </button>
                 ))}
