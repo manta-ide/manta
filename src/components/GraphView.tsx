@@ -591,6 +591,29 @@ function GraphCanvas() {
     }
   }, [graph, nodes, setNodes, setOptimisticOperationsActive, suppressSSE]);
 
+  // Listen for global commands (from chat slash commands or elsewhere)
+  useEffect(() => {
+    const onAutoLayout = () => {
+      // Avoid double-press while already running
+      if (!isAutoLayouting) {
+        void autoLayout();
+      }
+    };
+    const onBuildGraph = () => {
+      // Trigger the same action as the Build Graph button
+      if (!isBuildingGraph && graph) {
+        void buildEntireGraph();
+      }
+    };
+
+    window.addEventListener('manta:auto-layout', onAutoLayout as EventListener);
+    window.addEventListener('manta:build-graph', onBuildGraph as EventListener);
+    return () => {
+      window.removeEventListener('manta:auto-layout', onAutoLayout as EventListener);
+      window.removeEventListener('manta:build-graph', onBuildGraph as EventListener);
+    };
+  }, [autoLayout, buildEntireGraph, isAutoLayouting, isBuildingGraph, graph]);
+
   // Generate unique node ID
   const generateNodeId = useCallback(() => {
     const timestamp = Date.now();
