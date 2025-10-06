@@ -150,33 +150,75 @@ const sanitizeMetadataFileEntries = (entries: Array<string | null | undefined>):
 const MetadataInputSchema = z.union([
   NodeMetadataSchema,
   z.array(z.string().min(1).trim()),
-  z.string().min(1).trim()
+  z.string().min(1).trim(),
+  // Allow more flexible nested structures that will be normalized
+  z.object({
+    files: z.union([
+      z.array(z.string().min(1).trim()),
+      z.object({ files: z.array(z.string().min(1).trim()) }),
+      z.array(z.object({ files: z.array(z.string().min(1).trim()) }))
+    ])
+  })
 ]);
+
+/**
+ * Recursively extracts file paths from various nested metadata formats
+ */
+const extractFilesFromMetadata = (metadata: any): string[] => {
+  if (!metadata) return [];
+
+  // Direct array of strings
+  if (Array.isArray(metadata)) {
+    return metadata.flatMap(item => {
+      if (typeof item === 'string') return [item];
+      if (item && typeof item === 'object') {
+        return extractFilesFromMetadata(item);
+      }
+      return [];
+    });
+  }
+
+  // Single string
+  if (typeof metadata === 'string') {
+    return [metadata];
+  }
+
+  // Object with files property
+  if (metadata && typeof metadata === 'object' && 'files' in metadata) {
+    return extractFilesFromMetadata(metadata.files);
+  }
+
+  return [];
+};
 
 const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
   if (metadata === undefined || metadata === null) return undefined;
 
+  // Log input for debugging, but only in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🗂️ TOOL: normalizeNodeMetadata input:', typeof metadata, Array.isArray(metadata) ? 'array' : '', metadata);
+  }
+
+  // Try direct schema validation first
   if (!Array.isArray(metadata) && typeof metadata !== 'string') {
     const parsed = NodeMetadataSchema.safeParse(metadata);
     if (parsed.success) {
       return { files: sanitizeMetadataFileEntries(parsed.data.files) };
     }
+    // Log warning if we have malformed metadata that needs extraction
+    if (metadata && typeof metadata === 'object' && 'files' in metadata) {
+      console.log('⚠️ TOOL: normalizeNodeMetadata detected nested metadata format, extracting files recursively');
+    }
   }
 
-  const rawFiles = Array.isArray(metadata)
-    ? metadata
-    : typeof metadata === 'string'
-      ? [metadata]
-      : Array.isArray((metadata as any)?.files)
-        ? (metadata as any).files
-        : [];
+  // Extract files using recursive extraction
+  const rawFiles = extractFilesFromMetadata(metadata);
 
   const files = sanitizeMetadataFileEntries(rawFiles);
 
   if (files.length === 0) {
     return undefined;
   }
-
   return { files };
 };
 

@@ -1,8 +1,338 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="landing-state" title="Application Landing" x="-372.320646177581" y="100" z="0">
+      <description>Initial state when user first opens the Manta application. Shows the main graph editor interface with empty canvas ready for interaction.</description>
+      <metadata>
+        <file>{
+  &quot;files&quot;: [
+    &quot;src/app/page.tsx&quot;,
+    &quot;src/app/layout.tsx&quot;,
+    &quot;src/components/GraphView.tsx&quot;
+  ]
+}</file>
+      </metadata>
+      <props>
+        <prop name="page-title" title="Page Title" type="text">Manta</prop>
+        <prop name="interface-theme" title="Interface Theme" type="select">
+          <value>dark</value>
+          <options>
+          <option>dark</option>
+          <option>light</option>
+          </options>
+        </prop>
+        <prop name="sidebar-visible" title="Sidebar Visible" type="boolean">true</prop>
+        <prop name="layers-panel-open" title="Layers Panel Open" type="boolean">true</prop>
+        <prop name="background-color" title="Background Color" type="color">#18181b</prop>
+      </props>
+    </node>
+
+    <node id="node-creation-action" title="Create New Node" x="477.1243899503927" y="100" z="0">
+      <description>User action to create a new node on the graph canvas. Can be triggered by selecting the add-node tool and clicking on canvas, or through keyboard shortcuts.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/graph-api/route.ts</file>
+        <file>src/lib/graph-xml.ts</file>
+      </metadata>
+      <props>
+        <prop name="tool-type" title="Tool Type" type="select">
+          <value>add-node</value>
+          <options>
+          <option>add-node</option>
+          <option>select</option>
+          <option>pan</option>
+          </options>
+        </prop>
+        <prop name="default-title" title="Default Node Title" type="text">New Node</prop>
+        <prop name="default-prompt" title="Default Node Prompt" type="text"></prop>
+        <prop name="node-width" title="Node Width" type="number">260</prop>
+        <prop name="node-height" title="Node Height" type="number">160</prop>
+      </props>
+    </node>
+
+    <node id="node-editing-state" title="Node Editing Mode" x="986.314255852295" y="100" z="0">
+      <description>State when user has selected a node and is editing its properties, title, or description in the sidebar. Shows node details and customizable properties.</description>
+      <metadata>
+        <file>src/components/SelectedNodeSidebar.tsx</file>
+        <file>src/components/property-editors/index.tsx</file>
+        <file>src/components/property-editors/BasePropertyEditor.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/graph-api/route.ts</file>
+      </metadata>
+      <props>
+        <prop name="sidebar-width" title="Sidebar Width" type="number" min="200" max="600">320</prop>
+        <prop name="editable-fields" title="Editable Fields" type="object-list">
+        <item index="0">
+          <field name="field-name" title="Field Name" type="text">Title</field>
+          <field name="field-type" title="Field Type" type="select">
+          <value>text</value>
+          <options>
+          <option>text</option>
+          <option>textarea</option>
+          <option>select</option>
+          <option>boolean</option>
+          <option>number</option>
+          <option>color</option>
+          </options>
+        </field>
+        </item>
+        <item index="1">
+          <field name="field-name" title="Field Name" type="text">Description</field>
+          <field name="field-type" title="Field Type" type="select">
+          <value>textarea</value>
+          <options>
+          <option>text</option>
+          <option>textarea</option>
+          <option>select</option>
+          <option>boolean</option>
+          <option>number</option>
+          <option>color</option>
+          </options>
+        </field>
+        </item>
+      </prop>
+        <prop name="auto-save" title="Auto Save" type="boolean">true</prop>
+        <prop name="debounce-delay" title="Save Delay (ms)" type="number" min="100" max="2000">300</prop>
+      </props>
+    </node>
+
+    <node id="node-connection-action" title="Connect Nodes" x="1574.0081858244307" y="-136.72496676451328" z="0">
+      <description>User action to create connections between nodes by dragging from node handles. Establishes relationships and workflow between different components.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/graph-api/route.ts</file>
+        <file>src/lib/graph-xml.ts</file>
+      </metadata>
+      <props>
+        <prop name="connection-type" title="Connection Type" type="select">
+          <value>links-to</value>
+          <options>
+          <option>links-to</option>
+          <option>depends-on</option>
+          <option>flows-to</option>
+          </options>
+        </prop>
+        <prop name="handle-positions" title="Handle Positions" type="checkbox">
+          <value>[&quot;top&quot;,&quot;right&quot;,&quot;bottom&quot;,&quot;left&quot;]</value>
+          <options>
+          <option>top</option>
+          <option>right</option>
+          <option>bottom</option>
+          <option>left</option>
+          </options>
+        </prop>
+        <prop name="connection-style" title="Connection Style" type="object">
+        <field name="stroke-color" title="Stroke Color" type="color">#9ca3af</field>
+        <field name="stroke-width" title="Stroke Width" type="number" min="1" max="10">2</field>
+      </prop>
+        <prop name="prevent-self-connection" title="Prevent Self Connection" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="search-mode-state" title="Search Mode" x="477.1243899503927" y="365.974260711256" z="0">
+      <description>State when user opens search overlay to find specific nodes or content within the graph. Includes search input, options, and results navigation.</description>
+      <metadata>
+        <file>src/components/SearchOverlay.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="search-hotkey" title="Search Hotkey" type="text">Ctrl+F</prop>
+        <prop name="case-sensitive" title="Case Sensitive" type="boolean">false</prop>
+        <prop name="include-properties" title="Include Properties" type="boolean">false</prop>
+        <prop name="search-fields" title="Searchable Fields" type="checkbox">
+          <value>[&quot;title&quot;,&quot;prompt&quot;]</value>
+          <options>
+          <option>title</option>
+          <option>prompt</option>
+          <option>properties</option>
+          </options>
+        </prop>
+        <prop name="overlay-position" title="Overlay Position" type="select">
+          <value>top-center</value>
+          <options>
+          <option>top-center</option>
+          <option>top-left</option>
+          <option>top-right</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="ai-chat-state" title="AI Chat Interface" x="477.1243899503927" y="-166.22458332838082" z="0">
+      <description>State when user interacts with the AI chat system. Floating chat window for getting assistance, asking questions, and requesting modifications to the graph.</description>
+      <metadata>
+        <file>src/components/FloatingChat.tsx</file>
+        <file>src/lib/chatService.ts</file>
+        <file>src/components/MessageRenderer.tsx</file>
+        <file>src/app/api/chat/route.ts</file>
+      </metadata>
+      <props>
+        <prop name="chat-position" title="Chat Position" type="object">
+        <field name="x" title="X Position" type="number">20</field>
+        <field name="y" title="Y Position" type="number">20</field>
+      </prop>
+        <prop name="chat-width" title="Chat Width" type="number" min="200" max="500">288</prop>
+        <prop name="minimizable" title="Minimizable" type="boolean">true</prop>
+        <prop name="draggable" title="Draggable" type="boolean">true</prop>
+        <prop name="context-inclusion" title="Context Inclusion" type="object">
+        <field name="include-file" title="Include File" type="boolean">false</field>
+        <field name="include-selection" title="Include Selection" type="boolean">false</field>
+        <field name="include-nodes" title="Include Nodes" type="boolean">false</field>
+      </prop>
+      </props>
+    </node>
+
+    <node id="graph-building-action" title="Build Graph" x="1574.0081858244307" y="170.65184181049688" z="0">
+      <description>User action to build the entire graph, generating code and implementations for all nodes. Triggers the AI system to create actual implementations.</description>
+      <metadata>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/agent-request/route.ts</file>
+        <file>src/app/api/lib/agentPrompts.ts</file>
+        <file>src/lib/graph-diff.ts</file>
+        <file>src/components/GraphView.tsx</file>
+      </metadata>
+      <props>
+        <prop name="build-button-text" title="Build Button Text" type="text">Build Graph</prop>
+        <prop name="building-text" title="Building Text" type="text">Building Graph...</prop>
+        <prop name="build-confirmation" title="Build Confirmation" type="boolean">false</prop>
+        <prop name="build-scope" title="Build Scope" type="select">
+          <value>entire-graph</value>
+          <options>
+          <option>entire-graph</option>
+          <option>selected-nodes</option>
+          <option>unbuilt-nodes</option>
+          </options>
+        </prop>
+        <prop name="loading-indicator" title="Loading Indicator" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="multi-selection-state" title="Multi-Selection Mode" x="477.1243899503927" y="628.1826169484528" z="0">
+      <description>State when user has selected multiple nodes for batch operations. Shows selection summary and allows bulk actions like deletion or property viewing.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+        <file>src/components/SelectedNodeSidebar.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/lib/uiSelectionUtils.ts</file>
+      </metadata>
+      <props>
+        <prop name="selection-method" title="Selection Method" type="select">
+          <value>ctrl-click</value>
+          <options>
+          <option>ctrl-click</option>
+          <option>shift-click</option>
+          <option>drag-select</option>
+          </options>
+        </prop>
+        <prop name="selection-indicator" title="Selection Indicator" type="object">
+        <field name="border-color" title="Border Color" type="color">#2563eb</field>
+        <field name="border-width" title="Border Width" type="number" min="1" max="5">2</field>
+      </prop>
+        <prop name="batch-operations" title="Batch Operations" type="checkbox">
+          <value>[&quot;delete&quot;,&quot;move&quot;]</value>
+          <options>
+          <option>delete</option>
+          <option>move</option>
+          <option>copy</option>
+          <option>build</option>
+          </options>
+        </prop>
+        <prop name="max-selection" title="Max Selection Count" type="number" min="2" max="100">50</prop>
+      </props>
+    </node>
+
+    <node id="layers-management-state" title="Layers Management" x="477.12438995039275" y="-695.8478410147067" z="0">
+      <description>State when user manages different layers of the graph. Allows organizing nodes into different layers for better workflow management.</description>
+      <metadata>
+        <file>src/components/LayersSidebar.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/layers/route.ts</file>
+        <file>src/lib/layers.ts</file>
+      </metadata>
+      <props>
+        <prop name="layers-sidebar-width" title="Layers Sidebar Width" type="number" min="200" max="500">300</prop>
+        <prop name="layer-operations" title="Layer Operations" type="checkbox">
+          <value>[&quot;create&quot;,&quot;clone&quot;,&quot;rename&quot;,&quot;delete&quot;,&quot;activate&quot;]</value>
+          <options>
+          <option>create</option>
+          <option>clone</option>
+          <option>rename</option>
+          <option>delete</option>
+          <option>activate</option>
+          </options>
+        </prop>
+        <prop name="default-layer-name" title="Default Layer Name" type="text">New Layer</prop>
+        <prop name="auto-switch-layer" title="Auto Switch Layer" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="navigation-action" title="Navigate Graph" x="477.1243899503927" y="-426.8964084954312" z="0">
+      <description>User action for navigating the graph canvas - panning, zooming, and moving around to view different parts of the graph.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+        <file>src/components/helper-lines/useHelperLines.tsx</file>
+        <file>src/components/helper-lines/HelperLinesRenderer.tsx</file>
+        <file>src/lib/store.ts</file>
+      </metadata>
+      <props>
+        <prop name="pan-mode" title="Pan Mode" type="select">
+          <value>trackpad-free</value>
+          <options>
+          <option>trackpad-free</option>
+          <option>mouse-drag</option>
+          <option>right-click</option>
+          </options>
+        </prop>
+        <prop name="zoom-controls" title="Zoom Controls" type="object">
+        <field name="min-zoom" title="Min Zoom" type="number" min="0.1" max="1">0.1</field>
+        <field name="max-zoom" title="Max Zoom" type="number" min="1" max="5">2</field>
+      </prop>
+        <prop name="minimap-enabled" title="Minimap Enabled" type="boolean">true</prop>
+        <prop name="auto-fit-view" title="Auto Fit View" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="deletion-action" title="Delete Elements" x="1574.0081858244307" y="447.6649905147764" z="0">
+      <description>User action to delete selected nodes or connections from the graph. Supports both single and multi-selection deletion with keyboard shortcuts.</description>
+      <metadata>
+        <file>src/components/GraphView.tsx</file>
+        <file>src/lib/store.ts</file>
+        <file>src/app/api/graph-api/route.ts</file>
+        <file>src/lib/graph-xml.ts</file>
+      </metadata>
+      <props>
+        <prop name="delete-keys" title="Delete Keys" type="checkbox">
+          <value>[&quot;Delete&quot;,&quot;Backspace&quot;]</value>
+          <options>
+          <option>Delete</option>
+          <option>Backspace</option>
+          </options>
+        </prop>
+        <prop name="delete-confirmation" title="Delete Confirmation" type="boolean">false</prop>
+        <prop name="cascade-delete" title="Cascade Delete Connections" type="boolean">true</prop>
+        <prop name="undo-support" title="Undo Support" type="boolean">false</prop>
+        <prop name="optimistic-delete" title="Optimistic Delete" type="boolean">true</prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
+    <edge id="landing-state-node-creation-action" source="landing-state" target="node-creation-action" role="leads-to"/>
+    <edge id="node-creation-action-node-editing-state" source="node-creation-action" target="node-editing-state" role="leads-to"/>
+    <edge id="landing-state-search-mode-state" source="landing-state" target="search-mode-state" role="leads-to"/>
+    <edge id="landing-state-ai-chat-state" source="landing-state" target="ai-chat-state" role="leads-to"/>
+    <edge id="node-editing-state-node-connection-action" source="node-editing-state" target="node-connection-action" role="leads-to"/>
+    <edge id="node-editing-state-graph-building-action" source="node-editing-state" target="graph-building-action" role="leads-to"/>
+    <edge id="landing-state-multi-selection-state" source="landing-state" target="multi-selection-state" role="leads-to"/>
+    <edge id="landing-state-layers-management-state" source="landing-state" target="layers-management-state" role="leads-to"/>
+    <edge id="landing-state-navigation-action" source="landing-state" target="navigation-action" role="leads-to"/>
+    <edge id="multi-selection-state-deletion-action" source="multi-selection-state" target="deletion-action" role="leads-to"/>
+    <edge id="node-editing-state-deletion-action" source="node-editing-state" target="deletion-action" role="leads-to"/>
+    <edge id="ai-chat-state-node-creation-action" source="ai-chat-state" target="node-creation-action" role="leads-to"/>
+    <edge id="search-mode-state-node-editing-state" source="search-mode-state" target="node-editing-state" role="leads-to"/>
+    <edge id="node-connection-action-graph-building-action" source="node-connection-action" target="graph-building-action" role="leads-to"/>
   </edges>
 </graph>

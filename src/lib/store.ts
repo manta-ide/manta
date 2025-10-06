@@ -405,8 +405,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (!res.ok) return null;
       const data = await res.json();
       await get().loadLayers();
-      // Refresh graph in case active layer changed
+      // Refresh both graphs in case active layer changed
       await get().loadGraph();
+      await get().loadBaseGraph();
       return data?.name ?? null;
     } catch (e) {
       console.warn('Failed to rename layer:', e);
@@ -417,14 +418,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
     // Update immediately for UI feedback; SSE will also refresh graph
     set({ activeLayer: name });
-    // Refresh graphs after switch
+    // Refresh both current and base graphs after switch to ensure proper diff calculation
     await get().loadGraph();
+    await get().loadBaseGraph();
   },
   deleteLayer: async (name: string) => {
     await fetch(`/api/layers?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
     await get().loadLayers();
-    // Reload graph in case active layer changed
+    // Reload both graphs in case active layer changed
     await get().loadGraph();
+    await get().loadBaseGraph();
   },
   setLayersSidebarOpen: (open: boolean) => set({ layersSidebarOpen: open }),
   toggleLayersSidebar: () => set((state) => ({ layersSidebarOpen: !state.layersSidebarOpen })),
