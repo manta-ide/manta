@@ -25,6 +25,7 @@ import {
   ReactFlowProvider,
   applyEdgeChanges,
   applyNodeChanges,
+  MarkerType,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
@@ -34,7 +35,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon } from 'lucide-react';
+import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2 } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -165,15 +166,53 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   
   // Always show detailed view at all zoom levels
   const nodeStyles = getNodeStyles();
+
+  // Determine visual shape
+  const shape: 'rectangle' | 'circle' | 'triangle' = (node as any).shape ||
+    (() => {
+      try {
+        const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
+        const v = (p && typeof p.value === 'string') ? p.value : undefined;
+        return (v === 'circle' || v === 'triangle' || v === 'rectangle') ? v : 'rectangle';
+      } catch {
+        return 'rectangle';
+      }
+    })();
+  const isDecorativeShape = shape !== 'rectangle';
+  const shapeDimensions: React.CSSProperties = (() => {
+    switch (shape) {
+      case 'circle':
+        return { width: '200px', minHeight: '200px' };
+      case 'triangle':
+        return { width: '260px', minHeight: '180px' };
+      default:
+        return { width: '260px', minHeight: '160px' };
+    }
+  })();
+  const contentPadding: React.CSSProperties = (() => {
+    switch (shape) {
+      case 'circle':
+        return { padding: '20px' };
+      case 'triangle':
+        // Extra top padding so text doesn't collide with the apex
+        return { padding: '16px', paddingTop: '32px' } as React.CSSProperties;
+      default:
+        return { padding: '20px' };
+    }
+  })();
+  const borderColor = selected ? '#2563eb' : '#e5e7eb';
   return (
     <div
       className={`custom-node ${selected ? 'selected' : ''}`}
       style={{
         ...nodeStyles,
-        borderRadius: '8px',
-        padding: '20px',
-        width: '260px',
-        minHeight: '160px',
+        // For decorative shapes, let a background layer render the shape and border
+        background: isDecorativeShape ? 'transparent' : (nodeStyles as any).background,
+        border: isDecorativeShape ? 'none' : (nodeStyles as any).border,
+        boxShadow: isDecorativeShape ? 'none' : (nodeStyles as any).boxShadow,
+        borderRadius: isDecorativeShape ? 0 : '8px',
+        width: shapeDimensions.width,
+        minHeight: shapeDimensions.minHeight,
         position: 'relative',
         fontFamily: 'Inter, sans-serif',
         display: 'flex',
@@ -181,6 +220,25 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
+      {/* Shape background for circle/triangle so content isn't clipped */}
+      {isDecorativeShape && (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background: (nodeStyles as any).background,
+            // mimic selection shadow/ring
+            boxShadow: (nodeStyles as any).boxShadow,
+            // draw a thin border that matches selection state
+            outline: `1px solid ${borderColor}`,
+            borderRadius: shape === 'circle' ? '9999px' : 0,
+            clipPath: shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
+            zIndex: 0,
+          }}
+        />
+      )}
       {/* No extra border for search hits; fading overlay handles focus */}
       {/* State indicators - only show for unbuilt nodes */}
       {effectiveState === 'unbuilt' && (
@@ -193,6 +251,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           borderRadius: '50%',
           background: '#ef4444',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+          zIndex: 2,
         }} />
       )}
       <style jsx>{`
@@ -201,51 +260,86 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         }
       `}</style>
       
-      {/* Main content area */}
-      <div style={{ flex: 1 }}>
-        {/* Title */}
-        <div
-          style={{
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#1f2937',
-            marginBottom: '12px',
-            lineHeight: '1.4',
-          }}
-        >
-          {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
+      {/* Clipped content wrapper so text stays within shape bounds */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          overflow: 'hidden',
+          borderRadius: !isDecorativeShape ? '8px' : (shape === 'circle' ? '9999px' : 0),
+          clipPath: isDecorativeShape && shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
+          ...contentPadding,
+        }}
+      >
+        {/* Main content area */}
+        <div style={{ flex: 1 }}>
+          {/* Title */}
+          <div
+            style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#1f2937',
+              marginBottom: '12px',
+              lineHeight: '1.4',
+              wordBreak: 'break-word',
+            }}
+          >
+            {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
+          </div>
+          
+          {/* Prompt preview - always show at all zoom levels */}
+          <div
+            style={{
+              fontSize: '13px',
+              color: '#6b7280',
+              marginBottom: '16px',
+              lineHeight: '1.4',
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              wordBreak: 'break-word',
+              flex: 1,
+            }}
+            title={node.prompt}
+          >
+            {typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt}
+          </div>
         </div>
-        
-        {/* Prompt preview - always show at all zoom levels */}
-        <div
-          style={{
-            fontSize: '13px',
-            color: '#6b7280',
-            marginBottom: '16px',
-            lineHeight: '1.4',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            flex: 1,
-          }}
-          title={node.prompt}
-        >
-          {typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt}
-        </div>
-      </div>
-      
-      {/* Bottom metadata section */}
-      <div style={{ 
-        borderTop: '1px solid #f3f4f6', 
-        paddingTop: '12px',
-        marginTop: '12px'
-      }}>
-        {/* Connections count */}
-        {(() => {
-          const connections = getNodeConnections(node.id);
-          return connections.length > 0 && (
+
+        {/* Bottom metadata section */}
+        <div style={{ 
+          borderTop: '1px solid #f3f4f6', 
+          paddingTop: '12px',
+          marginTop: '12px'
+        }}>
+          {/* Connections count */}
+          {(() => {
+            const connections = getNodeConnections(node.id);
+            return connections.length > 0 && (
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#9ca3af',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '6px',
+                }}
+              >
+                <Link size={12} />
+                {connections.length} connection{connections.length !== 1 ? 's' : ''}
+              </div>
+            );
+          })()}
+          
+          {/* Properties count */}
+          {node.properties && node.properties.length > 0 && (
             <div
               style={{
                 fontSize: '12px',
@@ -253,30 +347,13 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                marginBottom: '6px',
               }}
             >
-              <Link size={12} />
-              {connections.length} connection{connections.length !== 1 ? 's' : ''}
+              <Settings size={12} />
+              {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
             </div>
-          );
-        })()}
-        
-        {/* Properties count */}
-        {node.properties && node.properties.length > 0 && (
-          <div
-            style={{
-              fontSize: '12px',
-              color: '#9ca3af',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <Settings size={12} />
-            {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
@@ -308,6 +385,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
          prevProps.data?.node?.id === nextProps.data?.node?.id &&
          prevProps.data?.node?.title === nextProps.data?.node?.title &&
          prevProps.data?.node?.prompt === nextProps.data?.node?.prompt &&
+         prevProps.data?.node?.shape === nextProps.data?.node?.shape &&
          prevProps.data?.node?.state === nextProps.data?.node?.state &&
          JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties) &&
          prevProps.data?.baseGraph === nextProps.data?.baseGraph &&
@@ -320,6 +398,7 @@ function GraphCanvas() {
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
+  const [isAutoLayouting, setIsAutoLayouting] = useState(false);
 
   // Helper lines functionality
   const { rebuildIndex, updateHelperLines, HelperLines } = useHelperLines();
@@ -394,6 +473,12 @@ function GraphCanvas() {
     strokeLinecap: 'round' as const,
   } as const;
 
+  // Helper to derive an arrow marker matching the current edge style
+  const makeArrowForStyle = (style: any) => ({
+    type: MarkerType.ArrowClosed as const,
+    color: style?.stroke || '#9ca3af',
+  });
+
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
   // Auth removed; define placeholder to avoid TS errors
@@ -415,11 +500,113 @@ function GraphCanvas() {
     return rects;
   }, [nodes, searchResults, searchOpen]);
 
+  // Auto layout all nodes using ELK and persist positions
+  const autoLayout = useCallback(async () => {
+    if (!graph) return;
+    setIsAutoLayouting(true);
+    setOptimisticOperationsActive(true);
+    try {
+      const elk = new ELK();
+      // Add buffer space around each node to avoid tight packing
+      const nodeMarginX = 48; // horizontal padding on each side (increased)
+      const nodeMarginY = 48; // vertical padding on each side (increased)
+      // Build ELK nodes with measured or default sizes
+      const rfNodeMap = new Map(nodes.map(n => [n.id, n]));
+      const elkNodes = graph.nodes.map(n => {
+        const rf = rfNodeMap.get(n.id);
+        const width = (rf?.width ?? 260) + nodeMarginX * 2;
+        const height = (rf?.height ?? 160) + nodeMarginY * 2;
+        return { id: n.id, width, height } as any;
+      });
+      const seen = new Set<string>();
+      const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
+      if (Array.isArray((graph as any).edges)) {
+        (graph as any).edges.forEach((e: any, i: number) => {
+          const id = `${e.source}-${e.target}`;
+          if (!seen.has(id)) {
+            elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
+            seen.add(id);
+          }
+        });
+      }
+
+      const elkGraph = {
+        id: 'root',
+        layoutOptions: {
+          'elk.algorithm': 'layered',
+          'elk.direction': 'RIGHT',
+          // Consider node sizes and reduce crossings
+          'elk.layered.layering.strategy': 'LONGEST_PATH',
+          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+          'elk.layered.thoroughness': '7',
+          'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+          'elk.edgeRouting': 'ORTHOGONAL',
+          // Spacing for less overlap and clearer edges (increased)
+          'elk.layered.spacing.nodeNodeBetweenLayers': '120',
+          'elk.layered.spacing.edgeEdgeBetweenLayers': '36',
+          'elk.spacing.nodeNode': '72',
+          'elk.spacing.edgeNode': '48',
+          'elk.spacing.edgeEdge': '36',
+          'elk.spacing.componentComponent': '96',
+          'elk.spacing.portPort': '12',
+          'elk.spacing.portNode': '12',
+          'elk.spacing.labelNode': '12',
+          'elk.layered.mergeEdges': 'true',
+        },
+        children: elkNodes,
+        edges: elkEdges,
+      } as any;
+
+      const res = await elk.layout(elkGraph);
+      const posMap = new Map<string, { x: number; y: number }>();
+      (res.children || []).forEach((c: any) => {
+        posMap.set(c.id, { x: Math.round(c.x || 0), y: Math.round(c.y || 0) });
+      });
+
+      // Update RF nodes immediately for feedback
+      setNodes(prev => prev.map(n => {
+        const p = posMap.get(n.id);
+        return p ? { ...n, position: { x: p.x, y: p.y } } : n;
+      }));
+
+      // Persist to graph (single PUT)
+      const updatedGraph: Graph = {
+        ...graph,
+        nodes: graph.nodes.map(n => {
+          const p = posMap.get(n.id);
+          return p ? { ...n, position: { x: p.x, y: p.y, z: 0 } } : n;
+        }),
+      } as Graph;
+
+      await useProjectStore.getState().syncGraph(updatedGraph);
+
+      // Also update local store explicitly to avoid races
+      useProjectStore.setState({ graph: updatedGraph });
+      suppressSSE?.(1000);
+    } catch (e) {
+      console.error('Auto layout failed:', e);
+    } finally {
+      setOptimisticOperationsActive(false);
+      setIsAutoLayouting(false);
+    }
+  }, [graph, nodes, setNodes, setOptimisticOperationsActive, suppressSSE]);
+
   // Generate unique node ID
   const generateNodeId = useCallback(() => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000);
     return `node-${timestamp}${random}`;
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCurrentTool('select');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // Create a new empty node at the specified position
@@ -431,6 +618,7 @@ function GraphCanvas() {
       id: newNodeId,
       title: 'New Node',
       prompt: '',
+      shape: 'rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
 
@@ -909,9 +1097,11 @@ function GraphCanvas() {
       return updated.map((e) => {
         // Check if edge is unbuilt
         const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+        const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
         return {
           ...e,
-          style: e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+          style: nextStyle,
+          markerEnd: makeArrowForStyle(nextStyle),
         };
       });
     });
@@ -980,9 +1170,11 @@ function GraphCanvas() {
         setEdges(currentEdges =>
           currentEdges.map(e => {
             const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+            const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
             return {
               ...e,
-              style: e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+              style: nextStyle,
+              markerEnd: makeArrowForStyle(nextStyle),
             } as Edge;
           })
         );
@@ -1147,7 +1339,12 @@ function GraphCanvas() {
             type: 'default',
             style: previouslySelectedEdges.has(edge.id)
               ? selectedEdgeStyle
-             : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+              : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
+            markerEnd: makeArrowForStyle(
+              previouslySelectedEdges.has(edge.id)
+                ? selectedEdgeStyle
+                : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle)
+            ),
             interactionWidth: 24,
             selected: previouslySelectedEdges.has(edge.id),
           });
@@ -1197,6 +1394,7 @@ function GraphCanvas() {
       targetHandle: params.targetHandle || undefined,
       type: 'default' as const,
       style: unbuiltEdgeStyle,
+      markerEnd: makeArrowForStyle(unbuiltEdgeStyle),
       interactionWidth: 24,
       selected: false,
     };
@@ -1227,6 +1425,7 @@ function GraphCanvas() {
       targetHandle: newEdge.targetHandle,
       type: 'default',
       style: newEdge.style,
+      markerEnd: newEdge.markerEnd,
       interactionWidth: newEdge.interactionWidth,
       selected: false,
     };
@@ -1612,6 +1811,29 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
+        {/* Auto Layout Button */}
+        <Button
+          onClick={autoLayout}
+          disabled={isAutoLayouting || !graph}
+          variant="outline"
+          size="sm"
+          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+            isAutoLayouting ? 'cursor-not-allowed opacity-75' : ''
+          }`}
+          title={isAutoLayouting ? 'Laying out graph...' : 'Auto-arrange nodes for a clean layout'}
+        >
+          {isAutoLayouting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Auto Layout...
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-4 h-4 mr-2" />
+              Auto Layout
+            </>
+          )}
+        </Button>
         {/* Build Entire Graph Button */}
         <Button
           onClick={buildEntireGraph}

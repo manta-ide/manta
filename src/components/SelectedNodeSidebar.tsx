@@ -10,6 +10,7 @@ import { StickyNote } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SelectNative } from "@/components/ui/select-native";
 
 export default function SelectedNodeSidebar() {
 	
@@ -31,6 +32,7 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
+  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle'>('rectangle');
 	// Building state is tracked locally since node.state was removed
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const metadataFiles = Array.from(new Set(
@@ -90,6 +92,7 @@ export default function SelectedNodeSidebar() {
 		// Only reset drafts when switching to a different node, not when the values change
 		setPromptDraft(selectedNode?.prompt ?? '');
 		setTitleDraft(selectedNode?.title ?? '');
+		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
 		setRebuildError(null);
 		setRebuildSuccess(false);
 		
@@ -102,6 +105,21 @@ export default function SelectedNodeSidebar() {
 			setPropertyValues(initialValues);
 		}
 	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
+
+  const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'triangle') => {
+    setShapeDraft(newShape);
+    if (selectedNode) {
+      const updatedNode = { ...selectedNode, shape: newShape } as any;
+      setSelectedNode(selectedNodeId, updatedNode);
+    }
+    if (selectedNodeId) {
+      updateNode(selectedNodeId, { shape: newShape }).catch((error) => {
+        console.error('Failed to save shape:', error);
+        setRebuildError('Failed to save shape');
+        setTimeout(() => setRebuildError(null), 3000);
+      });
+    }
+  }, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 	// Cleanup timeouts on unmount and when node changes
 	useEffect(() => {
@@ -217,6 +235,16 @@ export default function SelectedNodeSidebar() {
 						}}
 						placeholder="Enter node title..."
 					/>
+					<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
+					<SelectNative
+					  value={shapeDraft}
+					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle')}
+					  className="bg-zinc-800 border-zinc-700 text-white"
+					>
+					  <option value="rectangle">Rectangle</option>
+					  <option value="circle">Circle</option>
+					  <option value="triangle">Triangle</option>
+					</SelectNative>
 				</div>
 			)}
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
