@@ -2,16 +2,18 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { Plus, Trash2, Layers as LayersIcon, RefreshCcw, X, Pencil } from 'lucide-react';
+import { Plus, Trash2, Layers as LayersIcon, X, Pencil, Copy } from 'lucide-react';
+import ResizeHandle from './ResizeHandle';
 
 type Props = { open?: boolean; onClose?: () => void };
 
 export default function LayersSidebar({ open = true, onClose }: Props) {
-  const { layers, activeLayer, loadLayers, setActiveLayer, createLayer, deleteLayer, renameLayer, graphLoading } = useProjectStore();
+  const { layers, activeLayer, loadLayers, setActiveLayer, createLayer, deleteLayer, cloneLayer, renameLayer, graphLoading, rightSidebarWidth, setRightSidebarWidth } = useProjectStore();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingLayer, setEditingLayer] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [editingMode, setEditingMode] = useState<'rename' | null>(null);
 
   useEffect(() => { loadLayers(); }, [loadLayers]);
 
@@ -36,12 +38,14 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
 
   const startEditing = (layerName: string) => {
     setEditingLayer(layerName);
+    setEditingMode('rename');
     setEditingValue(layerName);
   };
 
   const cancelEditing = () => {
     setEditingLayer(null);
     setEditingValue('');
+    setEditingMode(null);
   };
 
   const saveEditing = async () => {
@@ -55,7 +59,6 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
 
     const renamed = await renameLayer(editingLayer, newName);
     if (renamed) {
-      // If this was the active layer, it should automatically switch
       cancelEditing();
     }
   };
@@ -71,19 +74,15 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="flex-none w-72 border-l border-zinc-700 bg-zinc-900 text-white flex flex-col">
+    <div
+      className="flex-none border-l border-zinc-700 bg-zinc-900 text-white flex flex-col relative"
+      style={{ width: `${rightSidebarWidth}px` }}
+    >
       <div className="px-3 py-2 border-b border-zinc-700 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
           <LayersIcon size={16} /> Layers
         </div>
         <div className="flex items-center gap-2">
-          <button
-            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
-            onClick={() => loadLayers()}
-            title="Refresh"
-          >
-            <RefreshCcw size={14} />
-          </button>
           <button
             className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
             onClick={() => onClose?.()}
@@ -129,6 +128,13 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
                 <Pencil size={14} />
               </button>
               <button
+                className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+                onClick={() => cloneLayer(name, `${name}-copy`)}
+                title="Clone layer"
+              >
+                <Copy size={14} />
+              </button>
+              <button
                 className="text-xs px-2 py-1 rounded bg-red-600/80 hover:bg-red-600 disabled:opacity-50"
                 onClick={() => deleteLayer(name)}
                 disabled={layers.length <= 1}
@@ -158,6 +164,13 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
           </button>
         </div>
       </div>
+      <ResizeHandle
+        direction="left"
+        onResize={setRightSidebarWidth}
+        initialWidth={rightSidebarWidth}
+        minWidth={200}
+        maxWidth={600}
+      />
     </div>
   );
 }

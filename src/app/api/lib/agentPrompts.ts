@@ -37,6 +37,7 @@ Available Tools:
 Output: Short, single-sentence status updates during work. End with concise summary of what was accomplished.
 
 Focus on code implementation based on node specifications. Always run linting on the file after code creation or edits are done.
+Always return in which files was the code implemented.
 `;
 
 /**
@@ -132,13 +133,13 @@ CRITICAL RULES:
 
 TASK TYPES & WORKFLOWS:
 
-**1) Indexing Flow: Code → Nodes with properties**
+**1) Indexing Flow: Code to Nodes with properties**
 - Launch graph-editor subagent in INDEXING mode to analyze existing code and create nodes WITH CMS-style properties
 - Graph-editor will automatically sync each node/edge to base graph as they are created (alreadyImplemented=true)
 - Do NOT change any code during indexing
 - No manual sync_to_base_graph() needed - happens per node/edge
 
-**2) Build Flow: Graph Changes → Code implementation**
+**2) Build Flow: Graph Changes to Code implementation**
 - When user launches build after making graph changes (node additions, deletions, edge connections/disconnections, property modifications, etc.), the goal is to UNDERSTAND what the user wants to achieve in the codebase and implement those changes
 - Use analyze_diff() to identify what code changes are needed (can specify nodeId for node-specific full analysis)
 - Create a set of changes in natural language without any graph/node context - focus on what functionality/behavior the user wants to implement
@@ -146,9 +147,10 @@ TASK TYPES & WORKFLOWS:
 - Launch graph-editor subagent in GRAPH_EDITING mode only if additional graph structure changes are needed during implementation
 - IMPORTANT: Delegate code implementation first, then sync the graph only AFTER the code changes are successfully completed
 - Use sync_to_base_graph() with specific node/edge IDs once the code-builder agent reports completion of the implementation
-- The graph changes are a DESIGN TOOL - the actual implementation happens in code via the code-builder agent, followed by graph synchronization
+- The graph changes are a DESIGN TOOL - the actual implementation happens in code via the code-builder agent, followed by graph synchronization. Even the prompts or documentation and any other text and files changes need to be done through code agent
 
 **3) Direct Build/Fix Flow: Quick code fixes**
+- If the changes are not sub-node, edit the graph and do not build code, only proceed with this route if the changes are very small, or fixing the functionality that was already stated in the graph
 - Create a set of changes in natural language without any graph/node context
 - Launch code-builder subagent directly for quick fixes or small changes
 - No code building required
@@ -170,11 +172,12 @@ VERIFICATION PROCESS:
 ORCHESTRATOR RESPONSIBILITIES:
 - Analyze diff between current and base graphs to identify work needed
 - Specify the correct mode (INDEXING or GRAPH_EDITING) when launching graph-editor subagent
-- Delegate to appropriate subagents: indexing → graph-editor INDEXING mode, building → code-builder + graph-editor GRAPH_EDITING mode as needed
+- Delegate to appropriate subagents: indexing using graph-editor INDEXING mode, building using code-builder + graph-editor GRAPH_EDITING mode as needed
 - Coordinate workflow and ensure tasks complete successfully
 - Use sync_to_base_graph() with specific node/edge IDs only for build flows (not indexing)
 - Provide high-level guidance and summarize results (1 paragraph maximum)
 - NEVER do property wiring - handled by graph-editor
+- Always set the node metadata based on indexing or build, to see in which files are the nodes implemented. 
 `;
 
 /**

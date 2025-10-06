@@ -103,8 +103,10 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       .filter(Boolean);
   };
 
-  // Show simplified view when zoomed out
-  const isZoomedOut = zoom < 0.8;
+  // Define zoom level thresholds for handle sizing only (always show detailed view now)
+  const isZoomedOut = zoom < 0.8;      // Only used for handle sizing now
+  // Always show detailed view with title and description at all zoom levels
+
   // Calculate handle size based on zoom level
   const handleSize = isZoomedOut ? (selected ? '24px' : '20px') : (selected ? '16px' : '12px');
   // Calculate indicator dot size based on zoom level
@@ -161,116 +163,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
     }
   };
   
-  if (isZoomedOut) {
-    const nodeStyles = getNodeStyles();
-    return (
-      <div
-        className={`custom-node-simple ${selected ? 'selected' : ''}`}
-        style={{
-          ...nodeStyles,
-          borderRadius: '8px',
-          padding: '20px',
-          width: '260px',
-          minHeight: '160px',
-          position: 'relative',
-          fontFamily: 'Inter, sans-serif',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        {/* No extra border for search hits; fading overlay handles focus */}
-        {/* State indicator - only show for unbuilt nodes */}
-        {effectiveState === 'unbuilt' && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            width: indicatorSize,
-            height: indicatorSize,
-            borderRadius: '50%',
-            background: '#ef4444',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
-          }} />
-        )}
-        <style jsx>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        
-        {/* Large title text */}
-        <div
-          style={{
-            fontSize: '24px',
-            fontWeight: '700',
-            color: '#1f2937',
-            textAlign: 'center',
-            lineHeight: '1.2',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '220px',
-            marginBottom: '8px',
-          }}
-          title={node.title}
-        >
-          {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
-        </div>
-        
-        {/* Simple metadata for zoomed out view */}
-        <div style={{
-          display: 'flex',
-          gap: '16px',
-          fontSize: '14px',
-          color: '#6b7280',
-          fontWeight: '500',
-          alignItems: 'center'
-        }}>
-          {(() => {
-            const connections = getNodeConnections(node.id);
-            return connections.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Link size={14} />
-                <span>{connections.length}</span>
-              </div>
-            );
-          })()}
-          {node.properties && node.properties.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Settings size={14} />
-              <span>{node.properties.length}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
-        {/* Top */}
-        <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-        <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-        {/* Right */}
-        <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-        <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-        {/* Bottom */}
-        <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-        <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-        {/* Left */}
-        <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-        <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-          style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-      </div>
-    );
-  }
-  
-  // Full detailed view when zoomed in
+  // Always show detailed view at all zoom levels
   const nodeStyles = getNodeStyles();
   return (
     <div
@@ -323,7 +216,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
         </div>
         
-        {/* Prompt preview */}
+        {/* Prompt preview - always show at all zoom levels */}
         <div
           style={{
             fontSize: '13px',

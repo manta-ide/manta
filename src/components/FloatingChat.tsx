@@ -124,7 +124,7 @@ export default function FloatingChat() {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/\"/g, '&quot;')
+      .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
     let html = escape(input || '');
     // Style all @Title tokens that match mentioned nodes
@@ -135,7 +135,7 @@ export default function FloatingChat() {
         if (rawTitle) {
           const token = '@' + rawTitle.replace(/\s+/g, '\u00A0');
           const tokenEsc = escape(token);
-          const pill = `<span style=\"display:inline;background:#3f3f46;color:transparent;border-radius:4px;padding:0 1px;\">${escape(token)}</span>`;
+          const pill = `<span style="display:inline;background:#3f3f46;color:transparent;border-radius:4px;padding:0 1px;">${escape(token)}</span>`;
           html = html.split(tokenEsc).join(pill);
         }
       });
@@ -360,10 +360,10 @@ export default function FloatingChat() {
     // Start mention on '@' (allow starting even if a previous node was mentioned)
     if (e.key === '@' && !mentionActive) {
       // Start a mention token at the current caret position - the '@' will be inserted by the browser
-      // Compute start as position before the '@' character
+      // The mention start position should be where the '@' will be placed
       const pos = (e.currentTarget.selectionStart ?? 0);
       setMentionActive(true);
-      setMentionStart(pos);
+      setMentionStart(pos); // This will be the position of the '@' after it's inserted
       setMentionQuery('');
       setMentionIndex(0);
       return; // let it type '@'
@@ -416,17 +416,37 @@ export default function FloatingChat() {
       const token = rawTitle ? ('@' + rawTitle.replace(/\s+/g, '\u00A0')) : '';
       return token && val.includes(token);
     }));
+
     if (mentionActive && mentionStart !== null) {
       const caret = e.target.selectionStart ?? val.length;
-      // If caret moved before mention start, cancel
+
+      // Check if the '@' character at mentionStart was deleted
+      if (mentionStart >= val.length || val[mentionStart] !== '@') {
+        setMentionActive(false);
+        setMentionStart(null);
+        setMentionQuery('');
+        return;
+      }
+
+      // Only cancel if caret moved significantly before mention start (allow small movements)
       if (caret < mentionStart) {
         setMentionActive(false);
         setMentionStart(null);
         setMentionQuery('');
         return;
       }
+
       // Extract typed query from after '@' up to caret
       const q = val.slice(mentionStart + 1, caret);
+
+      // If the query contains whitespace or other special characters that would break a mention, cancel
+      if (q.includes(' ') || q.includes('\n') || q.includes('\t')) {
+        setMentionActive(false);
+        setMentionStart(null);
+        setMentionQuery('');
+        return;
+      }
+
       setMentionQuery(q);
       setMentionIndex(0);
     }
@@ -601,11 +621,6 @@ export default function FloatingChat() {
           <div className="w-8 h-8 flex items-center justify-center">
             <MessageCircle className="h-5 w-5 text-white" />
           </div>
-          {messages.length > 0 && (
-            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-              {messages.length}
-            </div>
-          )}
         </div>
       </div>
      );

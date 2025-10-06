@@ -27,7 +27,7 @@ interface ProjectStore {
   fileTree: FileNode[];
   selection: Selection | null;
   refreshTrigger: number;
-  
+
   // Graph state
   layers: string[];
   activeLayer: string | null;
@@ -47,6 +47,12 @@ interface ProjectStore {
   // Timestamp (ms) until which SSE updates are suppressed to avoid stale snapshots overriding optimistic UI
   sseSuppressedUntil?: number | null;
   resetStore: () => void;
+
+  // Sidebar layout state
+  leftSidebarWidth: number;
+  rightSidebarWidth: number;
+  setLeftSidebarWidth: (width: number) => void;
+  setRightSidebarWidth: (width: number) => void;
   
   // File operations
   loadProject: () => Promise<void>;
@@ -195,6 +201,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   isBuildingGraph: false,
   optimisticOperationsActive: false,
   sseSuppressedUntil: null,
+
+  // Sidebar layout state
+  leftSidebarWidth: 320,
+  rightSidebarWidth: 288,
   // Search state (defaults)
   searchOpen: false,
   searchQuery: '',
@@ -225,6 +235,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isBuildingGraph: false,
     optimisticOperationsActive: false,
     sseSuppressedUntil: null,
+    leftSidebarWidth: 320,
+    rightSidebarWidth: 288,
   }),
 
   loadProject: async () => {
@@ -416,6 +428,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   setLayersSidebarOpen: (open: boolean) => set({ layersSidebarOpen: open }),
   toggleLayersSidebar: () => set((state) => ({ layersSidebarOpen: !state.layersSidebarOpen })),
+
+  // Sidebar layout operations
+  setLeftSidebarWidth: (width: number) => {
+    const constrainedWidth = Math.max(200, Math.min(600, width));
+    set({ leftSidebarWidth: constrainedWidth });
+  },
+  setRightSidebarWidth: (width: number) => {
+    const constrainedWidth = Math.max(200, Math.min(600, width));
+    set({ rightSidebarWidth: constrainedWidth });
+  },
   
   // Graph operations
   loadGraph: async () => {

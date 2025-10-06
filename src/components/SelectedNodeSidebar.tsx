@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
+import ResizeHandle from './ResizeHandle';
 import { Property } from '@/app/api/lib/schemas';
 import { StickyNote } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +24,9 @@ export default function SelectedNodeSidebar() {
 		updateProperty,
 		updatePropertyLocal,
 		connectToGraphEvents,
-		graph
+		graph,
+		leftSidebarWidth,
+		setLeftSidebarWidth
 	} = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
@@ -37,13 +40,33 @@ export default function SelectedNodeSidebar() {
 			.filter((file) => file.length > 0)
 	));
 
-	// Helper function to get children from edges
-	const getNodeChildren = (nodeId: string) => {
+	// Helper function to get all connections (both incoming and outgoing)
+	const getNodeConnections = (nodeId: string) => {
 		if (!graph?.edges) return [];
-		return graph.edges
+
+		const connections: Array<{ node: any; direction: 'outgoing' | 'incoming' }> = [];
+
+		// Get outgoing connections (this node -> other nodes)
+		graph.edges
 			.filter(edge => edge.source === nodeId)
-			.map(edge => graph.nodes.find(n => n.id === edge.target))
-			.filter(Boolean);
+			.forEach(edge => {
+				const targetNode = graph.nodes.find(n => n.id === edge.target);
+				if (targetNode) {
+					connections.push({ node: targetNode, direction: 'outgoing' });
+				}
+			});
+
+		// Get incoming connections (other nodes -> this node)
+		graph.edges
+			.filter(edge => edge.target === nodeId)
+			.forEach(edge => {
+				const sourceNode = graph.nodes.find(n => n.id === edge.source);
+				if (sourceNode) {
+					connections.push({ node: sourceNode, direction: 'incoming' });
+				}
+			});
+
+		return connections;
 	};
 	const [propertyValues, setPropertyValues] = useState<Record<string, any>>({});
 	const [rebuildError, setRebuildError] = useState<string | null>(null);
@@ -174,7 +197,10 @@ export default function SelectedNodeSidebar() {
 	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 	return (
-		<div className="flex-none w-80 max-w-sm border-r border-zinc-700 bg-zinc-900 text-white">
+		<div
+			className="flex-none border-r border-zinc-700 bg-zinc-900 text-white relative"
+			style={{ width: `${leftSidebarWidth}px` }}
+		>
 			{/* Show Title only for single selection */}
 			{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
 				<div className="px-3 py-2 border-b border-zinc-700">
@@ -282,14 +308,16 @@ export default function SelectedNodeSidebar() {
 						)}
 
 						{(() => {
-							const children = getNodeChildren(selectedNode.id);
-							return children.length > 0 && (
+							const connections = getNodeConnections(selectedNode.id);
+							return connections.length > 0 && (
 								<div className="border-t border-zinc-700/30 pt-3">
-									<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Children ({children.length})</div>
+									<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Connections ({connections.length})</div>
 									<ul className="space-y-0.5">
-										{children.map((child: any) => (
-											<li key={child.id} className="text-xs text-zinc-400 bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
-												{child.title}
+										{connections.map((connection, index) => (
+											<li key={`${connection.node.id}-${index}`} className="text-xs bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
+												<div className="flex items-center">
+													<span className="text-zinc-400 truncate">{connection.node.title}</span>
+												</div>
 											</li>
 										))}
 									</ul>
@@ -324,6 +352,13 @@ export default function SelectedNodeSidebar() {
 				)}
 				</div>
 			</ScrollArea>
+			<ResizeHandle
+				direction="right"
+				onResize={setLeftSidebarWidth}
+				initialWidth={leftSidebarWidth}
+				minWidth={200}
+				maxWidth={600}
+			/>
 		</div>
 	);
 }
