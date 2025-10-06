@@ -47,6 +47,25 @@ const isValidConnection = (connection: Connection | Edge) => {
   return true;
 };
 
+// Edge visual styles (moved outside component to avoid dependency warnings)
+const defaultEdgeStyle = {
+  stroke: '#92400e', // Dark brown for built edges
+  strokeWidth: 3,
+  opacity: 0.8,
+} as const;
+const selectedEdgeStyle = {
+  stroke: '#dc2626', // Bright red for selection
+  strokeWidth: 4,
+  opacity: 1,
+} as const;
+const unbuiltEdgeStyle = {
+  stroke: '#ea580c',  // Bright orange dashes for unbuilt
+  strokeWidth: 3,
+  strokeDasharray: '20,30',  // 20px dash, 30px gap
+  opacity: 0.9,
+  strokeLinecap: 'round' as const,
+} as const;
+
 // Custom node component
 const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
@@ -82,7 +101,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
     return (
       <>
         {before}
-        <span style={{ background: 'rgba(245,158,11,0.35)', borderRadius: '3px' }}>{match}</span>
+        <span style={{ background: 'rgba(239, 68, 68, 0.3)', borderRadius: '3px' }}>{match}</span>
         {after}
       </>
     );
@@ -137,28 +156,30 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 
   // Determine styling based on node state (built/unbuilt)
   const getNodeStyles = () => {
-    const borderWidth = isZoomedOut ? '3px' : '0px';
+    const borderWidth = isZoomedOut ? '6px' : '4px';
 
     switch (effectiveState) {
       case 'built':
       case 'unbuilt': // Unbuilt nodes look the same as built nodes visually
         return {
-          background: selected ? '#f8fafc' : '#ffffff',
-          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+          background: selected ? '#fef3c7' : '#fefce8', // Light yellow sticky note colors
+          border: selected ? `${borderWidth} solid #f59e0b` : `${borderWidth} solid #fbbf24`, // Orange border for selection
           boxShadow: selected
-            ? '0 0 0 2px #2563eb'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
+            ? '0 0 0 3px rgba(245, 158, 11, 0.3), 0 4px 12px rgba(245, 158, 11, 0.2)'
+            : '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)',
+          borderRadius: '12px',
+          borderTop: 'none', // Remove top border to look more like a sticky note
         };
 
       default: // Any other state - treat as unbuilt
         return {
-          background: selected ? '#f8fafc' : '#ffffff',
-          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+          background: selected ? '#fef3c7' : '#fefce8',
+          border: selected ? `${borderWidth} solid #f59e0b` : `${borderWidth} solid #fbbf24`,
           boxShadow: selected
-            ? '0 0 0 2px #2563eb'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
+            ? '0 0 0 3px rgba(245, 158, 11, 0.3), 0 4px 12px rgba(245, 158, 11, 0.2)'
+            : '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)',
+          borderRadius: '12px',
+          borderTop: 'none',
         };
     }
   };
@@ -208,19 +229,19 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           style={{
             fontSize: '16px',
             fontWeight: '600',
-            color: '#1f2937',
+            color: '#92400e', // Dark brown for contrast on yellow
             marginBottom: '12px',
             lineHeight: '1.4',
           }}
         >
           {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
         </div>
-        
+
         {/* Prompt preview - always show at all zoom levels */}
         <div
           style={{
             fontSize: '13px',
-            color: '#6b7280',
+            color: '#a16207', // Darker yellow-brown for readability
             marginBottom: '16px',
             lineHeight: '1.4',
             display: '-webkit-box',
@@ -237,8 +258,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       </div>
       
       {/* Bottom metadata section */}
-      <div style={{ 
-        borderTop: '1px solid #f3f4f6', 
+      <div style={{
+        borderTop: '1px solid #fbbf24',
         paddingTop: '12px',
         marginTop: '12px'
       }}>
@@ -249,7 +270,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             <div
               style={{
                 fontSize: '12px',
-                color: '#9ca3af',
+                color: '#92400e',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
@@ -261,13 +282,13 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
             </div>
           );
         })()}
-        
+
         {/* Properties count */}
         {node.properties && node.properties.length > 0 && (
           <div
             style={{
               fontSize: '12px',
-              color: '#9ca3af',
+              color: '#92400e',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
@@ -282,24 +303,24 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
       {/* Top */}
       <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#f59e0b', width: handleSize, height: handleSize, border: '2px solid #92400e', borderRadius: '50%', boxShadow: '0 2px 4px rgba(146, 64, 14, 0.3)' }} />
       <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '2px solid transparent', borderRadius: '50%' }} />
       {/* Right */}
       <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#f59e0b', width: handleSize, height: handleSize, border: '2px solid #92400e', borderRadius: '50%', boxShadow: '0 2px 4px rgba(146, 64, 14, 0.3)' }} />
       <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '2px solid transparent', borderRadius: '50%' }} />
       {/* Bottom */}
       <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#f59e0b', width: handleSize, height: handleSize, border: '2px solid #92400e', borderRadius: '50%', boxShadow: '0 2px 4px rgba(146, 64, 14, 0.3)' }} />
       <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '2px solid transparent', borderRadius: '50%' }} />
       {/* Left */}
       <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+        style={{ background: '#f59e0b', width: handleSize, height: handleSize, border: '2px solid #92400e', borderRadius: '50%', boxShadow: '0 2px 4px rgba(146, 64, 14, 0.3)' }} />
       <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '2px solid transparent', borderRadius: '50%' }} />
     </div>
   );
 }, (prevProps, nextProps) => {
@@ -375,24 +396,6 @@ function GraphCanvas() {
   const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
 
-  // Edge visual styles
-  const defaultEdgeStyle = {
-    stroke: '#9ca3af',
-    strokeWidth: 2,
-    opacity: 0.8,
-  } as const;
-  const selectedEdgeStyle = {
-    stroke: '#3b82f6',
-    strokeWidth: 4,
-    opacity: 1,
-  } as const;
-  const unbuiltEdgeStyle = {
-    stroke: '#ef4444',  // Red dashes
-    strokeWidth: 3,
-    strokeDasharray: '20,30',  // 20px red dash, 30px gap (longer dashes, fewer)
-    opacity: 0.9,
-    strokeLinecap: 'round' as const,
-  } as const;
 
   // Access React Flow instance for programmatic viewport control
   const reactFlow = useReactFlow();
@@ -902,6 +905,31 @@ function GraphCanvas() {
     }
   }, [setSelectedNode, setSelectedNodeIds]);
 
+  // Helper function to infer handles based on node positions
+  const inferHandles = useCallback((sourceId: string, targetId: string, nodes: Node[]) => {
+    const sourceNode = nodes.find(n => n.id === sourceId);
+    const targetNode = nodes.find(n => n.id === targetId);
+    if (!sourceNode || !targetNode) return { sourceHandle: undefined, targetHandle: undefined };
+
+    const sp = sourceNode.position;
+    const tp = targetNode.position;
+    const dx = tp.x - sp.x;
+    const dy = tp.y - sp.y;
+
+    let sourceHandle: string;
+    let targetHandle: string;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      sourceHandle = dx >= 0 ? 'right' : 'left';
+      targetHandle = dx >= 0 ? 'left' : 'right';
+    } else {
+      sourceHandle = dy >= 0 ? 'bottom' : 'top';
+      targetHandle = dy >= 0 ? 'top' : 'bottom';
+    }
+
+    return { sourceHandle, targetHandle };
+  }, []);
+
   // Ensure edge selection visually updates immediately when selection state changes
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => {
@@ -909,13 +937,17 @@ function GraphCanvas() {
       return updated.map((e) => {
         // Check if edge is unbuilt
         const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+        // Recalculate handles based on current node positions
+        const { sourceHandle, targetHandle } = inferHandles(e.source, e.target, nodes);
         return {
           ...e,
+          sourceHandle,
+          targetHandle,
           style: e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
         };
       });
     });
-  }, [setEdges, baseGraph]);
+  }, [setEdges, baseGraph, inferHandles, nodes]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -1459,6 +1491,7 @@ function GraphCanvas() {
       style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', position: 'relative' }}
     >
       <ReactFlow
+        style={{ background: '#fefce8' }}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -1484,7 +1517,7 @@ function GraphCanvas() {
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
         selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
-        colorMode="dark"
+        colorMode="light"
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
         elementsSelectable={true}
@@ -1506,12 +1539,13 @@ function GraphCanvas() {
               }
             }
 
-            if (nodeState === 'built') return '#9ca3af';
-            return '#fbbf24'; // unbuilt
+            if (nodeState === 'built') return '#fbbf24'; // Yellow for built nodes
+            return '#f59e0b'; // Orange for unbuilt
           }}
+          style={{ background: '#fefce8' }}
         />
         <Controls />
-        <Background color="#374151" gap={20} />
+        <Background color="#fefce8" gap={20} />
         <HelperLines />
       </ReactFlow>
 
@@ -1540,7 +1574,7 @@ function GraphCanvas() {
               </mask>
             </defs>
             {/* Overlay rectangle uses the mask so holes are transparent */}
-            <rect x="0" y="0" width="100%" height="100%" fill="rgba(255,255,255,0.55)" mask="url(#graph-focus-holes-mask)" />
+            <rect x="0" y="0" width="100%" height="100%" fill="rgba(255,255,255,0.7)" mask="url(#graph-focus-holes-mask)" />
           </svg>
         </div>
       )}
@@ -1562,8 +1596,8 @@ function GraphCanvas() {
           variant={currentTool === 'select' ? 'default' : 'outline'}
           size="sm"
           className={`${currentTool === 'select'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+            ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+            : 'bg-yellow-100 text-orange-700 border-yellow-300 hover:bg-yellow-200 hover:text-orange-800'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
           title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
@@ -1577,8 +1611,8 @@ function GraphCanvas() {
           variant={currentTool === 'pan' ? 'default' : 'outline'}
           size="sm"
           className={`${currentTool === 'pan'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+            ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+            : 'bg-yellow-100 text-orange-700 border-yellow-300 hover:bg-yellow-200 hover:text-orange-800'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
           title="Pan Tool - Click and drag to pan the view, right-click always pans"
@@ -1592,8 +1626,8 @@ function GraphCanvas() {
           variant={currentTool === 'add-node' ? 'default' : 'outline'}
           size="sm"
           className={`${currentTool === 'add-node'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+            ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+            : 'bg-yellow-100 text-orange-700 border-yellow-300 hover:bg-yellow-200 hover:text-orange-800'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
           title="Add Node Tool - Click anywhere on the canvas to create a new node"
@@ -1618,7 +1652,7 @@ function GraphCanvas() {
           disabled={isBuildingGraph || !graph}
           variant="outline"
           size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+          className={`bg-yellow-100 text-orange-700 border-yellow-300 hover:bg-yellow-200 hover:text-orange-800 ${
             isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
           }`}
           title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
@@ -1644,7 +1678,7 @@ function GraphCanvas() {
             }}
             variant="outline"
             size="sm"
-            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+            className="bg-yellow-100 text-orange-700 border-yellow-300 hover:bg-yellow-200 hover:text-orange-800"
             title="Open Layers Sidebar"
           >
             <LayersIcon className="w-4 h-4 mr-2" />
