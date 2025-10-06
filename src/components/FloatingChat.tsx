@@ -1034,7 +1034,7 @@ export default function FloatingChat() {
                     });
                   }
                 }}
-                placeholder="Ask AI... / for commands, @ for node"
+                placeholder="Ask AI..., @ for node"
                 disabled={false}
                 className="relative z-10 w-full resize-none text-xs field-sizing-content max-h-20 min-h-0 px-3 py-1.5 bg-transparent border-zinc-600 caret-white placeholder-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
               />
