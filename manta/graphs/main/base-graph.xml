@@ -1323,6 +1323,109 @@ Focus on code implementation based on node specifications. Always run linting on
       </prop>
       </props>
     </node>
+
+    <node id="graph-canvas-left-toolbar" title="Graph Canvas Left Toolbar" x="1727.4794866694112" y="327.33918868437416" z="0">
+      <description>A dedicated toolbar component that provides exactly 3 tool options for the Interactive Graph Canvas: Select Tool (for selecting nodes/edges and creating connections), Pan Tool (for panning the view), and Add Node Tool (for creating new nodes). Handles tool state management and user interaction controls.</description>
+      <metadata>
+        <file>{
+  &quot;files&quot;: [&quot;src/components/GraphView.tsx&quot;]
+}</file>
+      </metadata>
+      <props>
+        <prop name="toolbar-position" title="Toolbar Position" type="object">
+        <field name="side" title="Side" type="select">
+          <value>left</value>
+          <options>
+          <option>left</option>
+          <option>right</option>
+          <option>top</option>
+          <option>bottom</option>
+          </options>
+        </field>
+        <field name="verticalAlignment" title="Vertical Alignment" type="select">
+          <value>center</value>
+          <options>
+          <option>top</option>
+          <option>center</option>
+          <option>bottom</option>
+          </options>
+        </field>
+        <field name="offsetFromEdge" title="Offset From Edge" type="text">12px</field>
+      </prop>
+        <prop name="toolbar-tools" title="Available Tools" type="object-list">
+        <item index="0">
+          <field name="toolId" title="Tool ID" type="text">select</field>
+          <field name="name" title="Tool Name" type="text">Select Tool</field>
+          <field name="icon" title="Icon Name" type="select">
+          <value>SquareDashed</value>
+          <options>
+          <option>SquareDashed</option>
+          <option>Hand</option>
+          <option>StickyNote</option>
+          <option>Play</option>
+          <option>Settings</option>
+          <option>Layers</option>
+          </options>
+        </field>
+          <field name="description" title="Tool Description" type="text">Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items</field>
+          <field name="isDefault" title="Default Selected" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="toolId" title="Tool ID" type="text">pan</field>
+          <field name="name" title="Tool Name" type="text">Pan Tool</field>
+          <field name="icon" title="Icon Name" type="select">
+          <value>Hand</value>
+          <options>
+          <option>SquareDashed</option>
+          <option>Hand</option>
+          <option>StickyNote</option>
+          <option>Play</option>
+          <option>Settings</option>
+          <option>Layers</option>
+          </options>
+        </field>
+          <field name="description" title="Tool Description" type="text">Click and drag to pan the view, right-click always pans</field>
+          <field name="isDefault" title="Default Selected" type="boolean">false</field>
+        </item>
+        <item index="2">
+          <field name="toolId" title="Tool ID" type="text">add-node</field>
+          <field name="name" title="Tool Name" type="text">Add Node Tool</field>
+          <field name="icon" title="Icon Name" type="select">
+          <value>StickyNote</value>
+          <options>
+          <option>SquareDashed</option>
+          <option>Hand</option>
+          <option>StickyNote</option>
+          <option>Play</option>
+          <option>Settings</option>
+          <option>Layers</option>
+          </options>
+        </field>
+          <field name="description" title="Tool Description" type="text">Click anywhere on the canvas to create a new node</field>
+          <field name="isDefault" title="Default Selected" type="boolean">false</field>
+        </item>
+      </prop>
+        <prop name="button-styling" title="Button Styling" type="object">
+        <field name="size" title="Button Size" type="text">32px</field>
+        <field name="gap" title="Button Gap" type="text">8px</field>
+        <field name="activeColor" title="Active Button Color" type="color">#2563eb</field>
+        <field name="inactiveColor" title="Inactive Button Color" type="color">#3f3f46</field>
+        <field name="borderRadius" title="Border Radius" type="text">6px</field>
+      </prop>
+        <prop name="interaction-behavior" title="Interaction Behavior" type="object">
+        <field name="allowSingleSelection" title="Single Tool Selection" type="boolean">true</field>
+        <field name="persistToolState" title="Persist Tool State" type="boolean">true</field>
+        <field name="showTooltips" title="Show Tooltips" type="boolean">true</field>
+        <field name="tooltipDelay" title="Tooltip Delay" type="text">500ms</field>
+      </prop>
+        <prop name="canvas-integration" title="Canvas Integration" type="object">
+        <field name="affectsNodeSelection" title="Affects Node Selection" type="boolean">true</field>
+        <field name="affectsPanBehavior" title="Affects Pan Behavior" type="boolean">true</field>
+        <field name="affectsNodeCreation" title="Affects Node Creation" type="boolean">true</field>
+        <field name="zIndex" title="Z-Index Layer" type="number">1000</field>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
@@ -1351,5 +1454,6 @@ Focus on code implementation based on node specifications. Always run linting on
     <edge id="schema-validation-system-graph-service-layer" source="schema-validation-system" target="graph-service-layer" role="validates"/>
     <edge id="schema-validation-system-graph-tools-system" source="schema-validation-system" target="graph-tools-system" role="validates"/>
     <edge id="graph-api-endpoints-schema-validation-system" source="graph-api-endpoints" target="schema-validation-system" role="uses"/>
+    <edge id="graph-canvas-graph-canvas-left-toolbar" source="graph-canvas" target="graph-canvas-left-toolbar" role="links-to"/>
   </edges>
 </graph>

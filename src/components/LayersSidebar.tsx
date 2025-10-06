@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { Plus, Trash2, Layers as LayersIcon, X, Pencil, Copy } from 'lucide-react';
+import { Plus, Trash2, X, Pencil, Copy } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import ResizeHandle from './ResizeHandle';
 
 type Props = { open?: boolean; onClose?: () => void };
@@ -79,17 +80,20 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
       style={{ width: `${rightSidebarWidth}px` }}
     >
       <div className="px-3 py-2 border-b border-zinc-700 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-          <LayersIcon size={16} /> Layers
+        <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
+          Layers
         </div>
         <div className="flex items-center gap-2">
-          <button
-            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+          <Button
             onClick={() => onClose?.()}
+            variant="outline"
+            size="sm"
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
             title="Close"
+            style={{ width: '32px', height: '32px', padding: '0' }}
           >
-            <X size={14} />
-          </button>
+            <X className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -120,28 +124,37 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
                   {name}
                 </button>
               )}
-              <button
-                className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+              <Button
                 onClick={() => startEditing(name)}
+                variant="outline"
+                size="sm"
+                className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
                 title="Rename layer"
+                style={{ width: '32px', height: '32px', padding: '0' }}
               >
-                <Pencil size={14} />
-              </button>
-              <button
-                className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
                 onClick={() => cloneLayer(name, `${name}-copy`)}
+                variant="outline"
+                size="sm"
+                className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
                 title="Clone layer"
+                style={{ width: '32px', height: '32px', padding: '0' }}
               >
-                <Copy size={14} />
-              </button>
-              <button
-                className="text-xs px-2 py-1 rounded bg-red-600/80 hover:bg-red-600 disabled:opacity-50"
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button
                 onClick={() => deleteLayer(name)}
                 disabled={layers.length <= 1}
+                variant="outline"
+                size="sm"
+                className="bg-red-600/80 text-zinc-800 border-0 hover:bg-red-600 hover:text-white disabled:opacity-50"
                 title="Delete layer"
+                style={{ width: '32px', height: '32px', padding: '0' }}
               >
-                <Trash2 size={14} />
-              </button>
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
           );
         })}
@@ -155,13 +168,15 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
-          <button
-            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 disabled:opacity-50 flex items-center gap-1"
+          <Button
             onClick={doCreate}
             disabled={creating || graphLoading}
+            variant="outline"
+            size="sm"
+            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 disabled:opacity-50 flex items-center gap-1"
           >
-            <Plus size={14} /> New
-          </button>
+            <Plus className="w-4 h-4" /> New
+          </Button>
         </div>
       </div>
       <ResizeHandle
