@@ -248,7 +248,7 @@ export default function SelectedNodeSidebar() {
 				</div>
 			)}
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
-				<div className="space-y-3 pr-2 pb-8">
+				<div className="space-y-3 pr-2 pb-8 min-w-0 overflow-hidden">
 				{/* Multi-select summary */}
 				{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
 					<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
@@ -353,7 +353,7 @@ export default function SelectedNodeSidebar() {
 							);
 						})()}
 
-						<div className="border-t border-zinc-700/30 pt-3">
+						<div className="border-t border-zinc-700/30 pt-3 min-w-0 overflow-hidden">
 							<div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
 								<StickyNote className="w-3 h-3 text-zinc-400" />
 								<span>Implementation Files</span>
@@ -364,8 +364,17 @@ export default function SelectedNodeSidebar() {
 										<li
 											key={file}
 											title={file}
-											className="text-[11px] text-zinc-200 truncate font-mono overflow-hidden"
-											style={{ maxWidth: '100%' }}
+											className="relative"
+											style={{
+												display: 'block',
+												maxWidth: `${leftSidebarWidth - 40}px`,
+												overflow: 'hidden',
+												textOverflow: 'ellipsis',
+												whiteSpace: 'nowrap',
+												fontSize: '11px',
+												color: 'rgb(228 228 231)',
+												fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata, "Roboto Mono", "Source Code Pro", monospace'
+											}}
 										>
 											{file}
 										</li>
