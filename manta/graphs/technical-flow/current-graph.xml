@@ -2,7 +2,9 @@
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
     <node id="app-initialization" title="Application Initialization" x="100" y="100" z="0">
-      <description>Initialize the Next.js application with fonts, metadata, and core layout setup</description>
+      <description>Initialize the Next.js application with fonts, metadata, and core layout setup
+
+asdasd</description>
       <metadata>
         <file>src/app/layout.tsx</file>
         <file>src/app/page.tsx</file>

@@ -248,7 +248,7 @@ export default function SelectedNodeSidebar() {
 				</div>
 			)}
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
-				<div className="space-y-3 pr-2">
+				<div className="space-y-3 pr-2 pb-8">
 				{/* Multi-select summary */}
 				{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
 					<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
