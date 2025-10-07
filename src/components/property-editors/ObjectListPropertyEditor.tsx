@@ -6,7 +6,6 @@ import { Property } from '@/app/api/lib/schemas';
 import PropertyEditor from './index';
 import { Button } from '@/components/ui/button';
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, XIcon, Move } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 
 interface ObjectListPropertyEditorProps {
   property: Property & { type: 'object-list'; itemFields?: Property[]; itemTitle?: string; addLabel?: string };
@@ -211,11 +210,8 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
     >
       <div className="space-y-2" ref={containerRef}>
         {items?.length ? items.map((item, idx) => (
-          <motion.div
+          <div
             key={itemKeys[idx] ?? `fallback_${idx}`}
-            layout
-            transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.6 }}
-            animate={draggedIndex === idx ? { scale: 0.98, opacity: 0.85 } : { scale: 1, opacity: 1 }}
             className={`rounded border border-zinc-700 bg-zinc-800 ${dragOverIndex === idx ? 'ring-1 ring-ring/40' : ''}`}
             onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
               e.preventDefault();
@@ -263,22 +259,14 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
             >
               {/* Drop-between indicator bars */}
               {dragOverIndex === idx && dragOverPosition === 'before' && (
-                <motion.div
+                <div
                   data-drop-indicator
-                  initial={{ scaleX: 0, opacity: 0.8 }}
-                  animate={{ scaleX: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                  style={{ transformOrigin: 'left' }}
                   className="absolute -top-0.5 left-0 right-0 h-1 bg-primary shadow-[0_0_12px_rgba(59,130,246,0.45)]"
                 />
               )}
               {dragOverIndex === idx && dragOverPosition === 'after' && (
-                <motion.div
+                <div
                   data-drop-indicator
-                  initial={{ scaleX: 0, opacity: 0.8 }}
-                  animate={{ scaleX: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                  style={{ transformOrigin: 'left' }}
                   className="absolute -bottom-0.5 left-0 right-0 h-1 bg-primary shadow-[0_0_12px_rgba(59,130,246,0.45)]"
                 />
               )}
@@ -334,30 +322,21 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
                 </Button>
               </div>
             </div>
-            <AnimatePresence initial={false}>
-              {open[idx] && (
-                <motion.div
-                  key="content"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 36 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-2 space-y-1.5">
-                    {fields.map((f: Property, i: number) => (
-                      <div key={f.id || i} className={i < fields.length - 1 ? 'border-b border-zinc-700/20 pb-1.5' : ''}>
-                        <PropertyEditor
-                          property={{ ...f, value: item[f.id] ?? f.value } as Property}
-                          onChange={(pid, v) => updateItemField(idx, pid, v)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+            {open[idx] && (
+              <div className="overflow-hidden">
+                <div className="p-2 space-y-1.5">
+                  {fields.map((f: Property, i: number) => (
+                    <div key={f.id || i} className={i < fields.length - 1 ? 'border-b border-zinc-700/20 pb-1.5' : ''}>
+                      <PropertyEditor
+                        property={{ ...f, value: item[f.id] ?? f.value } as Property}
+                        onChange={(pid, v) => updateItemField(idx, pid, v)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )) : (
           <div className="text-xs text-zinc-500">No items yet.</div>
         )}
@@ -395,12 +374,8 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
             }}
           >
             {dragOverIndex === items.length && (
-              <motion.div
+              <div
                 data-drop-indicator
-                initial={{ scaleX: 0, opacity: 0.8 }}
-                animate={{ scaleX: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                style={{ transformOrigin: 'left' }}
                 className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 bg-primary shadow-[0_0_12px_rgba(59,130,246,0.45)]"
               />
             )}

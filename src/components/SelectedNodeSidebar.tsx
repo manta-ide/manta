@@ -364,7 +364,8 @@ export default function SelectedNodeSidebar() {
 										<li
 											key={file}
 											title={file}
-											className="text-[11px] text-zinc-200 truncate font-mono"
+											className="text-[11px] text-zinc-200 truncate font-mono overflow-hidden"
+											style={{ maxWidth: '100%' }}
 										>
 											{file}
 										</li>
