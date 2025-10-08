@@ -6,7 +6,6 @@ import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import ResizeHandle from './ResizeHandle';
 import { Property } from '@/app/api/lib/schemas';
-import { StickyNote } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -145,8 +144,7 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNodeId]);
 
-
-  // Sidebar should always render; handle empty and multi-select states below
+	// Sidebar should always render; handle empty and multi-select states below
 
 	const handlePropertyChange = useCallback((propertyId: string, value: any) => {
 		// Update local state immediately for responsive UI
@@ -163,7 +161,6 @@ export default function SelectedNodeSidebar() {
 			await updateProperty(selectedNodeId, propertyId, value);
 		}
 	}, [selectedNodeId, updateProperty]);
-
 
 	// Debounced update functions for title and description
 	const debouncedUpdateTitle = useCallback((newTitle: string) => {
@@ -213,6 +210,7 @@ export default function SelectedNodeSidebar() {
 			}
 		}, DESCRIPTION_DEBOUNCE_DELAY);
 	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
+
 
 	return (
 		<div
@@ -355,7 +353,6 @@ export default function SelectedNodeSidebar() {
 
 						<div className="border-t border-zinc-700/30 pt-3 min-w-0 overflow-hidden">
 							<div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
-								<StickyNote className="w-3 h-3 text-zinc-400" />
 								<span>Implementation Files</span>
 							</div>
 							{metadataFiles.length > 0 ? (
@@ -400,3 +397,4 @@ export default function SelectedNodeSidebar() {
 		</div>
 	);
 }
+

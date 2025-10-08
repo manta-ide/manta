@@ -35,7 +35,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2 } from 'lucide-react';
+import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, Plus } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -220,6 +220,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
+
       {/* Shape background for circle/triangle so content isn't clipped */}
       {isDecorativeShape && (
         <div
@@ -318,6 +319,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           paddingTop: '12px',
           marginTop: '12px'
         }}>
+
           {/* Connections count */}
           {(() => {
             const connections = getNodeConnections(node.id);
@@ -415,6 +417,8 @@ function GraphCanvas() {
   );
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
+
+
   const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
@@ -450,6 +454,8 @@ function GraphCanvas() {
     searchActiveIndex,
     searchOpen,
   } = useProjectStore();
+
+
   const { suppressSSE } = useProjectStore.getState();
   const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
@@ -641,6 +647,7 @@ function GraphCanvas() {
       id: newNodeId,
       title: 'New Node',
       prompt: '',
+      comment: '',
       shape: 'rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
@@ -1181,7 +1188,7 @@ function GraphCanvas() {
                   node: graphNode,
                   properties: graphNode.properties || [],
                   baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
-                  graph: graph,
+                  graph: graph
                 }
               };
             }
@@ -1852,7 +1859,7 @@ function GraphCanvas() {
           style={{ width: '32px', height: '32px', padding: '0' }}
           title="Add Node Tool - Click anywhere on the canvas to create a new node"
         >
-          <StickyNote className="w-4 h-4" />
+          <Plus className="w-4 h-4" />
         </Button>
       </div>
 

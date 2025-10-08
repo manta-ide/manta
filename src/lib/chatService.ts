@@ -18,6 +18,13 @@ import {
  * Custom React hook for managing chat functionality
  * Handles message sending and basic state management
  */
+interface SendMessageOptions {
+  includeFile?: boolean;
+  includeSelection?: boolean;
+  includeNodes?: boolean;
+  displayContent?: string;
+}
+
 export function useChatService() {
   const { currentFile, selection, setSelection, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
   
@@ -72,15 +79,18 @@ useEffect(() => {
     }
   }, []);
 
-  const sendMessage = useCallback(async (input: string, contextFlags?: { includeFile?: boolean, includeSelection?: boolean, includeNodes?: boolean }) => {
+  const sendMessage = useCallback(async (input: string, options?: SendMessageOptions) => {
     console.log('🚀 Chat Service: sendMessage called with input:', input.slice(0, 100) + (input.length > 100 ? '...' : ''));
 
-    if (!input.trim()) return;
+    const agentContent = input;
+    const displayContent = options?.displayContent ?? agentContent;
+
+    if (!agentContent.trim()) return;
 
     // Use context flags if provided, otherwise include everything
-    const shouldIncludeFile = contextFlags?.includeFile !== false;
-    const shouldIncludeSelection = contextFlags?.includeSelection !== false;
-    const shouldIncludeNodes = contextFlags?.includeNodes !== false;
+    const shouldIncludeFile = options?.includeFile !== false;
+    const shouldIncludeSelection = options?.includeSelection !== false;
+    const shouldIncludeNodes = options?.includeNodes !== false;
 
     // Only use selection if it's valid and should be included
     const validSelection = (shouldIncludeSelection && isValidSelection(selection)) ? selection : null;
@@ -103,9 +113,9 @@ useEffect(() => {
     const userMessage: Message = { 
       role: 'user',
       variables: {
-        USER_REQUEST: input
+        USER_REQUEST: agentContent
       },
-      content: input,
+      content: displayContent,
       messageContext
     };
 
@@ -142,6 +152,12 @@ useEffect(() => {
     }
 
     // Add user message to UI and save to database
+    const agentUserMessage: Message = {
+      ...userMessage,
+      content: agentContent
+    };
+
+    // Add user message to UI and save to database
     const newMessagesWithUser = [...messages, userMessage];
     setMessages(newMessagesWithUser);
     await saveChatHistory(newMessagesWithUser);
@@ -168,7 +184,7 @@ useEffect(() => {
     const response = await fetch('/api/agent-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userMessage }),
+      body: JSON.stringify({ userMessage: agentUserMessage }),
     });
 
     console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));

@@ -89,6 +89,7 @@ export function nodesAreDifferent(node1: any, node2: any): boolean {
     return true;
   }
 
+
   // Compare properties
   const props1 = Array.isArray(node1.properties) ? node1.properties : [];
   const props2 = Array.isArray(node2.properties) ? node2.properties : [];
