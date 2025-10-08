@@ -6,7 +6,6 @@ import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import ResizeHandle from './ResizeHandle';
 import { Property } from '@/app/api/lib/schemas';
-import { StickyNote } from 'lucide-react';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,8 +30,6 @@ export default function SelectedNodeSidebar() {
 	} = useProjectStore();
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
-	const [commentDraft, setCommentDraft] = useState<string>('');
-	const [commentError, setCommentError] = useState<string | null>(null);
 	const [titleDraft, setTitleDraft] = useState<string>('');
   const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle'>('rectangle');
 	// Building state is tracked locally since node.state was removed
@@ -77,10 +74,8 @@ export default function SelectedNodeSidebar() {
 	const [rebuildSuccess, setRebuildSuccess] = useState(false);
 	const titleDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const descriptionDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const commentDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const TITLE_DEBOUNCE_DELAY = 300; // Wait 300ms after last change before saving title
 	const DESCRIPTION_DEBOUNCE_DELAY = 500; // Wait 500ms after last change before saving description
-	const COMMENT_DEBOUNCE_DELAY = 500;
 
     const handlePropertyPreview = useCallback((propertyId: string, value: any) => {
         // Lightweight preview: update local state and in-memory graph without saving
@@ -95,12 +90,10 @@ export default function SelectedNodeSidebar() {
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change
 		setPromptDraft(selectedNode?.prompt ?? '');
-		setCommentDraft(selectedNode?.comment ?? '');
 		setTitleDraft(selectedNode?.title ?? '');
 		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
 		setRebuildError(null);
 		setRebuildSuccess(false);
-		setCommentError(null);
 		
 		// Initialize property values from current properties
 		if (selectedNode?.properties && selectedNode.properties.length > 0) {
@@ -110,7 +103,7 @@ export default function SelectedNodeSidebar() {
 			}
 			setPropertyValues(initialValues);
 		}
-	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.comment, selectedNode?.properties]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
 
   const handleShapeChange = useCallback((newShape: 'rectangle') => {
     setShapeDraft(newShape);
@@ -136,9 +129,6 @@ export default function SelectedNodeSidebar() {
 			if (descriptionDebounceTimeoutRef.current) {
 				clearTimeout(descriptionDebounceTimeoutRef.current);
 			}
-			if (commentDebounceTimeoutRef.current) {
-				clearTimeout(commentDebounceTimeoutRef.current);
-			}
 		};
 	}, []);
 
@@ -151,10 +141,6 @@ export default function SelectedNodeSidebar() {
 		if (descriptionDebounceTimeoutRef.current) {
 			clearTimeout(descriptionDebounceTimeoutRef.current);
 			descriptionDebounceTimeoutRef.current = null;
-		}
-		if (commentDebounceTimeoutRef.current) {
-			clearTimeout(commentDebounceTimeoutRef.current);
-			commentDebounceTimeoutRef.current = null;
 		}
 	}, [selectedNodeId]);
 
@@ -225,28 +211,6 @@ export default function SelectedNodeSidebar() {
 		}, DESCRIPTION_DEBOUNCE_DELAY);
 	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
-	const debouncedUpdateComment = useCallback((newComment: string) => {
-		if (commentDebounceTimeoutRef.current) {
-			clearTimeout(commentDebounceTimeoutRef.current);
-		}
-
-		commentDebounceTimeoutRef.current = setTimeout(() => {
-			const previousComment = selectedNode?.comment ?? '';
-			if (selectedNode && newComment !== previousComment) {
-				setCommentError(null);
-				const updatedNode = { ...selectedNode, comment: newComment };
-				setSelectedNode(selectedNodeId, updatedNode);
-
-				if (selectedNodeId) {
-					updateNode(selectedNodeId, { comment: newComment }).catch((error) => {
-						console.error('Failed to save comment:', error);
-						setCommentError('Failed to save comment');
-						setTimeout(() => setCommentError(null), 3000);
-					});
-				}
-			}
-		}, COMMENT_DEBOUNCE_DELAY);
-	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 	return (
 		<div
@@ -349,24 +313,6 @@ export default function SelectedNodeSidebar() {
 								)}
 							</div>
 						</div>
-					<div className="border-t border-zinc-700/30 pt-3">
-						<div className="text-xs font-medium text-zinc-300 mb-2">Comment</div>
-						<Textarea
-							className="w-full h-20 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
-							value={commentDraft}
-							onChange={(e) => {
-								const newValue = e.target.value;
-								setCommentDraft(newValue);
-								debouncedUpdateComment(newValue);
-							}}
-							placeholder="Add a comment..."
-						/>
-						{commentError && (
-							<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
-								{commentError}
-							</div>
-						)}
-					</div>
 
 						{selectedNode.properties && selectedNode.properties.length > 0 && (
 							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
@@ -407,7 +353,6 @@ export default function SelectedNodeSidebar() {
 
 						<div className="border-t border-zinc-700/30 pt-3 min-w-0 overflow-hidden">
 							<div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
-								<StickyNote className="w-3 h-3 text-zinc-400" />
 								<span>Implementation Files</span>
 							</div>
 							{metadataFiles.length > 0 ? (
