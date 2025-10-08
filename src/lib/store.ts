@@ -498,25 +498,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       console.log('🔄 Loading both current and base graphs...');
       set({ graphLoading: true, graphError: null });
 
-      // Ensure partial template files are present
-      console.log('🔍 Ensuring partial template files are present...');
-      try {
-        const ensureRes = await fetch('/api/templates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ensurePartial: true })
-        });
-
-        if (ensureRes.ok) {
-          const result = await ensureRes.json();
-          console.log('✅ Partial template check completed:', result.message);
-        } else {
-          console.warn('⚠️ Failed to ensure partial template files');
-        }
-      } catch (error) {
-        console.warn('⚠️ Error ensuring partial template files:', error);
-      }
-
       // Load both graphs in parallel
       const [currentRes, baseRes] = await Promise.all([
         fetch('/api/graph-api?type=current', { method: 'GET', headers: { Accept: 'application/xml' } }),

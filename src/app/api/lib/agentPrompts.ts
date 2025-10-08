@@ -8,7 +8,7 @@
 /**
  * Code builder agent prompt
  */
-const CODE_BUILDER_PROMPT = 
+export const CODE_BUILDER_PROMPT = 
 `---
 name: code-builder
 description: Code builder agent specialized for web development projects. Use for implementing specific graph nodes assigned by the orchestrator. Focuses on generating code based on node specifications. Works on one node at a time as directed.
@@ -43,7 +43,7 @@ Always return in which files was the code implemented.
 /**
  * Graph editor agent prompt
  */
-const GRAPH_EDITOR_PROMPT = 
+export const GRAPH_EDITOR_PROMPT = 
 `---
 name: graph-editor
 description: Graph structure editor with code analysis for web development projects. Use when users want to create, edit, delete, or modify the structure of graph nodes and edges, including properties. Can analyze existing code to create appropriate nodes and properties. Supports both indexing (with properties) and pure graph editing modes.
@@ -120,6 +120,24 @@ The properties will be read by a smart AI agent for implementation, so they shou
 `;
 
 /**
+ * Agent configurations for Claude Code
+ */
+export const AGENTS_CONFIG = {
+  'code-builder': {
+    description: 'Code builder agent specialized for web development projects. Use for implementing specific graph nodes assigned by the orchestrator. Focuses on generating code based on node specifications. Works on one node at a time as directed.',
+    prompt: CODE_BUILDER_PROMPT,
+    tools: ['mcp__graph-tools__read', 'Read', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell'],
+    model: 'sonnet'
+  },
+  'graph-editor': {
+    description: 'Graph structure editor with code analysis for web development projects. Use when users want to create, edit, delete, or modify the structure of graph nodes and edges, including properties. Can analyze existing code to create appropriate nodes and properties. Supports both indexing (with properties) and pure graph editing modes.',
+    prompt: GRAPH_EDITOR_PROMPT,
+    tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'Read', 'Glob', 'Grep'],
+    model: 'sonnet'
+  }
+};
+
+/**
  * Orchestrator system prompt
  */
 export const orchestratorSystemPrompt = `
@@ -177,19 +195,5 @@ ORCHESTRATOR RESPONSIBILITIES:
 - Use sync_to_base_graph() with specific node/edge IDs only for build flows (not indexing)
 - Provide high-level guidance and summarize results (1 paragraph maximum)
 - NEVER do property wiring - handled by graph-editor
-- Always set the node metadata based on indexing or build, to see in which files are the nodes implemented. 
+- Always set the node metadata based on indexing or build, to see in which files are the nodes implemented.
 `;
-
-/**
- * Generates a code builder agent prompt based on project analysis
- */
-export function generateCodeBuilderAgent(analysis: any): string {
-  return CODE_BUILDER_PROMPT;
-}
-
-/**
- * Generates a graph editor agent prompt based on project analysis
- */
-export function generateGraphEditorAgent(analysis: any): string {
-  return GRAPH_EDITOR_PROMPT;
-}

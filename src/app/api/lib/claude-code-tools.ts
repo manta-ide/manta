@@ -1,4 +1,4 @@
-import { tool } from '@anthropic-ai/claude-code';
+import { tool } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
 import { z } from 'zod';
 import { GraphSchema, PropertySchema, NodeMetadataSchema } from './schemas';
