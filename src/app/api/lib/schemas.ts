@@ -287,35 +287,15 @@ export const McpServerConfigSchema = z.object({
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 
 // Claude Code request schemas
-export const ClaudeCodeOptionsSchema = z.object({
-  abortController: z.any().optional(), // AbortController can't be validated after JSON serialization
-  additionalDirectories: z.array(z.string()).optional(),
-  allowedTools: z.array(z.string()).optional(),
-  appendSystemPrompt: z.string().optional(),
-  canUseTool: z.any().optional(), // Function type, can't validate easily
-  continue: z.boolean().optional(),
-  customSystemPrompt: z.string().optional(),
-  cwd: z.string().optional(),
-  disallowedTools: z.array(z.string()).optional(),
-  env: z.record(z.string()).optional(),
-  executable: z.enum(['bun', 'deno', 'node']).optional(),
-  executableArgs: z.array(z.string()).optional(),
-  extraArgs: z.record(z.string()).optional(),
-  fallbackModel: z.string().optional(),
-  hooks: z.any().optional(), // Complex nested object with function types
-  includePartialMessages: z.boolean().optional(),
-  maxThinkingTokens: z.number().optional(),
-  maxTurns: z.number().optional(),
-  mcpServers: z.record(McpServerConfigSchema).optional(), // Serializable MCP server configs
-  model: z.string().optional(),
-  pathToClaudeCodeExecutable: z.string().optional(),
-  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional(),
-  permissionPromptToolName: z.string().optional(),
-  resume: z.string().optional(),
-  stderr: z.any().optional(), // Function type
-  strictMcpConfig: z.boolean().optional(),
-  // Control server-side verbosity for Claude Code execution logs
-  verbose: z.boolean().optional(),
+// Import Options type from Claude SDK and use it directly
+import type { Options } from '@anthropic-ai/claude-agent-sdk';
+
+// Create a schema that uses the Claude SDK Options type
+export const ClaudeCodeOptionsSchema = z.custom<Options>((val) => {
+  // Basic validation that it's an object
+  return typeof val === 'object' && val !== null;
+}, {
+  message: "Invalid Claude Code options"
 });
 
 export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;

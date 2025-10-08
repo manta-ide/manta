@@ -12,9 +12,18 @@ async function getSessionFromRequest(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    // Ensure default layer exists before any graph operations
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    ensureLayersRoot();
+    const info = getLayersInfo();
+    if (info.layers.length === 0) {
+      const name = createLayer('graph1');
+      setActiveLayer(name);
+    }
+
     // Get current user session for all GET requests
     const session = await getSessionFromRequest(req);
-    
+
     const user = session?.user || { id: 'default-user' };
     
     // Check if this is an SSE request
@@ -309,9 +318,18 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    // Ensure default layer exists before any graph operations
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    ensureLayersRoot();
+    const info = getLayersInfo();
+    if (info.layers.length === 0) {
+      const name = createLayer('graph1');
+      setActiveLayer(name);
+    }
+
     // Get current user session
     const session = await getSessionFromRequest(req);
-    
+
     const user = session?.user || { id: 'default-user' };
     
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
@@ -359,9 +377,18 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    // Ensure default layer exists before any graph operations
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    ensureLayersRoot();
+    const info = getLayersInfo();
+    if (info.layers.length === 0) {
+      const name = createLayer('graph1');
+      setActiveLayer(name);
+    }
+
     // Get current user session
     const session = await getSessionFromRequest(req);
-    
+
     const user = { id: 'default-user' };
     
     const body = await req.json();
@@ -431,8 +458,17 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    // Ensure default layer exists before any graph operations
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    ensureLayersRoot();
+    const info = getLayersInfo();
+    if (info.layers.length === 0) {
+      const name = createLayer('graph1');
+      setActiveLayer(name);
+    }
+
     console.log('🗑️ Deleting graph...', req.body);
-    
+
     // Import the clearGraphSession function
     const { clearGraphSession } = await import('../lib/graph-service');
     

@@ -2,11 +2,11 @@ import { NextRequest } from 'next/server';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-code';
+import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
-import { orchestratorSystemPrompt } from '@/app/api/lib/agentPrompts';
+import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
 
 // Type definitions for Claude Code installations
 interface ClaudeInstallation {
@@ -447,7 +447,7 @@ export async function POST(req: NextRequest) {
 
     const envVerbose = String(process.env.VERBOSE_CLAUDE_LOGS || '').toLowerCase();
     const defaultVerbose = envVerbose === '1' || envVerbose === 'true' || envVerbose === 'yes' || envVerbose === 'on';
-    const verbose = options?.verbose ?? defaultVerbose;
+    const verbose = true;
     const logHeader = (title: string) => { if (!verbose) return; console.log(`\n====== ${title} ======`); };
     const logLine = (prefix: string, message?: any) => { if (!verbose) return; console.log(prefix, message ?? ''); };
 
@@ -473,8 +473,7 @@ export async function POST(req: NextRequest) {
 
         try {
           // Sync env-controlled verbosity with request options for discovery logs
-          if (options?.verbose === true) process.env.VERBOSE_CLAUDE_LOGS = '1';
-          if (options?.verbose === false) process.env.VERBOSE_CLAUDE_LOGS = '0';
+          process.env.VERBOSE_CLAUDE_LOGS = '1';
 
           // Find the best Claude Code installation
           const cliPath = findClaudeBinary();
@@ -518,6 +517,7 @@ export async function POST(req: NextRequest) {
             strictMcpConfig: true,
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
+            agents: AGENTS_CONFIG
           } as any;
 
           let messageCount = 0;

@@ -4,7 +4,7 @@ import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
-import { activeLayerDir, getActiveLayer, getActiveLayerGraphPaths, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo } from '@/lib/layers';
+import { activeLayerDir, getActiveLayer, getActiveLayerGraphPaths, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo, createLayer } from '@/lib/layers';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
@@ -54,7 +54,20 @@ function getProjectDir(): string {
 }
 function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
+
+function ensureDefaultLayer(): void {
+  // Check if any layers exist, if not create a default one
+  const info = getLayersInfo();
+  if (info.layers.length === 0) {
+    const name = createLayer('graph1');
+    persistActiveLayer(name);
+  }
+}
+
 function getCurrentGraphPath(): string {
+  // Ensure a default layer exists
+  ensureDefaultLayer();
+
   // Prefer active layer if configured
   try {
     const paths = getActiveLayerGraphPaths();
@@ -65,6 +78,9 @@ function getCurrentGraphPath(): string {
   return path.join(getGraphDir(), 'current-graph.xml');
 }
 function getBaseGraphPath(): string {
+  // Ensure a default layer exists
+  ensureDefaultLayer();
+
   // Prefer active layer if configured
   try {
     const paths = getActiveLayerGraphPaths();
