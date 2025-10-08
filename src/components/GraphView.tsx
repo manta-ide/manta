@@ -35,7 +35,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2 } from 'lucide-react';
+import { Play, Settings, StickyNote, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, X } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -52,6 +52,22 @@ const isValidConnection = (connection: Connection | Edge) => {
 const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
+  const commentText = typeof node.comment === 'string' ? node.comment.trim() : '';
+  const hiddenCommentIds: string[] = Array.isArray(data.hiddenCommentNodeIds) ? data.hiddenCommentNodeIds : [];
+  const isCommentHidden = commentText.length > 0 && hiddenCommentIds.includes(node.id);
+  const commentVisible = commentText.length > 0 && !isCommentHidden;
+  const handleHideComment = (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    if (typeof data.onHideComment === 'function') {
+      data.onHideComment(node.id);
+    }
+  };
+  const handleShowComment = (event: ReactMouseEvent) => {
+    event.stopPropagation();
+    if (typeof data.onShowComment === 'function') {
+      data.onShowComment(node.id);
+    }
+  };
   const { zoom } = useViewport();
   const {
     searchResults,
@@ -220,6 +236,99 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         justifyContent: 'space-between',
       }}
     >
+      {commentText.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '-42px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 5
+          }}
+        >
+          {commentVisible ? (
+            <div
+              style={{
+                pointerEvents: 'auto',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                maxWidth: '220px',
+                background: 'rgba(17, 24, 39, 0.92)',
+                color: '#f9fafb',
+                borderRadius: '12px',
+                padding: '6px 10px',
+                boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)',
+                border: '1px solid rgba(148, 163, 184, 0.25)',
+                backdropFilter: 'blur(6px)'
+              }}
+            >
+              <StickyNote size={12} color="#facc15" />
+              <div style={{ flex: 1, fontSize: '12px', lineHeight: '1.35', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{commentText}</div>
+              <button
+                type="button"
+                onClick={handleHideComment}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  background: 'rgba(148, 163, 184, 0.25)',
+                  color: '#e2e8f0',
+                  cursor: 'pointer'
+                }}
+                aria-label="Hide comment"
+              >
+                <X size={12} />
+              </button>
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-6px',
+                  left: '50%',
+                  transform: 'translateX(-50%) rotate(45deg)',
+                  width: '12px',
+                  height: '12px',
+                  background: 'rgba(17, 24, 39, 0.92)',
+                  borderLeft: '1px solid rgba(148, 163, 184, 0.25)',
+                  borderBottom: '1px solid rgba(148, 163, 184, 0.25)',
+                  pointerEvents: 'none'
+                }}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleShowComment}
+              aria-label="Show comment"
+              style={{
+                pointerEvents: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(30, 41, 59, 0.9)',
+                color: '#f8fafc',
+                borderRadius: '9999px',
+                padding: '4px 10px',
+                border: '1px solid rgba(148, 163, 184, 0.35)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 500
+              }}
+            >
+              <StickyNote size={12} color="#facc15" /> Show comment
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Shape background for circle/triangle so content isn't clipped */}
       {isDecorativeShape && (
         <div
@@ -318,6 +427,35 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           paddingTop: '12px',
           marginTop: '12px'
         }}>
+          {/* Comment preview */}
+          {commentVisible && (
+            <div
+              style={{
+                fontSize: '12px',
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+              }}
+              title={commentText}
+            >
+              <StickyNote size={12} color="#facc15" />
+              <span
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {commentText}
+              </span>
+            </div>
+          )}
+
           {/* Connections count */}
           {(() => {
             const connections = getNodeConnections(node.id);
@@ -385,6 +523,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
          prevProps.data?.node?.id === nextProps.data?.node?.id &&
          prevProps.data?.node?.title === nextProps.data?.node?.title &&
          prevProps.data?.node?.prompt === nextProps.data?.node?.prompt &&
+         prevProps.data?.node?.comment === nextProps.data?.node?.comment &&
          prevProps.data?.node?.shape === nextProps.data?.node?.shape &&
          prevProps.data?.node?.state === nextProps.data?.node?.state &&
          JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties) &&
@@ -394,6 +533,7 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 
 function GraphCanvas() {
   const [nodes, setNodes] = useNodesState<Node>([]);
+  const [hiddenCommentNodeIds, setHiddenCommentNodeIds] = useState<string[]>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
@@ -415,6 +555,28 @@ function GraphCanvas() {
   );
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
+  const hideCommentForNode = useCallback((nodeId: string) => {
+    setHiddenCommentNodeIds((prev) => (prev.includes(nodeId) ? prev : [...prev, nodeId]));
+  }, []);
+
+  const showCommentForNode = useCallback((nodeId: string) => {
+    setHiddenCommentNodeIds((prev) => prev.filter((id) => id !== nodeId));
+  }, []);
+
+  useEffect(() => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          hiddenCommentNodeIds,
+          onHideComment: hideCommentForNode,
+          onShowComment: showCommentForNode
+        }
+      }))
+    );
+  }, [hiddenCommentNodeIds, hideCommentForNode, showCommentForNode, setNodes]);
+
   const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
@@ -450,6 +612,20 @@ function GraphCanvas() {
     searchActiveIndex,
     searchOpen,
   } = useProjectStore();
+
+  useEffect(() => {
+    if (!graph?.nodes) return;
+    setHiddenCommentNodeIds((prev) => {
+      const validIds = new Set(
+        graph.nodes
+          .filter((n: any) => typeof n.comment === 'string' && n.comment.trim().length > 0)
+          .map((n) => n.id)
+      );
+      const next = prev.filter((id) => validIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [graph]);
+
   const { suppressSSE } = useProjectStore.getState();
   const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
@@ -641,6 +817,7 @@ function GraphCanvas() {
       id: newNodeId,
       title: 'New Node',
       prompt: '',
+      comment: '',
       shape: 'rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
@@ -669,7 +846,10 @@ function GraphCanvas() {
           node: newNode,
           properties: newNode.properties,
           baseGraph: baseGraph,
-          graph: graph
+          graph: graph,
+          hiddenCommentNodeIds,
+          onHideComment: hideCommentForNode,
+          onShowComment: showCommentForNode
         },
         type: 'custom',
         selected: true, // Node is already selected
@@ -1182,6 +1362,9 @@ function GraphCanvas() {
                   properties: graphNode.properties || [],
                   baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
                   graph: graph,
+                  hiddenCommentNodeIds,
+                  onHideComment: hideCommentForNode,
+                  onShowComment: showCommentForNode
                 }
               };
             }
@@ -1296,7 +1479,10 @@ function GraphCanvas() {
             node: node,
             properties: node.properties || [],
             baseGraph: baseGraph,
-            graph: graph
+            graph: graph,
+            hiddenCommentNodeIds,
+            onHideComment: hideCommentForNode,
+            onShowComment: showCommentForNode
           },
           type: 'custom',
           selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
@@ -1392,7 +1578,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
+  }, [graphsLoaded, graph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, hiddenCommentNodeIds]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);

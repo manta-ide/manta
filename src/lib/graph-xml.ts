@@ -350,6 +350,8 @@ export function graphToXml(graph: Graph): string {
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const commentValue = typeof (n as any).comment === 'string' ? (n as any).comment : undefined;
+    const commentXml = commentValue && commentValue.trim().length > 0 ? `\n      <comment>${escapeXml(commentValue)}</comment>` : '';
     const metadataFiles = normalizeMetadataFiles((n as any).metadata);
     const metadataXml = metadataFiles.length > 0
       ? `\n      <metadata>\n${metadataFiles.map(file => `        <file>${escapeXml(file)}</file>`).join('\n')}\n      </metadata>`
@@ -401,7 +403,7 @@ ${optionsXml}
     const shape = (n as any).shape;
     const shapeAttr = shape ? ` shape="${escapeXml(String(shape))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${commentXml}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -483,6 +485,9 @@ export function xmlToGraph(xml: string): Graph {
       }
 
       const description = repairTextEncoding((nodeData.description?.['#text'] || nodeData.description || '').trim());
+      const comment = nodeData.comment !== undefined
+        ? repairTextEncoding(((nodeData.comment?.['#text'] ?? nodeData.comment ?? '') as string).trim())
+        : undefined;
 
       // Parse properties using fast-xml-parser
       const propsData = nodeData.props;
@@ -728,6 +733,7 @@ export function xmlToGraph(xml: string): Graph {
         id,
         title,
         prompt: description,
+        ...(nodeData.comment !== undefined ? { comment } : {}),
         properties,
         ...(position ? { position } : {}),
         ...(metadataFiles.length > 0 ? { metadata: { files: metadataFiles } } : {}),

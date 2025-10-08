@@ -20,6 +20,21 @@ interface Position {
   y: number;
 }
 
+const formatSlashUserRequest = (userText: string) => {
+  const cleaned = userText.trim();
+  if (!cleaned) {
+    return 'No additional user request provided.';
+  }
+  return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+};
+
+const SLASH_AGENT_MESSAGES: Record<string, (userText: string) => string> = {
+  build: (userText) => `Build or refresh the solution graph based on the user request, updating nodes and connections as needed. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  join: (userText) => `Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  split: (userText) => `Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  index: (userText) => `Index the solution and update relevant metadata so it stays searchable. Here is the user request: ${formatSlashUserRequest(userText)}`
+};
+
 export default function FloatingChat() {
   const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph, setSelectedNode, setSelectedNodeIds } = useProjectStore();
   const [input, setInput] = useState('');
@@ -245,51 +260,96 @@ export default function FloatingChat() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    const rawInput = input;
+    const trimmed = rawInput.trim();
+    if (!trimmed) return;
 
-    // Handle slash commands locally without invoking the agent
-    const trimmed = input.trim();
-    if (/^\/build\b/i.test(trimmed) || /^\/beautify\b/i.test(trimmed)) {
-      // Clear input and reset context/mention state
-      setInput('');
+    const contextSnapshot = {
+      includeFile,
+      includeSelection,
+      includeNodes
+    };
+
+    const resetAfterSend = () => {
       setIncludeFile(false);
       setIncludeSelection(false);
       setIncludeNodes(false);
       setMentionedNodeIds([]);
       setMentionActive(false);
+    };
 
-      try {
-        if (/^\/build\b/i.test(trimmed)) {
-          // Trigger the same behavior as the Build Graph button
-          window.dispatchEvent(new CustomEvent('manta:build-graph'));
-        } else if (/^\/beautify\b/i.test(trimmed)) {
-          // Trigger auto layout
-          window.dispatchEvent(new CustomEvent('manta:auto-layout'));
+    if (trimmed.startsWith('/')) {
+      const commandMatch = trimmed.match(/^\/([a-zA-Z0-9_-]+)(?:\s+([\s\S]*))?$/);
+      if (commandMatch) {
+        const commandId = commandMatch[1].toLowerCase();
+        const commandText = (commandMatch[2] ?? '').trim();
+        setInput('');
+
+        if (commandId === 'beautify') {
+          resetAfterSend();
+          try {
+            window.dispatchEvent(new CustomEvent('manta:auto-layout'));
+          } catch {}
+          return;
         }
-      } catch {}
-      return;
+
+        const commandTemplate = SLASH_AGENT_MESSAGES[commandId as keyof typeof SLASH_AGENT_MESSAGES];
+        if (commandTemplate) {
+          resetAfterSend();
+          let agentMessage = commandTemplate(commandText);
+
+          if (commandId === 'join' && selectedNodes.length >= 2) {
+            const selectedSummary = selectedNodes
+              .map(node => {
+                const title = String(node?.title ?? node?.id ?? '').trim() || node.id;
+                return `${title} (ID: ${node?.id ?? 'unknown'})`;
+              })
+              .join('; ');
+            agentMessage += `
+
+Selected nodes to join (${selectedNodes.length}): ${selectedSummary}.`;
+          } else if (commandId === 'split' && selectedNodes.length >= 1) {
+            const primaryNode = selectedNodes[0];
+            const title = String(primaryNode?.title ?? primaryNode?.id ?? '').trim() || primaryNode.id;
+            agentMessage += `
+
+Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
+            if (selectedNodes.length > 1) {
+              const additional = selectedNodes.slice(1)
+                .map(node => {
+                  const extraTitle = String(node?.title ?? node?.id ?? '').trim() || node.id;
+                  return `${extraTitle} (ID: ${node?.id ?? 'unknown'})`;
+                })
+                .join('; ');
+              agentMessage += ` Additional selected nodes detected: ${additional}.`;
+            }
+          }
+
+          await sendMessage(agentMessage, {
+            ...contextSnapshot,
+            displayContent: trimmed
+          });
+          return;
+        }
+      }
     }
 
-    const messageToSend = input;
-    setInput(''); // Clear input immediately
+    setInput('');
+    resetAfterSend();
 
-    // Clear context flags after sending
-    setIncludeFile(false);
-    setIncludeSelection(false);
-    setIncludeNodes(false);
-    setMentionedNodeIds([]); // allow fresh mention for next message
-    setMentionActive(false);
-
-    await sendMessage(messageToSend, {
-      includeFile,
-      includeSelection,
-      includeNodes
+    await sendMessage(rawInput, {
+      includeFile: contextSnapshot.includeFile,
+      includeSelection: contextSnapshot.includeSelection,
+      includeNodes: contextSnapshot.includeNodes
     });
   };
 
   // Supported slash commands
   const SLASH_COMMANDS = useMemo(() => ([
-    { id: 'build', label: '/build', description: 'Build the graph' },
+    { id: 'build', label: '/build', description: 'Build or refresh the graph' },
+    { id: 'join', label: '/join', description: 'Merge nodes into one' },
+    { id: 'split', label: '/split', description: 'Split a node into parts' },
+    { id: 'index', label: '/index', description: 'Index the current solution' },
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
 
