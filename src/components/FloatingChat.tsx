@@ -30,8 +30,8 @@ const formatSlashUserRequest = (userText: string) => {
 
 const SLASH_AGENT_MESSAGES: Record<string, (userText: string) => string> = {
   build: (userText) => `Build or refresh the solution graph based on the user request, updating nodes and connections as needed. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  join: (userText) => `Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  split: (userText) => `Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  join: (userText) => `Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Make sure that positions are in the middle of the previous nodes. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  split: (userText) => `Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Make sure that positions are around the position of the split node. Here is the user request: ${formatSlashUserRequest(userText)}`,
   index: (userText) => `Index the solution and update relevant metadata so it stays searchable. Here is the user request: ${formatSlashUserRequest(userText)}`
 };
 
@@ -1108,7 +1108,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
                     key={n.id}
                     onMouseDown={(ev) => { ev.preventDefault(); }}
                     onClick={() => handleSelectMention(n.id)}
-                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-zinc-800 ${i === mentionIndex ? 'bg-zinc-800' : ''}`}
+                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 ${i === mentionIndex ? 'bg-zinc-800' : ''}`}
                   >
                     <GitBranch className="w-3.5 h-3.5 text-zinc-300" />
                     <div className="flex flex-col">
@@ -1128,7 +1128,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
                     key={c.id}
                     onMouseDown={(ev) => { ev.preventDefault(); }}
                     onClick={() => handleSelectSlashCommand(c.id)}
-                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-zinc-800 ${i === slashIndex ? 'bg-zinc-800' : ''}`}
+                    className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 ${i === slashIndex ? 'bg-zinc-800' : ''}`}
                   >
                     {c.id === 'build' ? (
                       <Play className="w-3.5 h-3.5 text-zinc-300" />

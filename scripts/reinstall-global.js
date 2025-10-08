@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execa } from "execa";
 import { join } from "path";
-import { readdirSync, statSync } from "fs";
+import { readdirSync, statSync, existsSync } from "fs";
 import { rm } from "fs/promises";
 
 const packageRoot = join(process.cwd());
@@ -11,6 +11,11 @@ async function run(cmd, args, opts = {}) {
   await execa(cmd, args, { stdio: "inherit", ...opts });
 }
 
+async function runCapture(cmd, args, opts = {}) {
+  // Use execa to capture stderr for error handling while still showing stdout/stderr
+  return await execa(cmd, args, { stdio: ["inherit", "inherit", "pipe"], ...opts });
+}
+
 async function main() {
   try {
     console.log("🚀 Starting global reinstall process...");
@@ -18,10 +23,29 @@ async function main() {
     // Step 1: Uninstall globally installed manta-ide
     console.log("📦 Uninstalling globally installed manta-ide...");
     try {
-      await run("npm", ["uninstall", "-g", "manta-ide"]);
+      await runCapture("npm", ["uninstall", "-g", "manta-ide"]);
       console.log("✅ Successfully uninstalled global manta-ide");
     } catch (error) {
-      console.log("ℹ️  Global manta-ide was not installed or already uninstalled");
+      const errorText = error.stderr || error.message || String(error);
+      if (errorText.includes("ENOTEMPTY")) {
+        console.log("⚠️  npm uninstall failed due to ENOTEMPTY, attempting manual cleanup...");
+        try {
+          // Get npm global prefix
+          const { stdout: npmPrefix } = await execa("npm", ["config", "get", "prefix"]);
+          const globalMantaPath = join(npmPrefix.trim(), "lib", "node_modules", "manta-ide");
+
+          if (existsSync(globalMantaPath)) {
+            await rm(globalMantaPath, { recursive: true, force: true });
+            console.log("✅ Manually removed leftover manta-ide directory");
+          } else {
+            console.log("ℹ️  Global manta-ide directory not found");
+          }
+        } catch (cleanupError) {
+          console.warn("⚠️  Failed to manually clean up:", cleanupError.message);
+        }
+      } else {
+        console.log("ℹ️  Global manta-ide was not installed or already uninstalled");
+      }
     }
 
     // Step 2: Build the project

@@ -509,6 +509,7 @@ export async function POST(req: NextRequest) {
           // Generic query options with orchestrator prompt
           const queryOptions: Options = {
             includePartialMessages: true,
+            systemPrompt: { type: "preset", preset: "claude_code" },
             customSystemPrompt: orchestratorSystemPrompt,
             permissionMode: 'bypassPermissions',
             mcpServers: { 'graph-tools': mcpServer },

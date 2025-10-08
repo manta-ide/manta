@@ -1426,6 +1426,21 @@ Focus on code implementation based on node specifications. Always run linting on
       </prop>
       </props>
     </node>
+
+    <node id="project-detection-framework" title="Project Detection &amp; Framework Analysis" x="100" y="100" z="0">
+      <description>Automatic project detection system that analyzes directory structure, identifies frameworks (Next.js, React, TypeScript, Tailwind), and determines project configuration requirements based on package.json and file structure analysis.</description>
+      <props>
+        <prop name="auto-detect-framework" title="Auto-detect Framework" type="boolean">true</prop>
+        <prop name="require-package-json" title="Require package.json" type="boolean">true</prop>
+        <prop name="analyze-structure" title="Analyze Project Structure" type="boolean">true</prop>
+        <prop name="supported-frameworks" title="Supported Frameworks" type="object">
+        <field name="nextjs" title="nextjs" type="text">true</field>
+        <field name="react" title="react" type="text">true</field>
+        <field name="typescript" title="typescript" type="text">true</field>
+        <field name="tailwind" title="tailwind" type="text">true</field>
+      </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>

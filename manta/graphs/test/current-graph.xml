@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="node-1759960215846254" title="Node 3" x="168" y="515" z="0" shape="rectangle">
+    </node>
+
+    <node id="node-1759960217513733" title="Node 1" x="-187.5" y="352.5" z="0" shape="rectangle">
+    </node>
+
+    <node id="node-1759960219381443" title="Node 2" x="295" y="286" z="0" shape="rectangle">
+    </node>
+  </nodes>
+
+  <edges>
+
+  </edges>
+</graph>

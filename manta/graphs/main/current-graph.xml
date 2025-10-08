@@ -1345,7 +1345,7 @@ Focus on code implementation based on node specifications. Always run linting on
       </props>
     </node>
 
-    <node id="project-configuration-system" title="Project Configuration System" x="-2092.9106671127392" y="629.5402766954759" z="0">
+    <node id="project-configuration-system" title="Project Configuration System" x="-2092.9106671127392" y="685.8488759332516" z="0">
       <description>Project setup and status management system that handles project detection, directory configuration, framework analysis (Next.js, React, TypeScript), component discovery, and development environment setup. Provides project structure analysis and agent generation capabilities.</description>
       <metadata>
         <file>src/lib/project-config.ts</file>

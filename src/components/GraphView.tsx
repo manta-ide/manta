@@ -35,7 +35,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, Plus } from 'lucide-react';
+import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -1859,7 +1859,7 @@ function GraphCanvas() {
           style={{ width: '32px', height: '32px', padding: '0' }}
           title="Add Node Tool - Click anywhere on the canvas to create a new node"
         >
-          <Plus className="w-4 h-4" />
+          <File className="w-4 h-4" />
         </Button>
       </div>
 
