@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -35,7 +35,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File } from 'lucide-react';
+import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File, MessageSquarePlus, Trash2, GripVertical, SquarePen, X } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -394,6 +394,19 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
          prevProps.data?.graph === nextProps.data?.graph;
 });
 
+type CommentZone = {
+  id: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  title: string;
+  content: string;
+};
+
+type CommentDraft = {
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+};
+
 function GraphCanvas() {
   const [nodes, setNodes] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -433,8 +446,73 @@ function GraphCanvas() {
     setBaseGraph,
     loadBaseGraph
   } = useProjectStore();
-  // Tool modes: 'select', 'pan', 'add-node'
-  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
+  // Tool modes: 'select', 'pan', 'add-node', 'add-comment'
+  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node' | 'add-comment'>('select');
+  const [commentZones, setCommentZones] = useState<CommentZone[]>([]);
+  const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
+  const [draggingCommentId, setDraggingCommentId] = useState<string | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const commentDragOffsetRef = useRef({ x: 0, y: 0 });
+  const COMMENT_MIN_SIZE = 80;
+  const reactFlow = useReactFlow();
+  const commentDrawingActiveRef = useRef(false);
+
+  useEffect(() => {
+    if (!draggingCommentId) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const flowPoint = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setCommentZones((zones) => zones.map((zone) => {
+        if (zone.id !== draggingCommentId) return zone;
+        return {
+          ...zone,
+          position: {
+            x: flowPoint.x - commentDragOffsetRef.current.x,
+            y: flowPoint.y - commentDragOffsetRef.current.y,
+          },
+        };
+      }));
+    };
+
+    const handlePointerUp = () => {
+      setDraggingCommentId(null);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: false });
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [draggingCommentId, reactFlow]);
+
+  const startCommentDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>, zoneId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const zone = commentZones.find((z) => z.id === zoneId);
+    if (!zone) return;
+    const flowPoint = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    commentDragOffsetRef.current = {
+      x: flowPoint.x - zone.position.x,
+      y: flowPoint.y - zone.position.y,
+    };
+    setDraggingCommentId(zoneId);
+    setActiveCommentId(zoneId);
+  }, [commentZones, reactFlow, setActiveCommentId]);
+
+  const updateCommentField = useCallback((zoneId: string, field: 'title' | 'content', value: string) => {
+    setCommentZones((zones) => zones.map((zone) => {
+      if (zone.id !== zoneId) return zone;
+      return { ...zone, [field]: value };
+    }));
+  }, []);
+
+  const deleteCommentZone = useCallback((zoneId: string) => {
+    setCommentZones((zones) => zones.filter((zone) => zone.id !== zoneId));
+    setDraggingCommentId((current) => (current === zoneId ? null : current));
+    setActiveCommentId((current) => (current === zoneId ? null : current));
+  }, [setActiveCommentId]);
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data
@@ -459,6 +537,9 @@ function GraphCanvas() {
   const { suppressSSE } = useProjectStore.getState();
   const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
+  const activeComment = useMemo(() => (
+    activeCommentId ? commentZones.find((zone) => zone.id === activeCommentId) ?? null : null
+  ), [activeCommentId, commentZones]);
 
   // Edge visual styles
   const defaultEdgeStyle = {
@@ -485,8 +566,6 @@ function GraphCanvas() {
     color: style?.stroke || '#9ca3af',
   });
 
-  // Access React Flow instance for programmatic viewport control
-  const reactFlow = useReactFlow();
   // Auth removed; define placeholder to avoid TS errors
   const user: any = null;
 
@@ -1649,13 +1728,79 @@ function GraphCanvas() {
     rebuildIndex(nodes);
   }, [updateNode, rebuildIndex, nodes]);
 
-  // Handle background mouse down for node creation
+  const finalizeCommentDraft = useCallback(() => {
+    if (!commentDrawingActiveRef.current) {
+      return;
+    }
+
+    let createdZone: CommentZone | null = null;
+    setCommentDraft((draft) => {
+      if (!draft) {
+        return null;
+      }
+
+      const width = Math.abs(draft.current.x - draft.start.x);
+      const height = Math.abs(draft.current.y - draft.start.y);
+      if (width < COMMENT_MIN_SIZE && height < COMMENT_MIN_SIZE) {
+        return null;
+      }
+
+      const normalizedWidth = Math.max(width, COMMENT_MIN_SIZE);
+      const normalizedHeight = Math.max(height, COMMENT_MIN_SIZE);
+      createdZone = {
+        id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `comment-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        position: {
+          x: Math.min(draft.start.x, draft.current.x),
+          y: Math.min(draft.start.y, draft.current.y),
+        },
+        size: { width: normalizedWidth, height: normalizedHeight },
+        title: '',
+        content: '',
+      };
+
+      return null;
+    });
+
+    commentDrawingActiveRef.current = false;
+
+    if (createdZone) {
+      setCommentZones((zones) => [...zones, createdZone!]);
+      setActiveCommentId(createdZone.id);
+      setCurrentTool('select');
+    }
+  }, [COMMENT_MIN_SIZE, setCommentZones, setCurrentTool, setActiveCommentId]);
+
+  const onPaneMouseMove = useCallback((event: ReactMouseEvent) => {
+    if (!commentDraft) return;
+    const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    setCommentDraft((draft) => draft ? ({ ...draft, current: flowPosition }) : draft);
+  }, [commentDraft, reactFlow]);
+
+  useEffect(() => {
+    if (!commentDraft) return;
+    const handlePointerUp = () => finalizeCommentDraft();
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [commentDraft, finalizeCommentDraft]);
+
+  // Handle background mouse down for node/comment creation
   const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {
     // Only start selection on left mouse button
     if (event.button !== 0) return;
-    // Ignore clicks that originate from nodes, edges, or handles
+    // Ignore clicks that originate from nodes, edges, handles, or comment cards
     const target = event.target as HTMLElement;
-    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge') || target.closest('.react-flow__handle')) return;
+    if (
+      target.closest('.react-flow__node') ||
+      target.closest('.react-flow__edge') ||
+      target.closest('.react-flow__handle') ||
+      target.closest('[data-comment-card="true"]')
+    ) {
+      return;
+    }
 
     if (currentTool === 'add-node') {
       // Convert screen coordinates to flow coordinates
@@ -1666,6 +1811,14 @@ function GraphCanvas() {
         y: flowPosition.y - 80   // Half of node height (160/2)
       };
       createNewNode(centeredPosition);
+      event.preventDefault();
+      return;
+    }
+
+    if (currentTool === 'add-comment') {
+      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      commentDrawingActiveRef.current = true;
+      setCommentDraft({ start: flowPosition, current: flowPosition });
       event.preventDefault();
       return;
     }
@@ -1745,6 +1898,7 @@ function GraphCanvas() {
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
         selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
+        onMouseMove={onPaneMouseMove}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
@@ -1774,6 +1928,159 @@ function GraphCanvas() {
         <Controls />
         <Background color="#374151" gap={20} />
         <HelperLines />
+        {commentZones.map((zone) => {
+          const left = zone.position.x * viewport.zoom + viewport.x;
+          const top = zone.position.y * viewport.zoom + viewport.y;
+          const width = zone.size.width * viewport.zoom;
+          const height = zone.size.height * viewport.zoom;
+          const isActive = activeCommentId === zone.id;
+          const controlWidth = Math.min(Math.max(width - 24, 200), 320);
+          return (
+            <div
+              key={`${zone.id}-bg`}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                width,
+                height,
+                borderRadius: '12px',
+                background: isActive ? 'rgba(59,130,246,0.25)' : 'rgba(59,130,246,0.12)',
+                border: isActive
+                  ? '1px solid rgba(59,130,246,0.55)'
+                  : '1px solid rgba(59,130,246,0.28)',
+                backdropFilter: 'blur(2px)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+          );
+        })}
+
+        {commentDraft && (() => {
+          const left = Math.min(commentDraft.start.x, commentDraft.current.x) * viewport.zoom + viewport.x;
+          const top = Math.min(commentDraft.start.y, commentDraft.current.y) * viewport.zoom + viewport.y;
+          const width = Math.abs(commentDraft.current.x - commentDraft.start.x) * viewport.zoom;
+          const height = Math.abs(commentDraft.current.y - commentDraft.start.y) * viewport.zoom;
+          if (width < 2 && height < 2) return null;
+          return (
+            <div
+              key="comment-draft"
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                width,
+                height,
+                borderRadius: '12px',
+                border: '1px dashed rgba(59,130,246,0.6)',
+                background: 'rgba(59,130,246,0.12)',
+                pointerEvents: 'none',
+                zIndex: 2,
+              }}
+            />
+          );
+        })()}
+
+        {commentZones.map((zone) => {
+          const left = zone.position.x * viewport.zoom + viewport.x;
+          const top = zone.position.y * viewport.zoom + viewport.y;
+          const width = zone.size.width * viewport.zoom;
+          const isActive = activeCommentId === zone.id;
+          const controlWidth = Math.min(Math.max(width - 24, 200), 320);
+          return (
+            <div
+              key={`${zone.id}-controls`}
+              data-comment-card="true"
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              style={{
+                position: 'absolute',
+                left: left + 12,
+                top: top + 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 10px',
+                borderRadius: '9999px',
+                background: isActive ? 'rgba(15,23,42,0.98)' : 'rgba(15,23,42,0.85)',
+                border: isActive ? '1px solid rgba(59,130,246,0.55)' : '1px solid rgba(59,130,246,0.35)',
+                boxShadow: '0 4px 12px rgba(15,23,42,0.45)',
+                color: '#e2e8f0',
+                pointerEvents: 'auto',
+                zIndex: 120,
+                width: controlWidth,
+              }}
+            >
+              <div
+                onPointerDown={(event) => startCommentDrag(event, zone.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  borderRadius: '50%',
+                  cursor: draggingCommentId === zone.id ? 'grabbing' : 'grab',
+                  background: 'rgba(148,163,184,0.08)',
+                  color: '#94a3b8',
+                }}
+                title="Drag to move comment zone"
+              >
+                <GripVertical className="w-3 h-3" />
+              </div>
+              <button
+                onClick={() => setActiveCommentId(zone.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: isActive ? '#f8fafc' : '#cbd5f6',
+                  textAlign: 'left',
+                  padding: '4px 6px',
+                }}
+                title="Edit comment"
+              >
+                <SquarePen className="w-3 h-3" />
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {zone.title.trim() !== '' ? zone.title : 'Untitled comment'}
+                </span>
+              </button>
+              <button
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  deleteCommentZone(zone.id);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(248,113,113,0.12)',
+                  border: '1px solid rgba(248,113,113,0.35)',
+                  borderRadius: '50%',
+                  color: '#fca5a5',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  width: '26px',
+                  height: '26px',
+                }}
+                title="Delete comment"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          );
+        })}
       </ReactFlow>
 
       {/* Focus overlay: fade everything except all found nodes (when search is open) */}
@@ -1860,6 +2167,21 @@ function GraphCanvas() {
           title="Add Node Tool - Click anywhere on the canvas to create a new node"
         >
           <File className="w-4 h-4" />
+        </Button>
+
+        {/* Comment Zone Tool */}
+        <Button
+          onClick={() => setCurrentTool('add-comment')}
+          variant={currentTool === 'add-comment' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'add-comment'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Comment Tool - Click and drag on the canvas to create a comment zone"
+        >
+          <MessageSquarePlus className="w-4 h-4" />
         </Button>
       </div>
 
@@ -1961,6 +2283,110 @@ function GraphCanvas() {
           Delete Graph
         </Button> */}
       </div>
+
+      {activeComment && (
+        <div
+          style={{
+            position: 'absolute',
+            right: '12px',
+            bottom: '12px',
+            width: '320px',
+            maxWidth: '90vw',
+            background: 'rgba(15,23,42,0.96)',
+            border: '1px solid rgba(59,130,246,0.5)',
+            borderRadius: '12px',
+            boxShadow: '0 18px 38px rgba(15,23,42,0.5)',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            zIndex: 1100,
+            color: '#e2e8f0',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Comment Zone</span>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: '#e2e8f0' }}>{activeComment.title || 'Untitled comment'}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => deleteCommentZone(activeComment.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(248,113,113,0.4)',
+                  background: 'rgba(248,113,113,0.12)',
+                  color: '#fca5a5',
+                  cursor: 'pointer',
+                }}
+                title="Delete comment"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setActiveCommentId(null)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(148,163,184,0.4)',
+                  background: 'rgba(30,41,59,0.7)',
+                  color: '#cbd5f5',
+                  cursor: 'pointer',
+                }}
+                title="Close comment editor"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8' }}>
+            Title
+            <input
+              value={activeComment.title}
+              onChange={(event) => updateCommentField(activeComment.id, 'title', event.target.value)}
+              placeholder="Add a short title"
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(59,130,246,0.35)',
+                background: 'rgba(30,41,59,0.8)',
+                color: '#f8fafc',
+                fontSize: '14px',
+                outline: 'none',
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8' }}>
+            Content
+            <textarea
+              value={activeComment.content}
+              onChange={(event) => updateCommentField(activeComment.id, 'content', event.target.value)}
+              placeholder="Add detailed notes..."
+              rows={6}
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(59,130,246,0.35)',
+                background: 'rgba(30,41,59,0.8)',
+                color: '#f8fafc',
+                fontSize: '13px',
+                resize: 'vertical',
+                outline: 'none',
+                minHeight: '120px',
+              }}
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }
