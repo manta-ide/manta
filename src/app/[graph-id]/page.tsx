@@ -4,6 +4,9 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import GraphView from '@/components/GraphView';
 import SelectedNodeSidebar from '@/components/SelectedNodeSidebar';
+import { StickyBanner } from '@/components/ui/sticky-banner';
+import { Button } from '@/components/ui/button';
+import { GithubIcon } from 'lucide-react';
 import { Graph } from '@/app/api/lib/schemas';
 
 export default function GraphPage() {
@@ -71,6 +74,32 @@ export default function GraphPage() {
 
   return (
     <main className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100">
+      <StickyBanner className="bg-violet-600 border-b border-violet-500" showCloseButton={false}>
+        <div className="flex items-center justify-center w-full px-4 gap-3">
+            <img src="/favicon.ico" alt="Manta IDE Logo" className="w-6 h-6" />
+          <p className="text-sm text-white">
+            Want to see how your repo looks in Manta?
+          </p>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="group bg-white border-white text-violet-600 hover:bg-gray-50 hover:text-violet-700 transition-all duration-200"
+          >
+            <a href="https://github.com/manta-ide/manta" target="_blank" rel="noopener noreferrer" className="flex items-center">
+              Try it out
+              <svg
+                className="w-4 h-4 ml-2 transition-transform duration-200 group-hover:translate-x-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </a>
+          </Button>
+        </div>
+      </StickyBanner>
       <div className="flex h-full">
         {/* Readonly sidebar with readonly properties */}
         <SelectedNodeSidebar readonly={true} />

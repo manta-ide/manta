@@ -1,42 +1,42 @@
-'use client';
-
-import GraphView from '@/components/GraphView';
-import SelectedNodeSidebar from '@/components/SelectedNodeSidebar';
-import FloatingChat from '@/components/FloatingChat';
-import SearchOverlay from '@/components/SearchOverlay';
-import LayersSidebar from '@/components/LayersSidebar';
-import { useProjectStore } from '@/lib/store';
-import { useEffect } from 'react';
-
+"use client";
+import React from "react";
+import Link from "next/link";
+import { BackgroundBeams } from "@/components/ui/background-beams";
+import StarOnGithub from "@/components/ui/button-github";
 
 export default function Home() {
-  const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
-  const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
-  const leftSidebarWidth = useProjectStore((s) => s.leftSidebarWidth);
-  const rightSidebarWidth = useProjectStore((s) => s.rightSidebarWidth);
-
-  useEffect(() => {
-    const handler = () => setLayersSidebarOpen(true);
-    window.addEventListener('manta:open-layers', handler as EventListener);
-    return () => window.removeEventListener('manta:open-layers', handler as EventListener);
-  }, [setLayersSidebarOpen]);
-
   return (
-    <main className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100">
-      <div className="flex h-full">
-        <SelectedNodeSidebar />
-        <div className="relative flex-1 min-w-0">
-          <GraphView />
-          <SearchOverlay />
-          <FloatingChat />
+    <div className="min-h-screen w-full bg-zinc-950 relative flex flex-col items-center justify-center antialiased px-4">
+      <div className="w-full max-w-4xl mx-auto text-center">
+        <h1 className="relative z-10 text-lg md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-zinc-100 to-zinc-400 font-sans font-bold mb-4">
+          Manta IDE
+        </h1>
+        <p className="text-zinc-300 max-w-2xl mx-auto mb-4 text-sm relative z-10 whitespace-nowrap">
+          See a chart of any repository, and modify it to change the code.
+        </p>
+        <p className="text-zinc-300 max-w-2xl mx-auto mb-6 text-sm relative z-10">
+          Check out the charts for{" "}
+          <Link href="/assistant-ui" className="text-blue-400 hover:text-blue-300 underline">
+            assistant-ui
+          </Link>
+          ,{" "}
+          <Link href="/browser-use" className="text-blue-400 hover:text-blue-300 underline">
+            browser-use
+          </Link>
+          ,{" "}
+          <Link href="/bun" className="text-blue-400 hover:text-blue-300 underline">
+            bun
+          </Link>
+          ,{" "}
+          <Link href="/linux" className="text-blue-400 hover:text-blue-300 underline">
+            linux
+          </Link>
+        </p>
+        <div className="relative z-10">
+          <StarOnGithub />
         </div>
-        {layersSidebarOpen && (
-          <LayersSidebar
-            open={layersSidebarOpen}
-            onClose={() => setLayersSidebarOpen(false)}
-          />
-        )}
       </div>
-    </main>
+      <BackgroundBeams />
+    </div>
   );
 }
