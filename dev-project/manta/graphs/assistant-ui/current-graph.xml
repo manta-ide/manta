@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="thread-component" title="Thread Component" x="964" y="517" z="0">
+      <description>A complete chat thread interface that displays conversation messages, handles message composition, and provides scroll functionality for AI assistant interactions.</description>
+      <metadata>
+        <file>packages/react/src/primitives/thread/ThreadRoot.tsx</file>
+        <file>packages/react/src/primitives/thread/ThreadMessages.tsx</file>
+        <file>packages/react/src/primitives/thread/ThreadViewport.tsx</file>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/thread.tsx</file>
+      </metadata>
+      <props>
+        <prop name="max-width" title="Maximum Width" type="text">42rem</prop>
+        <prop name="background-color" title="Background Color" type="color">#ffffff</prop>
+        <prop name="text-color" title="Text Color" type="color">#000000</prop>
+        <prop name="padding" title="Container Padding" type="number" min="0" max="64" step="4">16</prop>
+        <prop name="top-spacing" title="Top Spacing" type="number" min="0" max="64" step="8">32</prop>
+        <prop name="scroll-behavior" title="Scroll Behavior" type="select">
+          <value>smooth</value>
+          <options>
+          <option>auto</option>
+          <option>smooth</option>
+          <option>instant</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="composer-component" title="Message Composer" x="2392" y="1198" z="0">
+      <description>An input form component for users to compose and send messages to the AI assistant, with support for attachments and real-time input handling.</description>
+      <metadata>
+        <file>packages/react/src/primitives/composer/ComposerRoot.tsx</file>
+        <file>packages/react/src/primitives/composer/ComposerInput.tsx</file>
+        <file>packages/react/src/primitives/composer/ComposerSend.tsx</file>
+        <file>packages/react/src/primitives/composer/ComposerCancel.tsx</file>
+      </metadata>
+      <props>
+        <prop name="placeholder-text" title="Placeholder Text" type="text">Write a message...</prop>
+        <prop name="border-color" title="Border Color" type="color">#e5e7eb</prop>
+        <prop name="border-radius" title="Border Radius" type="number" min="0" max="24" step="2">8</prop>
+        <prop name="composer-component-background-color" title="Background Color" type="color">#ffffff</prop>
+        <prop name="padding-horizontal" title="Horizontal Padding" type="number" min="0" max="32" step="2">10</prop>
+        <prop name="padding-vertical" title="Vertical Padding" type="number" min="0" max="32" step="2">16</prop>
+        <prop name="max-height" title="Maximum Height" type="number" min="80" max="400" step="20">160</prop>
+        <prop name="auto-focus" title="Auto Focus Input" type="boolean">true</prop>
+        <prop name="font-size" title="Font Size" type="number" min="12" max="18" step="1">14</prop>
+      </props>
+    </node>
+
+    <node id="action-bar-component" title="Action Bar" x="2392" y="1526" z="0">
+      <description>A contextual toolbar that appears near messages with actions like copy, edit, reload, and feedback buttons with intelligent auto-hide and floating behavior.</description>
+      <metadata>
+        <file>packages/react/src/primitives/actionBar/ActionBarRoot.tsx</file>
+        <file>packages/react/src/primitives/actionBar/ActionBarCopy.tsx</file>
+        <file>packages/react/src/primitives/actionBar/ActionBarEdit.tsx</file>
+        <file>packages/react/src/primitives/actionBar/ActionBarReload.tsx</file>
+      </metadata>
+      <props>
+        <prop name="hide-when-running" title="Hide When Assistant Running" type="boolean">false</prop>
+        <prop name="auto-hide" title="Auto Hide Behavior" type="select">
+          <value>never</value>
+          <options>
+          <option>always</option>
+          <option>not-last</option>
+          <option>never</option>
+          </options>
+        </prop>
+        <prop name="auto-hide-float" title="Floating When Hidden" type="select">
+          <value>never</value>
+          <options>
+          <option>always</option>
+          <option>single-branch</option>
+          <option>never</option>
+          </options>
+        </prop>
+        <prop name="action-bar-component-text-color" title="Button Text Color" type="color">#6b7280</prop>
+        <prop name="action-bar-component-background-color" title="Floating Background" type="color">#ffffff</prop>
+        <prop name="action-bar-component-border-color" title="Floating Border Color" type="color">#e5e7eb</prop>
+        <prop name="button-spacing" title="Button Spacing" type="number" min="0" max="16" step="2">4</prop>
+        <prop name="action-bar-component-border-radius" title="Floating Border Radius" type="number" min="0" max="16" step="2">6</prop>
+        <prop name="shadow-enabled" title="Enable Drop Shadow" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="message-component" title="Message Component" x="1440" y="1526" z="0">
+      <description>A message display component that renders user and assistant messages with different layouts, supports message parts, attachments, and error states.</description>
+      <metadata>
+        <file>packages/react/src/primitives/message/MessageRoot.tsx</file>
+        <file>packages/react/src/primitives/message/MessageParts.tsx</file>
+        <file>packages/react/src/primitives/message/MessageAttachments.tsx</file>
+        <file>packages/react/src/primitives/message/MessageError.tsx</file>
+      </metadata>
+      <props>
+        <prop name="user-message-bg" title="User Message Background" type="color">#f3f4f6</prop>
+        <prop name="user-message-color" title="User Message Text Color" type="color">#000000</prop>
+        <prop name="assistant-message-color" title="Assistant Message Text Color" type="color">#000000</prop>
+        <prop name="message-padding" title="Message Padding" type="number" min="4" max="24" step="2">10</prop>
+        <prop name="message-border-radius" title="Message Border Radius" type="number" min="0" max="32" step="2">24</prop>
+        <prop name="message-spacing" title="Message Vertical Spacing" type="number" min="8" max="32" step="4">16</prop>
+        <prop name="max-message-width" title="Maximum Message Width" type="text">calc(var(--thread-max-width)*0.8)</prop>
+        <prop name="line-height" title="Text Line Height" type="number" min="1.2" max="2.5" step="0.1">1.75</prop>
+      </props>
+    </node>
+
+    <node id="branch-picker-component" title="Branch Picker" x="2392" y="870" z="0">
+      <description>A navigation component that allows users to browse through different versions or branches of messages when multiple responses exist.</description>
+      <metadata>
+        <file>packages/react/src/primitives/branchPicker/BranchPickerRoot.tsx</file>
+        <file>packages/react/src/primitives/branchPicker/BranchPickerNext.tsx</file>
+        <file>packages/react/src/primitives/branchPicker/BranchPickerPrevious.tsx</file>
+        <file>packages/react/src/primitives/branchPicker/BranchPickerCount.tsx</file>
+      </metadata>
+      <props>
+        <prop name="hide-single-branch" title="Hide When Single Branch" type="boolean">true</prop>
+        <prop name="branch-picker-component-text-color" title="Text Color" type="color">#6b7280</prop>
+        <prop name="branch-picker-component-font-size" title="Font Size" type="number" min="10" max="16" step="1">12</prop>
+        <prop name="font-weight" title="Font Weight" type="select">
+          <value>medium</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          </options>
+        </prop>
+        <prop name="button-hover-color" title="Button Hover Color" type="color">#374151</prop>
+        <prop name="spacing" title="Element Spacing" type="number" min="0" max="12" step="2">4</prop>
+      </props>
+    </node>
+
+    <node id="markdown-text-component" title="Markdown Text Renderer" x="1916" y="1854" z="0">
+      <description>A rich text component that renders markdown content with custom styling for headings, lists, tables, code blocks, and links in assistant messages.</description>
+      <metadata>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/markdown-text.tsx</file>
+        <file>packages/react-markdown/src/MarkdownTextPrimitive.tsx</file>
+      </metadata>
+      <props>
+        <prop name="heading-color" title="Heading Text Color" type="color">#000000</prop>
+        <prop name="link-color" title="Link Color" type="color">#3b82f6</prop>
+        <prop name="code-bg-color" title="Inline Code Background" type="color">#f3f4f6</prop>
+        <prop name="code-block-bg" title="Code Block Background" type="color">#000000</prop>
+        <prop name="code-block-text" title="Code Block Text Color" type="color">#ffffff</prop>
+        <prop name="blockquote-border" title="Blockquote Border Color" type="color">#e5e7eb</prop>
+        <prop name="table-border" title="Table Border Color" type="color">#e5e7eb</prop>
+        <prop name="table-header-bg" title="Table Header Background" type="color">#f9fafb</prop>
+        <prop name="markdown-text-component-line-height" title="Paragraph Line Height" type="number" min="1.2" max="2.5" step="0.1">1.75</prop>
+        <prop name="code-border-radius" title="Code Border Radius" type="number" min="0" max="12" step="2">6</prop>
+      </props>
+    </node>
+
+    <node id="tooltip-icon-button" title="Tooltip Icon Button" x="2868" y="1526" z="0">
+      <description>A reusable button component with an icon and tooltip that provides accessible hover information for action buttons throughout the interface.</description>
+      <metadata>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/tooltip-icon-button.tsx</file>
+        <file>examples/with-ai-sdk-v5/components/ui/tooltip.tsx</file>
+      </metadata>
+      <props>
+        <prop name="button-size" title="Button Size" type="number" min="24" max="48" step="4">32</prop>
+        <prop name="icon-size" title="Icon Size" type="number" min="12" max="24" step="2">16</prop>
+        <prop name="button-variant" title="Button Style Variant" type="select">
+          <value>ghost</value>
+          <options>
+          <option>default</option>
+          <option>ghost</option>
+          <option>outline</option>
+          <option>secondary</option>
+          </options>
+        </prop>
+        <prop name="tooltip-bg" title="Tooltip Background Color" type="color">#1f2937</prop>
+        <prop name="tooltip-text" title="Tooltip Text Color" type="color">#ffffff</prop>
+        <prop name="hover-bg" title="Button Hover Background" type="color">#f3f4f6</prop>
+        <prop name="tooltip-icon-button-border-radius" title="Button Border Radius" type="number" min="0" max="16" step="2">6</prop>
+        <prop name="tooltip-delay" title="Tooltip Show Delay (ms)" type="number" min="0" max="2000" step="100">700</prop>
+      </props>
+    </node>
+
+    <node id="thread-welcome-component" title="Thread Welcome Screen" x="2392" y="517" z="0">
+      <description>An empty state component that displays when a conversation thread is empty, showing a welcome message and suggested conversation starters.</description>
+      <metadata>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/thread.tsx</file>
+      </metadata>
+      <props>
+        <prop name="welcome-message" title="Welcome Message" type="text">How can I help you today?</prop>
+        <prop name="message-font-weight" title="Message Font Weight" type="select">
+          <value>medium</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          </options>
+        </prop>
+        <prop name="suggestions-enabled" title="Show Suggestion Buttons" type="boolean">true</prop>
+        <prop name="suggestions-gap" title="Suggestions Button Gap" type="number" min="8" max="32" step="4">16</prop>
+        <prop name="suggestion-bg" title="Suggestion Button Background" type="color">#ffffff</prop>
+        <prop name="suggestion-border" title="Suggestion Button Border" type="color">#e5e7eb</prop>
+        <prop name="suggestion-hover-bg" title="Suggestion Hover Background" type="color">#f9fafb</prop>
+        <prop name="suggestion-text-size" title="Suggestion Text Size" type="number" min="12" max="18" step="1">14</prop>
+        <prop name="suggestion-padding" title="Suggestion Button Padding" type="number" min="8" max="20" step="2">12</prop>
+        <prop name="suggestion-border-radius" title="Suggestion Border Radius" type="number" min="0" max="16" step="2">8</prop>
+      </props>
+    </node>
+
+    <node id="thread-suggestions" title="Thread Suggestions" x="2868" y="668" z="0">
+      <description>Interactive suggestion buttons that provide users with pre-written conversation starters to begin chatting with the AI assistant.</description>
+      <metadata>
+        <file>packages/react/src/primitives/thread/ThreadSuggestion.tsx</file>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/thread.tsx</file>
+      </metadata>
+      <props>
+        <prop name="suggestions" title="Suggestion Prompts" type="object-list">
+        <item index="0">
+          <field name="text" title="Display Text" type="text">What is the weather in Tokyo?</field>
+          <field name="prompt" title="Prompt Text" type="text">What is the weather in Tokyo?</field>
+        </item>
+        <item index="1">
+          <field name="text" title="Display Text" type="text">What is assistant-ui?</field>
+          <field name="prompt" title="Prompt Text" type="text">What is assistant-ui?</field>
+        </item>
+      </prop>
+        <prop name="auto-send" title="Auto Send on Click" type="boolean">true</prop>
+        <prop name="replace-method" title="Replace Current Input" type="boolean">true</prop>
+        <prop name="thread-suggestions-max-width" title="Maximum Button Width" type="text">384px</prop>
+        <prop name="thread-suggestions-font-weight" title="Font Weight" type="select">
+          <value>semibold</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          </options>
+        </prop>
+        <prop name="text-clamp" title="Text Line Clamp" type="number" min="1" max="4" step="1">2</prop>
+      </props>
+    </node>
+
+    <node id="scroll-to-bottom-button" title="Scroll to Bottom Button" x="2392" y="2182" z="0">
+      <description>A floating action button that appears when users scroll up in the conversation, allowing them to quickly return to the latest messages.</description>
+      <metadata>
+        <file>packages/react/src/primitives/thread/ThreadScrollToBottom.tsx</file>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/thread.tsx</file>
+      </metadata>
+      <props>
+        <prop name="scroll-to-bottom-button-button-variant" title="Button Style Variant" type="select">
+          <value>outline</value>
+          <options>
+          <option>default</option>
+          <option>outline</option>
+          <option>ghost</option>
+          <option>secondary</option>
+          </options>
+        </prop>
+        <prop name="position-offset" title="Position Offset from Bottom" type="number" min="16" max="64" step="8">32</prop>
+        <prop name="scroll-to-bottom-button-button-size" title="Button Size" type="number" min="32" max="56" step="4">40</prop>
+        <prop name="scroll-to-bottom-button-border-radius" title="Border Radius" type="select">
+          <value>full</value>
+          <options>
+          <option>none</option>
+          <option>small</option>
+          <option>medium</option>
+          <option>large</option>
+          <option>full</option>
+          </options>
+        </prop>
+        <prop name="scroll-to-bottom-button-background-color" title="Background Color" type="color">#ffffff</prop>
+        <prop name="scroll-to-bottom-button-border-color" title="Border Color" type="color">#e5e7eb</prop>
+        <prop name="icon-color" title="Icon Color" type="color">#374151</prop>
+        <prop name="scroll-to-bottom-button-shadow-enabled" title="Enable Drop Shadow" type="boolean">true</prop>
+        <prop name="scroll-to-bottom-button-auto-hide" title="Auto Hide When Invisible" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="attachment-component" title="Attachment Component" x="2868" y="2030" z="0">
+      <description>A component for displaying and managing file attachments in messages, with support for thumbnails, names, and removal actions.</description>
+      <metadata>
+        <file>packages/react/src/primitives/attachment/AttachmentRoot.tsx</file>
+        <file>packages/react/src/primitives/attachment/AttachmentName.tsx</file>
+        <file>packages/react/src/primitives/attachment/AttachmentThumb.tsx</file>
+        <file>packages/react/src/primitives/attachment/AttachmentRemove.tsx</file>
+      </metadata>
+      <props>
+        <prop name="thumbnail-size" title="Thumbnail Size" type="number" min="32" max="80" step="8">48</prop>
+        <prop name="attachment-component-border-radius" title="Attachment Border Radius" type="number" min="0" max="16" step="2">8</prop>
+        <prop name="attachment-component-background-color" title="Background Color" type="color">#f9fafb</prop>
+        <prop name="attachment-component-border-color" title="Border Color" type="color">#e5e7eb</prop>
+        <prop name="name-text-size" title="File Name Text Size" type="number" min="12" max="16" step="1">14</prop>
+        <prop name="name-color" title="File Name Color" type="color">#374151</prop>
+        <prop name="remove-button-size" title="Remove Button Size" type="number" min="16" max="28" step="2">20</prop>
+        <prop name="remove-button-color" title="Remove Button Color" type="color">#ef4444</prop>
+        <prop name="attachment-component-spacing" title="Internal Spacing" type="number" min="4" max="16" step="2">8</prop>
+      </props>
+    </node>
+
+    <node id="error-display-component" title="Error Display Component" x="2868" y="2358" z="0">
+      <description>A component for displaying error messages when AI assistant responses fail, with clear visual styling to indicate problems.</description>
+      <metadata>
+        <file>packages/react/src/primitives/error/ErrorRoot.tsx</file>
+        <file>packages/react/src/primitives/error/ErrorMessage.tsx</file>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/thread.tsx</file>
+      </metadata>
+      <props>
+        <prop name="error-display-component-background-color" title="Error Background Color" type="color">#fef2f2</prop>
+        <prop name="error-display-component-border-color" title="Error Border Color" type="color">#fecaca</prop>
+        <prop name="error-display-component-text-color" title="Error Text Color" type="color">#dc2626</prop>
+        <prop name="error-display-component-border-radius" title="Border Radius" type="number" min="0" max="16" step="2">6</prop>
+        <prop name="error-display-component-padding" title="Internal Padding" type="number" min="8" max="20" step="2">12</prop>
+        <prop name="error-display-component-font-size" title="Font Size" type="number" min="12" max="16" step="1">14</prop>
+        <prop name="margin-top" title="Top Margin" type="number" min="0" max="16" step="2">8</prop>
+        <prop name="line-clamp" title="Text Line Clamp" type="number" min="1" max="5" step="1">2</prop>
+      </props>
+    </node>
+
+    <node id="assistant-modal-component" title="Assistant Modal" x="488" y="668" z="0">
+      <description>A modal dialog component that can overlay the main interface to display the AI assistant chat in a popup window format.</description>
+      <metadata>
+        <file>packages/react/src/primitives/assistantModal/AssistantModalRoot.tsx</file>
+        <file>packages/react/src/primitives/assistantModal/AssistantModalContent.tsx</file>
+        <file>packages/react/src/primitives/assistantModal/AssistantModalTrigger.tsx</file>
+        <file>packages/react/src/primitives/assistantModal/AssistantModalAnchor.tsx</file>
+      </metadata>
+      <props>
+        <prop name="modal-width" title="Modal Width" type="text">600px</prop>
+        <prop name="modal-height" title="Modal Height" type="text">80vh</prop>
+        <prop name="backdrop-color" title="Backdrop Color" type="color">#00000080</prop>
+        <prop name="assistant-modal-component-background-color" title="Modal Background" type="color">#ffffff</prop>
+        <prop name="assistant-modal-component-border-radius" title="Modal Border Radius" type="number" min="0" max="24" step="2">12</prop>
+        <prop name="shadow-intensity" title="Drop Shadow Intensity" type="select">
+          <value>large</value>
+          <options>
+          <option>none</option>
+          <option>small</option>
+          <option>medium</option>
+          <option>large</option>
+          <option>extra-large</option>
+          </options>
+        </prop>
+        <prop name="close-on-outside-click" title="Close on Outside Click" type="boolean">true</prop>
+        <prop name="close-on-escape" title="Close on Escape Key" type="boolean">true</prop>
+        <prop name="animation-duration" title="Animation Duration (ms)" type="number" min="100" max="500" step="50">200</prop>
+      </props>
+    </node>
+
+    <node id="thread-list-component" title="Thread List Component" x="488" y="12" z="0">
+      <description>A list component that displays multiple conversation threads, allowing users to navigate between different chat sessions with the AI assistant.</description>
+      <metadata>
+        <file>packages/react/src/primitives/threadList/ThreadListRoot.tsx</file>
+        <file>packages/react/src/primitives/threadList/ThreadListItems.tsx</file>
+        <file>packages/react/src/primitives/threadList/ThreadListNew.tsx</file>
+        <file>packages/react/src/primitives/threadListItem/ThreadListItemRoot.tsx</file>
+        <file>packages/react/src/primitives/threadListItem/ThreadListItemTitle.tsx</file>
+      </metadata>
+      <props>
+        <prop name="list-background" title="List Background Color" type="color">#ffffff</prop>
+        <prop name="item-background" title="Thread Item Background" type="color">#ffffff</prop>
+        <prop name="item-hover-bg" title="Thread Item Hover Background" type="color">#f9fafb</prop>
+        <prop name="item-active-bg" title="Active Thread Background" type="color">#eff6ff</prop>
+        <prop name="item-padding" title="Thread Item Padding" type="number" min="8" max="20" step="2">12</prop>
+        <prop name="item-border-radius" title="Thread Item Border Radius" type="number" min="0" max="16" step="2">8</prop>
+        <prop name="title-font-size" title="Thread Title Font Size" type="number" min="12" max="18" step="1">14</prop>
+        <prop name="title-color" title="Thread Title Color" type="color">#111827</prop>
+        <prop name="spacing-between" title="Spacing Between Items" type="number" min="0" max="12" step="2">4</prop>
+        <prop name="new-thread-button-text" title="New Thread Button Text" type="text">New Conversation</prop>
+      </props>
+    </node>
+
+    <node id="code-header-component" title="Code Header Component" x="2392" y="1854" z="0">
+      <description>A header component that appears above code blocks in markdown, showing the programming language and providing a copy button for the code content.</description>
+      <metadata>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/markdown-text.tsx</file>
+      </metadata>
+      <props>
+        <prop name="code-header-component-background-color" title="Header Background Color" type="color">#18181b</prop>
+        <prop name="code-header-component-text-color" title="Header Text Color" type="color">#ffffff</prop>
+        <prop name="language-font-size" title="Language Label Font Size" type="number" min="10" max="16" step="1">14</prop>
+        <prop name="language-transform" title="Language Text Transform" type="select">
+          <value>lowercase</value>
+          <options>
+          <option>none</option>
+          <option>lowercase</option>
+          <option>uppercase</option>
+          <option>capitalize</option>
+          </options>
+        </prop>
+        <prop name="code-header-component-padding-horizontal" title="Horizontal Padding" type="number" min="8" max="24" step="2">16</prop>
+        <prop name="code-header-component-padding-vertical" title="Vertical Padding" type="number" min="4" max="16" step="2">8</prop>
+        <prop name="border-radius-top" title="Top Border Radius" type="number" min="0" max="16" step="2">8</prop>
+        <prop name="code-header-component-font-weight" title="Font Weight" type="select">
+          <value>semibold</value>
+          <options>
+          <option>normal</option>
+          <option>medium</option>
+          <option>semibold</option>
+          <option>bold</option>
+          </options>
+        </prop>
+        <prop name="copy-button-enabled" title="Show Copy Button" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="tool-fallback-component" title="Tool Fallback Component" x="2868" y="996" z="0">
+      <description>A fallback component that displays when AI tool calls are not handled by custom implementations, providing a default visual representation of tool usage.</description>
+      <metadata>
+        <file>examples/with-ai-sdk-v5/components/assistant-ui/tool-fallback.tsx</file>
+      </metadata>
+      <props>
+        <prop name="tool-fallback-component-background-color" title="Tool Background Color" type="color">#f8fafc</prop>
+        <prop name="tool-fallback-component-border-color" title="Tool Border Color" type="color">#e2e8f0</prop>
+        <prop name="tool-fallback-component-text-color" title="Tool Text Color" type="color">#475569</prop>
+        <prop name="tool-fallback-component-title-color" title="Tool Title Color" type="color">#1e293b</prop>
+        <prop name="tool-fallback-component-border-radius" title="Border Radius" type="number" min="0" max="16" step="2">8</prop>
+        <prop name="tool-fallback-component-padding" title="Internal Padding" type="number" min="8" max="24" step="2">16</prop>
+        <prop name="tool-fallback-component-title-font-size" title="Title Font Size" type="number" min="14" max="20" step="1">16</prop>
+        <prop name="content-font-size" title="Content Font Size" type="number" min="12" max="16" step="1">14</prop>
+        <prop name="icon-enabled" title="Show Tool Icon" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="assistant-stream-core" title="Assistant Stream Core" x="2868" y="340" z="0">
+      <description>Core streaming functionality that handles real-time AI response processing, message accumulation, and tool execution streaming for live chat interactions.</description>
+      <metadata>
+        <file>packages/assistant-stream/src/core/AssistantStream.ts</file>
+        <file>packages/assistant-stream/src/core/accumulators/AssistantMessageStream.ts</file>
+        <file>packages/assistant-stream/src/core/tool/ToolExecutionStream.ts</file>
+      </metadata>
+      <props>
+        <prop name="stream-buffer-size" title="Stream Buffer Size" type="number" min="256" max="4096" step="256">1024</prop>
+        <prop name="chunk-processing-delay" title="Chunk Processing Delay (ms)" type="number" min="0" max="100" step="10">0</prop>
+        <prop name="error-retry-attempts" title="Error Retry Attempts" type="number" min="0" max="10" step="1">3</prop>
+        <prop name="stream-timeout" title="Stream Timeout (seconds)" type="number" min="10" max="300" step="10">60</prop>
+        <prop name="enable-tool-streaming" title="Enable Tool Streaming" type="boolean">true</prop>
+        <prop name="enable-message-accumulation" title="Enable Message Accumulation" type="boolean">true</prop>
+        <prop name="debug-logging" title="Enable Debug Logging" type="boolean">false</prop>
+      </props>
+    </node>
+
+    <node id="cloud-integration" title="Cloud Integration" x="2868" y="12" z="0">
+      <description>Cloud service integration that provides authentication, thread persistence, file handling, and multi-device synchronization for AI assistant conversations.</description>
+      <metadata>
+        <file>packages/cloud/src/AssistantCloud.tsx</file>
+        <file>packages/cloud/src/AssistantCloudAPI.tsx</file>
+        <file>packages/cloud/src/AssistantCloudThreads.tsx</file>
+        <file>packages/cloud/src/AssistantCloudFiles.tsx</file>
+      </metadata>
+      <props>
+        <prop name="api-endpoint" title="API Endpoint URL" type="text">https://api.assistant-ui.com</prop>
+        <prop name="auth-strategy" title="Authentication Strategy" type="select">
+          <value>jwt</value>
+          <options>
+          <option>jwt</option>
+          <option>oauth</option>
+          <option>api-key</option>
+          <option>anonymous</option>
+          </options>
+        </prop>
+        <prop name="auto-sync-enabled" title="Auto Sync Conversations" type="boolean">true</prop>
+        <prop name="sync-interval" title="Sync Interval (seconds)" type="number" min="10" max="300" step="10">30</prop>
+        <prop name="max-file-size" title="Max File Upload Size (MB)" type="number" min="1" max="100" step="1">10</prop>
+        <prop name="cache-duration" title="Cache Duration (minutes)" type="number" min="5" max="1440" step="5">60</prop>
+        <prop name="offline-mode" title="Enable Offline Mode" type="boolean">true</prop>
+        <prop name="encryption-enabled" title="Enable End-to-End Encryption" type="boolean">false</prop>
+      </props>
+    </node>
+
+    <node id="runtime-provider" title="Runtime Provider" x="488" y="340" z="0">
+      <description>Core runtime system that manages AI model connections, message handling, state management, and provides the foundational context for all assistant interactions.</description>
+      <metadata>
+        <file>packages/react/src/legacy-runtime/AssistantRuntimeProvider.tsx</file>
+        <file>packages/react/src/legacy-runtime/runtime-cores/local/useLocalRuntime.tsx</file>
+        <file>packages/react/src/legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime.tsx</file>
+      </metadata>
+      <props>
+        <prop name="model-provider" title="AI Model Provider" type="select">
+          <value>openai</value>
+          <options>
+          <option>openai</option>
+          <option>anthropic</option>
+          <option>google</option>
+          <option>local</option>
+          <option>custom</option>
+          </options>
+        </prop>
+        <prop name="api-key-required" title="Require API Key" type="boolean">true</prop>
+        <prop name="max-tokens" title="Maximum Tokens per Response" type="number" min="100" max="32000" step="100">4096</prop>
+        <prop name="temperature" title="Response Temperature" type="number" min="0" max="2" step="0.1">0.7</prop>
+        <prop name="streaming-enabled" title="Enable Response Streaming" type="boolean">true</prop>
+        <prop name="tool-calling-enabled" title="Enable Tool Calling" type="boolean">true</prop>
+        <prop name="context-window" title="Context Window Size" type="number" min="1000" max="128000" step="1000">8192</prop>
+        <prop name="auto-continue" title="Auto Continue Long Responses" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="ai-sdk-integration" title="AI SDK Integration" x="12" y="340" z="0">
+      <description>Integration layer that connects the assistant UI with various AI SDKs and providers, handling model communication and response processing.</description>
+      <metadata>
+        <file>packages/react-ai-sdk/src/useAssistantRuntime.tsx</file>
+        <file>examples/with-ai-sdk-v5/app/api/chat/route.ts</file>
+      </metadata>
+      <props>
+        <prop name="sdk-version" title="AI SDK Version" type="text">v5</prop>
+        <prop name="model-name" title="Default Model Name" type="text">gpt-4o</prop>
+        <prop name="ai-sdk-integration-api-endpoint" title="API Endpoint" type="text">/api/chat</prop>
+        <prop name="request-timeout" title="Request Timeout (seconds)" type="number" min="10" max="300" step="10">60</prop>
+        <prop name="retry-attempts" title="Failed Request Retry Attempts" type="number" min="0" max="10" step="1">3</prop>
+        <prop name="request-headers" title="Custom Request Headers" type="object">
+        <field name="Content-Type" title="Content-Type" type="text">application/json</field>
+      </prop>
+        <prop name="error-handling" title="Error Handling Strategy" type="select">
+          <value>display</value>
+          <options>
+          <option>display</option>
+          <option>retry</option>
+          <option>ignore</option>
+          <option>fallback</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="devtools-extension" title="Developer Tools Extension" x="12" y="668" z="0">
+      <description>Browser extension and development tools for debugging and inspecting assistant UI components, runtime state, and message flows during development.</description>
+      <metadata>
+        <file>apps/devtools-extension/src/content.ts</file>
+        <file>apps/devtools-frame/app/page.tsx</file>
+        <file>packages/react-devtools/src/DevtoolsUI.tsx</file>
+      </metadata>
+      <props>
+        <prop name="auto-inject" title="Auto Inject in Development" type="boolean">true</prop>
+        <prop name="panel-position" title="Panel Position" type="select">
+          <value>bottom</value>
+          <options>
+          <option>bottom</option>
+          <option>right</option>
+          <option>left</option>
+          <option>floating</option>
+          </options>
+        </prop>
+        <prop name="panel-height" title="Panel Height" type="text">300px</prop>
+        <prop name="show-runtime-state" title="Show Runtime State" type="boolean">true</prop>
+        <prop name="show-message-history" title="Show Message History" type="boolean">true</prop>
+        <prop name="show-performance-metrics" title="Show Performance Metrics" type="boolean">false</prop>
+        <prop name="theme" title="DevTools Theme" type="select">
+          <value>auto</value>
+          <options>
+          <option>light</option>
+          <option>dark</option>
+          <option>auto</option>
+          </options>
+        </prop>
+        <prop name="keyboard-shortcut" title="Toggle Keyboard Shortcut" type="text">Ctrl+Shift+A</prop>
+      </props>
+    </node>
+
+    <node id="styling-system" title="Styling System" x="488" y="996" z="0">
+      <description>CSS styling foundation that provides Tailwind CSS integration, theme variables, and component styling patterns for consistent visual design across the assistant UI.</description>
+      <metadata>
+        <file>packages/styles/src/index.css</file>
+        <file>packages/styles/src/dot.css</file>
+        <file>examples/with-ai-sdk-v5/tailwind.config.js</file>
+      </metadata>
+      <props>
+        <prop name="framework" title="CSS Framework" type="select">
+          <value>tailwind</value>
+          <options>
+          <option>tailwind</option>
+          <option>css-modules</option>
+          <option>styled-components</option>
+          <option>emotion</option>
+          <option>vanilla</option>
+          </options>
+        </prop>
+        <prop name="theme-mode" title="Theme Mode Support" type="select">
+          <value>auto</value>
+          <options>
+          <option>light</option>
+          <option>dark</option>
+          <option>auto</option>
+          <option>system</option>
+          </options>
+        </prop>
+        <prop name="custom-properties" title="Enable CSS Custom Properties" type="boolean">true</prop>
+        <prop name="rtl-support" title="Right-to-Left Support" type="boolean">false</prop>
+        <prop name="styling-system-animation-duration" title="Default Animation Duration (ms)" type="number" min="100" max="1000" step="50">200</prop>
+        <prop name="border-radius-base" title="Base Border Radius" type="number" min="0" max="16" step="2">8</prop>
+        <prop name="spacing-scale" title="Spacing Scale Factor" type="number" min="2" max="8" step="1">4</prop>
+        <prop name="color-scheme" title="Primary Color Scheme" type="select">
+          <value>blue</value>
+          <options>
+          <option>blue</option>
+          <option>green</option>
+          <option>purple</option>
+          <option>gray</option>
+          <option>custom</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="cli-tool" title="CLI Tool" x="12" y="1324" z="0">
+      <description>Command-line interface for creating, initializing, and managing assistant UI projects, including component installation and project scaffolding.</description>
+      <metadata>
+        <file>packages/cli/src/index.ts</file>
+        <file>packages/cli/src/commands/create.ts</file>
+        <file>packages/cli/src/commands/init.ts</file>
+        <file>packages/cli/src/commands/add.ts</file>
+      </metadata>
+      <props>
+        <prop name="default-template" title="Default Project Template" type="select">
+          <value>nextjs</value>
+          <options>
+          <option>nextjs</option>
+          <option>vite</option>
+          <option>remix</option>
+          <option>gatsby</option>
+          <option>custom</option>
+          </options>
+        </prop>
+        <prop name="package-manager" title="Preferred Package Manager" type="select">
+          <value>npm</value>
+          <options>
+          <option>npm</option>
+          <option>yarn</option>
+          <option>pnpm</option>
+          <option>bun</option>
+          </options>
+        </prop>
+        <prop name="typescript-default" title="Use TypeScript by Default" type="boolean">true</prop>
+        <prop name="tailwind-integration" title="Auto-setup Tailwind CSS" type="boolean">true</prop>
+        <prop name="component-registry" title="Component Registry URL" type="text">https://registry.assistant-ui.com</prop>
+        <prop name="auto-install-deps" title="Auto Install Dependencies" type="boolean">true</prop>
+        <prop name="git-init" title="Initialize Git Repository" type="boolean">true</prop>
+        <prop name="eslint-config" title="Include ESLint Configuration" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="component-registry" title="Component Registry" x="488" y="1324" z="0">
+      <description>Online registry and documentation system that hosts reusable assistant UI components, examples, and installation guides for the community.</description>
+      <metadata>
+        <file>apps/registry/src/registry.ts</file>
+        <file>apps/docs/app/docs/components/page.tsx</file>
+      </metadata>
+      <props>
+        <prop name="registry-url" title="Registry Base URL" type="text">https://registry.assistant-ui.com</prop>
+        <prop name="auto-sync" title="Auto Sync with GitHub" type="boolean">true</prop>
+        <prop name="component-categories" title="Component Categories" type="object-list">
+        <item index="0">
+          <field name="name" title="Category Name" type="text">Primitives</field>
+          <field name="description" title="Description" type="text">Core UI primitives</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Category Name" type="text">Examples</field>
+          <field name="description" title="Description" type="text">Complete examples</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Category Name" type="text">Templates</field>
+          <field name="description" title="Description" type="text">Project templates</field>
+        </item>
+      </prop>
+        <prop name="version-tracking" title="Enable Version Tracking" type="boolean">true</prop>
+        <prop name="community-submissions" title="Allow Community Submissions" type="boolean">true</prop>
+        <prop name="documentation-format" title="Documentation Format" type="select">
+          <value>mdx</value>
+          <options>
+          <option>markdown</option>
+          <option>mdx</option>
+          <option>json</option>
+          <option>yaml</option>
+          </options>
+        </prop>
+        <prop name="search-enabled" title="Enable Search Functionality" type="boolean">true</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="thread-component-message-component" source="thread-component" target="message-component" role="contains"/>
+    <edge id="thread-component-composer-component" source="thread-component" target="composer-component" role="contains"/>
+    <edge id="thread-component-thread-welcome-component" source="thread-component" target="thread-welcome-component" role="contains"/>
+    <edge id="thread-component-scroll-to-bottom-button" source="thread-component" target="scroll-to-bottom-button" role="contains"/>
+    <edge id="message-component-action-bar-component" source="message-component" target="action-bar-component" role="contains"/>
+    <edge id="message-component-branch-picker-component" source="message-component" target="branch-picker-component" role="contains"/>
+    <edge id="message-component-markdown-text-component" source="message-component" target="markdown-text-component" role="uses"/>
+    <edge id="message-component-attachment-component" source="message-component" target="attachment-component" role="contains"/>
+    <edge id="message-component-error-display-component" source="message-component" target="error-display-component" role="contains"/>
+    <edge id="message-component-tool-fallback-component" source="message-component" target="tool-fallback-component" role="uses"/>
+    <edge id="thread-welcome-component-thread-suggestions" source="thread-welcome-component" target="thread-suggestions" role="contains"/>
+    <edge id="markdown-text-component-code-header-component" source="markdown-text-component" target="code-header-component" role="contains"/>
+    <edge id="action-bar-component-tooltip-icon-button" source="action-bar-component" target="tooltip-icon-button" role="uses"/>
+    <edge id="branch-picker-component-tooltip-icon-button" source="branch-picker-component" target="tooltip-icon-button" role="uses"/>
+    <edge id="composer-component-tooltip-icon-button" source="composer-component" target="tooltip-icon-button" role="uses"/>
+    <edge id="scroll-to-bottom-button-tooltip-icon-button" source="scroll-to-bottom-button" target="tooltip-icon-button" role="uses"/>
+    <edge id="code-header-component-tooltip-icon-button" source="code-header-component" target="tooltip-icon-button" role="uses"/>
+    <edge id="assistant-modal-component-thread-component" source="assistant-modal-component" target="thread-component" role="contains"/>
+    <edge id="thread-list-component-thread-component" source="thread-list-component" target="thread-component" role="manages"/>
+    <edge id="thread-component-assistant-stream-core" source="thread-component" target="assistant-stream-core" role="uses"/>
+    <edge id="thread-list-component-cloud-integration" source="thread-list-component" target="cloud-integration" role="uses"/>
+    <edge id="runtime-provider-thread-component" source="runtime-provider" target="thread-component" role="provides"/>
+    <edge id="runtime-provider-assistant-stream-core" source="runtime-provider" target="assistant-stream-core" role="uses"/>
+    <edge id="ai-sdk-integration-runtime-provider" source="ai-sdk-integration" target="runtime-provider" role="integrates"/>
+    <edge id="devtools-extension-runtime-provider" source="devtools-extension" target="runtime-provider" role="monitors"/>
+    <edge id="styling-system-thread-component" source="styling-system" target="thread-component" role="styles"/>
+    <edge id="cli-tool-component-registry" source="cli-tool" target="component-registry" role="installs-from"/>
+    <edge id="component-registry-thread-component" source="component-registry" target="thread-component" role="documents"/>
+  </edges>
+</graph>
