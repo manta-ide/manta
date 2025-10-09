@@ -10,9 +10,10 @@ import { ChevronDownIcon, ChevronRightIcon, PlusIcon, XIcon, Move } from 'lucide
 interface ObjectListPropertyEditorProps {
   property: Property & { type: 'object-list'; itemFields?: Property[]; itemTitle?: string; addLabel?: string };
   onChange: (value: Array<Record<string, any>>) => void;
+  readonly?: boolean;
 }
 
-export default function ObjectListPropertyEditor({ property, onChange }: ObjectListPropertyEditorProps) {
+export default function ObjectListPropertyEditor({ property, onChange, readonly = false }: ObjectListPropertyEditorProps) {
   const items = Array.isArray(property.value) ? (property.value as Array<Record<string, any>>) : [];
   const explicitFields = Array.isArray(property.itemFields) ? property.itemFields : [];
 
@@ -201,7 +202,8 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
           variant="ghost"
           size="sm"
           className="h-6 w-6 p-0 text-xs hover:bg-zinc-700 rounded-sm flex items-center justify-center"
-          onClick={addItem}
+          onClick={readonly ? () => {} : addItem}
+          disabled={readonly}
           title={property.addLabel || 'Add'}
         >
           <PlusIcon size={16} className="text-muted-foreground/80" />
@@ -315,7 +317,8 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0 text-xs hover:bg-zinc-700 rounded-sm flex items-center justify-center"
-                  onClick={(e) => { e.stopPropagation(); removeItem(idx); }}
+                  onClick={(e) => { e.stopPropagation(); if (!readonly) removeItem(idx); }}
+                  disabled={readonly}
                   title="Remove"
                 >
                   <XIcon size={16} className="text-muted-foreground/80" />
@@ -330,6 +333,7 @@ export default function ObjectListPropertyEditor({ property, onChange }: ObjectL
                       <PropertyEditor
                         property={{ ...f, value: item[f.id] ?? f.value } as Property}
                         onChange={(pid, v) => updateItemField(idx, pid, v)}
+                        readonly={readonly}
                       />
                     </div>
                   ))}

@@ -49,7 +49,7 @@ const isValidConnection = (connection: Connection | Edge) => {
 };
 
 // Custom node component
-const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
+const CustomNode = memo(function CustomNode({ data, selected, readonly = false }: { data: any; selected: boolean; readonly?: boolean }) {
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
   const { zoom } = useViewport();
@@ -115,6 +115,11 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
 
   // Derive effective visual state based on base graph comparison
   const effectiveState = (() => {
+    // In readonly mode, always show as built
+    if (readonly) {
+      return 'built';
+    }
+
     console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
     if (!baseGraph) {
@@ -394,7 +399,12 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
          prevProps.data?.graph === nextProps.data?.graph;
 });
 
-function GraphCanvas() {
+interface GraphCanvasProps {
+  readonly?: boolean;
+  graph?: Graph | null;
+}
+
+function GraphCanvas({ readonly = false, graph: propGraph = null }: GraphCanvasProps) {
   const [nodes, setNodes] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
@@ -417,8 +427,6 @@ function GraphCanvas() {
   );
 
   // Get optimistic operations flag from store to prevent real-time updates during local operations
-
-
   const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
@@ -437,23 +445,23 @@ function GraphCanvas() {
   const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
-  // Use the store for graph data
-  const {
-    graph,
-    graphLoading: loading,
-    graphError: error,
-    refreshGraph,
-    refreshGraphStates,
-    reconcileGraphRefresh,
-    connectToGraphEvents,
-    disconnectFromGraphEvents,
-    deleteNode,
-    loadGraphs,
-    // search state
-    searchResults,
-    searchActiveIndex,
-    searchOpen,
-  } = useProjectStore();
+
+  // In readonly mode, use the provided graph, otherwise use store
+  const storeGraphData = useProjectStore();
+  const graph = readonly ? propGraph : storeGraphData.graph;
+  const loading = readonly ? false : storeGraphData.graphLoading;
+  const error = readonly ? null : storeGraphData.graphError;
+  const refreshGraph = readonly ? () => {} : storeGraphData.refreshGraph;
+  const refreshGraphStates = readonly ? () => {} : storeGraphData.refreshGraphStates;
+  const reconcileGraphRefresh = readonly ? async () => {} : storeGraphData.reconcileGraphRefresh;
+  const connectToGraphEvents = readonly ? () => {} : storeGraphData.connectToGraphEvents;
+  const disconnectFromGraphEvents = readonly ? () => {} : storeGraphData.disconnectFromGraphEvents;
+  const deleteNode = readonly ? () => {} : storeGraphData.deleteNode;
+  const loadGraphs = readonly ? () => Promise.resolve(null) : storeGraphData.loadGraphs;
+  // search state
+  const searchResults = readonly ? [] : storeGraphData.searchResults;
+  const searchActiveIndex = readonly ? -1 : storeGraphData.searchActiveIndex;
+  const searchOpen = readonly ? false : storeGraphData.searchOpen;
 
 
   const { suppressSSE } = useProjectStore.getState();
@@ -1125,8 +1133,8 @@ function GraphCanvas() {
     setEdges((eds) => {
       const updated = applyEdgeChanges(changes, eds);
       return updated.map((e) => {
-        // Check if edge is unbuilt
-        const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+        // In readonly mode, always show as built
+        const isUnbuilt = readonly ? false : isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
         const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
         return {
           ...e,
@@ -1135,7 +1143,7 @@ function GraphCanvas() {
         };
       });
     });
-  }, [setEdges, baseGraph]);
+  }, [setEdges, baseGraph, readonly]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -1199,7 +1207,7 @@ function GraphCanvas() {
         // Also refresh edge styling (built/unbuilt) against latest baseGraph
         setEdges(currentEdges =>
           currentEdges.map(e => {
-            const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
+            const isUnbuilt = readonly ? false : isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
             const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
             return {
               ...e,
@@ -1357,8 +1365,8 @@ function GraphCanvas() {
               }
             }
               
-          // Check if edge is unbuilt
-          const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
+          // Check if edge is unbuilt (always false in readonly mode)
+          const isUnbuilt = readonly ? false : isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
 
           reactFlowEdges.push({
             id: edge.id,
@@ -1675,7 +1683,7 @@ function GraphCanvas() {
 
   // Node types for ReactFlow
   const nodeTypes = {
-    custom: CustomNode,
+    custom: (props: any) => <CustomNode {...props} readonly={readonly} />,
   };
 
   if (loading) {
@@ -1742,19 +1750,22 @@ function GraphCanvas() {
         zoomOnScroll={false}
         zoomOnPinch={true}
         /* Dynamic pan behavior based on tool mode */
-        panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
-        selectionOnDrag={currentTool === 'select'}
-        onMouseDown={onPaneMouseDown}
+        panOnDrag={readonly ? [0, 2] : (currentTool === 'pan' ? [0, 2] : [2])} // Left mouse pan in pan mode, right mouse always pans
+        selectionOnDrag={readonly ? false : currentTool === 'select'}
+        onMouseDown={readonly ? undefined : onPaneMouseDown}
         colorMode="dark"
-        nodesDraggable={true}
-        nodesConnectable={currentTool === 'select'}
-        elementsSelectable={true}
-        deleteKeyCode={[]}
+        nodesDraggable={!readonly}
+        nodesConnectable={!readonly && currentTool === 'select'}
+        elementsSelectable={!readonly}
+        deleteKeyCode={readonly ? [] : []}
       >
         <MiniMap
           nodeColor={(node: any) => {
             const nd = node.data?.node;
             const baseGraph = node.data?.baseGraph;
+
+            // In readonly mode, always show as built
+            if (readonly) return '#9ca3af';
 
             // Compute state dynamically using the same logic as node state computation
             let nodeState = 'unbuilt';
@@ -1806,169 +1817,178 @@ function GraphCanvas() {
         </div>
       )}
 
-      {/* Tool Buttons - Left Side */}
-      <div style={{
-        position: 'absolute',
-        left: '12px',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        zIndex: 1000,
-      }}>
-        {/* Select Tool */}
-        <Button
-          onClick={() => setCurrentTool('select')}
-          variant={currentTool === 'select' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'select'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
-        >
-          <SquareDashed className="w-4 h-4" />
-        </Button>
-
-        {/* Pan Tool */}
-        <Button
-          onClick={() => setCurrentTool('pan')}
-          variant={currentTool === 'pan' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'pan'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Pan Tool - Click and drag to pan the view, right-click always pans"
-        >
-          <Hand className="w-4 h-4" />
-        </Button>
-
-        {/* Add Node Tool */}
-        <Button
-          onClick={() => setCurrentTool('add-node')}
-          variant={currentTool === 'add-node' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'add-node'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Add Node Tool - Click anywhere on the canvas to create a new node"
-        >
-          <File className="w-4 h-4" />
-        </Button>
-      </div>
-
-      {/* Action Buttons - Right Side */}
-      <div style={{
-        position: 'absolute',
-        top: '12px',
-        right: '12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        zIndex: 1000,
-      }}>
-        {/* Auto Layout Button */}
-        <Button
-          onClick={autoLayout}
-          disabled={isAutoLayouting || !graph}
-          variant="outline"
-          size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
-            isAutoLayouting ? 'cursor-not-allowed opacity-75' : ''
-          }`}
-          title={isAutoLayouting ? 'Laying out graph...' : 'Auto-arrange nodes for a clean layout'}
-        >
-          {isAutoLayouting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Auto Layout...
-            </>
-          ) : (
-            <>
-              <Wand2 className="w-4 h-4 mr-2" />
-              Auto Layout
-            </>
-          )}
-        </Button>
-        {/* Build Entire Graph Button */}
-        <Button
-          onClick={buildEntireGraph}
-          disabled={isBuildingGraph || !graph}
-          variant="outline"
-          size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
-            isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
-          }`}
-          title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
-        >
-          {isBuildingGraph ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Building Graph...
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 mr-2" />
-              Build Graph
-            </>
-          )}
-        </Button>
-        {/* Open Layers Sidebar button (shown only when sidebar is closed) */}
-        {!layersSidebarOpen && (
+      {/* Tool Buttons - Left Side - Hidden in readonly mode */}
+      {!readonly && (
+        <div style={{
+          position: 'absolute',
+          left: '12px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          zIndex: 1000,
+        }}>
+          {/* Select Tool */}
           <Button
-            onClick={() => {
-              try { window.dispatchEvent(new CustomEvent('manta:open-layers')); } catch {}
-              setLayersSidebarOpen(true);
-            }}
+            onClick={() => setCurrentTool('select')}
+            variant={currentTool === 'select' ? 'default' : 'outline'}
+            size="sm"
+            className={`${currentTool === 'select'
+              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+              : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+            }`}
+            style={{ width: '32px', height: '32px', padding: '0' }}
+            title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
+          >
+            <SquareDashed className="w-4 h-4" />
+          </Button>
+
+          {/* Pan Tool */}
+          <Button
+            onClick={() => setCurrentTool('pan')}
+            variant={currentTool === 'pan' ? 'default' : 'outline'}
+            size="sm"
+            className={`${currentTool === 'pan'
+              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+              : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+            }`}
+            style={{ width: '32px', height: '32px', padding: '0' }}
+            title="Pan Tool - Click and drag to pan the view, right-click always pans"
+          >
+            <Hand className="w-4 h-4" />
+          </Button>
+
+          {/* Add Node Tool */}
+          <Button
+            onClick={() => setCurrentTool('add-node')}
+            variant={currentTool === 'add-node' ? 'default' : 'outline'}
+            size="sm"
+            className={`${currentTool === 'add-node'
+              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+              : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+            }`}
+            style={{ width: '32px', height: '32px', padding: '0' }}
+            title="Add Node Tool - Click anywhere on the canvas to create a new node"
+          >
+            <File className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Action Buttons - Right Side - Hidden in readonly mode */}
+      {!readonly && (
+        <div style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          zIndex: 1000,
+        }}>
+          {/* Auto Layout Button */}
+          <Button
+            onClick={autoLayout}
+            disabled={isAutoLayouting || !graph}
+            variant="outline"
+            size="sm"
+            className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+              isAutoLayouting ? 'cursor-not-allowed opacity-75' : ''
+            }`}
+            title={isAutoLayouting ? 'Laying out graph...' : 'Auto-arrange nodes for a clean layout'}
+          >
+            {isAutoLayouting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Auto Layout...
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4 mr-2" />
+                Auto Layout
+              </>
+            )}
+          </Button>
+          {/* Build Entire Graph Button */}
+          <Button
+            onClick={buildEntireGraph}
+            disabled={isBuildingGraph || !graph}
+            variant="outline"
+            size="sm"
+            className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
+              isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
+            }`}
+            title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
+          >
+            {isBuildingGraph ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Building Graph...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 mr-2" />
+                Build Graph
+              </>
+            )}
+          </Button>
+          {/* Open Layers Sidebar button (shown only when sidebar is closed) */}
+          {!layersSidebarOpen && (
+            <Button
+              onClick={() => {
+                try { window.dispatchEvent(new CustomEvent('manta:open-layers')); } catch {}
+                setLayersSidebarOpen(true);
+              }}
+              variant="outline"
+              size="sm"
+              className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
+              title="Open Layers Sidebar"
+            >
+              <LayersIcon className="w-4 h-4 mr-2" />
+              Layers
+            </Button>
+          )}
+
+          {/* Rebuild Full Graph Button */}
+          {/* <Button
+            onClick={rebuildFullGraph}
+            disabled={isRebuilding}
             variant="outline"
             size="sm"
             className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title="Open Layers Sidebar"
+            title={isRebuilding ? "Rebuilding graph..." : "Rebuild entire graph and generate code for all nodes"}
           >
-            <LayersIcon className="w-4 h-4 mr-2" />
-            Layers
-          </Button>
-        )}
-        
-        {/* Rebuild Full Graph Button */}
-        {/* <Button
-          onClick={rebuildFullGraph}
-          disabled={isRebuilding}
-          variant="outline"
-          size="sm"
-          className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-          title={isRebuilding ? "Rebuilding graph..." : "Rebuild entire graph and generate code for all nodes"}
-        >
-          <RotateCcw className={`w-4 h-4 ${isRebuilding ? 'animate-spin' : ''}`} />
-          {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
-        </Button> */}
-        
-        {/* Delete Graph Button */}
-        {/* <Button
-          onClick={deleteGraph}
-          variant="outline"
-          size="sm"
-          className="bg-zinc-800 text-red-400 border-0 hover:bg-red-900/20 hover:text-red-300"
-          title="Delete graph"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete Graph
-        </Button> */}
-      </div>
+            <RotateCcw className={`w-4 h-4 ${isRebuilding ? 'animate-spin' : ''}`} />
+            {isRebuilding ? 'Rebuilding...' : 'Rebuild Full Graph'}
+          </Button> */}
+
+          {/* Delete Graph Button */}
+          {/* <Button
+            onClick={deleteGraph}
+            variant="outline"
+            size="sm"
+            className="bg-zinc-800 text-red-400 border-0 hover:bg-red-900/20 hover:text-red-300"
+            title="Delete graph"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Graph
+          </Button> */}
+        </div>
+      )}
     </div>
   );
 }
 
-function GraphView() {
+interface GraphViewProps {
+  readonly?: boolean;
+  graph?: Graph | null;
+}
+
+function GraphView({ readonly = false, graph = null }: GraphViewProps) {
   return (
     <ReactFlowProvider>
-      <GraphCanvas />
+      <GraphCanvas readonly={readonly} graph={graph} />
     </ReactFlowProvider>
   );
 }

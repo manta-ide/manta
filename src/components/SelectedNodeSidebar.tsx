@@ -11,7 +11,11 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SelectNative } from "@/components/ui/select-native";
 
-export default function SelectedNodeSidebar() {
+interface SelectedNodeSidebarProps {
+  readonly?: boolean;
+}
+
+export default function SelectedNodeSidebar({ readonly = false }: SelectedNodeSidebarProps) {
 	
 	const {
 		selectedNodeId,
@@ -227,17 +231,23 @@ export default function SelectedNodeSidebar() {
 						className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
 						value={titleDraft}
 						onChange={(e) => {
+							if (readonly) return;
 							const newValue = e.target.value;
 							setTitleDraft(newValue);
 							debouncedUpdateTitle(newValue);
 						}}
 						placeholder="Enter node title..."
+						readOnly={readonly}
 					/>
 					<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
 					<SelectNative
 					  value={shapeDraft}
-					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' )}
+					  onChange={(e) => {
+						if (readonly) return;
+						handleShapeChange(e.target.value as 'rectangle');
+					  }}
 					  className="bg-zinc-800 border-zinc-700 text-white"
+					  disabled={readonly}
 					>
 					  <option value="rectangle">Rectangle</option>
 					  {/* <option value="circle">Circle</option>
@@ -295,11 +305,13 @@ export default function SelectedNodeSidebar() {
 									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
 									value={promptDraft}
 									onChange={(e) => {
+										if (readonly) return;
 										const newValue = e.target.value;
 										setPromptDraft(newValue);
 										debouncedUpdateDescription(newValue);
 									}}
 									placeholder="Enter description..."
+									readOnly={readonly}
 								/>
 								{rebuildError && (
 									<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
@@ -327,6 +339,7 @@ export default function SelectedNodeSidebar() {
 											onChange={handlePropertyChange}
 											onPreview={handlePropertyPreview}
 											onBackendUpdate={handleBackendUpdate}
+											readonly={readonly}
 										/>
 									</div>
 								))}

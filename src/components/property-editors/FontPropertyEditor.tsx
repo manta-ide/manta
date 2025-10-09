@@ -13,6 +13,7 @@ interface FontPropertyEditorProps {
   property: Property & { type: 'font'; options?: string[] };
   onChange: (value: FontPropertyValue) => void;
   onPreview?: (value: FontPropertyValue) => void;
+  readonly?: boolean;
 }
 
 const DEFAULT_FAMILIES = [
@@ -20,7 +21,7 @@ const DEFAULT_FAMILIES = [
 ];
 
 
-export default function FontPropertyEditor({ property, onChange, onPreview }: FontPropertyEditorProps) {
+export default function FontPropertyEditor({ property, onChange, onPreview, readonly = false }: FontPropertyEditorProps) {
   const val: FontPropertyValue = (property.value as any) || {};
   const families = useMemo(() => (Array.isArray(property.options) && property.options.length ? property.options : DEFAULT_FAMILIES), [property.options]);
 
@@ -35,7 +36,7 @@ export default function FontPropertyEditor({ property, onChange, onPreview }: Fo
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <Select value={val.family || ''} onValueChange={(v) => update({ family: v })}>
+            <Select value={val.family || ''} onValueChange={(v) => !readonly && update({ family: v })} disabled={readonly}>
               <SelectTrigger className="w-full h-7 bg-zinc-800 border-zinc-700 text-xs text-white">
                 <SelectValue placeholder="Select font family..." />
               </SelectTrigger>

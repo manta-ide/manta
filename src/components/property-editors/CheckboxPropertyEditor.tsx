@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface CheckboxPropertyEditorProps {
   property: Property & { type: 'checkbox' };
   onChange: (value: boolean | string[]) => void;
+  readonly?: boolean;
 }
 
-export default function CheckboxPropertyEditor({ property, onChange }: CheckboxPropertyEditorProps) {
+export default function CheckboxPropertyEditor({ property, onChange, readonly = false }: CheckboxPropertyEditorProps) {
   const id = useId();
 
   // If options are provided, treat as multi-select checkbox group
@@ -36,7 +37,8 @@ export default function CheckboxPropertyEditor({ property, onChange }: CheckboxP
               <Checkbox
                 id={`${id}-${index}`}
                 checked={selectedValues.includes(option)}
-                onCheckedChange={(checked) => handleOptionChange(option, checked as boolean)}
+                onCheckedChange={(checked) => !readonly && handleOptionChange(option, checked as boolean)}
+                disabled={readonly}
                 className="scale-75"
               />
               <Label htmlFor={`${id}-${index}`} className="text-xs text-zinc-300">
@@ -58,7 +60,8 @@ export default function CheckboxPropertyEditor({ property, onChange }: CheckboxP
         <Checkbox
           id={id}
           checked={value}
-          onCheckedChange={(checked) => onChange(Boolean(checked))}
+          onCheckedChange={(checked) => !readonly && onChange(Boolean(checked))}
+          disabled={readonly}
           className="scale-75"
         />
         <Label htmlFor={id} className="text-xs text-zinc-300">

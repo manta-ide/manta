@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface RadioPropertyEditorProps {
   property: Property & { type: 'radio'; options: string[] };
   onChange: (value: string) => void;
+  readonly?: boolean;
 }
 
-export default function RadioPropertyEditor({ property, onChange }: RadioPropertyEditorProps) {
+export default function RadioPropertyEditor({ property, onChange, readonly = false }: RadioPropertyEditorProps) {
   const id = useId();
   const value = property.value as string || '';
 
@@ -19,7 +20,8 @@ export default function RadioPropertyEditor({ property, onChange }: RadioPropert
     <BasePropertyEditor title={property.title}>
       <RadioGroup
         value={value}
-        onValueChange={onChange}
+        onValueChange={readonly ? () => {} : onChange}
+        disabled={readonly}
         className="w-full space-y-1"
       >
         {property.options.map((option: string, index: number) => (

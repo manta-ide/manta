@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface TextAreaPropertyEditorProps {
   property: Property & { type: 'text' };
   onChange: (value: string) => void;
+  readonly?: boolean;
 }
 
-export default function TextAreaPropertyEditor({ property, onChange }: TextAreaPropertyEditorProps) {
+export default function TextAreaPropertyEditor({ property, onChange, readonly = false }: TextAreaPropertyEditorProps) {
   const value = (property.value as string) || '';
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const [wasMultiline, setWasMultiline] = useState<boolean | null>(null);
@@ -56,19 +57,21 @@ export default function TextAreaPropertyEditor({ property, onChange }: TextAreaP
         <Textarea
           ref={inputRef as React.RefObject<HTMLTextAreaElement>}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => !readonly && onChange(e.target.value)}
           placeholder="Enter text..."
           maxLength={property.maxLength}
           className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
+          readOnly={readonly}
         />
       ) : (
         <Input
           ref={inputRef as React.RefObject<HTMLInputElement>}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => !readonly && onChange(e.target.value)}
           placeholder="Enter text..."
           maxLength={property.maxLength}
           className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
+          readOnly={readonly}
         />
       )}
     </BasePropertyEditor>

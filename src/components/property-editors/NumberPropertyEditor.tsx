@@ -9,19 +9,21 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface NumberPropertyEditorProps {
   property: Property & { type: 'number' };
   onChange: (value: number) => void;
+  readonly?: boolean;
 }
 
-export default function NumberPropertyEditor({ property, onChange }: NumberPropertyEditorProps) {
+export default function NumberPropertyEditor({ property, onChange, readonly = false }: NumberPropertyEditorProps) {
   const value = property.value as number || 0;
 
   return (
     <BasePropertyEditor title={property.title}>
       <NumberField
         value={value}
-        onChange={onChange}
+        onChange={readonly ? () => {} : onChange}
         minValue={property.min}
         maxValue={property.max}
         step={property.step}
+        isDisabled={readonly}
       >
         <Group className="border-zinc-700 bg-zinc-800 text-white outline-none data-focus-within:border-blue-500 data-focus-within:ring-1 data-focus-within:ring-blue-500/50 relative inline-flex h-7 w-full items-center overflow-hidden rounded border text-xs whitespace-nowrap transition-[color,box-shadow] data-disabled:opacity-50">
           <Input className="bg-zinc-800 text-white flex-1 px-2 py-1 tabular-nums !text-xs" />

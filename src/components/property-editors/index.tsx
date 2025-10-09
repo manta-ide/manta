@@ -19,9 +19,10 @@ interface PropertyEditorProps {
   onChange: (propertyId: string, value: any) => void;
   onPreview?: (propertyId: string, value: any) => void;
   onBackendUpdate?: (propertyId: string, value: any) => Promise<void>;
+  readonly?: boolean;
 }
 
-export default function PropertyEditor({ property, onChange, onPreview, onBackendUpdate }: PropertyEditorProps) {
+export default function PropertyEditor({ property, onChange, onPreview, onBackendUpdate, readonly = false }: PropertyEditorProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastUpdate = useRef<number>(0);
@@ -36,6 +37,8 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
   }, []);
 
   const handleChange = useCallback((value: any) => {
+    if (readonly) return;
+
     // Call immediate onChange for UI responsiveness
     onChange(property.id, value);
 
@@ -71,7 +74,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
         }
       }, debounceDelay);
     }
-  }, [property.id, property.type, onChange, onBackendUpdate]);
+  }, [property.id, property.type, onChange, onBackendUpdate, readonly]);
 
   const handlePreview = useCallback((value: any) => {
     onPreview?.(property.id, value);
@@ -85,6 +88,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
             property={property as Property & { type: 'font' }}
             onChange={handleChange}
             onPreview={handlePreview}
+            readonly={readonly}
           />
         );
       case 'text':
@@ -92,6 +96,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <TextAreaPropertyEditor
             property={property as Property & { type: 'text' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'object':
@@ -99,6 +104,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <ObjectPropertyEditor
             property={property as Property & { type: 'object' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'object-list':
@@ -106,6 +112,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <ObjectListPropertyEditor
             property={property as Property & { type: 'object-list' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'color':
@@ -113,6 +120,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <ColorPropertyEditor
             property={property as Property & { type: 'color' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'select': {
@@ -123,6 +131,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
             property={p}
             onChange={handleChange}
             onPreview={handlePreview}
+            readonly={readonly}
           />
         );
       }
@@ -131,6 +140,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <NumberPropertyEditor
             property={property as Property & { type: 'number' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'boolean':
@@ -138,6 +148,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <BooleanPropertyEditor
             property={property as Property & { type: 'boolean' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'checkbox':
@@ -145,6 +156,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <CheckboxPropertyEditor
             property={property as Property & { type: 'checkbox'; options?: string[] }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'radio':
@@ -152,6 +164,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <RadioPropertyEditor
             property={property as Property & { type: 'radio'; options: string[] }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       case 'slider':
@@ -159,6 +172,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <SliderPropertyEditor
             property={property as Property & { type: 'slider' }}
             onChange={handleChange}
+            readonly={readonly}
           />
         );
       default:

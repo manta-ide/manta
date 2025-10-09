@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface BooleanPropertyEditorProps {
   property: Property & { type: 'boolean' };
   onChange: (value: boolean) => void;
+  readonly?: boolean;
 }
 
-export default function BooleanPropertyEditor({ property, onChange }: BooleanPropertyEditorProps) {
+export default function BooleanPropertyEditor({ property, onChange, readonly = false }: BooleanPropertyEditorProps) {
   const id = useId();
   const value = Boolean(property.value) || false;
 
@@ -23,24 +24,25 @@ export default function BooleanPropertyEditor({ property, onChange }: BooleanPro
       >
         <span
           id={`${id}-off`}
-          className="group-data-[state=checked]:text-zinc-500 cursor-pointer text-right text-xs font-medium text-white min-w-[20px]"
+          className={`group-data-[state=checked]:text-zinc-500 text-right text-xs font-medium text-white min-w-[20px] ${readonly ? 'cursor-default' : 'cursor-pointer'}`}
           aria-controls={id}
-          onClick={() => onChange(false)}
+          onClick={() => !readonly && onChange(false)}
         >
           Off
         </span>
         <Switch
           id={id}
           checked={value}
-          onCheckedChange={onChange}
+          onCheckedChange={!readonly ? onChange : undefined}
           aria-labelledby={`${id}-off ${id}-on`}
           className="data-[state=unchecked]:bg-zinc-700 data-[state=checked]:bg-blue-600 scale-75"
+          disabled={readonly}
         />
         <span
           id={`${id}-on`}
-          className="group-data-[state=unchecked]:text-zinc-500 cursor-pointer text-left text-xs font-medium text-white min-w-[20px]"
+          className={`group-data-[state=unchecked]:text-zinc-500 text-left text-xs font-medium text-white min-w-[20px] ${readonly ? 'cursor-default' : 'cursor-pointer'}`}
           aria-controls={id}
-          onClick={() => onChange(true)}
+          onClick={() => !readonly && onChange(true)}
         >
           On
         </span>

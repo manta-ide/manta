@@ -8,9 +8,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface SliderPropertyEditorProps {
   property: Property & { type: 'slider' };
   onChange: (value: number[]) => void;
+  readonly?: boolean;
 }
 
-export default function SliderPropertyEditor({ property, onChange }: SliderPropertyEditorProps) {
+export default function SliderPropertyEditor({ property, onChange, readonly = false }: SliderPropertyEditorProps) {
   const min = typeof property.min === 'number' ? property.min : 0;
   const max = typeof property.max === 'number' ? property.max : 100;
   const step = typeof property.step === 'number' ? property.step : 1;
@@ -84,13 +85,14 @@ export default function SliderPropertyEditor({ property, onChange }: SliderPrope
       <div className="w-full px-1">
         <Slider
           value={value}
-          onValueChange={onChange}
+          onValueChange={readonly ? () => {} : onChange}
           min={min}
           max={max}
           step={step}
           showTooltip
           tooltipContent={(v) => fmt(v)}
           aria-label={property.title}
+          disabled={readonly}
           className="[&_[data-slot=slider-track]]:bg-zinc-700 [&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-thumb]]:h-3 [&_[data-slot=slider-thumb]]:w-3"
         />
         <div className="flex items-center justify-between mt-1">

@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface ColorPropertyEditorProps {
   property: Property & { type: 'color' };
   onChange: (value: string) => void;
+  readonly?: boolean;
 }
 
-export default function ColorPropertyEditor({ property, onChange }: ColorPropertyEditorProps) {
+export default function ColorPropertyEditor({ property, onChange, readonly = false }: ColorPropertyEditorProps) {
   const value = (property.value as string) || '#000000';
   const [localValue, setLocalValue] = useState<string>(value);
   
@@ -28,24 +29,27 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
     <BasePropertyEditor title={property.title}>
       <div className="flex items-center border border-zinc-700 rounded bg-zinc-800">
         <Popover>
-          <PopoverTrigger asChild>
+          <PopoverTrigger asChild disabled={readonly}>
             <button
-              className="h-7 w-7 rounded-l border-r border-zinc-700 flex-shrink-0"
+              className={`h-7 w-7 rounded-l border-r border-zinc-700 flex-shrink-0 ${readonly ? 'cursor-default' : ''}`}
               style={{ backgroundColor: localValue }}
               aria-label={`Choose color ${value}`}
+              disabled={readonly}
             />
           </PopoverTrigger>
           <PopoverContent className="w-64 space-y-3 bg-zinc-800 border-zinc-700">
-            <HexColorPicker 
+            <HexColorPicker
               color={localValue}
               onChange={(next) => {
+                if (readonly) return;
                 setLocalValue(next);
                 onChange(next);
-              }} 
+              }}
             />
             <HexColorInput
               color={localValue}
               onChange={(next) => {
+                if (readonly) return;
                 setLocalValue(next);
                 onChange(next);
               }}
@@ -58,6 +62,7 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
           type="text"
           value={displayValue}
           onChange={(e) => {
+            if (readonly) return;
             const inputValue = e.target.value.toUpperCase().replace(/[^A-F0-9]/g, '');
             if (inputValue.length <= 6) {
               const newValue = inputValue.length === 0 ? '#000000' : `#${inputValue.padEnd(6, '0')}`;
@@ -68,6 +73,7 @@ export default function ColorPropertyEditor({ property, onChange }: ColorPropert
           placeholder="000000"
           className="flex-1 bg-zinc-800 text-white px-2 py-1 text-xs rounded-r focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent [&::placeholder]:text-xs"
           maxLength={6}
+          disabled={readonly}
         />
       </div>
     </BasePropertyEditor>
