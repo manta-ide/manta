@@ -23,8 +23,6 @@ Manta IDE is a graph-based development environment that lets you code by creatin
 
 5. Open [http://localhost:3000](http://localhost:3000)
 
-6. Ask the AI "Index my codebase" and then work with the graph and chat! 
-
 ## 💡 Features
 
 - **Node-based creation**  
