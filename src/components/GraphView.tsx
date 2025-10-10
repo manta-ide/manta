@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   ReactFlow,
@@ -26,16 +26,21 @@ import {
   applyEdgeChanges,
   applyNodeChanges,
   MarkerType,
+  NodeResizer,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/lib/store';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+// @ts-ignore - remark-breaks doesn't have type definitions
+import remarkBreaks from 'remark-breaks';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File } from 'lucide-react';
+import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 
 // Connection validation function
@@ -48,10 +53,40 @@ const isValidConnection = (connection: Connection | Edge) => {
   return true;
 };
 
+// Custom markdown components for comment nodes
+const commentMarkdownComponents = {
+  p: ({ children }: any) => {
+    // Handle empty paragraphs (multiple blank lines) by rendering line breaks
+    if (!children || (typeof children === 'string' && children.trim() === '')) {
+      return <div style={{ height: '1em' }} />;
+    }
+    return <p className="mb-1 last:mb-0 text-gray-700 whitespace-pre-wrap">{children}</p>;
+  },
+  strong: ({ children }: any) => <strong className="font-semibold text-gray-900">{children}</strong>,
+  em: ({ children }: any) => <em className="italic text-gray-700">{children}</em>,
+  code: ({ children }: any) => (
+    <code className="bg-gray-100 text-gray-800 px-1 py-0.5 rounded text-sm font-mono">{children}</code>
+  ),
+  ul: ({ children }: any) => (
+    <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>
+  ),
+  ol: ({ children }: any) => (
+    <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>
+  ),
+  li: ({ children }: any) => <li className="text-gray-700">{children}</li>,
+  h1: ({ children }: any) => <h1 className="text-lg font-bold text-gray-900 mb-1">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-base font-bold text-gray-900 mb-1">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-sm font-bold text-gray-900 mb-1">{children}</h3>,
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-2 border-gray-300 pl-3 italic text-gray-600 mb-1">{children}</blockquote>
+  ),
+};
+
 // Custom node component
-const CustomNode = memo(function CustomNode({ data, selected }: { data: any; selected: boolean }) {
+function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
+  const updateNode = data.updateNode;
   const { zoom } = useViewport();
   const {
     searchResults,
@@ -168,23 +203,31 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
   const nodeStyles = getNodeStyles();
 
   // Determine visual shape
-  const shape: 'rectangle' | 'circle' | 'triangle' = (node as any).shape ||
+  const shape: 'rectangle' | 'circle' | 'triangle' | 'comment' = (node as any).shape ||
     (() => {
       try {
         const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
         const v = (p && typeof p.value === 'string') ? p.value : undefined;
-        return (v === 'circle' || v === 'triangle' || v === 'rectangle') ? v : 'rectangle';
+        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment') ? v : 'rectangle';
       } catch {
         return 'rectangle';
       }
     })();
-  const isDecorativeShape = shape !== 'rectangle';
+  const isDecorativeShape = shape !== 'rectangle' && shape !== 'comment';
   const shapeDimensions: React.CSSProperties = (() => {
     switch (shape) {
       case 'circle':
         return { width: '200px', minHeight: '200px' };
       case 'triangle':
         return { width: '260px', minHeight: '180px' };
+      case 'comment': {
+        // Use custom dimensions from properties for comment nodes
+        const widthProp = Array.isArray(node.properties) ? node.properties.find(p => p.id === 'width') : null;
+        const heightProp = Array.isArray(node.properties) ? node.properties.find(p => p.id === 'height') : null;
+        const width = widthProp?.value || 300;
+        const height = heightProp?.value || 150;
+        return { width: `${width}px`, minHeight: `${height}px` };
+      }
       default:
         return { width: '260px', minHeight: '160px' };
     }
@@ -196,6 +239,8 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       case 'triangle':
         // Extra top padding so text doesn't collide with the apex
         return { padding: '16px', paddingTop: '32px' } as React.CSSProperties;
+      case 'comment':
+        return { padding: '16px' };
       default:
         return { padding: '20px' };
     }
@@ -206,11 +251,11 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
       className={`custom-node ${selected ? 'selected' : ''}`}
       style={{
         ...nodeStyles,
-        // For decorative shapes, let a background layer render the shape and border
-        background: isDecorativeShape ? 'transparent' : (nodeStyles as any).background,
-        border: isDecorativeShape ? 'none' : (nodeStyles as any).border,
-        boxShadow: isDecorativeShape ? 'none' : (nodeStyles as any).boxShadow,
-        borderRadius: isDecorativeShape ? 0 : '8px',
+        // For decorative shapes and comments, let a background layer render the shape and border
+        background: (isDecorativeShape || shape === 'comment') ? 'transparent' : (nodeStyles as any).background,
+        border: (isDecorativeShape || shape === 'comment') ? 'none' : (nodeStyles as any).border,
+        boxShadow: (isDecorativeShape || shape === 'comment') ? 'none' : (nodeStyles as any).boxShadow,
+        borderRadius: (isDecorativeShape || shape === 'comment') ? 0 : '8px',
         width: shapeDimensions.width,
         minHeight: shapeDimensions.minHeight,
         position: 'relative',
@@ -218,31 +263,32 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
+        zIndex: shape === 'comment' ? 0 : 1,
       }}
     >
 
-      {/* Shape background for circle/triangle so content isn't clipped */}
-      {isDecorativeShape && (
+      {/* Shape background for circle/triangle and comment nodes */}
+      {(isDecorativeShape || shape === 'comment') && (
         <div
           aria-hidden
           style={{
             position: 'absolute',
             inset: 0,
             pointerEvents: 'none',
-            background: (nodeStyles as any).background,
+            background: shape === 'comment' ? 'rgba(255, 255, 255, 0.8)' : (nodeStyles as any).background,
             // mimic selection shadow/ring
             boxShadow: (nodeStyles as any).boxShadow,
             // draw a thin border that matches selection state
             outline: `1px solid ${borderColor}`,
-            borderRadius: shape === 'circle' ? '9999px' : 0,
+            borderRadius: shape === 'circle' ? '9999px' : shape === 'comment' ? '8px' : 0,
             clipPath: shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
             zIndex: 0,
           }}
         />
       )}
       {/* No extra border for search hits; fading overlay handles focus */}
-      {/* State indicators - only show for unbuilt nodes */}
-      {effectiveState === 'unbuilt' && (
+      {/* State indicators - only show for unbuilt nodes (not comments) */}
+      {effectiveState === 'unbuilt' && shape !== 'comment' && (
         <div style={{
           position: 'absolute',
           top: '10px',
@@ -255,6 +301,51 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           zIndex: 2,
         }} />
       )}
+
+      {/* Resize handles - only for comment nodes */}
+      {shape === 'comment' && (
+        <NodeResizer
+          color="#3b82f6"
+          isVisible={selected}
+          minWidth={200}
+          minHeight={100}
+          onResize={(event, params) => {
+            // Update the node's width/height properties during resize for real-time visual feedback
+            const newWidth = params.width;
+            const newHeight = params.height;
+
+            // Update the properties with new dimensions during resize
+            const updatedProperties = [
+              ...(node.properties || []).filter(p => p.id !== 'width' && p.id !== 'height'),
+              { id: 'width', value: newWidth },
+              { id: 'height', value: newHeight }
+            ];
+
+            // Update the node data to trigger re-render with new dimensions
+            data.node = { ...node, properties: updatedProperties };
+            data.properties = updatedProperties;
+          }}
+          onResizeEnd={(event, params) => {
+            // Update the node dimensions in properties when resize ends
+            const newWidth = params.width;
+            const newHeight = params.height;
+
+            // Update the properties with new dimensions
+            const updatedNode = {
+              ...node,
+              properties: [
+                ...(node.properties || []).filter(p => p.id !== 'width' && p.id !== 'height'),
+                { id: 'width', value: newWidth },
+                { id: 'height', value: newHeight }
+              ]
+            };
+
+            // Update the node in the store
+            updateNode(node.id, updatedNode);
+          }}
+        />
+      )}
+
       <style jsx>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -270,18 +361,18 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          overflow: 'hidden',
-          borderRadius: !isDecorativeShape ? '8px' : (shape === 'circle' ? '9999px' : 0),
-          clipPath: isDecorativeShape && shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
+          overflow: shape === 'comment' ? 'visible' : 'hidden',
+          borderRadius: (!isDecorativeShape && shape !== 'comment') ? '8px' : (shape === 'circle' ? '9999px' : shape === 'comment' ? '8px' : 0),
+          clipPath: (isDecorativeShape || shape === 'comment') && shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
           ...contentPadding,
         }}
       >
         {/* Main content area */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: shape === 'comment' ? 'none' : 1 }}>
           {/* Title */}
           <div
             style={{
-              fontSize: '16px',
+              fontSize: shape === 'comment' ? '36px' : '16px',
               fontWeight: '600',
               color: '#1f2937',
               marginBottom: '12px',
@@ -295,35 +386,67 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
           {/* Prompt preview - always show at all zoom levels */}
           <div
             style={{
-              fontSize: '13px',
+              fontSize: shape === 'comment' ? '24px' : '13px',
               color: '#6b7280',
               marginBottom: '16px',
               lineHeight: '1.4',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              ...(shape === 'comment' ? {} : {
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }),
               wordBreak: 'break-word',
-              flex: 1,
+              flex: shape === 'comment' ? 'none' : 1,
             }}
             title={node.prompt}
           >
-            {typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt}
+            {shape === 'comment' ? (
+              <div style={{ whiteSpace: 'pre-wrap' }}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  components={commentMarkdownComponents}
+                >
+                  {typeof node.prompt === 'string' ? node.prompt : String(node.prompt || '')}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt
+            )}
           </div>
         </div>
 
-        {/* Bottom metadata section */}
-        <div style={{ 
-          borderTop: '1px solid #f3f4f6', 
-          paddingTop: '12px',
-          marginTop: '12px'
-        }}>
+        {/* Bottom metadata section - hide for comment nodes */}
+        {shape !== 'comment' && (
+          <div style={{
+            borderTop: '1px solid #f3f4f6',
+            paddingTop: '12px',
+            marginTop: '12px'
+          }}>
 
-          {/* Connections count */}
-          {(() => {
-            const connections = getNodeConnections(node.id);
-            return connections.length > 0 && (
+            {/* Connections count */}
+            {(() => {
+              const connections = getNodeConnections(node.id);
+              return connections.length > 0 && (
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: '#9ca3af',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <Link size={12} />
+                  {connections.length} connection{connections.length !== 1 ? 's' : ''}
+                </div>
+              );
+            })()}
+
+            {/* Properties count */}
+            {node.properties && node.properties.length > 0 && (
               <div
                 style={{
                   fontSize: '12px',
@@ -331,68 +454,44 @@ const CustomNode = memo(function CustomNode({ data, selected }: { data: any; sel
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  marginBottom: '6px',
                 }}
               >
-                <Link size={12} />
-                {connections.length} connection{connections.length !== 1 ? 's' : ''}
+                <Settings size={12} />
+                {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
               </div>
-            );
-          })()}
-          
-          {/* Properties count */}
-          {node.properties && node.properties.length > 0 && (
-            <div
-              style={{
-                fontSize: '12px',
-                color: '#9ca3af',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <Settings size={12} />
-              {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Four visual connectors (top/right/bottom/left). Duplicate target+source per side, overlapped, so edges anchor correctly without showing 8 dots. */}
-      {/* Top */}
-      <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-      <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-      {/* Right */}
-      <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-      <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-      {/* Bottom */}
-      <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-      <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
-      {/* Left */}
-      <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
-      <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-        style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+      {/* Four visual connectors (top/right/bottom/left) - hide for comment nodes */}
+      {shape !== 'comment' && (
+        <>
+          {/* Top */}
+          <Handle id="top" type="target" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          <Handle id="top" type="source" position={Position.Top} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+          {/* Right */}
+          <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+          {/* Bottom */}
+          <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          <Handle id="bottom" type="source" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+          {/* Left */}
+          <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+          <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
+            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+        </>
+      )}
     </div>
   );
-}, (prevProps, nextProps) => {
-  // Only re-render if selected state or node data actually changed
-  return prevProps.selected === nextProps.selected &&
-         prevProps.data?.node?.id === nextProps.data?.node?.id &&
-         prevProps.data?.node?.title === nextProps.data?.node?.title &&
-         prevProps.data?.node?.prompt === nextProps.data?.node?.prompt &&
-         prevProps.data?.node?.shape === nextProps.data?.node?.shape &&
-         prevProps.data?.node?.state === nextProps.data?.node?.state &&
-         JSON.stringify(prevProps.data?.node?.properties) === JSON.stringify(nextProps.data?.node?.properties) &&
-         prevProps.data?.baseGraph === nextProps.data?.baseGraph &&
-         prevProps.data?.graph === nextProps.data?.graph;
-});
+}
 
 function GraphCanvas() {
   const [nodes, setNodes] = useNodesState<Node>([]);
@@ -433,8 +532,12 @@ function GraphCanvas() {
     setBaseGraph,
     loadBaseGraph
   } = useProjectStore();
-  // Tool modes: 'select', 'pan', 'add-node'
-  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
+  // Tool modes: 'select', 'pan', 'add-node', 'comment'
+  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node' | 'comment'>('select');
+  // Comment creation drag state
+  const [isCreatingComment, setIsCreatingComment] = useState(false);
+  const [commentDragStart, setCommentDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [commentDragEnd, setCommentDragEnd] = useState<{ x: number; y: number } | null>(null);
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data
@@ -712,6 +815,87 @@ function GraphCanvas() {
       setOptimisticOperationsActive(false);
     }
   }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive]);
+
+  // Create a new comment node at the specified position with custom dimensions
+  const createCommentNode = useCallback(async (position: { x: number; y: number }, dimensions: { width: number; height: number }) => {
+    if (!graph) return;
+
+    const newNodeId = generateNodeId();
+    const newNode: GraphNode = {
+      id: newNodeId,
+      title: 'Comment',
+      prompt: 'Add your comment here...',
+      comment: '',
+      shape: 'comment', // Special shape for comments
+      position: { x: position.x, y: position.y, z: 0 },
+      properties: [
+        { id: 'width', value: dimensions.width },
+        { id: 'height', value: dimensions.height }
+      ]
+    };
+
+    try {
+      // Mark optimistic operation as in progress
+      setOptimisticOperationsActive(true);
+
+      // Set selection immediately before adding the node
+      setSelectedNode(newNodeId, newNode);
+      setSelectedNodeIds([newNodeId]);
+
+      // Update local graph state immediately for instant feedback
+      const updatedGraph = {
+        ...graph,
+        nodes: [...graph.nodes, newNode]
+      };
+      useProjectStore.setState({ graph: updatedGraph });
+
+      // Create ReactFlow node and add to local state (already selected)
+      const reactFlowNode: Node = {
+        id: newNodeId,
+        position,
+        width: dimensions.width,
+        height: dimensions.height,
+        data: {
+          label: newNode.title,
+          node: newNode,
+          properties: newNode.properties,
+          baseGraph: baseGraph,
+          graph: graph
+        },
+        type: 'custom',
+        selected: true, // Node is already selected
+      };
+      setNodes((nds) => [...nds, reactFlowNode]);
+
+      console.log('➕ Optimistically created new comment node:', newNodeId);
+
+      // Persist update via API (real-time updates will sync)
+      await updateNode(newNodeId, newNode);
+
+      // Switch back to select tool after creating comment
+      setCurrentTool('select');
+
+      console.log('✅ Successfully persisted comment node to server:', newNodeId);
+
+      // Suppress SSE for longer to avoid stale snapshot race, then clear optimistic flag
+      suppressSSE?.(2000);
+      setOptimisticOperationsActive(false);
+    } catch (error) {
+      console.error('❌ Failed to create comment node:', error);
+      // Remove the node from both local states if persistence failed
+      setNodes((nds) => nds.filter(n => n.id !== newNodeId));
+      if (graph) {
+        const revertedGraph = {
+          ...graph,
+          nodes: graph.nodes.filter(n => n.id !== newNodeId)
+        };
+        useProjectStore.setState({ graph: revertedGraph });
+      }
+
+      // Clear optimistic operation flag on error (after rollback)
+      setOptimisticOperationsActive(false);
+    }
+  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -1285,17 +1469,31 @@ function GraphCanvas() {
       const currentPositions = new Map<string, { x: number; y: number }>();
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
+      // Sort nodes so comment nodes appear behind regular nodes (comments first in DOM)
+      const sortedNodes = [...graph.nodes].sort((a, b) => {
+        const aIsComment = (a as any).shape === 'comment';
+        const bIsComment = (b as any).shape === 'comment';
+        if (aIsComment && !bIsComment) return -1; // comments first
+        if (!aIsComment && bIsComment) return 1;  // regular nodes after
+        return 0; // maintain original order for same types
+      });
+
       // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
-      const reactFlowNodes: Node[] = graph.nodes.map((node) => {
+      const reactFlowNodes: Node[] = sortedNodes.map((node) => {
         const isDragging = draggingNodeIdsRef.current.has(node.id);
         const position = isDragging
           ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
           : (nodePositions.get(node.id) || { x: 0, y: 0 });
 
         const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
-        // Create ReactFlow node with styling
+        // Extract width and height from properties for ReactFlow node
+        const widthProp = node.properties?.find(p => p.id === 'width');
+        const heightProp = node.properties?.find(p => p.id === 'height');
+        const nodeWidth = widthProp?.value;
+        const nodeHeight = heightProp?.value;
 
-        return {
+        // Create ReactFlow node with styling
+        const rfNode: any = {
           id: node.id,
           position,
           data: {
@@ -1303,11 +1501,18 @@ function GraphCanvas() {
             node: node,
             properties: node.properties || [],
             baseGraph: baseGraph,
-            graph: graph
+            graph: graph,
+            updateNode: updateNode
           },
           type: 'custom',
           selected: (selectedNodeIds && selectedNodeIds.length > 0) ? selectedNodeIds.includes(node.id) : selectedNodeId === node.id,
         };
+
+        // Set width and height on ReactFlow node if available (for resizable nodes)
+        if (nodeWidth) rfNode.width = nodeWidth;
+        if (nodeHeight) rfNode.height = nodeHeight;
+
+        return rfNode;
       });
 
       // Create edges from graph data
@@ -1360,6 +1565,11 @@ function GraphCanvas() {
           // Check if edge is unbuilt
           const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
 
+          // Check if either connected node is a comment to set edge z-index
+          const sourceNode = sortedNodes.find(n => n.id === edge.source);
+          const targetNode = sortedNodes.find(n => n.id === edge.target);
+          const connectsToComment = (sourceNode as any)?.shape === 'comment' || (targetNode as any)?.shape === 'comment';
+
           reactFlowEdges.push({
             id: edge.id,
             source: src,
@@ -1377,6 +1587,7 @@ function GraphCanvas() {
             ),
             interactionWidth: 24,
             selected: previouslySelectedEdges.has(edge.id),
+            zIndex: connectsToComment ? -1 : 1,
           });
           addedSymmetric.add(symKey);
           }
@@ -1670,8 +1881,48 @@ function GraphCanvas() {
       return;
     }
 
+    if (currentTool === 'comment') {
+      // Start comment creation drag
+      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setCommentDragStart(flowPosition);
+      setCommentDragEnd(flowPosition);
+      setIsCreatingComment(true);
+      event.preventDefault();
+      return;
+    }
+
     event.preventDefault();
   }, [currentTool, reactFlow, createNewNode]);
+
+  // Handle mouse move for comment drag selection
+  const onPaneMouseMove = useCallback((event: ReactMouseEvent) => {
+    if (isCreatingComment && commentDragStart) {
+      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setCommentDragEnd(flowPosition);
+    }
+  }, [isCreatingComment, commentDragStart, reactFlow]);
+
+  // Handle mouse up for comment creation
+  const onPaneMouseUp = useCallback(async (event: ReactMouseEvent) => {
+    if (isCreatingComment && commentDragStart && commentDragEnd) {
+      // Calculate the bounds of the comment
+      const minX = Math.min(commentDragStart.x, commentDragEnd.x);
+      const maxX = Math.max(commentDragStart.x, commentDragEnd.x);
+      const minY = Math.min(commentDragStart.y, commentDragEnd.y);
+      const maxY = Math.max(commentDragStart.y, commentDragEnd.y);
+
+      const width = Math.max(maxX - minX, 200); // Minimum width
+      const height = Math.max(maxY - minY, 100); // Minimum height
+
+      // Create the comment node
+      await createCommentNode({ x: minX, y: minY }, { width, height });
+
+      // Reset drag state
+      setIsCreatingComment(false);
+      setCommentDragStart(null);
+      setCommentDragEnd(null);
+    }
+  }, [isCreatingComment, commentDragStart, commentDragEnd, reactFlow, createCommentNode]);
 
   // Node types for ReactFlow
   const nodeTypes = {
@@ -1745,6 +1996,8 @@ function GraphCanvas() {
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
         selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
+        onMouseMove={onPaneMouseMove}
+        onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={true}
         nodesConnectable={currentTool === 'select'}
@@ -1806,6 +2059,27 @@ function GraphCanvas() {
         </div>
       )}
 
+      {/* Comment drag selection overlay */}
+      {isCreatingComment && commentDragStart && commentDragEnd && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 950 }}>
+          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
+            <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
+              <rect
+                x={Math.min(commentDragStart.x, commentDragEnd.x)}
+                y={Math.min(commentDragStart.y, commentDragEnd.y)}
+                width={Math.abs(commentDragEnd.x - commentDragStart.x)}
+                height={Math.abs(commentDragEnd.y - commentDragStart.y)}
+                fill="rgba(59, 130, 246, 0.1)"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                rx="4"
+              />
+            </g>
+          </svg>
+        </div>
+      )}
+
       {/* Tool Buttons - Left Side */}
       <div style={{
         position: 'absolute',
@@ -1860,6 +2134,21 @@ function GraphCanvas() {
           title="Add Node Tool - Click anywhere on the canvas to create a new node"
         >
           <File className="w-4 h-4" />
+        </Button>
+
+        {/* Comment Tool */}
+        <Button
+          onClick={() => setCurrentTool('comment')}
+          variant={currentTool === 'comment' ? 'default' : 'outline'}
+          size="sm"
+          className={`${currentTool === 'comment'
+            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
+          }`}
+          style={{ width: '32px', height: '32px', padding: '0' }}
+          title="Comment Tool - Click and drag to create a comment box that can group nodes"
+        >
+          <MessageSquare className="w-4 h-4" />
         </Button>
       </div>
 

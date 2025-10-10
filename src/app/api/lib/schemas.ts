@@ -50,7 +50,7 @@ export const GraphNodeSchema = z.object({
   title: z.string(),
   prompt: z.string(),
   comment: z.string().optional(),
-  shape: z.enum(['rectangle']).optional(),
+  shape: z.enum(['rectangle', 'circle', 'triangle', 'comment']).optional(),
   properties: z.array(PropertySchema).optional(),
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
