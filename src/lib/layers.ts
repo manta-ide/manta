@@ -2,6 +2,35 @@ import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
 
+const WELCOME_GRAPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="node-1760069205219845" title="Welcome to Manta!" x="-171.50757392668527" y="285.3244832323122" z="0" shape="comment">
+      <description>Use slash commands to direct the agent:
+
+**/index** - index the codebase
+
+**/build** - build graph changes into code
+
+**/beautify** - auto-align the graph
+
+Use tags to specify the nodes:
+
+**@Node1**
+
+Please reach out at **km@getmanta.ai** with any questions!</description>
+      <props>
+        <prop name="width" title="width" type="string">910</prop>
+        <prop name="height" title="height" type="string">584</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+
+  </edges>
+</graph>`;
+
 const EMPTY_GRAPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
@@ -115,8 +144,13 @@ export function createLayer(desiredName?: string): string {
   const currentPath = path.join(dir, 'current-graph.xml');
   const basePath = path.join(dir, 'base-graph.xml');
 
-  if (!fs.existsSync(basePath)) fs.writeFileSync(basePath, EMPTY_GRAPH_XML, 'utf8');
-  if (!fs.existsSync(currentPath)) fs.writeFileSync(currentPath, EMPTY_GRAPH_XML, 'utf8');
+  // Use welcome message only for the first layer
+  const existingLayers = listLayers();
+  const isFirstLayer = existingLayers.length === 0;
+  const initialXml = isFirstLayer ? WELCOME_GRAPH_XML : EMPTY_GRAPH_XML;
+
+  if (!fs.existsSync(basePath)) fs.writeFileSync(basePath, initialXml, 'utf8');
+  if (!fs.existsSync(currentPath)) fs.writeFileSync(currentPath, initialXml, 'utf8');
 
   return name;
 }
