@@ -27,10 +27,10 @@ export default function Home() {
           <Link href="/bun" className="text-blue-400 hover:text-blue-300 underline">
             bun
           </Link>
-          ,{" "}
+          {/* ,{" "}
           <Link href="/linux" className="text-blue-400 hover:text-blue-300 underline">
             linux
-          </Link>
+          </Link> */}
         </p>
         <div className="relative z-10">
           <StarOnGithub />

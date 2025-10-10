@@ -100,7 +100,7 @@ export default function GraphPage() {
           </Button>
         </div>
       </StickyBanner>
-      <div className="flex h-full">
+      <div className="flex h-[calc(100vh-4rem)]">
         {/* Readonly sidebar with readonly properties */}
         <SelectedNodeSidebar readonly={true} />
         {/* Readonly graph view */}

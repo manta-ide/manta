@@ -255,7 +255,7 @@ export default function SelectedNodeSidebar({ readonly = false }: SelectedNodeSi
 					</SelectNative>
 				</div>
 			)}
-			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
+			<ScrollArea className="h-[calc(100vh-11rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
 				<div className="space-y-3 pr-2 pb-8 min-w-0 overflow-hidden">
 				{/* Multi-select summary */}
 				{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
