@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="web-application" title="Web Application (Next.js)" x="1416" y="996" z="0">
+      <description>Main web application built with Next.js, providing the user interface for LLM observability, analytics, and project management</description>
+      <metadata>
+        <file>web/package.json</file>
+        <file>web/src/pages/_app.tsx</file>
+        <file>web/src/pages/index.tsx</file>
+      </metadata>
+    </node>
+
+    <node id="worker-service" title="Worker Service" x="1892" y="668" z="0">
+      <description>Background worker service handling asynchronous jobs, data processing, and integrations</description>
+      <metadata>
+        <file>worker/package.json</file>
+        <file>worker/src/index.ts</file>
+        <file>worker/src/app.ts</file>
+      </metadata>
+    </node>
+
+    <node id="shared-package" title="Shared Package" x="2368" y="996" z="0">
+      <description>Shared TypeScript package containing common types, utilities, database schemas, and business logic used across web and worker applications</description>
+      <metadata>
+        <file>packages/shared/src/index.ts</file>
+        <file>packages/shared/src/db.ts</file>
+        <file>packages/shared/src/constants.ts</file>
+      </metadata>
+    </node>
+
+    <node id="ee-package" title="Enterprise Edition Package" x="2368" y="1324" z="0">
+      <description>Enterprise edition features and SSO integrations for premium functionality</description>
+      <metadata>
+        <file>ee/package.json</file>
+        <file>ee/src/index.ts</file>
+      </metadata>
+    </node>
+
+    <node id="trace-management" title="Trace Management" x="488" y="845" z="0">
+      <description>Core trace collection, storage, and visualization system for LLM execution traces</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/traces.tsx</file>
+        <file>web/src/components/trace/TracePage.tsx</file>
+        <file>packages/shared/src/domain/traces.ts</file>
+      </metadata>
+    </node>
+
+    <node id="observation-system" title="Observation System" x="964" y="996" z="0">
+      <description>System for capturing and managing LLM observations including generations, spans, and events</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/observations.tsx</file>
+        <file>web/src/components/trace/ObservationPreview.tsx</file>
+        <file>packages/shared/src/domain/observations.ts</file>
+      </metadata>
+    </node>
+
+    <node id="dataset-management" title="Dataset Management" x="964" y="340" z="0">
+      <description>Dataset creation, management, and evaluation framework for LLM testing and benchmarking</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/datasets.tsx</file>
+        <file>web/src/pages/project/[projectId]/datasets/[datasetId]/index.tsx</file>
+        <file>packages/shared/src/domain/dataset-run-items.ts</file>
+      </metadata>
+    </node>
+
+    <node id="prompt-management" title="Prompt Management" x="964" y="12" z="0">
+      <description>Prompt versioning, management, and deployment system for LLM prompts</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/prompts/[[...folder]].tsx</file>
+        <file>packages/shared/src/domain/prompts.ts</file>
+        <file>packages/shared/src/features/prompts/types.ts</file>
+      </metadata>
+    </node>
+
+    <node id="evaluation-system" title="Evaluation System" x="488" y="340" z="0">
+      <description>LLM evaluation framework with configurable evaluators and scoring mechanisms</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/evals/index.tsx</file>
+        <file>worker/src/features/evaluation/evalService.ts</file>
+        <file>packages/shared/src/features/evals/types.ts</file>
+      </metadata>
+    </node>
+
+    <node id="scoring-system" title="Scoring System" x="964" y="668" z="0">
+      <description>Configurable scoring system for evaluating LLM outputs with custom metrics and configurations</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/scores.tsx</file>
+        <file>packages/shared/src/domain/scores.ts</file>
+        <file>packages/shared/src/features/scores/index.ts</file>
+      </metadata>
+    </node>
+
+    <node id="session-management" title="Session Management" x="12" y="996" z="0">
+      <description>User session tracking and management for grouping related LLM interactions</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/sessions.tsx</file>
+        <file>web/src/components/session/index.tsx</file>
+      </metadata>
+    </node>
+
+    <node id="dashboard-analytics" title="Dashboard &amp; Analytics" x="12" y="668" z="0">
+      <description>Comprehensive analytics dashboard with customizable charts and metrics for LLM performance monitoring</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/dashboards/index.tsx</file>
+        <file>web/src/components/stats-cards.tsx</file>
+      </metadata>
+    </node>
+
+    <node id="queue-system" title="Queue System (BullMQ)" x="2368" y="340" z="0">
+      <description>Redis-based job queue system using BullMQ for handling asynchronous tasks and background processing</description>
+      <metadata>
+        <file>worker/src/queues/batchActionQueue.ts</file>
+        <file>worker/src/queues/batchExportQueue.ts</file>
+      </metadata>
+    </node>
+
+    <node id="data-ingestion" title="Data Ingestion Pipeline" x="1892" y="340" z="0">
+      <description>High-throughput data ingestion pipeline for processing LLM traces, observations, and metrics</description>
+      <metadata>
+        <file>packages/shared/src/server/ingestion/processEventBatch.ts</file>
+        <file>packages/shared/src/server/ingestion/types.ts</file>
+      </metadata>
+    </node>
+
+    <node id="database-layer" title="Database Layer (PostgreSQL &amp; ClickHouse)" x="2368" y="12" z="0">
+      <description>Dual database architecture with PostgreSQL for transactional data and ClickHouse for analytics and time-series data</description>
+      <metadata>
+        <file>packages/shared/src/db.ts</file>
+        <file>packages/shared/src/server/clickhouse/client.ts</file>
+      </metadata>
+    </node>
+
+    <node id="api-layer" title="API Layer (tRPC)" x="1892" y="12" z="0">
+      <description>Type-safe API layer using tRPC for communication between frontend and backend services</description>
+      <metadata>
+        <file>web/src/server/api/routers</file>
+        <file>web/src/utils/api.ts</file>
+      </metadata>
+    </node>
+
+    <node id="integration-system" title="Integration System" x="2368" y="668" z="0">
+      <description>External integrations including Slack notifications, PostHog analytics, and blob storage</description>
+      <metadata>
+        <file>worker/src/features/slack/slackMessageBuilder.ts</file>
+        <file>worker/src/features/posthog/handlePostHogIntegrationProjectJob.ts</file>
+        <file>worker/src/features/blobstorage/handleBlobStorageIntegrationProjectJob.ts</file>
+      </metadata>
+    </node>
+
+    <node id="playground" title="LLM Playground" x="12" y="12" z="0">
+      <description>Interactive playground for testing and experimenting with LLM prompts and models</description>
+      <metadata>
+        <file>web/src/pages/project/[projectId]/playground.tsx</file>
+      </metadata>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="web-application-shared-package" source="web-application" target="shared-package" role="depends_on"/>
+    <edge id="worker-service-shared-package" source="worker-service" target="shared-package" role="depends_on"/>
+    <edge id="web-application-ee-package" source="web-application" target="ee-package" role="depends_on"/>
+    <edge id="web-application-api-layer" source="web-application" target="api-layer" role="uses"/>
+    <edge id="api-layer-database-layer" source="api-layer" target="database-layer" role="uses"/>
+    <edge id="worker-service-queue-system" source="worker-service" target="queue-system" role="processes"/>
+    <edge id="worker-service-database-layer" source="worker-service" target="database-layer" role="writes_to"/>
+    <edge id="data-ingestion-queue-system" source="data-ingestion" target="queue-system" role="publishes_to"/>
+    <edge id="data-ingestion-database-layer" source="data-ingestion" target="database-layer" role="stores_in"/>
+    <edge id="trace-management-observation-system" source="trace-management" target="observation-system" role="contains"/>
+    <edge id="evaluation-system-scoring-system" source="evaluation-system" target="scoring-system" role="generates"/>
+    <edge id="evaluation-system-dataset-management" source="evaluation-system" target="dataset-management" role="evaluates"/>
+    <edge id="dashboard-analytics-trace-management" source="dashboard-analytics" target="trace-management" role="visualizes"/>
+    <edge id="dashboard-analytics-scoring-system" source="dashboard-analytics" target="scoring-system" role="displays"/>
+    <edge id="playground-prompt-management" source="playground" target="prompt-management" role="uses"/>
+    <edge id="playground-trace-management" source="playground" target="trace-management" role="generates"/>
+    <edge id="worker-service-integration-system" source="worker-service" target="integration-system" role="manages"/>
+    <edge id="session-management-trace-management" source="session-management" target="trace-management" role="groups"/>
+  </edges>
+</graph>
