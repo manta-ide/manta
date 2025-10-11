@@ -32,7 +32,8 @@ const SLASH_AGENT_MESSAGES: Record<string, (userText: string) => string> = {
   build: (userText) => `Build or refresh the solution graph based on the user request, updating nodes and connections as needed. Here is the user request: ${formatSlashUserRequest(userText)}`,
   join: (userText) => `Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Make sure that positions are in the middle of the previous nodes. Here is the user request: ${formatSlashUserRequest(userText)}`,
   split: (userText) => `Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Make sure that positions are around the position of the split node. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  index: (userText) => `Index the solution and update relevant metadata so it stays searchable. Here is the user request: ${formatSlashUserRequest(userText)}`
+  index: (userText) => `Index the solution and update relevant metadata so it stays searchable. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  sync: (userText) => `Synchronize the project/graph with the source of truth using the existing sync tooling. Apply incoming changes, resolve conflicts safely, and ensure nodes/edges and properties reflect the latest state. Here is the user request or additional context: ${formatSlashUserRequest(userText)}`
 };
 
 export default function FloatingChat() {
@@ -334,13 +335,30 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
       }
     }
 
+    // If the user mentioned nodes (via @), append an ID-based summary
+    // to the agent-facing content so the agent can reference by IDs
+    // rather than searching by title.
+    let agentForwardContent = rawInput;
+    if (mentionedNodeIds.length > 0 && graph?.nodes) {
+      const mentionedSummary = mentionedNodeIds
+        .map(id => {
+          const node = graph.nodes.find(n => n.id === id);
+          const title = String(node?.title ?? id).trim() || id;
+          return `${title} (ID: ${id})`;
+        })
+        .join('; ');
+      agentForwardContent += `\n\nMentioned nodes (${mentionedNodeIds.length}): ${mentionedSummary}.`;
+    }
+
     setInput('');
     resetAfterSend();
 
-    await sendMessage(rawInput, {
+    await sendMessage(agentForwardContent, {
       includeFile: contextSnapshot.includeFile,
       includeSelection: contextSnapshot.includeSelection,
-      includeNodes: contextSnapshot.includeNodes
+      includeNodes: contextSnapshot.includeNodes,
+      // Preserve the original text (with @tags) for UI display
+      displayContent: rawInput
     });
   };
 
@@ -350,6 +368,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     { id: 'join', label: '/join', description: 'Merge nodes into one' },
     { id: 'split', label: '/split', description: 'Split a node into parts' },
     { id: 'index', label: '/index', description: 'Index the current solution' },
+    { id: 'sync', label: '/sync', description: 'Synchronize with source of truth' },
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
 
