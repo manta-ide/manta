@@ -1,5 +1,5 @@
 # Manta IDE
-![](https://getmanta.ai/api/badges?text=Manta%20Graph&link=manta)
+[![](https://getmanta.ai/api/badges?text=Manta%20Graph&link=manta)](https://getmanta.ai/manta)
 ![](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![npm]](https://www.npmjs.com/package/manta-ide)
 [![Discord](https://img.shields.io/discord/1313987593305718816?label=Discord&logo=discord)](https://discord.gg/rENSEgVsz6)
 
