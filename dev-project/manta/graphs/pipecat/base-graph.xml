@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="pipecat-framework" title="Pipecat Framework" x="0" y="0" z="0">
+      <description>Main framework node representing the entire Pipecat real-time voice and multimodal AI agent system</description>
+      <metadata>
+        <file>src/pipecat/__init__.py</file>
+        <file>README.md</file>
+        <file>pyproject.toml</file>
+      </metadata>
+      <props>
+        <prop name="framework-type" title="Framework Type" type="text">Real-time Voice &amp; Multimodal AI Agents</prop>
+        <prop name="language" title="Primary Language" type="text">Python</prop>
+        <prop name="min-python-version" title="Minimum Python Version" type="text">3.1</prop>
+        <prop name="license" title="License" type="text">BSD-2-Clause</prop>
+      </props>
+    </node>
+
+    <node id="audio-processing" title="Audio Processing" x="-200" y="100" z="0">
+      <description>Audio processing subsystem including DTMF, filters, mixers, resamplers, VAD, and turn detection</description>
+      <metadata>
+        <file>src/pipecat/audio</file>
+      </metadata>
+      <props>
+        <prop name="components" title="Components" type="text">DTMF, Filters, Mixers, Resamplers, VAD, Smart Turn</prop>
+        <prop name="format-support" title="Audio Format Support" type="text">16-bit, multiple sample rates</prop>
+      </props>
+    </node>
+
+    <node id="ai-services" title="AI Services" x="200" y="100" z="0">
+      <description>AI service integrations including LLMs, STT, TTS, Speech-to-Speech, Vision, and Memory services</description>
+      <metadata>
+        <file>src/pipecat/services</file>
+      </metadata>
+      <props>
+        <prop name="stt-services" title="STT Services" type="text">AssemblyAI, AWS, Azure, Cartesia, Deepgram, ElevenLabs, Gladia, Google, Groq, OpenAI, Speechmatics, Whisper</prop>
+        <prop name="llm-services" title="LLM Services" type="text">Anthropic, AWS, Azure, Cerebras, DeepSeek, Fireworks, Gemini, Grok, Groq, Mistral, OpenAI, Together</prop>
+        <prop name="tts-services" title="TTS Services" type="text">AsyncAI, AWS, Azure, Cartesia, Deepgram, ElevenLabs, Google, Groq, LMNT, OpenAI, PlayHT, Rime</prop>
+        <prop name="s2s-services" title="Speech-to-Speech" type="text">AWS Nova Sonic, Gemini Multimodal Live, OpenAI Realtime</prop>
+      </props>
+    </node>
+
+    <node id="transports" title="Transport Layer" x="0" y="200" z="0">
+      <description>Transport layer for real-time communication including WebRTC, WebSocket, and telephony integrations</description>
+      <metadata>
+        <file>src/pipecat/transports</file>
+      </metadata>
+      <props>
+        <prop name="webrtc-transports" title="WebRTC Transports" type="text">Daily, SmallWebRTC, LiveKit</prop>
+        <prop name="websocket-transports" title="WebSocket Transports" type="text">FastAPI WebSocket, WebSocket Server</prop>
+        <prop name="telephony" title="Telephony Support" type="text">Plivo, Twilio, Telnyx serializers</prop>
+        <prop name="other-transports" title="Other Transports" type="text">Local, Network, WhatsApp</prop>
+      </props>
+    </node>
+
+    <node id="pipeline-system" title="Pipeline System" x="-200" y="-100" z="0">
+      <description>Core pipeline system for orchestrating tasks, processors, and data flow in real-time</description>
+      <metadata>
+        <file>src/pipecat/pipeline</file>
+      </metadata>
+      <props>
+        <prop name="pipeline-types" title="Pipeline Types" type="text">Base Pipeline, Parallel Pipeline, Sync Parallel Pipeline</prop>
+        <prop name="task-management" title="Task Management" type="text">Task, BaseTask, TaskObserver</prop>
+        <prop name="service-switching" title="Service Switching" type="text">ServiceSwitcher, LLMSwitcher</prop>
+        <prop name="runner-support" title="Runner Support" type="text">Pipeline Runner, Task Runner</prop>
+      </props>
+    </node>
+
+    <node id="processors" title="Processors" x="200" y="-100" z="0">
+      <description>Data processing components including audio processors, filters, aggregators, and framework integrations</description>
+      <metadata>
+        <file>src/pipecat/processors</file>
+      </metadata>
+      <props>
+        <prop name="audio-processors" title="Audio Processors" type="text">Audio filters, mixers, effects</prop>
+        <prop name="aggregators" title="Aggregators" type="text">Data aggregation and batching</prop>
+        <prop name="filters" title="Filters" type="text">Content filtering and processing</prop>
+        <prop name="frameworks" title="Framework Integrations" type="text">External framework processors</prop>
+      </props>
+    </node>
+
+    <node id="frames-system" title="Frames System" x="0" y="-200" z="0">
+      <description>Data frame system for handling audio, video, text, and control frames with protobuf serialization</description>
+      <metadata>
+        <file>src/pipecat/frames</file>
+      </metadata>
+      <props>
+        <prop name="frame-types" title="Frame Types" type="text">Audio, Video, Text, Control, Error</prop>
+        <prop name="serialization" title="Serialization" type="text">Protobuf support</prop>
+        <prop name="data-flow" title="Data Flow" type="text">Real-time frame processing</prop>
+      </props>
+    </node>
+
+    <node id="utilities" title="Utilities" x="-400" y="0" z="0">
+      <description>Utility functions and helpers including async operations, text processing, tracing, and metrics</description>
+      <metadata>
+        <file>src/pipecat/utils</file>
+        <file>src/pipecat/metrics</file>
+        <file>src/pipecat/observers</file>
+      </metadata>
+      <props>
+        <prop name="async-utils" title="Async Utilities" type="text">Asyncio helpers and utilities</prop>
+        <prop name="text-processing" title="Text Processing" type="text">Text manipulation and processing</prop>
+        <prop name="tracing" title="Tracing &amp; Observability" type="text">OpenTelemetry, Sentry integration</prop>
+        <prop name="metrics" title="Metrics" type="text">Performance and usage metrics</prop>
+      </props>
+    </node>
+
+    <node id="extensions" title="Extensions" x="400" y="0" z="0">
+      <description>Framework extensions including IVR and voicemail capabilities</description>
+      <metadata>
+        <file>src/pipecat/extensions</file>
+      </metadata>
+      <props>
+        <prop name="ivr" title="IVR Support" type="text">Interactive Voice Response</prop>
+        <prop name="voicemail" title="Voicemail" type="text">Voicemail handling capabilities</prop>
+      </props>
+    </node>
+
+    <node id="openai-services" title="OpenAI Services" x="300" y="200" z="0">
+      <description>OpenAI service integrations including GPT models, Whisper STT, TTS, and Realtime API</description>
+      <metadata>
+        <file>src/pipecat/services/openai</file>
+        <file>src/pipecat/services/openai_realtime</file>
+        <file>src/pipecat/services/openai_realtime_beta</file>
+      </metadata>
+      <props>
+        <prop name="llm-support" title="LLM Support" type="text">GPT-3.5, GPT-4, GPT-4o models</prop>
+        <prop name="stt-support" title="STT Support" type="text">Whisper API</prop>
+        <prop name="tts-support" title="TTS Support" type="text">TTS API with multiple voices</prop>
+        <prop name="realtime-api" title="Realtime API" type="text">Real-time speech-to-speech communication</prop>
+      </props>
+    </node>
+
+    <node id="anthropic-services" title="Anthropic Services" x="100" y="300" z="0">
+      <description>Anthropic Claude model integrations for conversational AI</description>
+      <metadata>
+        <file>src/pipecat/services/anthropic</file>
+      </metadata>
+      <props>
+        <prop name="models" title="Supported Models" type="text">Claude 3 Haiku, Claude 3 Sonnet, Claude 3 Opus</prop>
+        <prop name="capabilities" title="Capabilities" type="text">Text generation, reasoning, analysis</prop>
+      </props>
+    </node>
+
+    <node id="google-services" title="Google Services" x="400" y="300" z="0">
+      <description>Google AI service integrations including Gemini, Cloud Speech, and Text-to-Speech</description>
+      <metadata>
+        <file>src/pipecat/services/google</file>
+        <file>src/pipecat/services/gemini_multimodal_live</file>
+      </metadata>
+      <props>
+        <prop name="gemini-models" title="Gemini Models" type="text">Gemini Pro, Gemini Multimodal Live</prop>
+        <prop name="speech-services" title="Speech Services" type="text">Cloud Speech-to-Text, Cloud Text-to-Speech</prop>
+        <prop name="multimodal" title="Multimodal Support" type="text">Text, audio, image processing</prop>
+      </props>
+    </node>
+
+    <node id="deepgram-services" title="Deepgram Services" x="200" y="400" z="0">
+      <description>Deepgram speech recognition and text-to-speech services with real-time streaming</description>
+      <metadata>
+        <file>src/pipecat/services/deepgram</file>
+      </metadata>
+      <props>
+        <prop name="stt-features" title="STT Features" type="text">Real-time streaming, multiple languages, punctuation</prop>
+        <prop name="tts-features" title="TTS Features" type="text">Neural voices, low latency</prop>
+        <prop name="flux-support" title="Flux Support" type="text">Advanced streaming capabilities</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="pipecat-framework-audio-processing" source="pipecat-framework" target="audio-processing" role="contains"/>
+    <edge id="pipecat-framework-ai-services" source="pipecat-framework" target="ai-services" role="contains"/>
+    <edge id="pipecat-framework-transports" source="pipecat-framework" target="transports" role="contains"/>
+    <edge id="pipecat-framework-pipeline-system" source="pipecat-framework" target="pipeline-system" role="contains"/>
+    <edge id="pipecat-framework-processors" source="pipecat-framework" target="processors" role="contains"/>
+    <edge id="pipecat-framework-frames-system" source="pipecat-framework" target="frames-system" role="contains"/>
+    <edge id="pipecat-framework-utilities" source="pipecat-framework" target="utilities" role="contains"/>
+    <edge id="pipecat-framework-extensions" source="pipecat-framework" target="extensions" role="contains"/>
+    <edge id="pipeline-system-processors" source="pipeline-system" target="processors" role="orchestrates"/>
+    <edge id="pipeline-system-ai-services" source="pipeline-system" target="ai-services" role="orchestrates"/>
+    <edge id="frames-system-audio-processing" source="frames-system" target="audio-processing" role="processes"/>
+    <edge id="transports-frames-system" source="transports" target="frames-system" role="transmits"/>
+    <edge id="processors-utilities" source="processors" target="utilities" role="uses"/>
+    <edge id="ai-services-openai-services" source="ai-services" target="openai-services" role="includes"/>
+    <edge id="ai-services-anthropic-services" source="ai-services" target="anthropic-services" role="includes"/>
+    <edge id="ai-services-google-services" source="ai-services" target="google-services" role="includes"/>
+    <edge id="ai-services-deepgram-services" source="ai-services" target="deepgram-services" role="includes"/>
+  </edges>
+</graph>
