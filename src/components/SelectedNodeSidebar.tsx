@@ -218,7 +218,7 @@ export default function SelectedNodeSidebar({ readonly = false }: SelectedNodeSi
 
 	return (
 		<div
-			className="flex-none border-r border-zinc-700 bg-zinc-900 text-white relative"
+			className="flex-none border-r border-zinc-700 bg-zinc-900 text-white relative hidden md:block"
 			style={{ width: `${leftSidebarWidth}px` }}
 		>
 			{/* Show Title only for single selection */}
