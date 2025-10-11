@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="baml-runtime-engine" title="BAML Runtime Engine" x="0" y="0" z="0">
+      <description>Core runtime engine that executes BAML functions, manages LLM calls, handles streaming responses, and provides the foundational execution layer for all BAML operations</description>
+      <metadata>
+        <file>engine/baml-runtime</file>
+        <file>engine/baml-vm</file>
+        <file>engine/bstd</file>
+      </metadata>
+      <props>
+        <prop name="language" title="Implementation Language" type="text">Rust</prop>
+        <prop name="features" title="Key Features" type="text">Function execution, LLM integration, streaming, type safety, error handling</prop>
+      </props>
+    </node>
+
+    <node id="baml-compiler-parser" title="BAML Language Compiler &amp; Parser" x="200" y="0" z="0">
+      <description>Parses BAML language files (.baml), validates syntax and semantics, performs type checking, and compiles BAML definitions into intermediate representations for code generation</description>
+      <metadata>
+        <file>engine/baml-compiler</file>
+        <file>engine/baml-lib/baml-core</file>
+        <file>engine/baml-lib/baml-types</file>
+      </metadata>
+      <props>
+        <prop name="baml-compiler-parser-language" title="Implementation Language" type="text">Rust</prop>
+        <prop name="parser-type" title="Parser Technology" type="text">Pest parser generator</prop>
+        <prop name="baml-compiler-parser-features" title="Key Features" type="text">Syntax parsing, semantic analysis, type checking, AST generation</prop>
+      </props>
+    </node>
+
+    <node id="code-generation-system" title="Multi-Language Code Generation System" x="400" y="0" z="0">
+      <description>Generates type-safe client libraries and bindings for multiple programming languages (Python, TypeScript, Ruby, Go) from compiled BAML definitions, enabling seamless integration with existing codebases</description>
+      <metadata>
+        <file>engine/generators</file>
+        <file>engine/language_client_cffi</file>
+        <file>engine/generators/languages</file>
+        <file>engine/generators/utils</file>
+      </metadata>
+      <props>
+        <prop name="supported-languages" title="Supported Languages" type="text">Python, TypeScript, Ruby, Go</prop>
+        <prop name="template-engine" title="Template Engine" type="text">Askama Rust templates</prop>
+        <prop name="code-generation-system-features" title="Key Features" type="text">Type safety, async/await support, streaming APIs, error handling</prop>
+      </props>
+    </node>
+
+    <node id="python-client-bindings" title="Python Client Bindings" x="100" y="200" z="0">
+      <description>Python-specific client library that provides type-safe access to BAML functions, handles async operations, streaming responses, and integrates with Python&apos;s type system and asyncio</description>
+      <metadata>
+        <file>engine/language_client_python</file>
+        <file>typescript/packages/python-client</file>
+      </metadata>
+      <props>
+        <prop name="python-client-bindings-language" title="Target Language" type="text">Python</prop>
+        <prop name="ffi" title="FFI Technology" type="text">pyo3/PyO3</prop>
+        <prop name="python-client-bindings-features" title="Key Features" type="text">Type hints, async/await, streaming, error handling, mypy support</prop>
+      </props>
+    </node>
+
+    <node id="typescript-client-bindings" title="TypeScript/JavaScript Client Bindings" x="300" y="200" z="0">
+      <description>TypeScript and JavaScript client library providing full type safety, async/await support, streaming capabilities, and seamless integration with Node.js and browser environments</description>
+      <metadata>
+        <file>engine/language_client_typescript</file>
+        <file>typescript/packages/baml</file>
+      </metadata>
+      <props>
+        <prop name="typescript-client-bindings-language" title="Target Language" type="text">TypeScript/JavaScript</prop>
+        <prop name="typescript-client-bindings-ffi" title="FFI Technology" type="text">NAPI-RS/Node.js N-API</prop>
+        <prop name="typescript-client-bindings-features" title="Key Features" type="text">TypeScript types, async/await, streaming, browser/Node.js support</prop>
+      </props>
+    </node>
+
+    <node id="ruby-client-bindings" title="Ruby Client Bindings" x="500" y="200" z="0">
+      <description>Ruby client library that provides idiomatic Ruby access to BAML functions with proper error handling, async support, and integration with Ruby&apos;s object model</description>
+      <metadata>
+        <file>engine/language_client_ruby</file>
+      </metadata>
+      <props>
+        <prop name="ruby-client-bindings-language" title="Target Language" type="text">Ruby</prop>
+        <prop name="ruby-client-bindings-ffi" title="FFI Technology" type="text">Ruby FFI/Magnus</prop>
+        <prop name="ruby-client-bindings-features" title="Key Features" type="text">Ruby idioms, error handling, async support, object mapping</prop>
+      </props>
+    </node>
+
+    <node id="go-client-bindings" title="Go Client Bindings" x="700" y="200" z="0">
+      <description>Go client library providing type-safe access to BAML functions with proper error handling, goroutine support, and integration with Go&apos;s type system and concurrency model</description>
+      <metadata>
+        <file>engine/language_client_go</file>
+      </metadata>
+      <props>
+        <prop name="go-client-bindings-language" title="Target Language" type="text">Go</prop>
+        <prop name="go-client-bindings-ffi" title="FFI Technology" type="text">CGO/C bindings</prop>
+        <prop name="go-client-bindings-features" title="Key Features" type="text">Type safety, goroutines, error handling, struct mapping</prop>
+      </props>
+    </node>
+
+    <node id="vscode-extension" title="VS Code Extension" x="0" y="400" z="0">
+      <description>VS Code extension providing BAML language support with syntax highlighting, intellisense, error checking, integrated playground, and testing capabilities directly within the editor</description>
+      <metadata>
+        <file>.vscode</file>
+        <file>typescript/apps/vscode-baml</file>
+      </metadata>
+      <props>
+        <prop name="platform" title="Target Platform" type="text">VS Code</prop>
+        <prop name="vscode-extension-language" title="Implementation Language" type="text">TypeScript</prop>
+        <prop name="vscode-extension-features" title="Key Features" type="text">Syntax highlighting, intellisense, playground, testing, error checking</prop>
+      </props>
+    </node>
+
+    <node id="jetbrains-plugin" title="JetBrains Plugin" x="200" y="400" z="0">
+      <description>JetBrains IDE plugin providing BAML language support for IntelliJ IDEA, PyCharm, WebStorm and other JetBrains IDEs with syntax highlighting, code completion, and debugging support</description>
+      <metadata>
+        <file>jetbrains</file>
+      </metadata>
+      <props>
+        <prop name="jetbrains-plugin-platform" title="Target Platform" type="text">JetBrains IDEs</prop>
+        <prop name="jetbrains-plugin-language" title="Implementation Language" type="text">Kotlin/Java</prop>
+        <prop name="jetbrains-plugin-features" title="Key Features" type="text">Syntax highlighting, code completion, error detection, navigation</prop>
+      </props>
+    </node>
+
+    <node id="language-server" title="BAML Language Server" x="400" y="400" z="0">
+      <description>Language Server Protocol (LSP) implementation providing core language services like diagnostics, completion, hover information, and go-to-definition for BAML files across any LSP-compatible editor</description>
+      <metadata>
+        <file>engine/language_server</file>
+        <file>engine/baml-lsp-types</file>
+      </metadata>
+      <props>
+        <prop name="protocol" title="Protocol" type="text">Language Server Protocol (LSP)</prop>
+        <prop name="language-server-language" title="Implementation Language" type="text">Rust</prop>
+        <prop name="language-server-features" title="Key Features" type="text">Diagnostics, completion, hover, go-to-definition, cross-editor support</prop>
+      </props>
+    </node>
+
+    <node id="llm-client-providers" title="LLM Provider Integrations" x="600" y="400" z="0">
+      <description>Unified interface for multiple LLM providers including OpenAI, Anthropic, Google (Gemini/Vertex), AWS Bedrock, Azure OpenAI, and OpenAI-compatible APIs with consistent authentication, rate limiting, and error handling</description>
+      <metadata>
+        <file>engine/baml-lib/llm-client</file>
+      </metadata>
+      <props>
+        <prop name="providers" title="Supported Providers" type="text">OpenAI, Anthropic, Google, AWS Bedrock, Azure, OpenAI-compatible</prop>
+        <prop name="llm-client-providers-features" title="Key Features" type="text">Unified API, authentication, rate limiting, retries, fallbacks</prop>
+      </props>
+    </node>
+
+    <node id="schema-aligned-parsing" title="Schema-Aligned Parsing (SAP)" x="800" y="400" z="0">
+      <description>Advanced parsing algorithm that extracts structured data from LLM responses even when models don&apos;t support native tool calling, handling flexible outputs like markdown in JSON or chain-of-thought reasoning</description>
+      <metadata>
+        <file>engine/llm-response-parser</file>
+      </metadata>
+      <props>
+        <prop name="algorithm" title="Algorithm" type="text">Schema-Aligned Parsing (SAP)</prop>
+        <prop name="schema-aligned-parsing-features" title="Key Features" type="text">Flexible parsing, error recovery, structured extraction, format tolerance</prop>
+      </props>
+    </node>
+
+    <node id="streaming-system" title="Streaming Response System" x="0" y="600" z="0">
+      <description>Real-time streaming infrastructure that provides type-safe partial responses from LLM functions, enabling responsive UIs with incremental updates and proper error handling during streaming</description>
+      <metadata>
+        <file>engine/baml-runtime/src/stream</file>
+        <file>typescript/packages/baml/src/stream</file>
+      </metadata>
+      <props>
+        <prop name="streaming-system-features" title="Key Features" type="text">Type-safe partials, real-time updates, error handling, backpressure</prop>
+        <prop name="protocols" title="Protocols" type="text">Server-Sent Events, WebSockets, async iterators</prop>
+      </props>
+    </node>
+
+    <node id="type-safety-system" title="Type Safety &amp; Validation System" x="200" y="600" z="0">
+      <description>Comprehensive type safety infrastructure that enforces strict typing across BAML functions, validates input/output schemas, provides compile-time guarantees, and generates runtime validation</description>
+      <metadata>
+        <file>engine/baml-lib/baml-types</file>
+        <file>engine/baml-lib/jsonish</file>
+      </metadata>
+      <props>
+        <prop name="type-safety-system-features" title="Key Features" type="text">Compile-time checking, runtime validation, schema enforcement, type generation</prop>
+        <prop name="validation" title="Validation Types" type="text">Schema validation, type checking, constraint enforcement</prop>
+      </props>
+    </node>
+
+    <node id="cli-tooling" title="BAML CLI &amp; Development Tools" x="400" y="600" z="0">
+      <description>Command-line interface providing project initialization, code generation, testing, validation, and development workflow tools for BAML projects with integration into build systems</description>
+      <metadata>
+        <file>engine/cli</file>
+        <file>baml-cli</file>
+        <file>tools</file>
+      </metadata>
+      <props>
+        <prop name="cli-tooling-features" title="Key Features" type="text">Project init, code generation, testing, validation, build integration</prop>
+        <prop name="cli-tooling-language" title="Implementation Language" type="text">Rust</prop>
+      </props>
+    </node>
+
+    <node id="testing-framework" title="Testing &amp; Validation Framework" x="600" y="600" z="0">
+      <description>Comprehensive testing infrastructure for BAML functions including unit tests, integration tests, prompt playground, parallel test execution, and validation of LLM responses against expected schemas</description>
+      <metadata>
+        <file>integ-tests</file>
+        <file>engine/sandbox</file>
+        <file>typescript/apps/playground-common</file>
+      </metadata>
+      <props>
+        <prop name="testing-framework-features" title="Key Features" type="text">Unit tests, integration tests, playground, parallel execution, schema validation</prop>
+        <prop name="test-types" title="Test Types" type="text">Function tests, prompt tests, response validation, performance tests</prop>
+      </props>
+    </node>
+
+    <node id="playground-server" title="BAML Playground Server" x="800" y="600" z="0">
+      <description>Interactive development server providing a web-based playground for testing BAML functions, visualizing prompts, inspecting API requests/responses, and rapid iteration on prompt development</description>
+      <metadata>
+        <file>engine/playground-server</file>
+        <file>typescript/apps/playground-common</file>
+      </metadata>
+      <props>
+        <prop name="playground-server-features" title="Key Features" type="text">Interactive testing, prompt visualization, API inspection, real-time feedback</prop>
+        <prop name="interface" title="Interface" type="text">Web-based UI with REST API backend</prop>
+      </props>
+    </node>
+
+    <node id="jinja-template-engine" title="Jinja Template Processing" x="100" y="800" z="0">
+      <description>Enhanced Jinja template engine for processing BAML prompts with custom filters, functions, and AI-specific template features for dynamic prompt generation and context injection</description>
+      <metadata>
+        <file>engine/baml-lib/jinja-runtime</file>
+      </metadata>
+      <props>
+        <prop name="base" title="Base Technology" type="text">minijinja (Rust port of Jinja2)</prop>
+        <prop name="jinja-template-engine-features" title="Key Features" type="text">Custom filters, AI-specific functions, dynamic context, error handling</prop>
+      </props>
+    </node>
+
+    <node id="wasm-bindings" title="WebAssembly (WASM) Bindings" x="300" y="800" z="0">
+      <description>WebAssembly compilation target enabling BAML to run in browsers and serverless environments with schema validation, parsing, and basic functionality available client-side</description>
+      <metadata>
+        <file>engine/baml-schema-wasm</file>
+      </metadata>
+      <props>
+        <prop name="target" title="Target Platform" type="text">WebAssembly (browser/serverless)</prop>
+        <prop name="wasm-bindings-features" title="Key Features" type="text">Schema validation, parsing, client-side execution</prop>
+      </props>
+    </node>
+
+    <node id="react-integration" title="React/Next.js Integration" x="500" y="800" z="0">
+      <description>React hooks and utilities for building streaming UIs with BAML functions, providing type-safe integration with React components and Next.js applications</description>
+      <metadata>
+        <file>typescript/packages/react-baml</file>
+        <file>typescript/apps/nextjs-starter</file>
+      </metadata>
+      <props>
+        <prop name="framework" title="Target Framework" type="text">React/Next.js</prop>
+        <prop name="react-integration-features" title="Key Features" type="text">React hooks, streaming UI, SSR support, type safety</prop>
+      </props>
+    </node>
+
+    <node id="codemirror-lang" title="CodeMirror Language Package" x="700" y="800" z="0">
+      <description>CodeMirror 6 language support package providing syntax highlighting, indentation, and editing features for BAML files in web-based editors and applications</description>
+      <metadata>
+        <file>typescript/packages/codemirror-lang-baml</file>
+      </metadata>
+      <props>
+        <prop name="editor" title="Target Editor" type="text">CodeMirror 6</prop>
+        <prop name="codemirror-lang-features" title="Key Features" type="text">Syntax highlighting, indentation, folding, auto-completion</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="baml-compiler-parser-baml-runtime-engine" source="baml-compiler-parser" target="baml-runtime-engine" role="compiles_for"/>
+    <edge id="baml-compiler-parser-code-generation-system" source="baml-compiler-parser" target="code-generation-system" role="provides_ast_to"/>
+    <edge id="code-generation-system-python-client-bindings" source="code-generation-system" target="python-client-bindings" role="generates"/>
+    <edge id="code-generation-system-typescript-client-bindings" source="code-generation-system" target="typescript-client-bindings" role="generates"/>
+    <edge id="code-generation-system-ruby-client-bindings" source="code-generation-system" target="ruby-client-bindings" role="generates"/>
+    <edge id="code-generation-system-go-client-bindings" source="code-generation-system" target="go-client-bindings" role="generates"/>
+    <edge id="baml-runtime-engine-python-client-bindings" source="baml-runtime-engine" target="python-client-bindings" role="powers"/>
+    <edge id="baml-runtime-engine-typescript-client-bindings" source="baml-runtime-engine" target="typescript-client-bindings" role="powers"/>
+    <edge id="baml-runtime-engine-ruby-client-bindings" source="baml-runtime-engine" target="ruby-client-bindings" role="powers"/>
+    <edge id="baml-runtime-engine-go-client-bindings" source="baml-runtime-engine" target="go-client-bindings" role="powers"/>
+    <edge id="language-server-vscode-extension" source="language-server" target="vscode-extension" role="provides_services_to"/>
+    <edge id="language-server-jetbrains-plugin" source="language-server" target="jetbrains-plugin" role="provides_services_to"/>
+    <edge id="baml-runtime-engine-llm-client-providers" source="baml-runtime-engine" target="llm-client-providers" role="uses"/>
+    <edge id="baml-runtime-engine-schema-aligned-parsing" source="baml-runtime-engine" target="schema-aligned-parsing" role="uses"/>
+    <edge id="baml-runtime-engine-streaming-system" source="baml-runtime-engine" target="streaming-system" role="integrates_with"/>
+    <edge id="baml-compiler-parser-type-safety-system" source="baml-compiler-parser" target="type-safety-system" role="enforces"/>
+    <edge id="baml-runtime-engine-jinja-template-engine" source="baml-runtime-engine" target="jinja-template-engine" role="uses"/>
+    <edge id="typescript-client-bindings-react-integration" source="typescript-client-bindings" target="react-integration" role="enables"/>
+    <edge id="testing-framework-playground-server" source="testing-framework" target="playground-server" role="integrates_with"/>
+    <edge id="cli-tooling-code-generation-system" source="cli-tooling" target="code-generation-system" role="orchestrates"/>
+    <edge id="baml-compiler-parser-wasm-bindings" source="baml-compiler-parser" target="wasm-bindings" role="compiles_to"/>
+    <edge id="codemirror-lang-playground-server" source="codemirror-lang" target="playground-server" role="provides_editor_to"/>
+  </edges>
+</graph>
