@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="node-1760209582879776" title="Test" x="51.894477454819565" y="223.0761731928833" z="0" shape="rectangle">
+    </node>
+
+    <node id="node-1760209586645295" title="New Node" x="197.91045249704212" y="710.5574225853461" z="0" shape="rectangle">
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="node-1760209582879776-node-1760209586645295" source="node-1760209582879776" target="node-1760209586645295" role="links-to"/>
+  </edges>
+</graph>

@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="cli-command-processor" title="CLI Command Processing Engine" x="100" y="100" z="0">
+      <description>A command-line interface engine that parses and routes user commands for HelixDB operations. Handles project initialization, deployment management, and database operations through a structured command system.</description>
+      <metadata>
+        <file>helix-cli/src/main.rs</file>
+        <file>helix-cli/src/commands</file>
+        <file>helix-cli/Cargo.toml</file>
+      </metadata>
+      <props>
+        <prop name="cli-version" title="CLI Version" type="text">2.0.4</prop>
+        <prop name="supported-commands" title="Supported Commands" type="object-list">
+        <item index="0">
+          <field name="name" title="Command Name" type="text">init</field>
+          <field name="description" title="Description" type="text">Initialize a new Helix project</field>
+          <field name="category" title="Category" type="select">
+          <value>Project Management</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+        <item index="1">
+          <field name="name" title="Command Name" type="text">build</field>
+          <field name="description" title="Description" type="text">Build and compile project for an instance</field>
+          <field name="category" title="Category" type="select">
+          <value>Project Management</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+        <item index="2">
+          <field name="name" title="Command Name" type="text">push</field>
+          <field name="description" title="Description" type="text">Deploy/start an instance</field>
+          <field name="category" title="Category" type="select">
+          <value>Deployment</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+        <item index="3">
+          <field name="name" title="Command Name" type="text">pull</field>
+          <field name="description" title="Description" type="text">Pull .hql files from instance back to local project</field>
+          <field name="category" title="Category" type="select">
+          <value>Deployment</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+        <item index="4">
+          <field name="name" title="Command Name" type="text">start</field>
+          <field name="description" title="Description" type="text">Start an instance (doesn&apos;t rebuild)</field>
+          <field name="category" title="Category" type="select">
+          <value>Instance Control</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+        <item index="5">
+          <field name="name" title="Command Name" type="text">stop</field>
+          <field name="description" title="Description" type="text">Stop an instance</field>
+          <field name="category" title="Category" type="select">
+          <value>Instance Control</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+        <item index="6">
+          <field name="name" title="Command Name" type="text">status</field>
+          <field name="description" title="Description" type="text">Show status of all instances</field>
+          <field name="category" title="Category" type="select">
+          <value>Instance Control</value>
+          <options>
+          <option>Project Management</option>
+          <option>Deployment</option>
+          <option>Instance Control</option>
+          <option>Utility</option>
+          </options>
+        </field>
+        </item>
+      </prop>
+        <prop name="error-handling" title="Error Handling Mode" type="select">
+          <value>Color Enhanced</value>
+          <options>
+          <option>Standard</option>
+          <option>Color Enhanced</option>
+          <option>Verbose</option>
+          </options>
+        </prop>
+        <prop name="metrics-integration" title="Metrics Integration Enabled" type="boolean">true</prop>
+        <prop name="auto-update-check" title="Automatic Update Check" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="project-deployment-manager" title="Project &amp; Deployment Management" x="400" y="100" z="0">
+      <description>Handles project lifecycle management including initialization, configuration, and deployment across multiple cloud providers. Manages instance configuration, template selection, and deployment orchestration.</description>
+      <metadata>
+        <file>helix-cli/src/commands/init.rs</file>
+        <file>helix-cli/src/commands/build.rs</file>
+        <file>helix-cli/src/commands/push.rs</file>
+        <file>helix-cli/src/project.rs</file>
+        <file>helix-cli/src/config.rs</file>
+      </metadata>
+      <props>
+        <prop name="supported-cloud-providers" title="Supported Cloud Providers" type="object-list">
+        <item index="0">
+          <field name="name" title="Provider Name" type="text">Helix Cloud</field>
+          <field name="auth-method" title="Authentication Method" type="text">API Key</field>
+          <field name="default-region" title="Default Region" type="text">us-east-1</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Provider Name" type="text">AWS ECR</field>
+          <field name="auth-method" title="Authentication Method" type="text">AWS Credentials</field>
+          <field name="default-region" title="Default Region" type="text">us-east-1</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Provider Name" type="text">Fly.io</field>
+          <field name="auth-method" title="Authentication Method" type="text">CLI Token</field>
+          <field name="default-region" title="Default Region" type="text">global</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Provider Name" type="text">Local Docker</field>
+          <field name="auth-method" title="Authentication Method" type="text">None</field>
+          <field name="default-region" title="Default Region" type="text">localhost</field>
+        </item>
+      </prop>
+        <prop name="default-template" title="Default Project Template" type="select">
+          <value>empty</value>
+          <options>
+          <option>empty</option>
+          <option>blog</option>
+          <option>ecommerce</option>
+          <option>social</option>
+          </options>
+        </prop>
+        <prop name="default-queries-path" title="Default Queries Directory" type="text">./db/</prop>
+        <prop name="build-optimization" title="Build Optimization Level" type="select">
+          <value>Release</value>
+          <options>
+          <option>Debug</option>
+          <option>Release</option>
+          <option>Production</option>
+          </options>
+        </prop>
+        <prop name="deployment-timeout" title="Deployment Timeout (seconds)" type="number" min="30" max="3600">300</prop>
+        <prop name="auto-migration" title="Automatic Migration Support" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="graph-traversal-engine" title="Graph Traversal &amp; Query Engine" x="100" y="300" z="0">
+      <description>Core traversal engine that processes graph queries and operations. Handles node/edge traversal, filtering, aggregation, and complex graph algorithms including shortest path and pattern matching.</description>
+      <metadata>
+        <file>helix-db/src/helix_engine/traversal_core</file>
+        <file>helix-db/src/helix_engine/traversal_core/ops</file>
+        <file>helix-db/src/helix_engine/traversal_core/traversal_iter.rs</file>
+      </metadata>
+      <props>
+        <prop name="traversal-operations" title="Supported Traversal Operations" type="object-list">
+        <item index="0">
+          <field name="name" title="Operation Name" type="text">g</field>
+          <field name="category" title="Category" type="select">
+          <value>Source</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Graph traversal starting point</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Operation Name" type="text">out</field>
+          <field name="category" title="Category" type="select">
+          <value>Navigation</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Traverse outgoing edges</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Operation Name" type="text">in</field>
+          <field name="category" title="Category" type="select">
+          <value>Navigation</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Traverse incoming edges</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Operation Name" type="text">filter</field>
+          <field name="category" title="Category" type="select">
+          <value>Filter</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Filter nodes/edges by properties</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Operation Name" type="text">count</field>
+          <field name="category" title="Category" type="select">
+          <value>Aggregation</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Count traversal results</field>
+        </item>
+        <item index="5">
+          <field name="name" title="Operation Name" type="text">paths</field>
+          <field name="category" title="Category" type="select">
+          <value>Utility</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Find paths between nodes</field>
+        </item>
+        <item index="6">
+          <field name="name" title="Operation Name" type="text">dedup</field>
+          <field name="category" title="Category" type="select">
+          <value>Utility</value>
+          <options>
+          <option>Source</option>
+          <option>Navigation</option>
+          <option>Filter</option>
+          <option>Utility</option>
+          <option>Aggregation</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Remove duplicate results</field>
+        </item>
+      </prop>
+        <prop name="query-optimization" title="Query Optimization Enabled" type="boolean">true</prop>
+        <prop name="parallel-processing" title="Parallel Processing Support" type="boolean">true</prop>
+        <prop name="max-traversal-depth" title="Maximum Traversal Depth" type="number" min="1" max="1000">100</prop>
+        <prop name="batch-size" title="Batch Processing Size" type="number" min="100" max="10000">1000</prop>
+      </props>
+    </node>
+
+    <node id="storage-persistence-layer" title="Storage &amp; Persistence Layer" x="400" y="300" z="0">
+      <description>High-performance storage layer built on LMDB that manages graph data persistence, indexing, and version control. Handles nodes, edges, secondary indices, and provides transactional guarantees.</description>
+      <metadata>
+        <file>helix-db/src/helix_engine/storage_core</file>
+        <file>helix-db/src/helix_engine/storage_core/storage_methods.rs</file>
+        <file>helix-db/src/helix_engine/storage_core/version_info.rs</file>
+      </metadata>
+      <props>
+        <prop name="storage-engine" title="Storage Engine" type="text">LMDB (Lightning Memory-Mapped Database)</prop>
+        <prop name="database-tables" title="Database Tables" type="object-list">
+        <item index="0">
+          <field name="name" title="Table Name" type="text">nodes</field>
+          <field name="purpose" title="Purpose" type="text">Store node data</field>
+          <field name="key-format" title="Key Format" type="text">node_id (16 bytes)</field>
+          <field name="flags" title="LMDB Flags" type="text">Standard</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Table Name" type="text">edges</field>
+          <field name="purpose" title="Purpose" type="text">Store edge data</field>
+          <field name="key-format" title="Key Format" type="text">edge_id (16 bytes)</field>
+          <field name="flags" title="LMDB Flags" type="text">Standard</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Table Name" type="text">out_edges</field>
+          <field name="purpose" title="Purpose" type="text">Outgoing edge indices</field>
+          <field name="key-format" title="Key Format" type="text">from_node_id + label (20 bytes)</field>
+          <field name="flags" title="LMDB Flags" type="text">DUP_SORT | DUP_FIXED</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Table Name" type="text">in_edges</field>
+          <field name="purpose" title="Purpose" type="text">Incoming edge indices</field>
+          <field name="key-format" title="Key Format" type="text">to_node_id + label (20 bytes)</field>
+          <field name="flags" title="LMDB Flags" type="text">DUP_SORT | DUP_FIXED</field>
+        </item>
+      </prop>
+        <prop name="default-db-size-gb" title="Default Database Size (GB)" type="number" min="1" max="9998">100</prop>
+        <prop name="max-databases" title="Maximum Databases" type="number">200</prop>
+        <prop name="max-readers" title="Maximum Concurrent Readers" type="number">200</prop>
+        <prop name="transaction-support" title="Transaction Support" type="boolean">true</prop>
+        <prop name="version-control" title="Version Control Enabled" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="vector-search-system" title="Vector Search &amp; Embedding System" x="700" y="300" z="0">
+      <description>Advanced vector search capabilities using HNSW (Hierarchical Navigable Small World) algorithm for similarity search, embedding storage, and hybrid search combining vector and keyword search.</description>
+      <metadata>
+        <file>helix-db/src/helix_engine/vector_core</file>
+        <file>helix-db/src/helix_engine/vector_core/hnsw.rs</file>
+        <file>helix-db/src/helix_engine/vector_core/vector_core.rs</file>
+      </metadata>
+      <props>
+        <prop name="search-algorithm" title="Search Algorithm" type="text">HNSW (Hierarchical Navigable Small World)</prop>
+        <prop name="distance-metrics" title="Supported Distance Metrics" type="object-list">
+        <item index="0">
+          <field name="name" title="Metric Name" type="text">Cosine</field>
+          <field name="description" title="Description" type="text">Cosine similarity for semantic search</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Metric Name" type="text">Euclidean</field>
+          <field name="description" title="Description" type="text">L2 distance</field>
+          <field name="enabled" title="Enabled" type="boolean">false</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Metric Name" type="text">Manhattan</field>
+          <field name="description" title="Description" type="text">L1 distance</field>
+          <field name="enabled" title="Enabled" type="boolean">false</field>
+        </item>
+      </prop>
+        <prop name="hnsw-m-parameter" title="HNSW M Parameter (connections per node)" type="number" min="4" max="128">16</prop>
+        <prop name="hnsw-ef-construction" title="HNSW EF Construction" type="number" min="16" max="1000">200</prop>
+        <prop name="hnsw-ef-search" title="HNSW EF Search" type="number" min="1" max="1000">50</prop>
+        <prop name="brute-force-fallback" title="Brute Force Fallback" type="boolean">true</prop>
+        <prop name="embedding-support" title="External Embedding Support" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="text-search-bm25" title="Text Search &amp; BM25 Engine" x="1000" y="300" z="0">
+      <description>Full-text search engine implementing BM25 algorithm for keyword-based search and ranking. Supports hybrid search combining text relevance with vector similarity for comprehensive search capabilities.</description>
+      <metadata>
+        <file>helix-db/src/helix_engine/bm25</file>
+        <file>helix-db/src/helix_engine/bm25/bm25.rs</file>
+        <file>helix-db/src/helix_engine/traversal_core/ops/bm25</file>
+      </metadata>
+      <props>
+        <prop name="text-search-bm25-search-algorithm" title="Search Algorithm" type="text">BM25 (Best Matching 25)</prop>
+        <prop name="hybrid-search" title="Hybrid Search Support" type="boolean">true</prop>
+        <prop name="bm25-k1" title="BM25 K1 Parameter (term frequency saturation)" type="number" min="0.1" max="5" step="0.1">1.2</prop>
+        <prop name="bm25-b" title="BM25 B Parameter (document length normalization)" type="number" min="0" max="1" step="0.1">0.75</prop>
+        <prop name="text-preprocessing" title="Text Preprocessing" type="object">
+        <field name="tokenization" title="Tokenization Enabled" type="boolean">false</field>
+        <field name="stemming" title="Stemming Enabled" type="boolean">false</field>
+        <field name="stop-words" title="Stop Words Removal" type="boolean">false</field>
+        <field name="case-sensitive" title="Case Sensitive" type="boolean">false</field>
+      </prop>
+        <prop name="indexing-mode" title="Indexing Mode" type="select">
+          <value>Real-time</value>
+          <options>
+          <option>Real-time</option>
+          <option>Batch</option>
+          <option>Hybrid</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="query-compiler-system" title="Query Compiler &amp; Language System" x="100" y="500" z="0">
+      <description>HQL (Helix Query Language) compiler that parses and compiles graph queries using Pest grammar. Handles query validation, optimization, and code generation for efficient graph operations.</description>
+      <metadata>
+        <file>helix-db/src/helixc</file>
+        <file>helix-db/src/grammar.pest</file>
+        <file>helix-macros</file>
+      </metadata>
+      <props>
+        <prop name="query-language" title="Query Language" type="text">HQL (Helix Query Language)</prop>
+        <prop name="parser-engine" title="Parser Engine" type="text">Pest Grammar Parser</prop>
+        <prop name="compilation-features" title="Compilation Features" type="object-list">
+        <item index="0">
+          <field name="name" title="Feature Name" type="text">Syntax Validation</field>
+          <field name="description" title="Description" type="text">Validates HQL syntax and structure</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Feature Name" type="text">Type Checking</field>
+          <field name="description" title="Description" type="text">Ensures type safety in queries</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Feature Name" type="text">Query Optimization</field>
+          <field name="description" title="Description" type="text">Optimizes query execution plans</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Feature Name" type="text">Code Generation</field>
+          <field name="description" title="Description" type="text">Generates efficient Rust code</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+      </prop>
+        <prop name="macro-system" title="Procedural Macro System" type="boolean">true</prop>
+        <prop name="debug-output" title="Debug Output Mode" type="boolean">false</prop>
+        <prop name="query-compiler-system-build-optimization" title="Build-time Optimization" type="select">
+          <value>Advanced</value>
+          <options>
+          <option>None</option>
+          <option>Basic</option>
+          <option>Advanced</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="api-gateway-service" title="API Gateway &amp; Service Layer" x="400" y="500" z="0">
+      <description>HTTP API gateway built with Axum that provides REST endpoints for graph operations. Handles request routing, authentication, schema introspection, and client communication.</description>
+      <metadata>
+        <file>helix-db/src/helix_gateway</file>
+        <file>helix-db/src/helix_gateway/gateway.rs</file>
+        <file>helix-db/src/helix_gateway/introspect_schema.rs</file>
+      </metadata>
+      <props>
+        <prop name="web-framework" title="Web Framework" type="text">Axum</prop>
+        <prop name="api-endpoints" title="API Endpoints" type="object-list">
+        <item index="0">
+          <field name="path" title="Path" type="text"></field>
+          <field name="method" title="HTTP Method" type="select">
+          <value>POST</value>
+          <options>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Execute HQL queries</field>
+        </item>
+        <item index="1">
+          <field name="path" title="Path" type="text"></field>
+          <field name="method" title="HTTP Method" type="select">
+          <value>GET</value>
+          <options>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Get schema information</field>
+        </item>
+        <item index="2">
+          <field name="path" title="Path" type="text"></field>
+          <field name="method" title="HTTP Method" type="select">
+          <value>GET</value>
+          <options>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Health check endpoint</field>
+        </item>
+        <item index="3">
+          <field name="path" title="Path" type="text"></field>
+          <field name="method" title="HTTP Method" type="select">
+          <value>GET</value>
+          <options>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">System metrics</field>
+        </item>
+      </prop>
+        <prop name="authentication" title="Authentication Enabled" type="boolean">false</prop>
+        <prop name="cors-support" title="CORS Support" type="boolean">true</prop>
+        <prop name="request-logging" title="Request Logging" type="boolean">true</prop>
+        <prop name="rate-limiting" title="Rate Limiting" type="boolean">false</prop>
+        <prop name="schema-introspection" title="Schema Introspection" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="container-runtime-service" title="Container Runtime Service" x="700" y="500" z="0">
+      <description>Containerized runtime service that provides a standalone HelixDB instance. Handles service initialization, configuration management, and provides a production-ready deployment environment.</description>
+      <metadata>
+        <file>helix-container</file>
+        <file>helix-container/Dockerfile</file>
+        <file>helix-container/docker-compose.yml</file>
+      </metadata>
+      <props>
+        <prop name="container-base" title="Container Base Image" type="text">Rust Alpine</prop>
+        <prop name="service-features" title="Service Features" type="object-list">
+        <item index="0">
+          <field name="name" title="Feature Name" type="text">Auto-restart</field>
+          <field name="description" title="Description" type="text">Automatic service restart on failure</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Feature Name" type="text">Health Checks</field>
+          <field name="description" title="Description" type="text">Container health monitoring</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Feature Name" type="text">Volume Persistence</field>
+          <field name="description" title="Description" type="text">Persistent data storage</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Feature Name" type="text">Environment Config</field>
+          <field name="description" title="Description" type="text">Environment-based configuration</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+      </prop>
+        <prop name="development-mode" title="Development Mode Support" type="boolean">true</prop>
+        <prop name="resource-limits" title="Resource Limits" type="object">
+        <field name="memory-limit" title="Memory Limit (MB)" type="number" min="512" max="32768">0</field>
+        <field name="cpu-limit" title="CPU Limit (cores)" type="number" min="0.5" max="16" step="0.5">0</field>
+      </prop>
+        <prop name="docker-compose" title="Docker Compose Support" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="metrics-monitoring-system" title="Metrics &amp; Monitoring System" x="1000" y="500" z="0">
+      <description>Comprehensive metrics collection and monitoring system that tracks database performance, query execution, system resources, and user analytics for operational insights.</description>
+      <metadata>
+        <file>metrics</file>
+        <file>helix-cli/src/metrics_sender.rs</file>
+      </metadata>
+      <props>
+        <prop name="metrics-types" title="Tracked Metrics" type="object-list">
+        <item index="0">
+          <field name="name" title="Metric Name" type="text">Query Execution Time</field>
+          <field name="category" title="Category" type="select">
+          <value>Performance</value>
+          <options>
+          <option>Performance</option>
+          <option>Usage</option>
+          <option>System</option>
+          <option>Errors</option>
+          </options>
+        </field>
+          <field name="unit" title="Unit" type="text">milliseconds</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Metric Name" type="text">CLI Install Events</field>
+          <field name="category" title="Category" type="select">
+          <value>Usage</value>
+          <options>
+          <option>Performance</option>
+          <option>Usage</option>
+          <option>System</option>
+          <option>Errors</option>
+          </options>
+        </field>
+          <field name="unit" title="Unit" type="text">count</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Metric Name" type="text">Build Events</field>
+          <field name="category" title="Category" type="select">
+          <value>Usage</value>
+          <options>
+          <option>Performance</option>
+          <option>Usage</option>
+          <option>System</option>
+          <option>Errors</option>
+          </options>
+        </field>
+          <field name="unit" title="Unit" type="text">count</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Metric Name" type="text">Memory Usage</field>
+          <field name="category" title="Category" type="select">
+          <value>System</value>
+          <options>
+          <option>Performance</option>
+          <option>Usage</option>
+          <option>System</option>
+          <option>Errors</option>
+          </options>
+        </field>
+          <field name="unit" title="Unit" type="text">bytes</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Metric Name" type="text">Error Rate</field>
+          <field name="category" title="Category" type="select">
+          <value>Errors</value>
+          <options>
+          <option>Performance</option>
+          <option>Usage</option>
+          <option>System</option>
+          <option>Errors</option>
+          </options>
+        </field>
+          <field name="unit" title="Unit" type="text">percentage</field>
+        </item>
+      </prop>
+        <prop name="collection-modes" title="Collection Modes" type="select">
+          <value>Basic</value>
+          <options>
+          <option>Off</option>
+          <option>Basic</option>
+          <option>Full</option>
+          </options>
+        </prop>
+        <prop name="async-transmission" title="Asynchronous Transmission" type="boolean">true</prop>
+        <prop name="data-retention" title="Data Retention Period (days)" type="number" min="1" max="365">30</prop>
+        <prop name="privacy-compliance" title="Privacy Compliance" type="boolean">true</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="cli-command-processor-project-deployment-manager" source="cli-command-processor" target="project-deployment-manager" role="delegates to"/>
+    <edge id="cli-command-processor-metrics-monitoring-system" source="cli-command-processor" target="metrics-monitoring-system" role="reports to"/>
+    <edge id="project-deployment-manager-query-compiler-system" source="project-deployment-manager" target="query-compiler-system" role="uses"/>
+    <edge id="project-deployment-manager-container-runtime-service" source="project-deployment-manager" target="container-runtime-service" role="deploys"/>
+    <edge id="graph-traversal-engine-storage-persistence-layer" source="graph-traversal-engine" target="storage-persistence-layer" role="reads from"/>
+    <edge id="graph-traversal-engine-vector-search-system" source="graph-traversal-engine" target="vector-search-system" role="integrates with"/>
+    <edge id="graph-traversal-engine-text-search-bm25" source="graph-traversal-engine" target="text-search-bm25" role="integrates with"/>
+    <edge id="vector-search-system-storage-persistence-layer" source="vector-search-system" target="storage-persistence-layer" role="stores vectors in"/>
+    <edge id="text-search-bm25-storage-persistence-layer" source="text-search-bm25" target="storage-persistence-layer" role="indexes text in"/>
+    <edge id="text-search-bm25-vector-search-system" source="text-search-bm25" target="vector-search-system" role="combines with"/>
+    <edge id="query-compiler-system-graph-traversal-engine" source="query-compiler-system" target="graph-traversal-engine" role="compiles queries for"/>
+    <edge id="api-gateway-service-graph-traversal-engine" source="api-gateway-service" target="graph-traversal-engine" role="routes requests to"/>
+    <edge id="api-gateway-service-storage-persistence-layer" source="api-gateway-service" target="storage-persistence-layer" role="accesses"/>
+    <edge id="container-runtime-service-api-gateway-service" source="container-runtime-service" target="api-gateway-service" role="hosts"/>
+    <edge id="container-runtime-service-storage-persistence-layer" source="container-runtime-service" target="storage-persistence-layer" role="manages"/>
+    <edge id="api-gateway-service-metrics-monitoring-system" source="api-gateway-service" target="metrics-monitoring-system" role="reports metrics to"/>
+  </edges>
+</graph>
