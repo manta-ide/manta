@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="core-system" title="XYFlow Core System" x="400" y="100" z="0">
+      <description>The foundational @xyflow/system package that provides the core functionality for both React Flow and Svelte Flow, including d3-based interactions, zoom, drag, and selection handling.</description>
+      <metadata>
+        <file>packages/system/src/index.ts</file>
+        <file>packages/system/package.json</file>
+      </metadata>
+    </node>
+
+    <node id="react-flow" title="React Flow Package" x="200" y="250" z="0">
+      <description>The main @xyflow/react package providing React components and hooks for building node-based editors and interactive flow charts. Uses Zustand for state management.</description>
+      <metadata>
+        <file>packages/react/src/index.ts</file>
+        <file>packages/react/package.json</file>
+      </metadata>
+    </node>
+
+    <node id="svelte-flow" title="Svelte Flow Package" x="600" y="250" z="0">
+      <description>The @xyflow/svelte package providing Svelte components for building node-based editors and workflow systems. Built with SvelteKit and modern Svelte 5 features.</description>
+      <metadata>
+        <file>packages/svelte/src/index.ts</file>
+        <file>packages/svelte/package.json</file>
+      </metadata>
+    </node>
+
+    <node id="react-examples" title="React Examples Collection" x="50" y="400" z="0">
+      <description>Comprehensive collection of React Flow examples demonstrating various features like custom nodes, edges, layouts, interactions, and advanced use cases.</description>
+      <metadata>
+        <file>examples/react/src/examples</file>
+        <file>examples/react/package.json</file>
+      </metadata>
+    </node>
+
+    <node id="svelte-examples" title="Svelte Examples Collection" x="750" y="400" z="0">
+      <description>Collection of Svelte Flow examples showcasing framework-specific implementations and patterns for building interactive diagrams and workflows.</description>
+      <metadata>
+        <file>examples/svelte</file>
+        <file>examples/svelte/package.json</file>
+      </metadata>
+    </node>
+
+    <node id="custom-nodes" title="Custom Node System" x="100" y="550" z="0">
+      <description>Framework for creating custom node types with handles, styling, and interactive elements. Includes node resizers, drag handles, and custom node components.</description>
+      <metadata>
+        <file>examples/react/src/examples/CustomNode</file>
+        <file>examples/react/src/examples/DragHandle</file>
+        <file>examples/react/src/examples/NodeResizer</file>
+      </metadata>
+    </node>
+
+    <node id="custom-edges" title="Custom Edge System" x="300" y="550" z="0">
+      <description>System for creating custom edge types, including floating edges, bezier curves, step edges, and custom connection lines with routing capabilities.</description>
+      <metadata>
+        <file>examples/react/src/examples/Edges</file>
+        <file>examples/react/src/examples/FloatingEdges</file>
+        <file>examples/react/src/examples/EdgeTypes</file>
+      </metadata>
+    </node>
+
+    <node id="layout-system" title="Layout and Positioning" x="500" y="550" z="0">
+      <description>Automatic layout algorithms and positioning systems for organizing nodes and edges in flows, including hierarchical and force-directed layouts.</description>
+      <metadata>
+        <file>examples/react/src/examples/Layouting</file>
+      </metadata>
+    </node>
+
+    <node id="interaction-system" title="Interaction &amp; Event Handling" x="700" y="550" z="0">
+      <description>Core interaction system handling mouse/touch events, drag and drop, selection, panning, zooming, and keyboard shortcuts for flow manipulation.</description>
+      <metadata>
+        <file>examples/react/src/examples/Interaction</file>
+        <file>examples/react/src/examples/DragNDrop</file>
+      </metadata>
+    </node>
+
+    <node id="minimap-controls" title="Minimap &amp; Controls" x="150" y="700" z="0">
+      <description>Navigation components including minimap for overview, zoom controls, and viewport manipulation tools for large flow diagrams.</description>
+      <metadata>
+        <file>examples/react/src/examples/InteractiveMinimap</file>
+        <file>examples/react/src/examples/CustomMiniMapNode</file>
+      </metadata>
+    </node>
+
+    <node id="state-management" title="State Management" x="350" y="700" z="0">
+      <description>Centralized state management using Zustand for React Flow, handling nodes, edges, viewport state, and flow configuration with reactive updates.</description>
+      <metadata>
+        <file>packages/react/src/store</file>
+        <file>examples/react/src/examples/ControlledUncontrolled</file>
+      </metadata>
+    </node>
+
+    <node id="testing-framework" title="Testing &amp; Quality Assurance" x="550" y="700" z="0">
+      <description>Comprehensive testing setup with Cypress for component and E2E testing, Playwright for cross-browser testing, and quality assurance workflows.</description>
+      <metadata>
+        <file>examples/react/cypress</file>
+        <file>tests/playwright</file>
+      </metadata>
+    </node>
+
+    <node id="dev-tools" title="Developer Tools" x="750" y="700" z="0">
+      <description>Development tools and utilities including DevTools component for debugging, change logging, node inspection, and flow development assistance.</description>
+      <metadata>
+        <file>examples/react/src/examples/DevTools</file>
+      </metadata>
+    </node>
+
+    <node id="styling-theming" title="Styling &amp; Theming" x="100" y="850" z="0">
+      <description>CSS framework and theming system with base styles, custom styling options, dark/light mode support, and responsive design capabilities.</description>
+      <metadata>
+        <file>packages/react/src/styles</file>
+        <file>packages/svelte/src/styles</file>
+        <file>examples/react/src/examples/ColorMode</file>
+      </metadata>
+    </node>
+
+    <node id="accessibility" title="Accessibility Features" x="300" y="850" z="0">
+      <description>Accessibility implementation including keyboard navigation, screen reader support, ARIA attributes, and inclusive design patterns for flow diagrams.</description>
+      <metadata>
+        <file>examples/react/src/examples/A11y</file>
+      </metadata>
+    </node>
+
+    <node id="build-tooling" title="Build &amp; Tooling Infrastructure" x="500" y="850" z="0">
+      <description>Build system using Turbo, Rollup configuration, TypeScript setup, ESLint rules, and development tooling for the monorepo structure.</description>
+      <metadata>
+        <file>tooling</file>
+        <file>turbo.json</file>
+        <file>.github</file>
+        <file>package.json</file>
+      </metadata>
+    </node>
+
+    <node id="performance-optimization" title="Performance Optimization" x="700" y="850" z="0">
+      <description>Performance optimization techniques including virtualization, memoization, efficient rendering, and large dataset handling for complex flow diagrams.</description>
+      <metadata>
+        <file>examples/react/src/examples/Intersection</file>
+      </metadata>
+    </node>
+
+    <node id="connection-system" title="Connection &amp; Handle System" x="200" y="1000" z="0">
+      <description>Advanced connection handling including easy connect patterns, connection validation, handle positioning, and connection line customization.</description>
+      <metadata>
+        <file>examples/react/src/examples/EasyConnect</file>
+        <file>examples/react/src/examples/CustomConnectionLine</file>
+        <file>examples/react/src/examples/DetachedHandle</file>
+      </metadata>
+    </node>
+
+    <node id="multi-framework-support" title="Multi-Framework Integration" x="600" y="1000" z="0">
+      <description>Integration examples and adapters for multiple frameworks including Astro, showcasing how to embed XYFlow in different environments.</description>
+      <metadata>
+        <file>examples/astro-xyflow</file>
+      </metadata>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="core-system-react-flow" source="core-system" target="react-flow" role="depends-on"/>
+    <edge id="core-system-svelte-flow" source="core-system" target="svelte-flow" role="depends-on"/>
+    <edge id="react-flow-react-examples" source="react-flow" target="react-examples" role="demonstrates"/>
+    <edge id="svelte-flow-svelte-examples" source="svelte-flow" target="svelte-examples" role="demonstrates"/>
+    <edge id="react-flow-state-management" source="react-flow" target="state-management" role="uses"/>
+    <edge id="core-system-interaction-system" source="core-system" target="interaction-system" role="provides"/>
+    <edge id="react-examples-custom-nodes" source="react-examples" target="custom-nodes" role="showcases"/>
+    <edge id="react-examples-custom-edges" source="react-examples" target="custom-edges" role="showcases"/>
+    <edge id="react-examples-layout-system" source="react-examples" target="layout-system" role="showcases"/>
+    <edge id="react-examples-minimap-controls" source="react-examples" target="minimap-controls" role="showcases"/>
+    <edge id="react-examples-dev-tools" source="react-examples" target="dev-tools" role="showcases"/>
+    <edge id="react-examples-connection-system" source="react-examples" target="connection-system" role="showcases"/>
+    <edge id="build-tooling-react-flow" source="build-tooling" target="react-flow" role="builds"/>
+    <edge id="build-tooling-svelte-flow" source="build-tooling" target="svelte-flow" role="builds"/>
+    <edge id="build-tooling-core-system" source="build-tooling" target="core-system" role="builds"/>
+    <edge id="testing-framework-react-examples" source="testing-framework" target="react-examples" role="tests"/>
+    <edge id="styling-theming-react-flow" source="styling-theming" target="react-flow" role="styles"/>
+    <edge id="styling-theming-svelte-flow" source="styling-theming" target="svelte-flow" role="styles"/>
+    <edge id="multi-framework-support-react-flow" source="multi-framework-support" target="react-flow" role="integrates"/>
+  </edges>
+</graph>
