@@ -207,11 +207,24 @@ export function useCopyPaste() {
           };
         });
 
+        // Create Graph-compatible edges for the store
+        const newGraphEdges = newEdges.map((edge, index) => {
+          const originalEdge = bufferedEdges[index];
+          return {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            role: (originalEdge as any).role || 'links-to',
+            sourceHandle: edge.sourceHandle || undefined,
+            targetHandle: edge.targetHandle || undefined,
+          };
+        });
+
         // Update local graph state immediately
         const updatedGraph = {
           ...graph,
           nodes: [...(graph?.nodes || []), ...newGraphNodes],
-          edges: [...(graph?.edges || []), ...newEdges],
+          edges: [...(graph?.edges || []), ...newGraphEdges],
         };
         useProjectStore.setState({ graph: updatedGraph });
 
