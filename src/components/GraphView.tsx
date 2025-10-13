@@ -42,6 +42,7 @@ import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
 import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
+import { useCopyPaste } from '@/lib/useCopyPaste';
 
 // Connection validation function
 const isValidConnection = (connection: Connection | Edge) => {
@@ -503,6 +504,9 @@ function GraphCanvas() {
 
   // Helper lines functionality
   const { rebuildIndex, updateHelperLines, HelperLines } = useHelperLines();
+
+  // Copy-paste functionality
+  const { cut, copy, paste, bufferedNodes, bufferedEdges } = useCopyPaste();
 
   // Custom onNodesChange that integrates helper lines
   const onNodesChange: OnNodesChange = useCallback(
@@ -1043,6 +1047,19 @@ function GraphCanvas() {
       setOptimisticOperationsActive(false);
     }
   }, [nodes, edges, selectedNodeIds, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive]);
+
+  // Listen for delete-selected events from copy-paste operations
+  useEffect(() => {
+    const onDeleteSelected = (event: CustomEvent) => {
+      const { selectedNodes, selectedEdges } = event.detail;
+      handleDeleteSelected(selectedNodes, selectedEdges);
+    };
+
+    window.addEventListener('manta:delete-selected', onDeleteSelected as EventListener);
+    return () => {
+      window.removeEventListener('manta:delete-selected', onDeleteSelected as EventListener);
+    };
+  }, [handleDeleteSelected]);
 
   // Connect to graph events for real-time updates
   useEffect(() => {
