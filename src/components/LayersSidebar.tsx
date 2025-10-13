@@ -2,16 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { Plus, Trash2, X, Pencil, Copy } from 'lucide-react';
+import { Plus, Trash2, Pencil, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ResizeHandle from './ResizeHandle';
 
-type Props = { open?: boolean; onClose?: () => void };
+type Props = { open?: boolean };
 
-export default function LayersSidebar({ open = true, onClose }: Props) {
+export default function LayersSidebar({ open = true }: Props) {
   const { layers, activeLayer, loadLayers, setActiveLayer, createLayer, deleteLayer, cloneLayer, renameLayer, graphLoading, rightSidebarWidth, setRightSidebarWidth } = useProjectStore();
   const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
   const [editingLayer, setEditingLayer] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [editingMode, setEditingMode] = useState<'rename' | null>(null);
@@ -27,13 +26,14 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
   }, [layers]);
 
   const doCreate = async () => {
-    const name = newName.trim() || nextDefaultName;
+    const name = nextDefaultName;
     setCreating(true);
     const created = await createLayer(name);
     setCreating(false);
-    setNewName('');
     if (created) {
       await setActiveLayer(created);
+      // Start editing the newly created layer to allow renaming
+      startEditing(created);
     }
   };
 
@@ -85,14 +85,14 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => onClose?.()}
+            onClick={doCreate}
             variant="outline"
             size="sm"
             className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title="Close"
+            title="Create new layer"
             style={{ width: '32px', height: '32px', padding: '0' }}
           >
-            <X className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -160,25 +160,6 @@ export default function LayersSidebar({ open = true, onClose }: Props) {
         })}
       </div>
 
-      <div className="p-3 border-t border-zinc-700">
-        <div className="flex items-center gap-2">
-          <input
-            className="flex-1 text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-1 outline-none focus:border-blue-500"
-            placeholder={nextDefaultName}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-          <Button
-            onClick={doCreate}
-            disabled={creating || graphLoading}
-            variant="outline"
-            size="sm"
-            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 disabled:opacity-50 flex items-center gap-1"
-          >
-            <Plus className="w-4 h-4" /> New
-          </Button>
-        </div>
-      </div>
       <ResizeHandle
         direction="left"
         onResize={setRightSidebarWidth}

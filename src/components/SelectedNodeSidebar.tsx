@@ -18,6 +18,7 @@ export default function SelectedNodeSidebar() {
 		selectedNode,
 		setSelectedNode,
 		selectedNodeIds,
+		setSelectedNodeIds,
 		triggerRefresh,
 		refreshGraph,
 		updateNode,
@@ -246,7 +247,7 @@ export default function SelectedNodeSidebar() {
 				</div>
 			)}
 			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
-				<div className="space-y-3 pr-2 pb-8 min-w-0 overflow-hidden">
+				<div className="space-y-3 pb-8 min-w-0 overflow-hidden">
 				{/* Multi-select summary */}
 				{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
 					<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
@@ -292,7 +293,7 @@ export default function SelectedNodeSidebar() {
 							</div>
 							<div className="space-y-1.5">
 								<Textarea
-									className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
+									className="w-full h-48 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
 									value={promptDraft}
 									onChange={(e) => {
 										const newValue = e.target.value;
@@ -340,10 +341,19 @@ export default function SelectedNodeSidebar() {
 									<div className="text-xs font-medium text-zinc-300 border-b border-zinc-700/30 pb-1 mb-1.5">Connections ({connections.length})</div>
 									<ul className="space-y-0.5">
 										{connections.map((connection, index) => (
-											<li key={`${connection.node.id}-${index}`} className="text-xs bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20">
-												<div className="flex items-center">
-													<span className="text-zinc-400 truncate">{connection.node.title}</span>
-												</div>
+											<li key={`${connection.node.id}-${index}`}>
+												<button
+													onClick={() => {
+														setSelectedNode(connection.node.id, connection.node);
+														setSelectedNodeIds([connection.node.id]);
+													}}
+													className="w-full text-left text-xs bg-zinc-800/30 rounded px-2 py-1 border border-zinc-700/20 hover:bg-zinc-700/50 hover:border-zinc-600/50 transition-colors"
+												>
+													<div className="flex items-center">
+														<span className="text-zinc-400 truncate">{connection.node.title}</span>
+														<span className="text-zinc-500 ml-2 text-[10px]">{connection.direction === 'outgoing' ? '→' : '←'}</span>
+													</div>
+												</button>
 											</li>
 										))}
 									</ul>
