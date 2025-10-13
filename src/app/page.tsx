@@ -33,7 +33,6 @@ export default function Home() {
         {layersSidebarOpen && (
           <LayersSidebar
             open={layersSidebarOpen}
-            onClose={() => setLayersSidebarOpen(false)}
           />
         )}
       </div>
