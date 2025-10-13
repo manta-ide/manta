@@ -583,9 +583,12 @@ function GraphCanvas() {
   } as const;
 
   // Helper to derive an arrow marker matching the current edge style
+  // Increase marker size for better visibility
   const makeArrowForStyle = (style: any) => ({
     type: MarkerType.ArrowClosed as const,
     color: style?.stroke || '#9ca3af',
+    width: 24,
+    height: 24,
   });
 
   // Access React Flow instance for programmatic viewport control
