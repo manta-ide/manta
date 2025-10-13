@@ -414,7 +414,8 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
       c.label.toLowerCase().includes(q) ||
       c.description.toLowerCase().includes(q)
     );
-    return list.slice(0, 8);
+    // Show all available commands; container scrolls if too tall
+    return list;
   }, [slashActive, slashQuery, ALL_SLASH_COMMANDS]);
 
   const handleClear = async () => {
@@ -1174,7 +1175,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
             )}
             {/* Slash command dropdown */}
             {slashActive && slashCandidates.length > 0 && (
-              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
+              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] max-h-64 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50">
                 {slashCandidates.map((c, i) => (
                   <button
                     type="button"
