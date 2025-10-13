@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph xmlns="urn:app:graph" version="1.0" directed="true">
+  <nodes>
+    <node id="ui-framework" title="UI Framework &amp; Design System" x="100" y="100" z="0">
+      <description>Core UI framework layer providing design system, theming, and component library infrastructure for the database design tool</description>
+      <metadata>
+        <file>src/components</file>
+        <file>src/animations</file>
+        <file>tailwind.config.js</file>
+        <file>postcss.config.js</file>
+      </metadata>
+      <props>
+        <prop name="ui-library" title="UI Library" type="text">@douyinfe/semi-ui</prop>
+        <prop name="styling-framework" title="Styling Framework" type="text">TailwindCSS</prop>
+        <prop name="animation-library" title="Animation Library" type="text">Framer Motion</prop>
+        <prop name="theme-support" title="Theme Support" type="boolean">true</prop>
+        <prop name="rtl-support" title="RTL Support" type="boolean">true</prop>
+        <prop name="responsive-design" title="Responsive Design" type="boolean">true</prop>
+        <prop name="component-types" title="Component Types" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Modal System</field>
+          <field name="description" title="Description" type="text">Dialogs and overlays</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">Form Controls</field>
+          <field name="description" title="Description" type="text">Input elements and validation</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Navigation</field>
+          <field name="description" title="Description" type="text">Navbar and routing</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">Layout Components</field>
+          <field name="description" title="Description" type="text">Panels and containers</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="database-engine" title="Database Engine &amp; Schema Management" x="400" y="100" z="0">
+      <description>Multi-database support system handling schema definitions, SQL generation, and database-specific features across different database platforms</description>
+      <metadata>
+        <file>src/data/databases.js</file>
+        <file>src/data/datatypes.js</file>
+        <file>src/data/schemas.js</file>
+      </metadata>
+      <props>
+        <prop name="supported-databases" title="Supported Databases" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">MySQL</field>
+          <field name="features" title="Features" type="text">unsigned types</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">PostgreSQL</field>
+          <field name="features" title="Features" type="text">types, enums, arrays</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">SQLite</field>
+          <field name="features" title="Features" type="text">basic types</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">MariaDB</field>
+          <field name="features" title="Features" type="text">unsigned types</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text">MSSQL</field>
+          <field name="features" title="Features" type="text">basic types</field>
+        </item>
+        <item index="5">
+          <field name="name" title="Name" type="text">Oracle SQL</field>
+          <field name="features" title="Features" type="text">basic types (beta)</field>
+        </item>
+        <item index="6">
+          <field name="name" title="Name" type="text">Generic</field>
+          <field name="features" title="Features" type="text">custom types</field>
+        </item>
+      </prop>
+        <prop name="schema-parser" title="Schema Parser" type="text">node-sql-parser</prop>
+        <prop name="dbml-support" title="DBML Support" type="text">@dbml/core</prop>
+        <prop name="sql-generation" title="SQL Generation" type="boolean">true</prop>
+        <prop name="import-export" title="Import/Export Support" type="boolean">true</prop>
+      </props>
+    </node>
+
+    <node id="diagram-editor" title="Visual Diagram Editor" x="700" y="100" z="0">
+      <description>Interactive canvas-based editor for creating and manipulating database diagrams with drag-and-drop functionality, relationship drawing, and visual design capabilities</description>
+      <metadata>
+        <file>src/components/EditorCanvas</file>
+        <file>src/components/Workspace.jsx</file>
+        <file>src/utils/calcPath.js</file>
+        <file>src/utils/arrangeTables.js</file>
+      </metadata>
+      <props>
+        <prop name="canvas-technology" title="Canvas Technology" type="text">HTML5 Canvas with React</prop>
+        <prop name="drag-drop-library" title="Drag &amp; Drop Library" type="text">@dnd-kit</prop>
+        <prop name="visual-elements" title="Visual Elements" type="object-list">
+        <item index="0">
+          <field name="type" title="Type" type="text">Tables</field>
+          <field name="description" title="Description" type="text">Database table visualization</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Type" type="text">Relationships</field>
+          <field name="description" title="Description" type="text">Foreign key connections</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Type" type="text">Areas</field>
+          <field name="description" title="Description" type="text">Subject area groupings</field>
+        </item>
+        <item index="3">
+          <field name="type" title="Type" type="text">Notes</field>
+          <field name="description" title="Description" type="text">Annotation and documentation</field>
+        </item>
+      </prop>
+        <prop name="interaction-features" title="Interaction Features" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Pan &amp; Zoom</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">Multi-select</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Undo/Redo</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">Auto-layout</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text">Grid Snap</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+      </prop>
+        <prop name="export-formats" title="Export Formats" type="object-list">
+        <item index="0">
+          <field name="type" title="Type" type="text">PNG/JPG</field>
+          <field name="library" title="Library" type="text">html-to-image</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Type" type="text">PDF</field>
+          <field name="library" title="Library" type="text">jspdf</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Type" type="text">SQL Scripts</field>
+          <field name="library" title="Library" type="text">native</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="state-management" title="State Management &amp; Context System" x="100" y="400" z="0">
+      <description>Comprehensive React Context-based state management system handling diagram data, user preferences, undo/redo operations, and application state across all components</description>
+      <metadata>
+        <file>src/context</file>
+        <file>src/hooks</file>
+        <file>src/data/db.js</file>
+        <file>src/utils/validateSchema.js</file>
+      </metadata>
+      <props>
+        <prop name="state-architecture" title="State Architecture" type="text">React Context + Custom Hooks</prop>
+        <prop name="context-providers" title="Context Providers" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">DiagramContext</field>
+          <field name="purpose" title="Purpose" type="text">Tables and relationships</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">CanvasContext</field>
+          <field name="purpose" title="Purpose" type="text">Canvas interaction state</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">SettingsContext</field>
+          <field name="purpose" title="Purpose" type="text">User preferences</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">UndoRedoContext</field>
+          <field name="purpose" title="Purpose" type="text">History management</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text">SelectContext</field>
+          <field name="purpose" title="Purpose" type="text">Selection state</field>
+        </item>
+        <item index="5">
+          <field name="name" title="Name" type="text">LayoutContext</field>
+          <field name="purpose" title="Purpose" type="text">UI layout state</field>
+        </item>
+      </prop>
+        <prop name="persistence-layer" title="Persistence Layer" type="text">IndexedDB via Dexie</prop>
+        <prop name="auto-save" title="Auto-save Support" type="boolean">true</prop>
+        <prop name="version-control" title="Version Control" type="boolean">true</prop>
+        <prop name="state-validation" title="State Validation" type="text">JSON Schema validation</prop>
+      </props>
+    </node>
+
+    <node id="code-editor-system" title="Code Editor &amp; DBML Integration" x="400" y="400" z="0">
+      <description>Advanced code editing capabilities with Monaco Editor integration, DBML syntax highlighting, and bidirectional synchronization between visual diagrams and code representations</description>
+      <metadata>
+        <file>src/components/CodeEditor</file>
+        <file>src/components/LexicalEditor</file>
+        <file>src/components/EditorSidePanel/DBMLEditor.jsx</file>
+      </metadata>
+      <props>
+        <prop name="editor-engine" title="Editor Engine" type="text">Monaco Editor (VS Code)</prop>
+        <prop name="syntax-highlighting" title="Syntax Highlighting" type="text">Custom DBML language support</prop>
+        <prop name="rich-text-editor" title="Rich Text Editor" type="text">Lexical (Facebook)</prop>
+        <prop name="code-features" title="Code Features" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Auto-completion</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">Error highlighting</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Code formatting</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">Live preview</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text">Bidirectional sync</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+      </prop>
+        <prop name="supported-formats" title="Supported Formats" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">DBML</field>
+          <field name="import" title="Import" type="boolean">true</field>
+          <field name="export" title="Export" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">SQL DDL</field>
+          <field name="import" title="Import" type="boolean">true</field>
+          <field name="export" title="Export" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">JSON Schema</field>
+          <field name="import" title="Import" type="boolean">true</field>
+          <field name="export" title="Export" type="boolean">true</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="data-persistence" title="Data Persistence &amp; Storage" x="700" y="400" z="0">
+      <description>Local storage system managing diagram persistence, templates, user data, and sharing capabilities with IndexedDB and external API integration</description>
+      <metadata>
+        <file>src/data/db.js</file>
+        <file>src/api</file>
+        <file>src/utils/exportSavedData.js</file>
+        <file>src/utils/cache.js</file>
+      </metadata>
+      <props>
+        <prop name="local-storage" title="Local Storage" type="text">IndexedDB via Dexie</prop>
+        <prop name="cloud-integration" title="Cloud Integration" type="text">GitHub Gists API</prop>
+        <prop name="storage-features" title="Storage Features" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Auto-save</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">Version history</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Template storage</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">Diagram sharing</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text">Offline support</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+      </prop>
+        <prop name="data-formats" title="Data Formats" type="object-list">
+        <item index="0">
+          <field name="type" title="Type" type="text"></field>
+          <field name="compression" title="Compression" type="boolean">false</field>
+        </item>
+        <item index="1">
+          <field name="type" title="Type" type="text"></field>
+          <field name="compression" title="Compression" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Type" type="text"></field>
+          <field name="compression" title="Compression" type="boolean">false</field>
+        </item>
+      </prop>
+        <prop name="backup-restore" title="Backup &amp; Restore" type="boolean">true</prop>
+        <prop name="export-utilities" title="Export Utilities" type="text">file-saver, jszip</prop>
+      </props>
+    </node>
+
+    <node id="internationalization" title="Internationalization &amp; Localization" x="100" y="700" z="0">
+      <description>Comprehensive i18n system supporting multiple languages, RTL layouts, and localized content with dynamic language switching and browser language detection</description>
+      <metadata>
+        <file>src/i18n</file>
+        <file>src/i18n/locales</file>
+      </metadata>
+      <props>
+        <prop name="i18n-framework" title="i18n Framework" type="text">react-i18next</prop>
+        <prop name="language-detection" title="Language Detection" type="text">i18next-browser-languagedetector</prop>
+        <prop name="supported-languages" title="Supported Languages" type="number">37</prop>
+        <prop name="internationalization-rtl-support" title="RTL Support" type="boolean">true</prop>
+        <prop name="dynamic-switching" title="Dynamic Language Switching" type="boolean">true</prop>
+        <prop name="language-samples" title="Language Samples" type="object-list">
+        <item index="0">
+          <field name="code" title="Code" type="text">en</field>
+          <field name="name" title="Name" type="text">English</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+        <item index="1">
+          <field name="code" title="Code" type="text">ar</field>
+          <field name="name" title="Name" type="text">Arabic</field>
+          <field name="direction" title="Direction" type="text">RTL</field>
+        </item>
+        <item index="2">
+          <field name="code" title="Code" type="text">zh</field>
+          <field name="name" title="Name" type="text">Chinese</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+        <item index="3">
+          <field name="code" title="Code" type="text">es</field>
+          <field name="name" title="Name" type="text">Spanish</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+        <item index="4">
+          <field name="code" title="Code" type="text">fr</field>
+          <field name="name" title="Name" type="text">French</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+        <item index="5">
+          <field name="code" title="Code" type="text">de</field>
+          <field name="name" title="Name" type="text">German</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+        <item index="6">
+          <field name="code" title="Code" type="text">hi</field>
+          <field name="name" title="Name" type="text">Hindi</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+        <item index="7">
+          <field name="code" title="Code" type="text">ja</field>
+          <field name="name" title="Name" type="text">Japanese</field>
+          <field name="direction" title="Direction" type="text">LTR</field>
+        </item>
+      </prop>
+        <prop name="locale-fallback" title="Locale Fallback" type="text">English (en)</prop>
+      </props>
+    </node>
+
+    <node id="application-core" title="Application Core &amp; Routing" x="400" y="700" z="0">
+      <description>Main application architecture with React Router navigation, page management, and core application lifecycle handling across different views and modes</description>
+      <metadata>
+        <file>src/App.jsx</file>
+        <file>src/main.jsx</file>
+        <file>src/pages</file>
+        <file>vite.config.js</file>
+        <file>package.json</file>
+      </metadata>
+      <props>
+        <prop name="framework" title="Framework" type="text">React 18</prop>
+        <prop name="routing-library" title="Routing Library" type="text">React Router DOM v6</prop>
+        <prop name="build-tool" title="Build Tool" type="text">Vite</prop>
+        <prop name="application-pages" title="Application Pages" type="object-list">
+        <item index="0">
+          <field name="path" title="Path" type="text">/</field>
+          <field name="component" title="Component" type="text">LandingPage</field>
+          <field name="description" title="Description" type="text">Marketing and onboarding</field>
+        </item>
+        <item index="1">
+          <field name="path" title="Path" type="text">/editor</field>
+          <field name="component" title="Component" type="text">Editor</field>
+          <field name="description" title="Description" type="text">Main diagram editor</field>
+        </item>
+        <item index="2">
+          <field name="path" title="Path" type="text">/templates</field>
+          <field name="component" title="Component" type="text">Templates</field>
+          <field name="description" title="Description" type="text">Template gallery</field>
+        </item>
+        <item index="3">
+          <field name="path" title="Path" type="text">/bug-report</field>
+          <field name="component" title="Component" type="text">BugReport</field>
+          <field name="description" title="Description" type="text">Issue reporting</field>
+        </item>
+      </prop>
+        <prop name="development-mode" title="Development Mode" type="boolean">true</prop>
+        <prop name="deployment-target" title="Deployment Target" type="text">Static SPA</prop>
+        <prop name="analytics-integration" title="Analytics Integration" type="text">Vercel Analytics</prop>
+      </props>
+    </node>
+
+    <node id="utility-services" title="Utility Services &amp; Helpers" x="700" y="700" z="0">
+      <description>Collection of utility functions, validation services, mathematical calculations, and helper modules supporting core application functionality</description>
+      <metadata>
+        <file>src/utils</file>
+        <file>src/data/constants.js</file>
+        <file>src/data/editorConfig.js</file>
+      </metadata>
+      <props>
+        <prop name="utility-categories" title="Utility Categories" type="object-list">
+        <item index="0">
+          <field name="name" title="Name" type="text">Schema Validation</field>
+          <field name="description" title="Description" type="text">JSON schema validation utilities</field>
+        </item>
+        <item index="1">
+          <field name="name" title="Name" type="text">Geometric Calculations</field>
+          <field name="description" title="Description" type="text">Path and rectangle calculations</field>
+        </item>
+        <item index="2">
+          <field name="name" title="Name" type="text">Layout Algorithms</field>
+          <field name="description" title="Description" type="text">Table arrangement and auto-layout</field>
+        </item>
+        <item index="3">
+          <field name="name" title="Name" type="text">Export Utilities</field>
+          <field name="description" title="Description" type="text">Data serialization and export</field>
+        </item>
+        <item index="4">
+          <field name="name" title="Name" type="text">Cache Management</field>
+          <field name="description" title="Description" type="text">Browser storage utilities</field>
+        </item>
+        <item index="5">
+          <field name="name" title="Name" type="text">Fullscreen API</field>
+          <field name="description" title="Description" type="text">Browser fullscreen management</field>
+        </item>
+      </prop>
+        <prop name="validation-library" title="Validation Library" type="text">jsonschema</prop>
+        <prop name="date-library" title="Date Library" type="text">luxon</prop>
+        <prop name="utility-library" title="Utility Library" type="text">lodash</prop>
+        <prop name="id-generation" title="ID Generation" type="text">nanoid</prop>
+        <prop name="performance-optimized" title="Performance Optimized" type="boolean">true</prop>
+      </props>
+    </node>
+  </nodes>
+
+  <edges>
+    <edge id="application-core-ui-framework" source="application-core" target="ui-framework" role="uses"/>
+    <edge id="application-core-state-management" source="application-core" target="state-management" role="orchestrates"/>
+    <edge id="application-core-internationalization" source="application-core" target="internationalization" role="integrates"/>
+    <edge id="diagram-editor-ui-framework" source="diagram-editor" target="ui-framework" role="extends"/>
+    <edge id="diagram-editor-state-management" source="diagram-editor" target="state-management" role="depends_on"/>
+    <edge id="diagram-editor-database-engine" source="diagram-editor" target="database-engine" role="visualizes"/>
+    <edge id="code-editor-system-database-engine" source="code-editor-system" target="database-engine" role="syncs_with"/>
+    <edge id="code-editor-system-diagram-editor" source="code-editor-system" target="diagram-editor" role="bidirectional_sync"/>
+    <edge id="state-management-data-persistence" source="state-management" target="data-persistence" role="persists_to"/>
+    <edge id="data-persistence-utility-services" source="data-persistence" target="utility-services" role="utilizes"/>
+    <edge id="diagram-editor-utility-services" source="diagram-editor" target="utility-services" role="depends_on"/>
+    <edge id="ui-framework-internationalization" source="ui-framework" target="internationalization" role="supports"/>
+    <edge id="code-editor-system-ui-framework" source="code-editor-system" target="ui-framework" role="extends"/>
+    <edge id="database-engine-utility-services" source="database-engine" target="utility-services" role="leverages"/>
+    <edge id="state-management-utility-services" source="state-management" target="utility-services" role="uses"/>
+  </edges>
+</graph>
