@@ -362,8 +362,8 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     });
   };
 
-  // Supported slash commands
-  const SLASH_COMMANDS = useMemo(() => ([
+  // Supported slash commands (local/static)
+  const STATIC_SLASH_COMMANDS = useMemo(() => ([
     { id: 'build', label: '/build', description: 'Build or refresh the graph' },
     { id: 'join', label: '/join', description: 'Merge nodes into one' },
     { id: 'split', label: '/split', description: 'Split a node into parts' },
@@ -372,16 +372,50 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
 
+  // Claude Code slash commands discovered via SDK
+  const [remoteSlashCommands, setRemoteSlashCommands] = useState<Array<{ id: string; label: string; description: string }>>([])
+
+  useEffect(() => {
+    let mounted = true
+    const loadCommands = async () => {
+      try {
+        const res = await fetch('/api/claude-code/commands', { method: 'GET' })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        const cmds: Array<{ id: string; label: string; description: string }> = Array.isArray(data?.commands) ? data.commands : []
+        if (mounted) {
+          // Ensure at least /rewind is present
+          const hasRewind = cmds.some(c => c.id === 'rewind')
+          const withFallback = hasRewind ? cmds : [...cmds, { id: 'rewind', label: '/rewind', description: 'Rewind the last action' }]
+          setRemoteSlashCommands(withFallback)
+        }
+      } catch (e) {
+        // On failure, minimally expose /rewind so users can access it
+        if (mounted) setRemoteSlashCommands([{ id: 'rewind', label: '/rewind', description: 'Rewind the last action' }])
+      }
+    }
+    void loadCommands()
+    return () => { mounted = false }
+  }, [])
+
+  // Merge and dedupe by id
+  const ALL_SLASH_COMMANDS = useMemo(() => {
+    const map = new Map<string, { id: string; label: string; description: string }>()
+    for (const c of STATIC_SLASH_COMMANDS) map.set(c.id, c)
+    for (const c of remoteSlashCommands) map.set(c.id, c)
+    return Array.from(map.values())
+  }, [STATIC_SLASH_COMMANDS, remoteSlashCommands])
+
   const slashCandidates = useMemo(() => {
     if (!slashActive) return [] as Array<{ id: string; label: string; description: string }>;
     const q = (slashQuery || '').toLowerCase();
-    const list = SLASH_COMMANDS.filter(c =>
+    const list = ALL_SLASH_COMMANDS.filter(c =>
       !q || c.label.slice(1).toLowerCase().startsWith(q) ||
       c.label.toLowerCase().includes(q) ||
       c.description.toLowerCase().includes(q)
     );
     return list.slice(0, 8);
-  }, [slashActive, slashQuery, SLASH_COMMANDS]);
+  }, [slashActive, slashQuery, ALL_SLASH_COMMANDS]);
 
   const handleClear = async () => {
     setClearing(true);
@@ -630,7 +664,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
 
   // Replace the typed slash token with the full command label and a space
   const handleSelectSlashCommand = (cmdId: string) => {
-    const cmd = SLASH_COMMANDS.find(c => c.id === cmdId);
+    const cmd = ALL_SLASH_COMMANDS.find(c => c.id === cmdId);
     if (!cmd) return;
     const val = input;
     const start = 0;
