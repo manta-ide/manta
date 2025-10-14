@@ -1,191 +1,749 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="pipecat-framework" title="Pipecat Framework" x="12" y="1627" z="0">
-      <description>Main framework node representing the entire Pipecat real-time voice and multimodal AI agent system</description>
+    <node id="core-framework" title="Core Framework &amp; Pipeline" x="940" y="1652" z="0">
+      <description>The core framework components including base classes, pipeline architecture, task management, frame definitions, and synchronization primitives that form the foundation of Pipecat.</description>
       <metadata>
         <file>src/pipecat/__init__.py</file>
+        <file>src/pipecat/frames/__init__.py</file>
+        <file>src/pipecat/frames/frames.py</file>
+        <file>src/pipecat/frames/protobufs/frames_pb2.py</file>
+        <file>src/pipecat/pipeline/__init__.py</file>
+        <file>src/pipecat/pipeline/base_pipeline.py</file>
+        <file>src/pipecat/pipeline/base_task.py</file>
+        <file>src/pipecat/pipeline/llm_switcher.py</file>
+        <file>src/pipecat/pipeline/parallel_pipeline.py</file>
+        <file>src/pipecat/pipeline/pipeline.py</file>
+        <file>src/pipecat/pipeline/runner.py</file>
+        <file>src/pipecat/pipeline/service_switcher.py</file>
+        <file>src/pipecat/pipeline/sync_parallel_pipeline.py</file>
+        <file>src/pipecat/pipeline/task_observer.py</file>
+        <file>src/pipecat/pipeline/task.py</file>
+        <file>src/pipecat/pipeline/to_be_updated/merge_pipeline.py</file>
+        <file>src/pipecat/processors/frame_processor.py</file>
+        <file>src/pipecat/sync/__init__.py</file>
+        <file>src/pipecat/sync/base_notifier.py</file>
+        <file>src/pipecat/sync/event_notifier.py</file>
+      </metadata>
+    </node>
+
+    <node id="llm-services" title="LLM Services" x="2240.678690646833" y="1915.4806469501127" z="0">
+      <description>Language model integrations including OpenAI, Anthropic, Google Gemini, AWS Bedrock, Groq, and other LLM providers for text generation and conversation handling.</description>
+      <metadata>
+        <file>src/pipecat/services/anthropic/__init__.py</file>
+        <file>src/pipecat/services/anthropic/llm.py</file>
+        <file>src/pipecat/services/aws/__init__.py</file>
+        <file>src/pipecat/services/aws/llm.py</file>
+        <file>src/pipecat/services/azure/__init__.py</file>
+        <file>src/pipecat/services/azure/llm.py</file>
+        <file>src/pipecat/services/cerebras/__init__.py</file>
+        <file>src/pipecat/services/cerebras/llm.py</file>
+        <file>src/pipecat/services/deepseek/__init__.py</file>
+        <file>src/pipecat/services/deepseek/llm.py</file>
+        <file>src/pipecat/services/fireworks/__init__.py</file>
+        <file>src/pipecat/services/fireworks/llm.py</file>
+        <file>src/pipecat/services/google/__init__.py</file>
+        <file>src/pipecat/services/google/llm.py</file>
+        <file>src/pipecat/services/google/llm_openai.py</file>
+        <file>src/pipecat/services/google/llm_vertex.py</file>
+        <file>src/pipecat/services/grok/__init__.py</file>
+        <file>src/pipecat/services/grok/llm.py</file>
+        <file>src/pipecat/services/groq/__init__.py</file>
+        <file>src/pipecat/services/groq/llm.py</file>
+        <file>src/pipecat/services/mistral/__init__.py</file>
+        <file>src/pipecat/services/mistral/llm.py</file>
+        <file>src/pipecat/services/nim/__init__.py</file>
+        <file>src/pipecat/services/nim/llm.py</file>
+        <file>src/pipecat/services/ollama/__init__.py</file>
+        <file>src/pipecat/services/ollama/llm.py</file>
+        <file>src/pipecat/services/openai/__init__.py</file>
+        <file>src/pipecat/services/openai/base_llm.py</file>
+        <file>src/pipecat/services/openai/llm.py</file>
+        <file>src/pipecat/services/openpipe/__init__.py</file>
+        <file>src/pipecat/services/openpipe/llm.py</file>
+        <file>src/pipecat/services/openrouter/__init__.py</file>
+        <file>src/pipecat/services/openrouter/llm.py</file>
+        <file>src/pipecat/services/perplexity/__init__.py</file>
+        <file>src/pipecat/services/perplexity/llm.py</file>
+        <file>src/pipecat/services/qwen/__init__.py</file>
+        <file>src/pipecat/services/qwen/llm.py</file>
+        <file>src/pipecat/services/sambanova/__init__.py</file>
+        <file>src/pipecat/services/sambanova/llm.py</file>
+        <file>src/pipecat/services/together/__init__.py</file>
+        <file>src/pipecat/services/together/llm.py</file>
+        <file>src/pipecat/services/llm_service.py</file>
+      </metadata>
+    </node>
+
+    <node id="tts-services" title="Text-to-Speech Services" x="2606.838817006753" y="1655.9806469501125" z="0">
+      <description>TTS service integrations for converting text to speech audio, including ElevenLabs, Cartesia, Deepgram, OpenAI, Azure, and many other TTS providers.</description>
+      <metadata>
+        <file>src/pipecat/services/asyncai/__init__.py</file>
+        <file>src/pipecat/services/asyncai/tts.py</file>
+        <file>src/pipecat/services/aws/tts.py</file>
+        <file>src/pipecat/services/azure/tts.py</file>
+        <file>src/pipecat/services/cartesia/__init__.py</file>
+        <file>src/pipecat/services/cartesia/tts.py</file>
+        <file>src/pipecat/services/deepgram/__init__.py</file>
+        <file>src/pipecat/services/deepgram/tts.py</file>
+        <file>src/pipecat/services/elevenlabs/__init__.py</file>
+        <file>src/pipecat/services/elevenlabs/tts.py</file>
+        <file>src/pipecat/services/fish/__init__.py</file>
+        <file>src/pipecat/services/fish/tts.py</file>
+        <file>src/pipecat/services/google/tts.py</file>
+        <file>src/pipecat/services/groq/tts.py</file>
+        <file>src/pipecat/services/hume/__init__.py</file>
+        <file>src/pipecat/services/hume/tts.py</file>
+        <file>src/pipecat/services/inworld/__init__.py</file>
+        <file>src/pipecat/services/inworld/tts.py</file>
+        <file>src/pipecat/services/lmnt/__init__.py</file>
+        <file>src/pipecat/services/lmnt/tts.py</file>
+        <file>src/pipecat/services/minimax/__init__.py</file>
+        <file>src/pipecat/services/minimax/tts.py</file>
+        <file>src/pipecat/services/neuphonic/__init__.py</file>
+        <file>src/pipecat/services/neuphonic/tts.py</file>
+        <file>src/pipecat/services/openai/tts.py</file>
+        <file>src/pipecat/services/piper/__init__.py</file>
+        <file>src/pipecat/services/piper/tts.py</file>
+        <file>src/pipecat/services/playht/__init__.py</file>
+        <file>src/pipecat/services/playht/tts.py</file>
+        <file>src/pipecat/services/rime/__init__.py</file>
+        <file>src/pipecat/services/rime/tts.py</file>
+        <file>src/pipecat/services/riva/__init__.py</file>
+        <file>src/pipecat/services/riva/tts.py</file>
+        <file>src/pipecat/services/sarvam/__init__.py</file>
+        <file>src/pipecat/services/sarvam/tts.py</file>
+        <file>src/pipecat/services/xtts/__init__.py</file>
+        <file>src/pipecat/services/xtts/tts.py</file>
+        <file>src/pipecat/services/tts_service.py</file>
+      </metadata>
+    </node>
+
+    <node id="stt-services" title="Speech-to-Text Services" x="2595.574507919672" y="2520.778961543205" z="0">
+      <description>STT service integrations for converting speech audio to text, including Deepgram, AssemblyAI, Whisper, Azure, Google, and other transcription providers.</description>
+      <metadata>
+        <file>src/pipecat/services/assemblyai/__init__.py</file>
+        <file>src/pipecat/services/assemblyai/models.py</file>
+        <file>src/pipecat/services/assemblyai/stt.py</file>
+        <file>src/pipecat/services/aws/stt.py</file>
+        <file>src/pipecat/services/azure/stt.py</file>
+        <file>src/pipecat/services/cartesia/stt.py</file>
+        <file>src/pipecat/services/deepgram/flux/__init__.py</file>
+        <file>src/pipecat/services/deepgram/flux/stt.py</file>
+        <file>src/pipecat/services/deepgram/stt.py</file>
+        <file>src/pipecat/services/elevenlabs/stt.py</file>
+        <file>src/pipecat/services/fal/__init__.py</file>
+        <file>src/pipecat/services/fal/stt.py</file>
+        <file>src/pipecat/services/gladia/__init__.py</file>
+        <file>src/pipecat/services/gladia/config.py</file>
+        <file>src/pipecat/services/gladia/stt.py</file>
+        <file>src/pipecat/services/google/stt.py</file>
+        <file>src/pipecat/services/groq/stt.py</file>
+        <file>src/pipecat/services/openai/stt.py</file>
+        <file>src/pipecat/services/riva/stt.py</file>
+        <file>src/pipecat/services/sambanova/stt.py</file>
+        <file>src/pipecat/services/soniox/__init__.py</file>
+        <file>src/pipecat/services/soniox/stt.py</file>
+        <file>src/pipecat/services/speechmatics/__init__.py</file>
+        <file>src/pipecat/services/speechmatics/stt.py</file>
+        <file>src/pipecat/services/ultravox/__init__.py</file>
+        <file>src/pipecat/services/ultravox/stt.py</file>
+        <file>src/pipecat/services/whisper/__init__.py</file>
+        <file>src/pipecat/services/whisper/base_stt.py</file>
+        <file>src/pipecat/services/whisper/stt.py</file>
+        <file>src/pipecat/services/stt_service.py</file>
+      </metadata>
+    </node>
+
+    <node id="s2s-services" title="Speech-to-Speech Services" x="1558.4399499821534" y="2140.755717131218" z="0">
+      <description>End-to-end speech-to-speech services including OpenAI Realtime API, Azure Realtime, AWS Nova Sonic, and Gemini Multimodal Live for direct voice-to-voice communication.</description>
+      <metadata>
+        <file>src/pipecat/services/aws_nova_sonic/__init__.py</file>
+        <file>src/pipecat/services/aws_nova_sonic/aws.py</file>
+        <file>src/pipecat/services/aws_nova_sonic/context.py</file>
+        <file>src/pipecat/services/aws_nova_sonic/frames.py</file>
+        <file>src/pipecat/services/aws/nova_sonic/__init__.py</file>
+        <file>src/pipecat/services/aws/nova_sonic/context.py</file>
+        <file>src/pipecat/services/aws/nova_sonic/frames.py</file>
+        <file>src/pipecat/services/aws/nova_sonic/llm.py</file>
+        <file>src/pipecat/services/azure/realtime/__init__.py</file>
+        <file>src/pipecat/services/azure/realtime/llm.py</file>
+        <file>src/pipecat/services/gemini_multimodal_live/__init__.py</file>
+        <file>src/pipecat/services/gemini_multimodal_live/events.py</file>
+        <file>src/pipecat/services/gemini_multimodal_live/file_api.py</file>
+        <file>src/pipecat/services/gemini_multimodal_live/gemini.py</file>
+        <file>src/pipecat/services/google/gemini_live/__init__.py</file>
+        <file>src/pipecat/services/google/gemini_live/file_api.py</file>
+        <file>src/pipecat/services/google/gemini_live/llm_vertex.py</file>
+        <file>src/pipecat/services/google/gemini_live/llm.py</file>
+        <file>src/pipecat/services/openai_realtime_beta/__init__.py</file>
+        <file>src/pipecat/services/openai_realtime_beta/azure.py</file>
+        <file>src/pipecat/services/openai_realtime_beta/context.py</file>
+        <file>src/pipecat/services/openai_realtime_beta/events.py</file>
+        <file>src/pipecat/services/openai_realtime_beta/frames.py</file>
+        <file>src/pipecat/services/openai_realtime_beta/openai.py</file>
+        <file>src/pipecat/services/openai_realtime/__init__.py</file>
+        <file>src/pipecat/services/openai_realtime/azure.py</file>
+        <file>src/pipecat/services/openai_realtime/context.py</file>
+        <file>src/pipecat/services/openai_realtime/events.py</file>
+        <file>src/pipecat/services/openai_realtime/frames.py</file>
+        <file>src/pipecat/services/openai/realtime/__init__.py</file>
+        <file>src/pipecat/services/openai/realtime/context.py</file>
+        <file>src/pipecat/services/openai/realtime/events.py</file>
+        <file>src/pipecat/services/openai/realtime/frames.py</file>
+        <file>src/pipecat/services/openai/realtime/llm.py</file>
+      </metadata>
+    </node>
+
+    <node id="vision-video-services" title="Vision &amp; Video Services" x="2602.8581700566406" y="1327.9806469501125" z="0">
+      <description>Image generation, vision analysis, and video avatar services including OpenAI DALL-E, Google Imagen, Moondream, HeyGen, Tavus, and Simli.</description>
+      <metadata>
+        <file>src/pipecat/services/azure/common.py</file>
+        <file>src/pipecat/services/azure/image.py</file>
+        <file>src/pipecat/services/fal/image.py</file>
+        <file>src/pipecat/services/google/frames.py</file>
+        <file>src/pipecat/services/google/image.py</file>
+        <file>src/pipecat/services/moondream/__init__.py</file>
+        <file>src/pipecat/services/moondream/vision.py</file>
+        <file>src/pipecat/services/openai/image.py</file>
+        <file>src/pipecat/services/image_service.py</file>
+        <file>src/pipecat/services/vision_service.py</file>
+        <file>src/pipecat/services/heygen/__init__.py</file>
+        <file>src/pipecat/services/heygen/api.py</file>
+        <file>src/pipecat/services/heygen/client.py</file>
+        <file>src/pipecat/services/heygen/video.py</file>
+        <file>src/pipecat/services/simli/__init__.py</file>
+        <file>src/pipecat/services/simli/video.py</file>
+        <file>src/pipecat/services/tavus/__init__.py</file>
+        <file>src/pipecat/services/tavus/video.py</file>
+      </metadata>
+    </node>
+
+    <node id="transport-layer" title="Transport Layer" x="1855.5816893151582" y="1070.330264404165" z="0">
+      <description>Transport mechanisms for WebRTC, WebSocket, and other communication protocols including Daily, LiveKit, local audio, WhatsApp, and network transports for real-time communication.</description>
+      <metadata>
+        <file>src/pipecat/transports/__init__.py</file>
+        <file>src/pipecat/transports/base_input.py</file>
+        <file>src/pipecat/transports/base_output.py</file>
+        <file>src/pipecat/transports/base_transport.py</file>
+        <file>src/pipecat/transports/daily/__init__.py</file>
+        <file>src/pipecat/transports/daily/transport.py</file>
+        <file>src/pipecat/transports/daily/utils.py</file>
+        <file>src/pipecat/transports/heygen/__init__.py</file>
+        <file>src/pipecat/transports/heygen/transport.py</file>
+        <file>src/pipecat/transports/livekit/__init__.py</file>
+        <file>src/pipecat/transports/livekit/transport.py</file>
+        <file>src/pipecat/transports/local/__init__.py</file>
+        <file>src/pipecat/transports/local/audio.py</file>
+        <file>src/pipecat/transports/local/tk.py</file>
+        <file>src/pipecat/transports/network/__init__.py</file>
+        <file>src/pipecat/transports/network/fastapi_websocket.py</file>
+        <file>src/pipecat/transports/network/small_webrtc.py</file>
+        <file>src/pipecat/transports/network/webrtc_connection.py</file>
+        <file>src/pipecat/transports/network/websocket_client.py</file>
+        <file>src/pipecat/transports/network/websocket_server.py</file>
+        <file>src/pipecat/transports/services/__init__.py</file>
+        <file>src/pipecat/transports/services/daily.py</file>
+        <file>src/pipecat/transports/services/helpers/__init__.py</file>
+        <file>src/pipecat/transports/services/helpers/daily_rest.py</file>
+        <file>src/pipecat/transports/services/livekit.py</file>
+        <file>src/pipecat/transports/services/tavus.py</file>
+        <file>src/pipecat/transports/smallwebrtc/__init__.py</file>
+        <file>src/pipecat/transports/smallwebrtc/connection.py</file>
+        <file>src/pipecat/transports/smallwebrtc/request_handler.py</file>
+        <file>src/pipecat/transports/smallwebrtc/transport.py</file>
+        <file>src/pipecat/transports/tavus/__init__.py</file>
+        <file>src/pipecat/transports/tavus/transport.py</file>
+        <file>src/pipecat/transports/websocket/__init__.py</file>
+        <file>src/pipecat/transports/websocket/client.py</file>
+        <file>src/pipecat/transports/websocket/fastapi.py</file>
+        <file>src/pipecat/transports/websocket/server.py</file>
+        <file>src/pipecat/transports/whatsapp/__init__.py</file>
+        <file>src/pipecat/transports/whatsapp/api.py</file>
+        <file>src/pipecat/transports/whatsapp/client.py</file>
+      </metadata>
+    </node>
+
+    <node id="serializers" title="Serializers &amp; Protocols" x="2602.8581700566406" y="343.9806469501125" z="0">
+      <description>Protocol serializers for telephony providers including Twilio, Plivo, Telnyx, Exotel, and LiveKit for audio format conversion and protocol handling.</description>
+      <metadata>
+        <file>src/pipecat/serializers/__init__.py</file>
+        <file>src/pipecat/serializers/base_serializer.py</file>
+        <file>src/pipecat/serializers/exotel.py</file>
+        <file>src/pipecat/serializers/livekit.py</file>
+        <file>src/pipecat/serializers/plivo.py</file>
+        <file>src/pipecat/serializers/protobuf.py</file>
+        <file>src/pipecat/serializers/telnyx.py</file>
+        <file>src/pipecat/serializers/twilio.py</file>
+      </metadata>
+    </node>
+
+    <node id="audio-processing" title="Audio Processing &amp; VAD" x="2602.8581700566406" y="999.9806469501125" z="0">
+      <description>Audio processing utilities including VAD (Voice Activity Detection), audio filters (Krisp, ai-coustics), resamplers, mixers, DTMF detection, and smart turn detection systems.</description>
+      <metadata>
+        <file>src/pipecat/audio/__init__.py</file>
+        <file>src/pipecat/audio/dtmf/__init__.py</file>
+        <file>src/pipecat/audio/dtmf/types.py</file>
+        <file>src/pipecat/audio/dtmf/utils.py</file>
+        <file>src/pipecat/audio/filters/__init__.py</file>
+        <file>src/pipecat/audio/filters/aic_filter.py</file>
+        <file>src/pipecat/audio/filters/base_audio_filter.py</file>
+        <file>src/pipecat/audio/filters/koala_filter.py</file>
+        <file>src/pipecat/audio/filters/krisp_filter.py</file>
+        <file>src/pipecat/audio/filters/krisp_viva_filter.py</file>
+        <file>src/pipecat/audio/filters/noisereduce_filter.py</file>
+        <file>src/pipecat/audio/interruptions/__init__.py</file>
+        <file>src/pipecat/audio/interruptions/base_interruption_strategy.py</file>
+        <file>src/pipecat/audio/interruptions/min_words_interruption_strategy.py</file>
+        <file>src/pipecat/audio/mixers/__init__.py</file>
+        <file>src/pipecat/audio/mixers/base_audio_mixer.py</file>
+        <file>src/pipecat/audio/mixers/soundfile_mixer.py</file>
+        <file>src/pipecat/audio/resamplers/__init__.py</file>
+        <file>src/pipecat/audio/resamplers/base_audio_resampler.py</file>
+        <file>src/pipecat/audio/resamplers/resampy_resampler.py</file>
+        <file>src/pipecat/audio/resamplers/soxr_resampler.py</file>
+        <file>src/pipecat/audio/resamplers/soxr_stream_resampler.py</file>
+        <file>src/pipecat/audio/turn/__init__.py</file>
+        <file>src/pipecat/audio/turn/base_turn_analyzer.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/__init__.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/base_smart_turn.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/data/__init__.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/fal_smart_turn.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/http_smart_turn.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/local_coreml_smart_turn.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/local_smart_turn_v2.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/local_smart_turn_v3.py</file>
+        <file>src/pipecat/audio/turn/smart_turn/local_smart_turn.py</file>
+        <file>src/pipecat/audio/utils.py</file>
+        <file>src/pipecat/audio/vad/__init__.py</file>
+        <file>src/pipecat/audio/vad/data/__init__.py</file>
+        <file>src/pipecat/audio/vad/silero.py</file>
+        <file>src/pipecat/audio/vad/vad_analyzer.py</file>
+      </metadata>
+    </node>
+
+    <node id="processors" title="Frame Processors" x="1558.4399499821534" y="1652" z="0">
+      <description>Frame processors including aggregators (LLM context, sentence, DTMF), filters (wake phrase, STT mute), audio processors, and framework integrations (LangChain, RTVI).</description>
+      <metadata>
+        <file>src/pipecat/processors/__init__.py</file>
+        <file>src/pipecat/processors/aggregators/__init__.py</file>
+        <file>src/pipecat/processors/aggregators/dtmf_aggregator.py</file>
+        <file>src/pipecat/processors/aggregators/gated_llm_context.py</file>
+        <file>src/pipecat/processors/aggregators/gated_open_ai_llm_context.py</file>
+        <file>src/pipecat/processors/aggregators/gated.py</file>
+        <file>src/pipecat/processors/aggregators/llm_context.py</file>
+        <file>src/pipecat/processors/aggregators/llm_response_universal.py</file>
+        <file>src/pipecat/processors/aggregators/llm_response.py</file>
+        <file>src/pipecat/processors/aggregators/openai_llm_context.py</file>
+        <file>src/pipecat/processors/aggregators/sentence.py</file>
+        <file>src/pipecat/processors/aggregators/user_response.py</file>
+        <file>src/pipecat/processors/aggregators/vision_image_frame.py</file>
+        <file>src/pipecat/processors/async_generator.py</file>
+        <file>src/pipecat/processors/audio/__init__.py</file>
+        <file>src/pipecat/processors/audio/audio_buffer_processor.py</file>
+        <file>src/pipecat/processors/consumer_processor.py</file>
+        <file>src/pipecat/processors/filters/__init__.py</file>
+        <file>src/pipecat/processors/filters/frame_filter.py</file>
+        <file>src/pipecat/processors/filters/function_filter.py</file>
+        <file>src/pipecat/processors/filters/identity_filter.py</file>
+        <file>src/pipecat/processors/filters/null_filter.py</file>
+        <file>src/pipecat/processors/filters/stt_mute_filter.py</file>
+        <file>src/pipecat/processors/filters/wake_check_filter.py</file>
+        <file>src/pipecat/processors/filters/wake_notifier_filter.py</file>
+        <file>src/pipecat/processors/frameworks/__init__.py</file>
+        <file>src/pipecat/processors/frameworks/langchain.py</file>
+        <file>src/pipecat/processors/frameworks/rtvi.py</file>
+        <file>src/pipecat/processors/frameworks/strands_agents.py</file>
+        <file>src/pipecat/processors/gstreamer/__init__.py</file>
+        <file>src/pipecat/processors/gstreamer/pipeline_source.py</file>
+        <file>src/pipecat/processors/idle_frame_processor.py</file>
+        <file>src/pipecat/processors/logger.py</file>
+        <file>src/pipecat/processors/metrics/__init__.py</file>
+        <file>src/pipecat/processors/metrics/frame_processor_metrics.py</file>
+        <file>src/pipecat/processors/metrics/sentry.py</file>
+        <file>src/pipecat/processors/producer_processor.py</file>
+        <file>src/pipecat/processors/text_transformer.py</file>
+        <file>src/pipecat/processors/transcript_processor.py</file>
+        <file>src/pipecat/processors/user_idle_processor.py</file>
+      </metadata>
+    </node>
+
+    <node id="llm-adapters" title="LLM Adapters &amp; Function Calling" x="2602.8581700566406" y="1906.4806469501125" z="0">
+      <description>Adapters for standardizing LLM function calling across different providers (OpenAI, Anthropic, Gemini, AWS) and schema definitions for tools and functions.</description>
+      <metadata>
+        <file>src/pipecat/adapters/__init__.py</file>
+        <file>src/pipecat/adapters/base_llm_adapter.py</file>
+        <file>src/pipecat/adapters/schemas/__init__.py</file>
+        <file>src/pipecat/adapters/schemas/direct_function.py</file>
+        <file>src/pipecat/adapters/schemas/function_schema.py</file>
+        <file>src/pipecat/adapters/schemas/tools_schema.py</file>
+        <file>src/pipecat/adapters/services/__init__.py</file>
+        <file>src/pipecat/adapters/services/anthropic_adapter.py</file>
+        <file>src/pipecat/adapters/services/aws_nova_sonic_adapter.py</file>
+        <file>src/pipecat/adapters/services/bedrock_adapter.py</file>
+        <file>src/pipecat/adapters/services/gemini_adapter.py</file>
+        <file>src/pipecat/adapters/services/open_ai_adapter.py</file>
+        <file>src/pipecat/adapters/services/open_ai_realtime_adapter.py</file>
+      </metadata>
+    </node>
+
+    <node id="observability" title="Observability &amp; Metrics" x="2602.8581700566406" y="74.74806301322474" z="0">
+      <description>Observability tools including metrics collection, logging observers, transcription tracking, turn tracking, OpenTelemetry integration, and Sentry error reporting.</description>
+      <metadata>
+        <file>src/pipecat/metrics/__init__.py</file>
+        <file>src/pipecat/metrics/metrics.py</file>
+        <file>src/pipecat/observers/__init__.py</file>
+        <file>src/pipecat/observers/base_observer.py</file>
+        <file>src/pipecat/observers/loggers/__init__.py</file>
+        <file>src/pipecat/observers/loggers/debug_log_observer.py</file>
+        <file>src/pipecat/observers/loggers/llm_log_observer.py</file>
+        <file>src/pipecat/observers/loggers/transcription_log_observer.py</file>
+        <file>src/pipecat/observers/loggers/user_bot_latency_log_observer.py</file>
+        <file>src/pipecat/observers/turn_tracking_observer.py</file>
+        <file>src/pipecat/utils/tracing/__init__.py</file>
+        <file>src/pipecat/utils/tracing/class_decorators.py</file>
+        <file>src/pipecat/utils/tracing/conversation_context_provider.py</file>
+        <file>src/pipecat/utils/tracing/service_attributes.py</file>
+        <file>src/pipecat/utils/tracing/service_decorators.py</file>
+        <file>src/pipecat/utils/tracing/setup.py</file>
+        <file>src/pipecat/utils/tracing/turn_context_provider.py</file>
+        <file>src/pipecat/utils/tracing/turn_trace_observer.py</file>
+      </metadata>
+    </node>
+
+    <node id="utilities" title="Core Utilities" x="2602.8581700566406" y="671.9806469501125" z="0">
+      <description>General utility functions for async operations, text processing, time handling, network operations, string manipulation, and task management.</description>
+      <metadata>
+        <file>src/pipecat/utils/__init__.py</file>
+        <file>src/pipecat/utils/asyncio/__init__.py</file>
+        <file>src/pipecat/utils/asyncio/task_manager.py</file>
+        <file>src/pipecat/utils/base_object.py</file>
+        <file>src/pipecat/utils/network.py</file>
+        <file>src/pipecat/utils/string.py</file>
+        <file>src/pipecat/utils/text/__init__.py</file>
+        <file>src/pipecat/utils/text/base_text_aggregator.py</file>
+        <file>src/pipecat/utils/text/base_text_filter.py</file>
+        <file>src/pipecat/utils/text/markdown_text_filter.py</file>
+        <file>src/pipecat/utils/text/pattern_pair_aggregator.py</file>
+        <file>src/pipecat/utils/text/simple_text_aggregator.py</file>
+        <file>src/pipecat/utils/text/skip_tags_aggregator.py</file>
+        <file>src/pipecat/utils/time.py</file>
+        <file>src/pipecat/utils/utils.py</file>
+      </metadata>
+    </node>
+
+    <node id="extensions-special-services" title="Extensions &amp; Special Services" x="940" y="1980" z="0">
+      <description>Extended functionality including IVR navigation, voicemail detection, MCP (Model Context Protocol) service, memory services (mem0), WebSocket services, and provider-specific utilities.</description>
+      <metadata>
+        <file>src/pipecat/extensions/__init__.py</file>
+        <file>src/pipecat/extensions/ivr/__init__.py</file>
+        <file>src/pipecat/extensions/ivr/ivr_navigator.py</file>
+        <file>src/pipecat/extensions/voicemail/__init__.py</file>
+        <file>src/pipecat/extensions/voicemail/voicemail_detector.py</file>
+        <file>src/pipecat/services/__init__.py</file>
+        <file>src/pipecat/services/ai_service.py</file>
+        <file>src/pipecat/services/ai_services.py</file>
+        <file>src/pipecat/services/aws/utils.py</file>
+        <file>src/pipecat/services/google/google.py</file>
+        <file>src/pipecat/services/google/rtvi.py</file>
+        <file>src/pipecat/services/mcp_service.py</file>
+        <file>src/pipecat/services/mem0/__init__.py</file>
+        <file>src/pipecat/services/mem0/memory.py</file>
+        <file>src/pipecat/services/websocket_service.py</file>
+      </metadata>
+    </node>
+
+    <node id="runner-execution" title="Runner &amp; Execution Environment" x="464" y="1475" z="0">
+      <description>Runtime execution utilities including clocks, runners for Daily and LiveKit transports, transcription language handling, and helper functions for running Pipecat applications.</description>
+      <metadata>
+        <file>src/pipecat/clocks/__init__.py</file>
+        <file>src/pipecat/clocks/base_clock.py</file>
+        <file>src/pipecat/clocks/system_clock.py</file>
+        <file>src/pipecat/runner/__init__.py</file>
+        <file>src/pipecat/runner/daily.py</file>
+        <file>src/pipecat/runner/livekit.py</file>
+        <file>src/pipecat/runner/run.py</file>
+        <file>src/pipecat/runner/types.py</file>
+        <file>src/pipecat/runner/utils.py</file>
+        <file>src/pipecat/transcriptions/__init__.py</file>
+        <file>src/pipecat/transcriptions/language.py</file>
+      </metadata>
+    </node>
+
+    <node id="testing" title="Testing Infrastructure" x="464" y="1803" z="0">
+      <description>Comprehensive test suite covering unit tests, integration tests, and test utilities for all framework components including processors, services, transports, and utilities.</description>
+      <metadata>
+        <file>src/pipecat/tests/__init__.py</file>
+        <file>src/pipecat/tests/utils.py</file>
+        <file>tests/__init__.py</file>
+        <file>tests/integration/test_integration_unified_function_calling.py</file>
+        <file>tests/test_aggregators.py</file>
+        <file>tests/test_audio_buffer_processor.py</file>
+        <file>tests/test_context_aggregators.py</file>
+        <file>tests/test_daily_transport_service.py</file>
+        <file>tests/test_direct_functions.py</file>
+        <file>tests/test_dtmf_aggregator.py</file>
+        <file>tests/test_filters.py</file>
+        <file>tests/test_frame_processor.py</file>
+        <file>tests/test_function_calling_adapters.py</file>
+        <file>tests/test_get_llm_invocation_params.py</file>
+        <file>tests/test_interruption_strategies.py</file>
+        <file>tests/test_ivr_navigation.py</file>
+        <file>tests/test_langchain.py</file>
+        <file>tests/test_llm_response.py</file>
+        <file>tests/test_markdown_text_filter.py</file>
+        <file>tests/test_pattern_pair_aggregator.py</file>
+        <file>tests/test_pipeline.py</file>
+        <file>tests/test_piper_tts.py</file>
+        <file>tests/test_producer_consumer.py</file>
+        <file>tests/test_protobuf_serializer.py</file>
+        <file>tests/test_run_inference.py</file>
+        <file>tests/test_service_switcher.py</file>
+        <file>tests/test_simple_text_aggregator.py</file>
+        <file>tests/test_skip_tags_aggregator.py</file>
+        <file>tests/test_stt_mute_filter.py</file>
+        <file>tests/test_transcript_processor.py</file>
+        <file>tests/test_turn_tracking_observer.py</file>
+        <file>tests/test_user_idle_processor.py</file>
+        <file>tests/test_utils_network.py</file>
+        <file>tests/test_utils_string.py</file>
+        <file>tests/test_websocket_transport.py</file>
+      </metadata>
+    </node>
+
+    <node id="examples" title="Examples &amp; Tutorials" x="464" y="2181" z="0">
+      <description>Example applications and tutorials including foundational examples (46+ examples covering STT, TTS, LLM integration, function calling, video processing), quickstart guides, and comprehensive demonstrations of framework capabilities.</description>
+      <metadata>
+        <file>examples/foundational/01-say-one-thing-piper.py</file>
+        <file>examples/foundational/01-say-one-thing-rime.py</file>
+        <file>examples/foundational/01-say-one-thing.py</file>
+        <file>examples/foundational/01a-local-audio.py</file>
+        <file>examples/foundational/01b-livekit-audio.py</file>
+        <file>examples/foundational/01c-fastpitch.py</file>
+        <file>examples/foundational/02-llm-say-one-thing.py</file>
+        <file>examples/foundational/03-still-frame.py</file>
+        <file>examples/foundational/03a-local-still-frame.py</file>
+        <file>examples/foundational/03b-still-frame-imagen.py</file>
+        <file>examples/foundational/04-transports-small-webrtc.py</file>
+        <file>examples/foundational/04a-transports-daily.py</file>
+        <file>examples/foundational/04b-transports-livekit.py</file>
+        <file>examples/foundational/05-sync-speech-and-image.py</file>
+        <file>examples/foundational/05a-local-sync-speech-and-image.py</file>
+        <file>examples/foundational/06-listen-and-respond.py</file>
+        <file>examples/foundational/06a-image-sync.py</file>
+        <file>examples/foundational/07-interruptible-cartesia-http.py</file>
+        <file>examples/foundational/07-interruptible.py</file>
+        <file>examples/foundational/07a-interruptible-speechmatics-vad.py</file>
+        <file>examples/foundational/07a-interruptible-speechmatics.py</file>
+        <file>examples/foundational/07aa-interruptible-soniox.py</file>
+        <file>examples/foundational/07ab-interruptible-inworld-http.py</file>
+        <file>examples/foundational/07ac-interruptible-asyncai-http.py</file>
+        <file>examples/foundational/07ac-interruptible-asyncai.py</file>
+        <file>examples/foundational/07ad-interruptible-aicoustics.py</file>
+        <file>examples/foundational/07ae-interruptible-hume.py</file>
+        <file>examples/foundational/07b-interruptible-langchain.py</file>
+        <file>examples/foundational/07c-interruptible-deepgram-flux.py</file>
+        <file>examples/foundational/07c-interruptible-deepgram-vad.py</file>
+        <file>examples/foundational/07c-interruptible-deepgram.py</file>
+        <file>examples/foundational/07d-interruptible-elevenlabs-http.py</file>
+        <file>examples/foundational/07d-interruptible-elevenlabs.py</file>
+        <file>examples/foundational/07e-interruptible-playht-http.py</file>
+        <file>examples/foundational/07e-interruptible-playht.py</file>
+        <file>examples/foundational/07f-interruptible-azure.py</file>
+        <file>examples/foundational/07g-interruptible-openai.py</file>
+        <file>examples/foundational/07h-interruptible-openpipe.py</file>
+        <file>examples/foundational/07i-interruptible-xtts.py</file>
+        <file>examples/foundational/07j-interruptible-gladia.py</file>
+        <file>examples/foundational/07k-interruptible-lmnt.py</file>
+        <file>examples/foundational/07l-interruptible-groq.py</file>
+        <file>examples/foundational/07m-interruptible-aws-strands.py</file>
+        <file>examples/foundational/07m-interruptible-aws.py</file>
+        <file>examples/foundational/07n-interruptible-gemini-image.py</file>
+        <file>examples/foundational/07n-interruptible-gemini.py</file>
+        <file>examples/foundational/07n-interruptible-google.py</file>
+        <file>examples/foundational/07o-interruptible-assemblyai.py</file>
+        <file>examples/foundational/07p-interruptible-krisp-viva.py</file>
+        <file>examples/foundational/07p-interruptible-krisp.py</file>
+        <file>examples/foundational/07q-interruptible-rime-http.py</file>
+        <file>examples/foundational/07q-interruptible-rime.py</file>
+        <file>examples/foundational/07r-interruptible-riva-nim.py</file>
+        <file>examples/foundational/07s-interruptible-google-audio-in.py</file>
+        <file>examples/foundational/07t-interruptible-fish.py</file>
+        <file>examples/foundational/07u-interruptible-ultravox.py</file>
+        <file>examples/foundational/07v-interruptible-neuphonic-http.py</file>
+        <file>examples/foundational/07v-interruptible-neuphonic.py</file>
+        <file>examples/foundational/07w-interruptible-fal.py</file>
+        <file>examples/foundational/07x-interruptible-local.py</file>
+        <file>examples/foundational/07y-interruptible-minimax.py</file>
+        <file>examples/foundational/07z-interruptible-sarvam-http.py</file>
+        <file>examples/foundational/07z-interruptible-sarvam.py</file>
+        <file>examples/foundational/08-bots-arguing.py</file>
+        <file>examples/foundational/09-mirror.py</file>
+        <file>examples/foundational/09a-local-mirror.py</file>
+        <file>examples/foundational/10-wake-phrase.py</file>
+        <file>examples/foundational/11-sound-effects.py</file>
+        <file>examples/foundational/12-describe-video.py</file>
+        <file>examples/foundational/12a-describe-video-gemini-flash.py</file>
+        <file>examples/foundational/12b-describe-video-gpt-4o.py</file>
+        <file>examples/foundational/12c-describe-video-anthropic.py</file>
+        <file>examples/foundational/12d-describe-video-aws.py</file>
+        <file>examples/foundational/13-whisper-transcription.py</file>
+        <file>examples/foundational/13a-whisper-local.py</file>
+        <file>examples/foundational/13b-deepgram-transcription.py</file>
+        <file>examples/foundational/13c-gladia-transcription.py</file>
+        <file>examples/foundational/13c-gladia-translation.py</file>
+        <file>examples/foundational/13d-assemblyai-transcription.py</file>
+        <file>examples/foundational/13e-whisper-mlx.py</file>
+        <file>examples/foundational/13f-cartesia-transcription.py</file>
+        <file>examples/foundational/13g-sambanova-transcription.py</file>
+        <file>examples/foundational/13h-speechmatics-transcription.py</file>
+        <file>examples/foundational/13i-soniox-transcription.py</file>
+        <file>examples/foundational/13j-azure-transcription.py</file>
+        <file>examples/foundational/13k-elevenlabs-transcription.py</file>
+        <file>examples/foundational/14-function-calling.py</file>
+        <file>examples/foundational/14a-function-calling-anthropic.py</file>
+        <file>examples/foundational/14b-function-calling-anthropic-video.py</file>
+        <file>examples/foundational/14c-function-calling-together.py</file>
+        <file>examples/foundational/14d-function-calling-video.py</file>
+        <file>examples/foundational/14e-function-calling-google.py</file>
+        <file>examples/foundational/14f-function-calling-groq.py</file>
+        <file>examples/foundational/14g-function-calling-grok.py</file>
+        <file>examples/foundational/14h-function-calling-azure.py</file>
+        <file>examples/foundational/14i-function-calling-fireworks.py</file>
+        <file>examples/foundational/14j-function-calling-nim.py</file>
+        <file>examples/foundational/14k-function-calling-cerebras.py</file>
+        <file>examples/foundational/14l-function-calling-deepseek.py</file>
+        <file>examples/foundational/14m-function-calling-openrouter.py</file>
+        <file>examples/foundational/14n-function-calling-perplexity.py</file>
+        <file>examples/foundational/14o-function-calling-gemini-openai-format.py</file>
+        <file>examples/foundational/14p-function-calling-gemini-vertex-ai.py</file>
+        <file>examples/foundational/14q-function-calling-qwen.py</file>
+        <file>examples/foundational/14r-function-calling-aws.py</file>
+        <file>examples/foundational/14s-function-calling-sambanova.py</file>
+        <file>examples/foundational/14t-function-calling-direct.py</file>
+        <file>examples/foundational/14u-function-calling-ollama.py</file>
+        <file>examples/foundational/14v-function-calling-openai.py</file>
+        <file>examples/foundational/14w-function-calling-mistral.py</file>
+        <file>examples/foundational/15-switch-voices.py</file>
+        <file>examples/foundational/15a-switch-languages.py</file>
+        <file>examples/foundational/16-gpu-container-local-bot.py</file>
+        <file>examples/foundational/17-detect-user-idle.py</file>
+        <file>examples/foundational/18-gstreamer-filesrc.py</file>
+        <file>examples/foundational/18a-gstreamer-videotestsrc.py</file>
+        <file>examples/foundational/19-openai-realtime-beta.py</file>
+        <file>examples/foundational/19-openai-realtime.py</file>
+        <file>examples/foundational/19a-azure-realtime-beta.py</file>
+        <file>examples/foundational/19a-azure-realtime.py</file>
+        <file>examples/foundational/19b-openai-realtime-beta-text.py</file>
+        <file>examples/foundational/19b-openai-realtime-text.py</file>
+        <file>examples/foundational/20a-persistent-context-openai.py</file>
+        <file>examples/foundational/20b-persistent-context-openai-realtime-beta.py</file>
+        <file>examples/foundational/20b-persistent-context-openai-realtime.py</file>
+        <file>examples/foundational/20c-persistent-context-anthropic.py</file>
+        <file>examples/foundational/20d-persistent-context-gemini.py</file>
+        <file>examples/foundational/20e-persistent-context-aws-nova-sonic.py</file>
+        <file>examples/foundational/21-tavus-transport.py</file>
+        <file>examples/foundational/21a-tavus-video-service.py</file>
+        <file>examples/foundational/22-natural-conversation.py</file>
+        <file>examples/foundational/22b-natural-conversation-proposal.py</file>
+        <file>examples/foundational/22c-natural-conversation-mixed-llms.py</file>
+        <file>examples/foundational/22d-natural-conversation-gemini-audio.py</file>
+        <file>examples/foundational/23-bot-background-sound.py</file>
+        <file>examples/foundational/24-stt-mute-filter.py</file>
+        <file>examples/foundational/25-google-audio-in.py</file>
+        <file>examples/foundational/26-gemini-live.py</file>
+        <file>examples/foundational/26a-gemini-live-transcription.py</file>
+        <file>examples/foundational/26b-gemini-live-function-calling.py</file>
+        <file>examples/foundational/26c-gemini-live-video.py</file>
+        <file>examples/foundational/26d-gemini-live-text.py</file>
+        <file>examples/foundational/26e-gemini-live-google-search.py</file>
+        <file>examples/foundational/26f-gemini-live-files-api.py</file>
+        <file>examples/foundational/26g-gemini-live-groundingMetadata.py</file>
+        <file>examples/foundational/26h-gemini-live-vertex-function-calling.py</file>
+        <file>examples/foundational/26i-gemini-live-graceful-end.py</file>
+        <file>examples/foundational/27-simli-layer.py</file>
+        <file>examples/foundational/28-transcription-processor.py</file>
+        <file>examples/foundational/29-turn-tracking-observer.py</file>
+        <file>examples/foundational/30-observer.py</file>
+        <file>examples/foundational/31-heartbeats.py</file>
+        <file>examples/foundational/32-gemini-grounding-metadata.py</file>
+        <file>examples/foundational/33-gemini-rag.py</file>
+        <file>examples/foundational/34-audio-recording.py</file>
+        <file>examples/foundational/35-pattern-pair-voice-switching.py</file>
+        <file>examples/foundational/36-user-email-gathering.py</file>
+        <file>examples/foundational/37-mem0.py</file>
+        <file>examples/foundational/38-smart-turn-fal.py</file>
+        <file>examples/foundational/38a-smart-turn-local-coreml.py</file>
+        <file>examples/foundational/38b-smart-turn-local.py</file>
+        <file>examples/foundational/39-mcp-stdio.py</file>
+        <file>examples/foundational/39a-mcp-run-sse.py</file>
+        <file>examples/foundational/39b-multiple-mcp.py</file>
+        <file>examples/foundational/39c-mcp-run-http.py</file>
+        <file>examples/foundational/40-aws-nova-sonic.py</file>
+        <file>examples/foundational/41a-text-only-webrtc.py</file>
+        <file>examples/foundational/41b-text-and-audio-webrtc.py</file>
+        <file>examples/foundational/42-interruption-config.py</file>
+        <file>examples/foundational/43-heygen-transport.py</file>
+        <file>examples/foundational/43a-heygen-video-service.py</file>
+        <file>examples/foundational/44-voicemail-detection.py</file>
+        <file>examples/foundational/45-before-and-after-events.py</file>
+        <file>examples/foundational/46-video-processing.py</file>
+        <file>examples/foundational/assets/rag-content.txt</file>
+        <file>examples/foundational/README.md</file>
+        <file>examples/quickstart/bot.py</file>
+        <file>examples/quickstart/pcc-deploy.toml</file>
+        <file>examples/quickstart/pyproject.toml</file>
+        <file>examples/quickstart/README.md</file>
+        <file>examples/README.md</file>
+      </metadata>
+    </node>
+
+    <node id="documentation-config" title="Documentation &amp; Configuration" x="464" y="1070.330264404165" z="0">
+      <description>Project documentation (README, CHANGELOG, CONTRIBUTING, SECURITY), configuration files (pyproject.toml, codecov.yml), API documentation, evaluation scripts, and Manta graph configuration.</description>
+      <metadata>
+        <file>CHANGELOG.md</file>
+        <file>COMMUNITY_INTEGRATIONS.md</file>
+        <file>CONTRIBUTING.md</file>
+        <file>docs/api/conf.py</file>
+        <file>docs/api/README.md</file>
         <file>README.md</file>
+        <file>SECURITY.md</file>
+        <file>codecov.yml</file>
         <file>pyproject.toml</file>
+        <file>scripts/daily/test_tavus_transport.py</file>
+        <file>scripts/evals/eval.py</file>
+        <file>scripts/evals/README.md</file>
+        <file>scripts/evals/run-eval.py</file>
+        <file>scripts/evals/run-release-evals.py</file>
+        <file>scripts/evals/utils.py</file>
+        <file>manta/active-layer.json</file>
       </metadata>
-      <props>
-        <prop name="framework-type" title="Framework Type" type="text">Real-time Voice &amp; Multimodal AI Agents</prop>
-        <prop name="language" title="Primary Language" type="text">Python</prop>
-        <prop name="min-python-version" title="Minimum Python Version" type="text">3.1</prop>
-        <prop name="license" title="License" type="text">BSD-2-Clause</prop>
-      </props>
-    </node>
-
-    <node id="audio-processing" title="Audio Processing" x="1440" y="1980" z="0">
-      <description>Audio processing subsystem including DTMF, filters, mixers, resamplers, VAD, and turn detection</description>
-      <metadata>
-        <file>src/pipecat/audio</file>
-      </metadata>
-      <props>
-        <prop name="components" title="Components" type="text">DTMF, Filters, Mixers, Resamplers, VAD, Smart Turn</prop>
-        <prop name="format-support" title="Audio Format Support" type="text">16-bit, multiple sample rates</prop>
-      </props>
-    </node>
-
-    <node id="ai-services" title="AI Services" x="964" y="996" z="0">
-      <description>AI service integrations including LLMs, STT, TTS, Speech-to-Speech, Vision, and Memory services</description>
-      <metadata>
-        <file>src/pipecat/services</file>
-      </metadata>
-      <props>
-        <prop name="stt-services" title="STT Services" type="text">AssemblyAI, AWS, Azure, Cartesia, Deepgram, ElevenLabs, Gladia, Google, Groq, OpenAI, Speechmatics, Whisper</prop>
-        <prop name="llm-services" title="LLM Services" type="text">Anthropic, AWS, Azure, Cerebras, DeepSeek, Fireworks, Gemini, Grok, Groq, Mistral, OpenAI, Together</prop>
-        <prop name="tts-services" title="TTS Services" type="text">AsyncAI, AWS, Azure, Cartesia, Deepgram, ElevenLabs, Google, Groq, LMNT, OpenAI, PlayHT, Rime</prop>
-        <prop name="s2s-services" title="Speech-to-Speech" type="text">AWS Nova Sonic, Gemini Multimodal Live, OpenAI Realtime</prop>
-      </props>
-    </node>
-
-    <node id="transports" title="Transport Layer" x="488" y="1804" z="0">
-      <description>Transport layer for real-time communication including WebRTC, WebSocket, and telephony integrations</description>
-      <metadata>
-        <file>src/pipecat/transports</file>
-      </metadata>
-      <props>
-        <prop name="webrtc-transports" title="WebRTC Transports" type="text">Daily, SmallWebRTC, LiveKit</prop>
-        <prop name="websocket-transports" title="WebSocket Transports" type="text">FastAPI WebSocket, WebSocket Server</prop>
-        <prop name="telephony" title="Telephony Support" type="text">Plivo, Twilio, Telnyx serializers</prop>
-        <prop name="other-transports" title="Other Transports" type="text">Local, Network, WhatsApp</prop>
-      </props>
-    </node>
-
-    <node id="pipeline-system" title="Pipeline System" x="488" y="1451" z="0">
-      <description>Core pipeline system for orchestrating tasks, processors, and data flow in real-time</description>
-      <metadata>
-        <file>src/pipecat/pipeline</file>
-      </metadata>
-      <props>
-        <prop name="pipeline-types" title="Pipeline Types" type="text">Base Pipeline, Parallel Pipeline, Sync Parallel Pipeline</prop>
-        <prop name="task-management" title="Task Management" type="text">Task, BaseTask, TaskObserver</prop>
-        <prop name="service-switching" title="Service Switching" type="text">ServiceSwitcher, LLMSwitcher</prop>
-        <prop name="runner-support" title="Runner Support" type="text">Pipeline Runner, Task Runner</prop>
-      </props>
-    </node>
-
-    <node id="processors" title="Processors" x="964" y="1451" z="0">
-      <description>Data processing components including audio processors, filters, aggregators, and framework integrations</description>
-      <metadata>
-        <file>src/pipecat/processors</file>
-      </metadata>
-      <props>
-        <prop name="audio-processors" title="Audio Processors" type="text">Audio filters, mixers, effects</prop>
-        <prop name="aggregators" title="Aggregators" type="text">Data aggregation and batching</prop>
-        <prop name="filters" title="Filters" type="text">Content filtering and processing</prop>
-        <prop name="frameworks" title="Framework Integrations" type="text">External framework processors</prop>
-      </props>
-    </node>
-
-    <node id="frames-system" title="Frames System" x="964" y="1804" z="0">
-      <description>Data frame system for handling audio, video, text, and control frames with protobuf serialization</description>
-      <metadata>
-        <file>src/pipecat/frames</file>
-      </metadata>
-      <props>
-        <prop name="frame-types" title="Frame Types" type="text">Audio, Video, Text, Control, Error</prop>
-        <prop name="serialization" title="Serialization" type="text">Protobuf support</prop>
-        <prop name="data-flow" title="Data Flow" type="text">Real-time frame processing</prop>
-      </props>
-    </node>
-
-    <node id="utilities" title="Utilities" x="1440" y="1324" z="0">
-      <description>Utility functions and helpers including async operations, text processing, tracing, and metrics</description>
-      <metadata>
-        <file>src/pipecat/utils</file>
-        <file>src/pipecat/metrics</file>
-        <file>src/pipecat/observers</file>
-      </metadata>
-      <props>
-        <prop name="async-utils" title="Async Utilities" type="text">Asyncio helpers and utilities</prop>
-        <prop name="text-processing" title="Text Processing" type="text">Text manipulation and processing</prop>
-        <prop name="tracing" title="Tracing &amp; Observability" type="text">OpenTelemetry, Sentry integration</prop>
-        <prop name="metrics" title="Metrics" type="text">Performance and usage metrics</prop>
-      </props>
-    </node>
-
-    <node id="extensions" title="Extensions" x="1440" y="1652" z="0">
-      <description>Framework extensions including IVR and voicemail capabilities</description>
-      <metadata>
-        <file>src/pipecat/extensions</file>
-      </metadata>
-      <props>
-        <prop name="ivr" title="IVR Support" type="text">Interactive Voice Response</prop>
-        <prop name="voicemail" title="Voicemail" type="text">Voicemail handling capabilities</prop>
-      </props>
-    </node>
-
-    <node id="openai-services" title="OpenAI Services" x="1440" y="668" z="0">
-      <description>OpenAI service integrations including GPT models, Whisper STT, TTS, and Realtime API</description>
-      <metadata>
-        <file>src/pipecat/services/openai</file>
-        <file>src/pipecat/services/openai_realtime</file>
-        <file>src/pipecat/services/openai_realtime_beta</file>
-      </metadata>
-      <props>
-        <prop name="llm-support" title="LLM Support" type="text">GPT-3.5, GPT-4, GPT-4o models</prop>
-        <prop name="stt-support" title="STT Support" type="text">Whisper API</prop>
-        <prop name="tts-support" title="TTS Support" type="text">TTS API with multiple voices</prop>
-        <prop name="realtime-api" title="Realtime API" type="text">Real-time speech-to-speech communication</prop>
-      </props>
-    </node>
-
-    <node id="anthropic-services" title="Anthropic Services" x="1440" y="996" z="0">
-      <description>Anthropic Claude model integrations for conversational AI</description>
-      <metadata>
-        <file>src/pipecat/services/anthropic</file>
-      </metadata>
-      <props>
-        <prop name="models" title="Supported Models" type="text">Claude 3 Haiku, Claude 3 Sonnet, Claude 3 Opus</prop>
-        <prop name="capabilities" title="Capabilities" type="text">Text generation, reasoning, analysis</prop>
-      </props>
-    </node>
-
-    <node id="google-services" title="Google Services" x="1440" y="12" z="0">
-      <description>Google AI service integrations including Gemini, Cloud Speech, and Text-to-Speech</description>
-      <metadata>
-        <file>src/pipecat/services/google</file>
-        <file>src/pipecat/services/gemini_multimodal_live</file>
-      </metadata>
-      <props>
-        <prop name="gemini-models" title="Gemini Models" type="text">Gemini Pro, Gemini Multimodal Live</prop>
-        <prop name="speech-services" title="Speech Services" type="text">Cloud Speech-to-Text, Cloud Text-to-Speech</prop>
-        <prop name="multimodal" title="Multimodal Support" type="text">Text, audio, image processing</prop>
-      </props>
-    </node>
-
-    <node id="deepgram-services" title="Deepgram Services" x="1440" y="340" z="0">
-      <description>Deepgram speech recognition and text-to-speech services with real-time streaming</description>
-      <metadata>
-        <file>src/pipecat/services/deepgram</file>
-      </metadata>
-      <props>
-        <prop name="stt-features" title="STT Features" type="text">Real-time streaming, multiple languages, punctuation</prop>
-        <prop name="tts-features" title="TTS Features" type="text">Neural voices, low latency</prop>
-        <prop name="flux-support" title="Flux Support" type="text">Advanced streaming capabilities</prop>
-      </props>
     </node>
   </nodes>
 
   <edges>
-    <edge id="pipecat-framework-audio-processing" source="pipecat-framework" target="audio-processing" role="contains"/>
-    <edge id="pipecat-framework-ai-services" source="pipecat-framework" target="ai-services" role="contains"/>
-    <edge id="pipecat-framework-transports" source="pipecat-framework" target="transports" role="contains"/>
-    <edge id="pipecat-framework-pipeline-system" source="pipecat-framework" target="pipeline-system" role="contains"/>
-    <edge id="pipecat-framework-processors" source="pipecat-framework" target="processors" role="contains"/>
-    <edge id="pipecat-framework-frames-system" source="pipecat-framework" target="frames-system" role="contains"/>
-    <edge id="pipecat-framework-utilities" source="pipecat-framework" target="utilities" role="contains"/>
-    <edge id="pipecat-framework-extensions" source="pipecat-framework" target="extensions" role="contains"/>
-    <edge id="pipeline-system-processors" source="pipeline-system" target="processors" role="orchestrates"/>
-    <edge id="pipeline-system-ai-services" source="pipeline-system" target="ai-services" role="orchestrates"/>
-    <edge id="frames-system-audio-processing" source="frames-system" target="audio-processing" role="processes"/>
-    <edge id="transports-frames-system" source="transports" target="frames-system" role="transmits"/>
-    <edge id="processors-utilities" source="processors" target="utilities" role="uses"/>
-    <edge id="ai-services-openai-services" source="ai-services" target="openai-services" role="includes"/>
-    <edge id="ai-services-anthropic-services" source="ai-services" target="anthropic-services" role="includes"/>
-    <edge id="ai-services-google-services" source="ai-services" target="google-services" role="includes"/>
-    <edge id="ai-services-deepgram-services" source="ai-services" target="deepgram-services" role="includes"/>
+    <edge id="core-framework-processors" source="core-framework" target="processors" role="uses"/>
+    <edge id="core-framework-transport-layer" source="core-framework" target="transport-layer" role="uses"/>
+    <edge id="core-framework-utilities" source="core-framework" target="utilities" role="uses"/>
+    <edge id="core-framework-observability" source="core-framework" target="observability" role="uses"/>
+    <edge id="processors-llm-services" source="processors" target="llm-services" role="processes"/>
+    <edge id="processors-tts-services" source="processors" target="tts-services" role="processes"/>
+    <edge id="processors-stt-services" source="processors" target="stt-services" role="processes"/>
+    <edge id="processors-audio-processing" source="processors" target="audio-processing" role="uses"/>
+    <edge id="llm-services-llm-adapters" source="llm-services" target="llm-adapters" role="uses"/>
+    <edge id="transport-layer-serializers" source="transport-layer" target="serializers" role="uses"/>
+    <edge id="transport-layer-audio-processing" source="transport-layer" target="audio-processing" role="uses"/>
+    <edge id="s2s-services-llm-services" source="s2s-services" target="llm-services" role="integrates"/>
+    <edge id="s2s-services-stt-services" source="s2s-services" target="stt-services" role="integrates"/>
+    <edge id="s2s-services-tts-services" source="s2s-services" target="tts-services" role="integrates"/>
+    <edge id="processors-vision-video-services" source="processors" target="vision-video-services" role="processes"/>
+    <edge id="runner-execution-core-framework" source="runner-execution" target="core-framework" role="executes"/>
+    <edge id="runner-execution-transport-layer" source="runner-execution" target="transport-layer" role="uses"/>
+    <edge id="extensions-special-services-processors" source="extensions-special-services" target="processors" role="extends"/>
+    <edge id="testing-core-framework" source="testing" target="core-framework" role="tests"/>
+    <edge id="examples-core-framework" source="examples" target="core-framework" role="demonstrates"/>
+    <edge id="examples-llm-services" source="examples" target="llm-services" role="demonstrates"/>
+    <edge id="examples-tts-services" source="examples" target="tts-services" role="demonstrates"/>
+    <edge id="examples-stt-services" source="examples" target="stt-services" role="demonstrates"/>
   </edges>
 </graph>
