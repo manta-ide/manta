@@ -27,24 +27,15 @@ interface SendMessageOptions {
 
 export function useChatService() {
   const { currentFile, selection, setSelection, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [sessionId, setSessionId] = useState<string>('');
+  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
 
   // Load chat history (no user check anymore)
 useEffect(() => {
   loadChatHistory();
-  // Restore or create a persistent Claude session id to enable resume/stop
-  try {
-    const stored = typeof window !== 'undefined' ? window.localStorage.getItem('manta-claude-session-id') : null;
-    const sid = stored && stored.trim().length > 0 ? stored : `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    setSessionId(sid);
-    if (!stored && typeof window !== 'undefined') {
-      window.localStorage.setItem('manta-claude-session-id', sid);
-    }
-  } catch {}
 }, []);
 
 
@@ -189,19 +180,14 @@ useEffect(() => {
 
     // Route: simple Q&A vs graph editing
     // Always use the full graph agent. It will decide whether to answer, read, or edit.
-    console.log('📡 Chat Service: Making request to /api/agent-request');
+    console.log('📡 Chat Service: Making request to /api/agent-request with sessionId:', currentSessionId);
 
-    // Proactively stop any running agent on this session before sending a new message
-    try {
-      if (sessionId) {
-        await fetch('/api/claude-code/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) });
-      }
-    } catch (e) { console.warn('Stop agent failed (continuing):', e); }
+    // Note: We don't stop agents since we don't manage session IDs locally
 
     const response = await fetch('/api/agent-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userMessage: agentUserMessage, sessionId }),
+      body: JSON.stringify({ userMessage: agentUserMessage, sessionId: currentSessionId }),
     });
 
     console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));
@@ -255,7 +241,8 @@ useEffect(() => {
 
                 // Check if this is SSE format (data: prefix)
                 if (line.startsWith('data: ')) {
-                  const dataPart = line.substring(6).trim(); // Remove 'data: ' prefix
+                  const dataPart = line.substring(6).trim();
+                  console.log('📦 Chat Service: Processing SSE data:', dataPart.substring(0, 100) + (dataPart.length > 100 ? '...' : '')); // Remove 'data: ' prefix
 
                   // Skip control messages entirely
                   if (dataPart === '[STREAM_START]' || dataPart === '[STREAM_END]') {
@@ -263,6 +250,7 @@ useEffect(() => {
                   } else {
                     try {
                       const parsed = JSON.parse(dataPart);
+                      console.log('🔍 Chat Service: Parsed JSON message type:', parsed.type);
                       if (parsed.content) {
                         chunkContent = parsed.content;
                       } else if (parsed.error) {
@@ -286,8 +274,18 @@ useEffect(() => {
                       } else if (parsed.type === 'trace') {
                         // Handle trace messages - these are separate from final content
                         chunkContent = formatTraceMessage(parsed.trace);
+                      } else if (parsed.type === 'session') {
+                        // Handle session messages - store session ID
+                        if (parsed.sessionId) {
+                          console.log('💾 Chat Service: Storing session ID:', parsed.sessionId);
+                          setCurrentSessionId(parsed.sessionId);
+                        }
+                        chunkContent = '';
+                      } else if (parsed.type === 'result') {
+                        // Handle result messages
+                        chunkContent = parsed.content || '';
                       } else {
-                        // Any other JSON without content/error/trace - skip it
+                        // Any other JSON without content/error/trace/session/result - skip it
                         chunkContent = '';
                       }
                     } catch {
@@ -341,11 +339,11 @@ useEffect(() => {
                     if (parsed.content && parsed.type === 'result') {
                       // This is a final result - replace all accumulated content
                       accumulatedContent = parsed.content;
-                    } else if (parsed.type === 'trace') {
-                      // This is a trace - accumulate it
-                      accumulatedContent += chunkContent;
-                    } else if (parsed.content) {
-                      // Fallback for other content types
+                    } else {
+                      // Accumulate other content with proper line breaks
+                      if (accumulatedContent.length > 0 && !accumulatedContent.endsWith('\n')) {
+                        accumulatedContent += '\n';
+                      }
                       accumulatedContent += chunkContent;
                     }
                   } catch {
@@ -618,7 +616,7 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory, sessionId]);
+  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory, currentSessionId]);
 
   // Function to clear chat history
   const clearMessages = useCallback(async () => {
@@ -626,6 +624,7 @@ useEffect(() => {
       // Clear frontend state immediately
       setMessages([]);
       setLoading(false);
+      setCurrentSessionId(undefined); // Clear session ID for new conversation
       
       // Clear chat history from database
       const response = await fetch('/api/chat', {

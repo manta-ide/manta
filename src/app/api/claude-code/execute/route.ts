@@ -472,7 +472,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
 
-        let sessionId: string = '';
+        let sessionId: string | undefined = undefined;
         try {
           // Sync env-controlled verbosity with request options for discovery logs
           process.env.VERBOSE_CLAUDE_LOGS = '1';
@@ -491,19 +491,24 @@ export async function POST(req: NextRequest) {
           logLine(`📁 Claude Code: Working directory (${mode} mode): ${workingDirectory}`);
 
           // Create user message generator with the prompt
-          sessionId = incomingSessionId && incomingSessionId.trim().length > 0
-            ? incomingSessionId
-            : `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          // Use incoming sessionId if provided, otherwise undefined
+          sessionId = incomingSessionId && incomingSessionId.trim().length > 0 ? incomingSessionId : undefined;
           async function* generateUserMessage(): AsyncGenerator<SDKUserMessage> {
-            yield {
+            const userMessage: any = {
               type: "user",
               message: {
                 role: "user",
                 content: prompt
               },
               parent_tool_use_id: null,
-              session_id: sessionId
             };
+
+            // Only include session_id if we have one
+            if (sessionId) {
+              userMessage.session_id = sessionId;
+            }
+
+            yield userMessage as SDKUserMessage;
             // End generator immediately; rely on SDK + abortController to manage lifecycle
             return;
           }
@@ -511,9 +516,8 @@ export async function POST(req: NextRequest) {
 
           // Generic query options with orchestrator prompt
           const abortController = new AbortController();
-          // Expose controller for this session so we can stop it from another route
-          setSessionController(sessionId, abortController);
-
+          console.log("sessionId", incomingSessionId);
+          // Only set resume if we have an incoming sessionId (indicating we want to resume)
           const queryOptions: Options = {
             includePartialMessages: true,
             systemPrompt: { type: "preset", preset: "claude_code" },
@@ -526,7 +530,8 @@ export async function POST(req: NextRequest) {
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
             agents: AGENTS_CONFIG,
-            maxTurns: 1
+            maxTurns: 1,
+            ...(incomingSessionId && incomingSessionId.trim().length > 0 ? { resume: incomingSessionId } : {}),
           } as any;
 
           let messageCount = 0;
@@ -542,6 +547,14 @@ export async function POST(req: NextRequest) {
             })) {
               messageCount++;
 
+              // Extract session ID from Claude Code if we don't have one yet
+              if (!sessionId && (message as any).session_id) {
+                sessionId = (message as any).session_id;
+                logLine('🔑 Got session ID from Claude Code:', sessionId);
+                // Now that we have the session ID, set up the controller
+                setSessionController(sessionId!, abortController);
+              }
+
               // Start streaming on first message
               if (!hasStartedStreaming) {
                 hasStartedStreaming = true;
@@ -553,7 +566,7 @@ export async function POST(req: NextRequest) {
                 //logHeader(`SDK Message #${messageCount} (${(message as any).type})`);
                 //logLine('📥 Full message payload:', pretty(message));
               }
-              await handleMessage(message as SDKMessage, controller, encoder);
+              await handleMessage(message as SDKMessage, controller, encoder, sessionId);
             }
           } catch (queryError) {
             logHeader('❌ Claude Code: Query error' + queryError);
@@ -590,14 +603,20 @@ export async function POST(req: NextRequest) {
             controller.close();
           }
 
-          // Clear controller when completed
-          try { if (sessionId) clearSessionController(sessionId); } catch {}
+          // Clear controller when completed (only if we got a session ID)
+          if (sessionId) {
+            try { clearSessionController(sessionId); } catch {}
+          } else {
+            logLine('⚠️ No session ID received from Claude Code, cannot clear session controller');
+          }
 
         } catch (error) {
           console.error('Streaming error:', error);
 
-          // Ensure controller is cleared on error
-          try { if (sessionId) clearSessionController(sessionId); } catch {}
+          // Ensure controller is cleared on error (only if we got a session ID)
+          if (sessionId) {
+            try { clearSessionController(sessionId); } catch {}
+          }
 
           // Only close stream if not already closed
           if (!streamClosed) {
@@ -615,7 +634,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Helper function to handle different message types
-    async function handleMessage(message: SDKMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
+    async function handleMessage(message: SDKMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder, sessionId: string | undefined) {
       switch (message.type) {
         case "assistant":
           await handleAssistantMessage(message as SDKAssistantMessage, controller, encoder);
@@ -630,7 +649,7 @@ export async function POST(req: NextRequest) {
           break;
 
         case "result":
-          await handleResultMessage(message as SDKResultMessage, controller, encoder);
+          await handleResultMessage(message as SDKResultMessage, controller, encoder, sessionId);
           break;
 
         case "stream_event":
@@ -791,7 +810,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle result messages (final output)
-    async function handleResultMessage(message: SDKResultMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
+    async function handleResultMessage(message: SDKResultMessage, controller: ReadableStreamDefaultController, encoder: TextEncoder, sessionId: string | undefined) {
       if ((message as any).result) {
         fullResponse = String((message as any).result);
 
@@ -804,10 +823,21 @@ export async function POST(req: NextRequest) {
         if (!streamClosed) {
           streamClosed = true;
 
+          // Send session ID as a separate message first
+          if (sessionId) {
+            const sessionData = {
+              type: 'session',
+              sessionId: sessionId
+            };
+            console.log('📤 Claude Code: Sending session ID:', sessionId);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(sessionData)}\n\n`));
+          }
+
           const resultData = {
             type: 'result',
             content: fullResponse
           };
+          console.log('📤 Claude Code: Sending result');
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
           controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));
           controller.close();
