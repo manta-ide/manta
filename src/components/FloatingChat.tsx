@@ -57,6 +57,7 @@ export default function FloatingChat() {
   const [slashActive, setSlashActive] = useState(false);
   const [slashQuery, setSlashQuery] = useState('');
   const [slashIndex, setSlashIndex] = useState(0);
+  const slashListRef = useRef<HTMLDivElement | null>(null);
   const textareaDomId = 'floating-chat-input';
   const [pendingCaretPos, setPendingCaretPos] = useState<number | null>(null);
   
@@ -417,6 +418,26 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     // Show all available commands; container scrolls if too tall
     return list;
   }, [slashActive, slashQuery, ALL_SLASH_COMMANDS]);
+
+  // Keep the highlighted slash item in view when navigating
+  useEffect(() => {
+    if (!slashActive) return;
+    const container = slashListRef.current;
+    if (!container) return;
+    const item = container.querySelector(
+      `[data-slash-index="${slashIndex}"]`
+    ) as HTMLElement | null;
+    if (!item) return;
+    const itemTop = item.offsetTop;
+    const itemBottom = itemTop + item.offsetHeight;
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+    if (itemTop < viewTop) {
+      container.scrollTop = itemTop;
+    } else if (itemBottom > viewBottom) {
+      container.scrollTop = itemBottom - container.clientHeight;
+    }
+  }, [slashIndex, slashActive, slashCandidates.length]);
 
   const handleClear = async () => {
     setClearing(true);
@@ -1175,13 +1196,14 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
             )}
             {/* Slash command dropdown */}
             {slashActive && slashCandidates.length > 0 && (
-              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] max-h-64 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50">
+              <div ref={slashListRef} className="absolute bottom-10 left-0 w-full max-w-[18rem] max-h-64 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50">
                 {slashCandidates.map((c, i) => (
                   <button
                     type="button"
                     key={c.id}
                     onMouseDown={(ev) => { ev.preventDefault(); }}
                     onClick={() => handleSelectSlashCommand(c.id)}
+                    data-slash-index={i}
                     className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 ${i === slashIndex ? 'bg-zinc-800' : ''}`}
                   >
                     {c.id === 'build' ? (
