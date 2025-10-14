@@ -31,10 +31,20 @@ export function useChatService() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
 
   // Load chat history (no user check anymore)
 useEffect(() => {
   loadChatHistory();
+  // Restore or create a persistent Claude session id to enable resume/stop
+  try {
+    const stored = typeof window !== 'undefined' ? window.localStorage.getItem('manta-claude-session-id') : null;
+    const sid = stored && stored.trim().length > 0 ? stored : `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setSessionId(sid);
+    if (!stored && typeof window !== 'undefined') {
+      window.localStorage.setItem('manta-claude-session-id', sid);
+    }
+  } catch {}
 }, []);
 
 
@@ -181,10 +191,17 @@ useEffect(() => {
     // Always use the full graph agent. It will decide whether to answer, read, or edit.
     console.log('📡 Chat Service: Making request to /api/agent-request');
 
+    // Proactively stop any running agent on this session before sending a new message
+    try {
+      if (sessionId) {
+        await fetch('/api/claude-code/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) });
+      }
+    } catch (e) { console.warn('Stop agent failed (continuing):', e); }
+
     const response = await fetch('/api/agent-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userMessage: agentUserMessage }),
+      body: JSON.stringify({ userMessage: agentUserMessage, sessionId }),
     });
 
     console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));
@@ -250,6 +267,22 @@ useEffect(() => {
                         chunkContent = parsed.content;
                       } else if (parsed.error) {
                         chunkContent = `Error: ${parsed.error}`;
+                      } else if (parsed.type === 'tool_result') {
+                        const tr = parsed.tool_result || {};
+                        const c = tr.content;
+                        if (Array.isArray(c)) {
+                          chunkContent = c
+                            .map((x: any) => typeof x === 'string' ? x : (x?.text ?? x?.content ?? x?.type ?? ''))
+                            .filter(Boolean)
+                            .join(' ')
+                            .trim();
+                        } else if (typeof c === 'string') {
+                          chunkContent = c;
+                        } else if (c && typeof c === 'object') {
+                          chunkContent = (c as any).text || (c as any).content || JSON.stringify(c);
+                        } else {
+                          chunkContent = '';
+                        }
                       } else if (parsed.type === 'trace') {
                         // Handle trace messages - these are separate from final content
                         chunkContent = formatTraceMessage(parsed.trace);
@@ -271,6 +304,22 @@ useEffect(() => {
                       chunkContent = parsed.content;
                     } else if (parsed.error) {
                       chunkContent = `Error: ${parsed.error}`;
+                    } else if (parsed.type === 'tool_result') {
+                      const tr = parsed.tool_result || {};
+                      const c = tr.content;
+                      if (Array.isArray(c)) {
+                        chunkContent = c
+                          .map((x: any) => (typeof x === 'string' ? x : (x?.text ?? x?.content ?? x?.type ?? '')))
+                          .filter(Boolean)
+                          .join(' ')
+                          .trim();
+                      } else if (typeof c === 'string') {
+                        chunkContent = c;
+                      } else if (c && typeof c === 'object') {
+                        chunkContent = (c as any).text || (c as any).content || JSON.stringify(c);
+                      } else {
+                        chunkContent = '';
+                      }
                     } else if (parsed.type === 'trace') {
                       // Handle trace messages - these are separate from final content
                       chunkContent = formatTraceMessage(parsed.trace);
@@ -346,6 +395,22 @@ useEffect(() => {
                     finalChunk = parsed.content;
                   } else if (parsed.error) {
                     finalChunk = `Error: ${parsed.error}`;
+                  } else if (parsed.type === 'tool_result') {
+                    const tr = parsed.tool_result || {};
+                    const c = tr.content;
+                    if (Array.isArray(c)) {
+                      finalChunk = c
+                        .map((x: any) => (typeof x === 'string' ? x : (x?.text ?? x?.content ?? x?.type ?? '')))
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim();
+                    } else if (typeof c === 'string') {
+                      finalChunk = c;
+                    } else if (c && typeof c === 'object') {
+                      finalChunk = (c as any).text || (c as any).content || JSON.stringify(c);
+                    } else {
+                      finalChunk = '';
+                    }
                   } else if (parsed.type === 'trace') {
                     finalChunk = formatTraceMessage(parsed.trace);
                   } else {
@@ -366,6 +431,22 @@ useEffect(() => {
                     finalChunk = parsed.content;
                   } else if (parsed.error) {
                     finalChunk = `Error: ${parsed.error}`;
+                  } else if (parsed.type === 'tool_result') {
+                    const tr = parsed.tool_result || {};
+                    const c = tr.content;
+                    if (Array.isArray(c)) {
+                      finalChunk = c
+                        .map((x: any) => (typeof x === 'string' ? x : (x?.text ?? x?.content ?? x?.type ?? '')))
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim();
+                    } else if (typeof c === 'string') {
+                      finalChunk = c;
+                    } else if (c && typeof c === 'object') {
+                      finalChunk = (c as any).text || (c as any).content || JSON.stringify(c);
+                    } else {
+                      finalChunk = '';
+                    }
                   } else if (parsed.type === 'trace') {
                     finalChunk = formatTraceMessage(parsed.trace);
                   } else {
@@ -537,7 +618,7 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory]);
+  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory, sessionId]);
 
   // Function to clear chat history
   const clearMessages = useCallback(async () => {

@@ -7,6 +7,7 @@ import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { createGraphTools } from '../../lib/claude-code-tools';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
+import { setSessionController, clearSessionController } from '@/app/api/claude-code/session';
 
 // Type definitions for Claude Code installations
 interface ClaudeInstallation {
@@ -443,7 +444,7 @@ function pretty(obj: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
+    const { prompt, options, sessionId: incomingSessionId } = ClaudeCodeRequestSchema.parse(await req.json());
 
     const envVerbose = String(process.env.VERBOSE_CLAUDE_LOGS || '').toLowerCase();
     const defaultVerbose = envVerbose === '1' || envVerbose === 'true' || envVerbose === 'yes' || envVerbose === 'on';
@@ -471,6 +472,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
 
+        let sessionId: string = '';
         try {
           // Sync env-controlled verbosity with request options for discovery logs
           process.env.VERBOSE_CLAUDE_LOGS = '1';
@@ -489,6 +491,9 @@ export async function POST(req: NextRequest) {
           logLine(`📁 Claude Code: Working directory (${mode} mode): ${workingDirectory}`);
 
           // Create user message generator with the prompt
+          sessionId = incomingSessionId && incomingSessionId.trim().length > 0
+            ? incomingSessionId
+            : `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           async function* generateUserMessage(): AsyncGenerator<SDKUserMessage> {
             yield {
               type: "user",
@@ -497,28 +502,31 @@ export async function POST(req: NextRequest) {
                 content: prompt
               },
               parent_tool_use_id: null,
-              session_id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              session_id: sessionId
             };
-            //if(first)
-            //Required for claude code sdk to work. 1800000 = 30 minutes for max task length
-            await new Promise(res => setTimeout(res, 1800000))
-            first = false;
+            // End generator immediately; rely on SDK + abortController to manage lifecycle
+            return;
           }
 
 
           // Generic query options with orchestrator prompt
+          const abortController = new AbortController();
+          // Expose controller for this session so we can stop it from another route
+          setSessionController(sessionId, abortController);
+
           const queryOptions: Options = {
             includePartialMessages: true,
             systemPrompt: { type: "preset", preset: "claude_code" },
             customSystemPrompt: orchestratorSystemPrompt,
             permissionMode: 'bypassPermissions',
             mcpServers: { 'graph-tools': mcpServer },
-            abortController: new AbortController(),
+            abortController,
             cwd: workingDirectory,
             strictMcpConfig: true,
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
-            agents: AGENTS_CONFIG
+            agents: AGENTS_CONFIG,
+            maxTurns: 1
           } as any;
 
           let messageCount = 0;
@@ -582,8 +590,14 @@ export async function POST(req: NextRequest) {
             controller.close();
           }
 
+          // Clear controller when completed
+          try { if (sessionId) clearSessionController(sessionId); } catch {}
+
         } catch (error) {
           console.error('Streaming error:', error);
+
+          // Ensure controller is cleared on error
+          try { if (sessionId) clearSessionController(sessionId); } catch {}
 
           // Only close stream if not already closed
           if (!streamClosed) {

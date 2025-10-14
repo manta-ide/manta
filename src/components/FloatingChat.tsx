@@ -333,6 +333,14 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
           });
           return;
         }
+
+        // Unknown slash command (Claude's built-ins). Pass through unchanged so Claude handles it.
+        resetAfterSend();
+        await sendMessage(trimmed, {
+          ...contextSnapshot,
+          displayContent: rawInput
+        });
+        return;
       }
     }
 
@@ -363,7 +371,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     });
   };
 
-  // Supported slash commands (local/static)
+  // App-local helper commands
   const STATIC_SLASH_COMMANDS = useMemo(() => ([
     { id: 'build', label: '/build', description: 'Build or refresh the graph' },
     { id: 'join', label: '/join', description: 'Merge nodes into one' },
@@ -372,6 +380,53 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     { id: 'sync', label: '/sync', description: 'Synchronize with source of truth' },
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
+
+  // Full set of Claude Code slash commands (fallback catalog)
+  const KNOWN_CLAUDE_COMMANDS = useMemo(() => ([
+    { id: 'add-dir', label: '/add-dir', description: 'Add additional working directories' },
+    { id: 'agents', label: '/agents', description: 'Manage custom AI subagents for specialized tasks' },
+    { id: 'bugReport', label: '/bugReport', description: 'Report bugs to Anthropic (shares conversation)' },
+    { id: 'clear', label: '/clear', description: 'Clear conversation history' },
+    { id: 'compact', label: '/compact', description: 'Compact conversation (optionally: /compact [instructions])' },
+    { id: 'config', label: '/config', description: 'Open Settings (Config tab)' },
+    { id: 'cost', label: '/cost', description: 'Show token usage statistics' },
+    { id: 'doctor', label: '/doctor', description: 'Check health of Claude Code installation' },
+    { id: 'help', label: '/help', description: 'Get usage help' },
+    { id: 'init', label: '/init', description: 'Initialize project with CLAUDE.md guide' },
+    { id: 'login', label: '/login', description: 'Switch Anthropic accounts' },
+    { id: 'logout', label: '/logout', description: 'Sign out of your Anthropic account' },
+    { id: 'mcp', label: '/mcp', description: 'Manage MCP server connections and OAuth' },
+    { id: 'memory', label: '/memory', description: 'Edit CLAUDE.md memory files' },
+    { id: 'model', label: '/model', description: 'Select or change the AI model' },
+    { id: 'permissions', label: '/permissions', description: 'View or update permissions' },
+    { id: 'pr_comments', label: '/pr_comments', description: 'View pull request comments' },
+    { id: 'review', label: '/review', description: 'Request code review' },
+    { id: 'rewind', label: '/rewind', description: 'Rewind the conversation and/or code' },
+    { id: 'status', label: '/status', description: 'Open Status (version, model, account, connectivity)' },
+    { id: 'terminal-setup', label: '/terminal-setup', description: 'Install Shift+Enter newline keybinding (iTerm2/VSCode)' },
+    { id: 'usage', label: '/usage', description: 'Show plan usage limits and rate limits' },
+    { id: 'vim', label: '/vim', description: 'Enter vim mode (insert/command)' },
+  ]), []);
+
+  // Pinned order for our local commands
+  const PINNED_LOCAL = useMemo(() => (
+    ['beautify', 'build', 'index', 'join', 'split', 'sync']
+  ), []);
+
+  const sortSlashCommands = useCallback((a: { id: string; label: string }, b: { id: string; label: string }) => {
+    const ai = PINNED_LOCAL.indexOf(a.id);
+    const bi = PINNED_LOCAL.indexOf(b.id);
+    const aPinned = ai !== -1;
+    const bPinned = bi !== -1;
+    if (aPinned && bPinned) return ai - bi;
+    if (aPinned) return -1;
+    if (bPinned) return 1;
+    const al = a.label.toLowerCase();
+    const bl = b.label.toLowerCase();
+    if (al < bl) return -1;
+    if (al > bl) return 1;
+    return 0;
+  }, [PINNED_LOCAL]);
 
   // Claude Code slash commands discovered via SDK
   const [remoteSlashCommands, setRemoteSlashCommands] = useState<Array<{ id: string; label: string; description: string }>>([])
@@ -402,10 +457,12 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
   // Merge and dedupe by id
   const ALL_SLASH_COMMANDS = useMemo(() => {
     const map = new Map<string, { id: string; label: string; description: string }>()
+    for (const c of KNOWN_CLAUDE_COMMANDS) map.set(c.id, c)
     for (const c of STATIC_SLASH_COMMANDS) map.set(c.id, c)
     for (const c of remoteSlashCommands) map.set(c.id, c)
-    return Array.from(map.values())
-  }, [STATIC_SLASH_COMMANDS, remoteSlashCommands])
+    const merged = Array.from(map.values())
+    return merged.sort(sortSlashCommands)
+  }, [STATIC_SLASH_COMMANDS, KNOWN_CLAUDE_COMMANDS, remoteSlashCommands, sortSlashCommands])
 
   const slashCandidates = useMemo(() => {
     if (!slashActive) return [] as Array<{ id: string; label: string; description: string }>;
@@ -415,9 +472,9 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
       c.label.toLowerCase().includes(q) ||
       c.description.toLowerCase().includes(q)
     );
-    // Show all available commands; container scrolls if too tall
-    return list;
-  }, [slashActive, slashQuery, ALL_SLASH_COMMANDS]);
+    // Sort filtered list so pinned stay first, others alphabetical
+    return list.sort(sortSlashCommands);
+  }, [slashActive, slashQuery, ALL_SLASH_COMMANDS, sortSlashCommands]);
 
   // Keep the highlighted slash item in view when navigating
   useEffect(() => {

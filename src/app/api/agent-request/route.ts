@@ -20,6 +20,7 @@ const RequestSchema = z.object({
   // Build-graph specific fields
   graphDiff: z.any().optional(),
   currentGraph: z.any().optional(),
+  sessionId: z.string().optional(),
 });
 
 // Removed buildParsedMessages - now using system prompt approach in Claude Code
@@ -49,7 +50,8 @@ export async function POST(req: NextRequest) {
       selectedNodeIds,
       rebuildAll,
       graphDiff,
-      currentGraph
+      currentGraph,
+      sessionId
     } = parsed.data;
     // forward auth headers for downstream API calls
     setGraphEditorAuthHeaders({
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
     const response = await fetch(`${req.nextUrl.origin}/api/claude-code/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, options: { verbose: true } })
+      body: JSON.stringify({ prompt, sessionId, options: { verbose: true } })
     });
 
     if (!response.ok) {
