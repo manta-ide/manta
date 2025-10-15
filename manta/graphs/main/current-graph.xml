@@ -980,7 +980,7 @@
     </node>
 
     <node id="agent-types-system" title="Agent Types System" x="-2092.9106671127392" y="395.69561167600114" z="0">
-      <description>Specialized agent definitions and prompt management system providing distinct agent types including orchestrator, graph-editor (with indexing/editing modes), and code-builder agents. Each agent has specific capabilities, tool access, and behavioral patterns optimized for their designated tasks.</description>
+      <description>Specialized agent definitions and prompt management system providing distinct agent types including orchestrator, indexing, editing, and building agents. Each agent has specific capabilities, tool access, and behavioral patterns optimized for their designated tasks.</description>
       <props>
         <prop name="agent-definitions" title="Agent Type Definitions" type="object-list">
         <item index="0">
@@ -988,8 +988,9 @@
           <value>orchestrator</value>
           <options>
           <option>orchestrator</option>
-          <option>graph-editor</option>
-          <option>code-builder</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
           <option>custom</option>
           </options>
         </field>
@@ -999,25 +1000,42 @@
         </item>
         <item index="1">
           <field name="type" title="Agent Type" type="select">
-          <value>graph-editor</value>
+          <value>indexing</value>
           <options>
           <option>orchestrator</option>
-          <option>graph-editor</option>
-          <option>code-builder</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
           <option>custom</option>
           </options>
         </field>
-          <field name="description" title="Description" type="text">Graph structure manipulation</field>
-          <field name="tools" title="Available Tools" type="text">graph-tools, file-analysis</field>
+          <field name="description" title="Description" type="text">Code analysis and indexing to graph with properties</field>
+          <field name="tools" title="Available Tools" type="text">graph-tools, code-analysis, file-reading</field>
           <field name="enabled" title="Enabled" type="boolean">true</field>
         </item>
         <item index="2">
           <field name="type" title="Agent Type" type="select">
-          <value>code-builder</value>
+          <value>editing</value>
           <options>
           <option>orchestrator</option>
-          <option>graph-editor</option>
-          <option>code-builder</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
+          <option>custom</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Code analysis and indexing to graph with properties</field>
+          <field name="tools" title="Available Tools" type="text">graph-tools, code-analysis, file-reading</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Agent Type" type="select">
+          <value>building</value>
+          <options>
+          <option>orchestrator</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
           <option>custom</option>
           </options>
         </field>
