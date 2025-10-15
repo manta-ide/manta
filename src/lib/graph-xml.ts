@@ -404,13 +404,16 @@ ${optionsXml}
     return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
-  const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
-  const edges = allEdges.map((e: { id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }) => {
+  const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }>;
+  const edges = allEdges.map((e: { id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }) => {
     const role = (e as any).role || 'links-to';
     const id = e.id || `${e.source}-${e.target}`;
     const sh = (e as any).sourceHandle ? ` sourceHandle="${escapeXml(String((e as any).sourceHandle))}"` : '';
     const th = (e as any).targetHandle ? ` targetHandle="${escapeXml(String((e as any).targetHandle))}"` : '';
-    return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"${sh}${th}/>`;
+    const shape = (e as any).shape;
+    const validShape = shape === 'solid' || shape === 'dotted' ? shape : undefined;
+    const shapeAttr = validShape ? ` shape="${escapeXml(String(validShape))}"` : '';
+    return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"${sh}${th}${shapeAttr}/>`;
   }).join('\n');
 
   return `${header}\n<graph ${ns} ${version} ${directed}>\n  <nodes>\n${nodes}\n  </nodes>\n\n  <edges>\n${edges}\n  </edges>\n</graph>\n`;
@@ -735,7 +738,7 @@ export function xmlToGraph(xml: string): Graph {
       } as GraphNode;
     });
 
-    const edges: Array<{ id: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }> = [];
+    const edges: Array<{ id: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }> = [];
 
     // Parse edges using fast-xml-parser
     if (edgesData?.edge) {
@@ -748,9 +751,19 @@ export function xmlToGraph(xml: string): Graph {
         const role = edgeData['@_role'];
         const sourceHandle = edgeData['@_sourceHandle'] || undefined;
         const targetHandle = edgeData['@_targetHandle'] || undefined;
+        const shapeRaw = edgeData['@_shape'];
+        const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
 
         if (source && target) {
-          edges.push({ id, source, target, role, sourceHandle, targetHandle });
+          edges.push({
+            id,
+            source,
+            target,
+            role,
+            sourceHandle,
+            targetHandle,
+            ...(shape === 'solid' || shape === 'dotted' ? { shape } : {}),
+          });
         }
       });
     }
@@ -762,7 +775,18 @@ export function xmlToGraph(xml: string): Graph {
       }
     });
 
-    const g: Graph = { nodes, edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target, role: e.role, sourceHandle: e.sourceHandle, targetHandle: e.targetHandle })) as any } as Graph;
+    const g: Graph = {
+      nodes,
+      edges: edges.map(e => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        role: e.role,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        ...(e.shape ? { shape: e.shape as any } : {}),
+      })) as any,
+    } as Graph;
     return g;
   } catch (error) {
     throw new Error(`Failed to parse XML: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Selection, FileNode, Graph, GraphNode } from '@/app/api/lib/schemas';
+import { Selection, FileNode, Graph, GraphNode, GraphEdge } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { autoMarkUnbuiltFromBaseGraph } from './graph-diff';
 
@@ -35,6 +35,9 @@ interface ProjectStore {
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
   selectedNodeIds: string[];
+  selectedEdgeId: string | null;
+  selectedEdge: GraphEdge | null;
+  selectedEdgeIds: string[];
   graph: Graph | null;
   baseGraph: Graph | null; // Last built version of the graph
   graphLoading: boolean;
@@ -83,6 +86,8 @@ interface ProjectStore {
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
   setSelectedNodeIds: (ids: string[]) => void;
+  setSelectedEdge: (id: string | null, edge?: GraphEdge | null) => void;
+  setSelectedEdgeIds: (ids: string[]) => void;
   loadGraph: () => Promise<void>;
   refreshGraph: () => Promise<void>;
   refreshGraphStates: () => void;
@@ -103,6 +108,7 @@ interface ProjectStore {
   // Graph mutations (local + persist via API)
   saveNode: (node: GraphNode) => Promise<void>;
   updateNode: (nodeId: string, updates: Partial<GraphNode>) => Promise<void>;
+  updateEdge: (edgeId: string, updates: Partial<GraphEdge>) => Promise<void>;
   updateProperty: (nodeId: string, propertyId: string, value: any) => Promise<void>;
   updatePropertyLocal: (nodeId: string, propertyId: string, value: any) => void;
   deleteNode: (nodeId: string) => Promise<void>;
@@ -191,6 +197,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectedNodeId: null,
   selectedNode: null,
   selectedNodeIds: [],
+  selectedEdgeId: null,
+  selectedEdge: null,
+  selectedEdgeIds: [],
   graph: null,
   baseGraph: null,
   graphLoading: true,
@@ -225,6 +234,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     selectedNodeId: null,
     selectedNode: null,
     selectedNodeIds: [],
+    selectedEdgeId: null,
+    selectedEdge: null,
+    selectedEdgeIds: [],
     graph: null,
     baseGraph: null,
     graphLoading: true,
@@ -330,7 +342,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (sameSet) return;
     set({ selectedNodeIds: next });
   },
-  
+  setSelectedEdge: (id, edge = null) => {
+    const prevId = get().selectedEdgeId;
+    const prevEdge = get().selectedEdge;
+    if (prevId === id && prevEdge === (edge ?? null)) return;
+    set({ selectedEdgeId: id, selectedEdge: edge ?? null });
+  },
+  setSelectedEdgeIds: (ids) => {
+    const next = Array.isArray(ids) ? ids : [];
+    const prev = get().selectedEdgeIds || [];
+    const sameLength = next.length === prev.length;
+    const sameSet = sameLength && next.every((id) => prev.includes(id));
+    if (sameSet) return;
+    set({ selectedEdgeIds: next });
+  },
+
   getFileContent: (path) => {
     return get().files.get(path) || '';
   },
@@ -827,6 +853,53 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ graph: next });
 
     const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph);
+    await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+  },
+
+  updateEdge: async (edgeId: string, updates: Partial<GraphEdge>) => {
+    const state = get();
+    if (!state.graph) return;
+
+    const sanitizeShape = (shape: GraphEdge['shape']) => (shape === 'solid' || shape === 'dotted') ? shape : undefined;
+
+    const matchEdge = (edge: GraphEdge) => {
+      if (edge.id === edgeId) return true;
+      const compositeId = `${edge.source}-${edge.target}`;
+      return compositeId === edgeId;
+    };
+
+    const nextEdges = (state.graph.edges || []).map((edge) => {
+      if (!matchEdge(edge as GraphEdge)) return edge;
+      const nextShape = sanitizeShape(updates.shape);
+      const merged = {
+        ...edge,
+        ...updates,
+        ...(updates.shape !== undefined ? { shape: nextShape ?? undefined } : {}),
+      } as GraphEdge;
+      if (merged.shape === undefined) {
+        delete (merged as any).shape;
+      }
+      return merged;
+    });
+
+    const nextGraph = { ...state.graph, edges: nextEdges } as Graph;
+
+    let nextSelectedEdge: GraphEdge | null = null;
+    if (state.selectedEdgeId) {
+      const currentSelectionId = state.selectedEdgeId;
+      const found = nextEdges.find((edge) => {
+        const actualId = edge.id || `${edge.source}-${edge.target}`;
+        return actualId === currentSelectionId;
+      });
+      nextSelectedEdge = (found as GraphEdge | undefined) ?? null;
+    }
+
+    set({
+      graph: nextGraph,
+      ...(state.selectedEdgeId ? { selectedEdge: nextSelectedEdge } : {}),
+    });
+
+    const xml = graphToXml(nextGraph);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 

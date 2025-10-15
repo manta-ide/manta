@@ -66,7 +66,9 @@ export const GraphEdgeSchema = z.object({
   role: z.string().optional(),
   sourceHandle: z.string().optional(),
   targetHandle: z.string().optional(),
+  shape: z.enum(['solid', 'dotted']).optional(),
 });
+export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });
 export type Graph = z.infer<typeof GraphSchema>;
 
