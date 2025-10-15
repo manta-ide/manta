@@ -41,6 +41,12 @@ export default function SelectedNodeSidebar() {
 			.map((file) => file.trim())
 			.filter((file) => file.length > 0)
 	));
+	const metadataBugs = Array.from(new Set(
+		(selectedNode?.metadata?.bugs ?? [])
+			.filter((bug): bug is string => typeof bug === 'string')
+			.map((bug) => bug.trim())
+			.filter((bug) => bug.length > 0)
+	));
 
 	// Helper function to get all connections (both incoming and outgoing)
 	const getNodeConnections = (nodeId: string) => {
@@ -393,6 +399,36 @@ export default function SelectedNodeSidebar() {
 								</div>
 							)}
 						</div>
+
+						{metadataBugs.length > 0 && (
+							<div className="border-t border-zinc-700/30 pt-3 min-w-0 overflow-hidden">
+								<div className="flex items-center gap-2 text-xs font-medium text-red-300">
+									<span>Bugs ({metadataBugs.length})</span>
+								</div>
+								<ul className="mt-2 space-y-1">
+									{metadataBugs.map((bug) => (
+										<li
+											key={bug}
+											className="relative"
+											style={{
+												display: 'block',
+												maxWidth: `${leftSidebarWidth - 40}px`,
+												overflow: 'hidden',
+												textOverflow: 'ellipsis',
+												whiteSpace: 'nowrap'
+											}}
+										>
+											<span
+												className="inline-block px-2 py-1 text-xs bg-red-500/20 border border-red-500/30 text-red-200 rounded"
+												title={bug}
+											>
+												{bug}
+											</span>
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
 					</>
 				)}
 				</div>

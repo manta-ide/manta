@@ -80,6 +80,20 @@ function normalizeMetadataFiles(metadata?: NodeMetadata | null): string[] {
   return files;
 }
 
+function normalizeMetadataBugs(metadata?: NodeMetadata | null): string[] {
+  if (!metadata || !Array.isArray(metadata.bugs)) return [];
+  const seen = new Set<string>();
+  const bugs: string[] = [];
+  for (const entry of metadata.bugs) {
+    if (typeof entry !== 'string') continue;
+    const cleaned = entry.trim();
+    if (!cleaned || seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    bugs.push(cleaned);
+  }
+  return bugs;
+}
+
 function filesFromXml(metadataNode: any): string[] {
   if (!metadataNode) return [];
   const rawFiles = metadataNode.file;
@@ -96,6 +110,33 @@ function filesFromXml(metadataNode: any): string[] {
         value = entry['#text'];
       } else if (typeof entry['@_route'] === 'string') {
         value = entry['@_route'];
+      }
+    }
+
+    if (!value) continue;
+    const cleaned = unescapeXml(repairTextEncoding(String(value))).trim();
+    if (!cleaned || seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    result.push(cleaned);
+  }
+
+  return result;
+}
+
+function bugsFromXml(metadataNode: any): string[] {
+  if (!metadataNode) return [];
+  const rawBugs = metadataNode.bug;
+  const entries = Array.isArray(rawBugs) ? rawBugs : (rawBugs !== undefined ? [rawBugs] : []);
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    let value: string | undefined;
+    if (typeof entry === 'string') {
+      value = entry;
+    } else if (entry && typeof entry === 'object') {
+      if (typeof entry['#text'] === 'string') {
+        value = entry['#text'];
       }
     }
 
@@ -351,9 +392,18 @@ export function graphToXml(graph: Graph): string {
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
     const metadataFiles = normalizeMetadataFiles((n as any).metadata);
-    const metadataXml = metadataFiles.length > 0
-      ? `\n      <metadata>\n${metadataFiles.map(file => `        <file>${escapeXml(file)}</file>`).join('\n')}\n      </metadata>`
-      : '';
+    const metadataBugs = normalizeMetadataBugs((n as any).metadata);
+    
+    let metadataXml = '';
+    if (metadataFiles.length > 0 || metadataBugs.length > 0) {
+      const filesXml = metadataFiles.length > 0 
+        ? `        <files>\n${metadataFiles.map(file => `          <file>${escapeXml(file)}</file>`).join('\n')}\n        </files>`
+        : '';
+      const bugsXml = metadataBugs.length > 0 
+        ? `        <bugs>\n${metadataBugs.map(bug => `          <bug>${escapeXml(bug)}</bug>`).join('\n')}\n        </bugs>`
+        : '';
+      metadataXml = `\n      <metadata>\n${filesXml}${filesXml && bugsXml ? '\n' : ''}${bugsXml}\n      </metadata>`;
+    }
     const props = Array.isArray((n as any).properties) && (n as any).properties.length > 0
       ? `\n      <props>\n${((n as any).properties as Property[]).map((p) => {
           const propType = (p as any)?.type;
@@ -719,10 +769,20 @@ export function xmlToGraph(xml: string): Graph {
         }
       } catch {}
 
-      const metadataFiles = filesFromXml(nodeData.metadata);
+      const metadataFiles = filesFromXml(nodeData.metadata?.files);
+      const metadataBugs = bugsFromXml(nodeData.metadata?.bugs);
       // Optional shape
       const shapeRaw = (nodeData as any)['@_shape'];
       const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
+
+      // Build metadata object if we have files or bugs
+      let metadata: NodeMetadata | undefined = undefined;
+      if (metadataFiles.length > 0 || metadataBugs.length > 0) {
+        metadata = {
+          files: metadataFiles,
+          bugs: metadataBugs
+        };
+      }
 
       return {
         id,
@@ -730,7 +790,7 @@ export function xmlToGraph(xml: string): Graph {
         prompt: description,
         properties,
         ...(position ? { position } : {}),
-        ...(metadataFiles.length > 0 ? { metadata: { files: metadataFiles } } : {}),
+        ...(metadata ? { metadata } : {}),
         ...(shape ? { shape: shape as any } : {})
       } as GraphNode;
     });
