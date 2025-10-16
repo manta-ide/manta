@@ -289,6 +289,28 @@ export const McpServerConfigSchema = z.object({
 
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 
+// Claude Code request schemas
+// Import Options type from Claude SDK and use it directly
+import type { Options } from '@anthropic-ai/claude-agent-sdk';
+
+// Create a schema that uses the Claude SDK Options type
+export const ClaudeCodeOptionsSchema = z.custom<Options>((val) => {
+  // Basic validation that it's an object
+  return typeof val === 'object' && val !== null;
+}, {
+  message: "Invalid Claude Code options"
+});
+
+export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;
+
+export const ClaudeCodeRequestSchema = z.object({
+  prompt: z.string(),
+  options: ClaudeCodeOptionsSchema.optional(),
+  sessionId: z.string().optional(),
+});
+
+export type ClaudeCodeRequest = z.infer<typeof ClaudeCodeRequestSchema>;
+
 // Property code service schemas
 export const CodeUpdateSchema = z.object({
   file: z.string(),
