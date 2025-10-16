@@ -520,8 +520,8 @@ export async function POST(req: NextRequest) {
           // Only set resume if we have an incoming sessionId (indicating we want to resume)
           const queryOptions: Options = {
             includePartialMessages: true,
-            systemPrompt: { type: "preset", preset: "claude_code" },
-            customSystemPrompt: orchestratorSystemPrompt,
+            //systemPrompt: { type: "preset", preset: "claude_code" },
+            systemPrompt: orchestratorSystemPrompt,
             permissionMode: 'bypassPermissions',
             mcpServers: { 'graph-tools': mcpServer },
             abortController,

@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-
+    <node id="test-node" title="Test Node" x="0" y="0" z="0">
+      <description>A test node for demonstration purposes</description>
+    </node>
   </nodes>
 
   <edges>

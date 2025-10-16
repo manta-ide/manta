@@ -1,30 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="node-1760069205219845" title="Welcome to Manta!" x="-171.50757392668527" y="285.3244832323122" z="0" shape="comment">
+      <description>Use slash commands to direct the agent:
 
+**/index** - index the codebase
+
+**/build** - build graph changes into code
+
+**/beautify** - auto-align the graph
+
+Use tags to specify the nodes:
+
+**@Node1**
+
+Please reach out at **km@getmanta.ai** with any questions!</description>
+      <props>
+        <prop name="width" title="width" type="string">910</prop>
+        <prop name="height" title="height" type="string">584</prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
-    <edge id="stringutils-class-stringutils-capitalize" source="stringutils-class" target="stringutils-capitalize" role="contains"/>
-    <edge id="stringutils-class-stringutils-reverse" source="stringutils-class" target="stringutils-reverse" role="contains"/>
-    <edge id="stringutils-class-stringutils-ispalindrome" source="stringutils-class" target="stringutils-ispalindrome" role="contains"/>
-    <edge id="stringutils-class-stringutils-truncate" source="stringutils-class" target="stringutils-truncate" role="contains"/>
-    <edge id="mathutils-class-mathutils-factorial" source="mathutils-class" target="mathutils-factorial" role="contains"/>
-    <edge id="mathutils-class-mathutils-fibonacci" source="mathutils-class" target="mathutils-fibonacci" role="contains"/>
-    <edge id="mathutils-class-mathutils-isprime" source="mathutils-class" target="mathutils-isprime" role="contains"/>
-    <edge id="mathutils-class-mathutils-gcd" source="mathutils-class" target="mathutils-gcd" role="contains"/>
-    <edge id="userservice-class-dataprocessor-class" source="userservice-class" target="dataprocessor-class" role="depends-on"/>
-    <edge id="productservice-class-dataprocessor-class" source="productservice-class" target="dataprocessor-class" role="depends-on"/>
-    <edge id="userservice-class-stringutils-class" source="userservice-class" target="stringutils-class" role="uses"/>
-    <edge id="productservice-class-stringutils-class" source="productservice-class" target="stringutils-class" role="uses"/>
-    <edge id="servicefactory-class-userservice-class" source="servicefactory-class" target="userservice-class" role="creates"/>
-    <edge id="servicefactory-class-productservice-class" source="servicefactory-class" target="productservice-class" role="creates"/>
-    <edge id="application-class-servicefactory-class" source="application-class" target="servicefactory-class" role="uses"/>
-    <edge id="application-class-stringutils-class" source="application-class" target="stringutils-class" role="uses"/>
-    <edge id="application-class-mathutils-class" source="application-class" target="mathutils-class" role="uses"/>
-    <edge id="rundemo-function-application-class" source="rundemo-function" target="application-class" role="instantiates"/>
-    <edge id="userservice-class-r4-dataprocessor-class-r4" source="userservice-class-r4" target="dataprocessor-class-r4" role="depends-on"/>
-    <edge id="productservice-class-r4-dataprocessor-class-r4" source="productservice-class-r4" target="dataprocessor-class-r4" role="depends-on"/>
-    <edge id="application-class-r4-servicefactory-class-r4" source="application-class-r4" target="servicefactory-class-r4" role="uses"/>
+
   </edges>
 </graph>
