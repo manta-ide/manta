@@ -23,6 +23,8 @@ interface SendMessageOptions {
   includeSelection?: boolean;
   includeNodes?: boolean;
   displayContent?: string;
+  resume?: string;
+  onSessionId?: (sessionId: string) => void;
 }
 
 export function useChatService() {
@@ -80,6 +82,8 @@ useEffect(() => {
   }, []);
 
   const sendMessage = useCallback(async (input: string, options?: SendMessageOptions) => {
+    const onSessionId = options?.onSessionId;
+    let receivedSessionId: string | null = null;
     console.log('🚀 Chat Service: sendMessage called with input:', input.slice(0, 100) + (input.length > 100 ? '...' : ''));
 
     const agentContent = input;
@@ -184,7 +188,10 @@ useEffect(() => {
     const response = await fetch('/api/agent-request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userMessage: agentUserMessage }),
+      body: JSON.stringify({
+        userMessage: agentUserMessage,
+        ...(options?.resume && { resume: options.resume })
+      }),
     });
 
     console.log('📡 Chat Service: Response status:', response.status, 'Content-Type:', response.headers.get('Content-Type'));
@@ -238,7 +245,8 @@ useEffect(() => {
 
                 // Check if this is SSE format (data: prefix)
                 if (line.startsWith('data: ')) {
-                  const dataPart = line.substring(6).trim(); // Remove 'data: ' prefix
+                  const dataPart = line.substring(6).trim();
+                  console.log('🎯 Chat Service: Processing SSE data:', dataPart.substring(0, 100) + (dataPart.length > 100 ? '...' : '')); // Remove 'data: ' prefix
 
                   // Skip control messages entirely
                   if (dataPart === '[STREAM_START]' || dataPart === '[STREAM_END]') {
@@ -246,7 +254,20 @@ useEffect(() => {
                   } else {
                     try {
                       const parsed = JSON.parse(dataPart);
-                      if (parsed.content) {
+                      console.log('🎯 Chat Service: Parsed SSE data:', { type: parsed.type, hasContent: !!parsed.content, hasSessionId: !!parsed.session_id });
+                      if (parsed.content && parsed.type === 'result') {
+                        // This is a final result - replace all accumulated content
+                        accumulatedContent = parsed.content;
+                        // Store session_id if available
+                        if (parsed.session_id) {
+                          console.log('🎯 Chat Service: Received session_id:', parsed.session_id);
+                          receivedSessionId = parsed.session_id;
+                          onSessionId?.(parsed.session_id);
+                        } else {
+                          console.log('🎯 Chat Service: No session_id in result data');
+                        }
+                        chunkContent = '';
+                      } else if (parsed.content) {
                         chunkContent = parsed.content;
                       } else if (parsed.error) {
                         chunkContent = `Error: ${parsed.error}`;
@@ -266,7 +287,20 @@ useEffect(() => {
                   // Handle plain text (non-SSE format)
                   try {
                     const parsed = JSON.parse(line);
-                    if (parsed.content) {
+                    console.log('🎯 Chat Service: Parsed plain data:', { type: parsed.type, hasContent: !!parsed.content, hasSessionId: !!parsed.session_id });
+                    if (parsed.content && parsed.type === 'result') {
+                      // This is a final result - replace all accumulated content
+                      accumulatedContent = parsed.content;
+                      // Store session_id if available
+                      if (parsed.session_id) {
+                        console.log('🎯 Chat Service: Received session_id from plain:', parsed.session_id);
+                        receivedSessionId = parsed.session_id;
+                        onSessionId?.(parsed.session_id);
+                      } else {
+                        console.log('🎯 Chat Service: No session_id in plain result data');
+                      }
+                      chunkContent = '';
+                    } else if (parsed.content) {
                       // Final result - clear any previous trace content and show only the final result
                       chunkContent = parsed.content;
                     } else if (parsed.error) {
@@ -286,26 +320,11 @@ useEffect(() => {
 
                 // Handle content accumulation
                 if (chunkContent.trim()) {
-                  // Check if this is a final result by parsing the JSON
-                  try {
-                    const parsed = JSON.parse(line);
-                    if (parsed.content && parsed.type === 'result') {
-                      // This is a final result - replace all accumulated content
-                      accumulatedContent = parsed.content;
-                    } else if (parsed.type === 'trace') {
-                      // This is a trace - accumulate it
-                      accumulatedContent += chunkContent;
-                    } else if (parsed.content) {
-                      // Fallback for other content types
-                      accumulatedContent += chunkContent;
-                    }
-                  } catch {
-                    // Not JSON, accumulate with proper line breaks
-                    if (accumulatedContent.length > 0 && !accumulatedContent.endsWith('\n')) {
-                      accumulatedContent += '\n';
-                    }
-                    accumulatedContent += chunkContent;
+                  // For result messages, content is already handled above, so just accumulate other content
+                  if (accumulatedContent.length > 0 && !accumulatedContent.endsWith('\n')) {
+                    accumulatedContent += '\n';
                   }
+                  accumulatedContent += chunkContent;
                 }
 
                 console.log(`📝 Chat Service: Chunk ${chunkCount}, total: ${accumulatedContent.length}`);
@@ -473,7 +492,9 @@ useEffect(() => {
                 ...(last as any).variables,
                 HAD_STREAMING: '1',
                 STREAM_COMPLETE: '1',
-                ASSISTANT_RESPONSE: accumulatedContent
+                ASSISTANT_RESPONSE: accumulatedContent,
+                // Include session_id if received
+                ...(receivedSessionId && { SESSION_ID: receivedSessionId })
               }
             } as any;
           }
@@ -578,12 +599,13 @@ export function formatTraceMessage(trace: any): string {
       // Don't show system messages - let chat handle its own thinking indicator
       return '';
 
-    case 'tool_call':
+    case 'tool_call': {
       // Show tool calls in UI with clean formatting
       const toolName = trace.tool?.replace('mcp__graph-tools__', '');
       const args = trace.arguments ? Object.keys(trace.arguments) : [];
       const argsText = args.length > 0 ? ` (${args.slice(0, 3).join(', ')}${args.length > 3 ? '...' : ''})` : '';
       return `🔧 ${toolName}${argsText}\n`;
+    }
 
     case 'thinking':
       // Don't show thinking content - let chat handle its own thinking animation

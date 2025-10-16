@@ -497,7 +497,7 @@ export async function POST(req: NextRequest) {
                 content: prompt
               },
               parent_tool_use_id: null,
-              session_id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              session_id: options?.resume || ''
             };
             //if(first)
             //Required for claude code sdk to work. 1800000 = 30 minutes for max task length
@@ -519,7 +519,8 @@ export async function POST(req: NextRequest) {
             strictMcpConfig: true,
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
-            agents: AGENTS_CONFIG
+            agents: AGENTS_CONFIG,
+            ...(options?.resume && { resume: options.resume })
           } as any;
 
           let messageCount = 0;
@@ -790,10 +791,11 @@ export async function POST(req: NextRequest) {
         // Only close stream if not already closed
         if (!streamClosed) {
           streamClosed = true;
-
+          console.log('RESULT>>>>>>>>>', message);
           const resultData = {
             type: 'result',
-            content: fullResponse
+            content: fullResponse,
+            session_id: (message as any).session_id
           };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
           controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));

@@ -71,6 +71,37 @@ export default function FloatingChat() {
   const { messages, loading, loadingHistory } = state;
   const { sendMessage, clearMessages } = actions;
 
+  // Session management state
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  // Load session_id from localStorage on mount
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem('claude-session-id');
+    if (savedSessionId) {
+      setCurrentSessionId(savedSessionId);
+    }
+  }, []);
+
+  // Save session_id to localStorage when it changes
+  useEffect(() => {
+    if (currentSessionId) {
+      localStorage.setItem('claude-session-id', currentSessionId);
+    }
+  }, [currentSessionId]);
+
+  // Extract session_id from the latest assistant message (fallback)
+  useEffect(() => {
+    console.log(messages);
+    const lastAssistantMessage = messages.slice().reverse().find(m => m.role === 'assistant');
+    if (lastAssistantMessage && (lastAssistantMessage as any).variables?.SESSION_ID) {
+      const sessionId = (lastAssistantMessage as any).variables.SESSION_ID;
+      if (sessionId !== currentSessionId) {
+        console.log('🎯 FloatingChat: Fallback - setting session_id from message:', sessionId);
+        setCurrentSessionId(sessionId);
+      }
+    }
+  }, [messages, currentSessionId]);
+
   // No longer using job system - simplified logic
 
   // Reset context flags when actual selections change
@@ -354,13 +385,20 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     setInput('');
     resetAfterSend();
 
-    await sendMessage(agentForwardContent, {
-      includeFile: contextSnapshot.includeFile,
-      includeSelection: contextSnapshot.includeSelection,
-      includeNodes: contextSnapshot.includeNodes,
-      // Preserve the original text (with @tags) for UI display
-      displayContent: rawInput
-    });
+          await sendMessage(agentForwardContent, {
+            includeFile: contextSnapshot.includeFile,
+            includeSelection: contextSnapshot.includeSelection,
+            includeNodes: contextSnapshot.includeNodes,
+            // Preserve the original text (with @tags) for UI display
+            displayContent: rawInput,
+            // Pass current session_id for resume functionality
+            resume: currentSessionId || undefined,
+            // Callback to handle session_id when received
+            onSessionId: (sessionId: string) => {
+              console.log('🎯 FloatingChat: Received session_id via callback:', sessionId);
+              setCurrentSessionId(sessionId);
+            }
+          });
   };
 
   // Supported slash commands
@@ -389,6 +427,9 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     setClearing(true);
     try {
       await clearMessages();
+      // Clear session when clearing messages
+      setCurrentSessionId(null);
+      localStorage.removeItem('claude-session-id');
     } finally {
       setClearing(false);
     }
@@ -1006,7 +1047,6 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
                   <div className="md-ol-continue">
                     {m.content && m.content.trim() ? (
                       <>
-                        {console.log('рџЋЁ FloatingChat: Rendering streaming content, length:', m.content.length, 'preview:', m.content.slice(0, 100) + '...')}
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkBreaks]}
                           components={markdownComponents}
