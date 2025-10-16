@@ -29,11 +29,12 @@ const formatSlashUserRequest = (userText: string) => {
 };
 
 const SLASH_AGENT_MESSAGES: Record<string, (userText: string) => string> = {
-  build: (userText) => `Build or refresh the solution graph based on the user request, updating nodes and connections as needed. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  join: (userText) => `Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Make sure that positions are in the middle of the previous nodes. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  split: (userText) => `Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Make sure that positions are around the position of the split node. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  index: (userText) => `Index the solution and update relevant metadata so it stays searchable. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  sync: (userText) => `Synchronize the project/graph with the source of truth using the existing sync tooling. Apply incoming changes, resolve conflicts safely, and ensure nodes/edges and properties reflect the latest state. Here is the user request or additional context: ${formatSlashUserRequest(userText)}`
+  build: (userText) => `Build Command: Build or refresh the solution graph based on the user request, updating nodes and connections as needed. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  join: (userText) => `Join Command: Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Make sure that positions are in the middle of the previous nodes. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  split: (userText) => `Split Command: Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Make sure that positions are around the position of the split node. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  index: (userText) => `Index Command: Index the solution and update relevant metadata so it stays searchable. Here is the user request: ${formatSlashUserRequest(userText)}`,
+  sync: (userText) => `Sync Command: Synchronize the project/graph with the source of truth using the existing sync tooling. Apply incoming changes, resolve conflicts safely, and ensure nodes/edges and properties reflect the latest state. Here is the user request or additional context: ${formatSlashUserRequest(userText)}`,
+  eval: (userText) => `Eval Command: Run evaluation scenario with parameters. Here is the user request: ${formatSlashUserRequest(userText)}`
 };
 
 export default function FloatingChat() {
@@ -369,6 +370,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     { id: 'split', label: '/split', description: 'Split a node into parts' },
     { id: 'index', label: '/index', description: 'Index the current solution' },
     { id: 'sync', label: '/sync', description: 'Synchronize with source of truth' },
+    { id: 'eval', label: '/eval', description: 'Run evaluation scenario' },
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
 

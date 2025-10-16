@@ -39,8 +39,8 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
     if (!baseNode) {
       console.log(`   ➕ Added node: ${nodeId} (${currentNode.title})`);
       diff.addedNodes.push(nodeId);
-    } else if (nodesAreDifferent(baseNode, currentNode)) {
-      console.log(`   ✏️ Modified node: ${nodeId} (${currentNode.title})`);
+    } else if (nodesAreDifferent(baseNode, currentNode) || hasBugs(currentNode)) {
+      console.log(`   ✏️ Modified node: ${nodeId} (${currentNode.title})${hasBugs(currentNode) ? ' (has bugs)' : ''}`);
       diff.modifiedNodes.push(nodeId);
     } else {
       console.log(`   ✅ Unchanged node: ${nodeId} (${currentNode.title})`);
@@ -78,6 +78,13 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
   }
 
   return diff;
+}
+
+/**
+ * Checks if a node has bugs that need to be fixed
+ */
+export function hasBugs(node: any): boolean {
+  return node.metadata?.bugs && Array.isArray(node.metadata.bugs) && node.metadata.bugs.length > 0;
 }
 
 /**

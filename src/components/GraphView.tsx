@@ -153,6 +153,14 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const effectiveState = (() => {
     console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
+    // Check if node has bugs - if so, it's always unbuilt
+    const bugs = node.metadata?.bugs;
+    const hasBugs = bugs && Array.isArray(bugs) && bugs.length > 0;
+    if (hasBugs) {
+      console.log(`   🐛 Node has ${bugs.length} bug(s) - marking as unbuilt`);
+      return 'unbuilt';
+    }
+
     if (!baseGraph) {
       console.log(`   ❌ No base graph available`);
       return 'unbuilt'; // No base graph, consider unbuilt
@@ -2028,6 +2036,10 @@ function GraphCanvas() {
           nodeColor={(node: any) => {
             const nd = node.data?.node;
             const baseGraph = node.data?.baseGraph;
+
+            // Check if node has bugs - if so, it's always unbuilt
+            const hasBugs = nd?.metadata?.bugs && Array.isArray(nd.metadata.bugs) && nd.metadata.bugs.length > 0;
+            if (hasBugs) return '#fbbf24'; // unbuilt (has bugs)
 
             // Compute state dynamically using the same logic as node state computation
             let nodeState = 'unbuilt';

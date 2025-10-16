@@ -203,7 +203,7 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
   if (!Array.isArray(metadata) && typeof metadata !== 'string') {
     const parsed = NodeMetadataSchema.safeParse(metadata);
     if (parsed.success) {
-      return { files: sanitizeMetadataFileEntries(parsed.data.files) };
+      return { files: sanitizeMetadataFileEntries(parsed.data.files), bugs: parsed.data.bugs || [] };
     }
     // Log warning if we have malformed metadata that needs extraction
     if (metadata && typeof metadata === 'object' && 'files' in metadata) {
@@ -219,7 +219,7 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
   if (files.length === 0) {
     return undefined;
   }
-  return { files };
+  return { files, bugs: [] };
 };
 
 // Filesystem helpers
@@ -1095,14 +1095,15 @@ export const createGraphTools = (baseUrl: string) => {
   // node_metadata_update
   tool(
     'node_metadata_update',
-    'Update metadata for a node, including implementation file references.',
+    'Update metadata for a node, including implementation file references and bug tracking.',
     {
       nodeId: z.string().min(1),
       files: z.array(z.string().min(1)).optional().describe('Project-relative file paths to associate with this node.'),
+      bugs: z.array(z.string().min(1)).optional().describe('List of bugs that need to be fixed for this node.'),
       merge: z.boolean().optional().describe('If true, merge with existing metadata instead of replacing it.'),
     },
-    async ({ nodeId, files, merge = false }) => {
-      console.log('🗂️ TOOL: node_metadata_update called', { nodeId, filesCount: files?.length ?? 'undefined', merge });
+    async ({ nodeId, files, bugs, merge = false }) => {
+      console.log('🗂️ TOOL: node_metadata_update called', { nodeId, filesCount: files?.length ?? 'undefined', bugsCount: bugs?.length ?? 'undefined', merge });
 
       try {
         const graphData = await readLocalGraph();
@@ -1119,41 +1120,79 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: Node '${nodeId}' not found.` }] };
         }
 
-        if (!files) {
-          console.error('❌ TOOL: node_metadata_update missing files array');
-          return { content: [{ type: 'text', text: 'Error: files array is required to update metadata.' }] };
+        if (!files && !bugs) {
+          console.error('❌ TOOL: node_metadata_update missing files and bugs arrays');
+          return { content: [{ type: 'text', text: 'Error: Either files array or bugs array is required to update metadata.' }] };
         }
-
-        const sanitizedInput = sanitizeMetadataFileEntries(files);
-        const existing = Array.isArray((graph.nodes[idx] as any)?.metadata?.files)
-          ? sanitizeMetadataFileEntries((graph.nodes[idx] as any).metadata.files)
-          : [];
-
-        const combined = merge
-          ? sanitizeMetadataFileEntries([...existing, ...sanitizedInput])
-          : sanitizedInput;
 
         const nextGraph = cloneGraph(graph);
         const nextNode = { ...nextGraph.nodes[idx] } as any;
+        const existingMetadata = (graph.nodes[idx] as any)?.metadata || {};
 
-        if (combined.length === 0) {
-          delete nextNode.metadata;
+        // Handle files
+        let finalFiles: string[] = [];
+        if (files !== undefined) {
+          const sanitizedInput = sanitizeMetadataFileEntries(files);
+          const existingFiles = Array.isArray(existingMetadata.files)
+            ? sanitizeMetadataFileEntries(existingMetadata.files)
+            : [];
+
+          finalFiles = merge
+            ? sanitizeMetadataFileEntries([...existingFiles, ...sanitizedInput])
+            : sanitizedInput;
+        } else if (merge) {
+          // If merging and no files provided, keep existing files
+          finalFiles = Array.isArray(existingMetadata.files)
+            ? sanitizeMetadataFileEntries(existingMetadata.files)
+            : [];
+        }
+
+        // Handle bugs
+        let finalBugs: string[] = [];
+        if (bugs !== undefined) {
+          const existingBugs = Array.isArray(existingMetadata.bugs)
+            ? existingMetadata.bugs.filter((b: string) => b && b.trim())
+            : [];
+
+          finalBugs = merge
+            ? [...existingBugs, ...bugs.filter(b => b && b.trim())]
+            : bugs.filter(b => b && b.trim());
+        } else if (merge) {
+          // If merging and no bugs provided, keep existing bugs
+          finalBugs = Array.isArray(existingMetadata.bugs)
+            ? existingMetadata.bugs.filter((b: string) => b && b.trim())
+            : [];
+        }
+
+        // Set metadata only if we have files or bugs
+        if (finalFiles.length > 0 || finalBugs.length > 0) {
+          nextNode.metadata = {
+            ...(finalFiles.length > 0 && { files: finalFiles }),
+            ...(finalBugs.length > 0 && { bugs: finalBugs })
+          } as NodeMetadata;
         } else {
-          nextNode.metadata = { files: combined } as NodeMetadata;
+          delete nextNode.metadata;
         }
 
         nextGraph.nodes[idx] = nextNode;
 
-        console.log('💾 TOOL: node_metadata_update saving graph with metadata files:', combined.length);
+        console.log('💾 TOOL: node_metadata_update saving graph with metadata files:', finalFiles.length, 'bugs:', finalBugs.length);
         const saveResult = await saveGraph(nextGraph);
         if (!saveResult.success) {
           console.log('📤 TOOL: node_metadata_update returning save error:', saveResult.error);
           return { content: [{ type: 'text', text: `Error: ${saveResult.error}` }] };
         }
 
-        const summary = combined.length > 0
-          ? `Metadata updated for ${nodeId}. Files (${combined.length}): ${combined.join(', ')}`
-          : `Metadata cleared for ${nodeId}.`;
+        let summary = `Metadata updated for ${nodeId}.`;
+        if (finalFiles.length > 0) {
+          summary += ` Files (${finalFiles.length}): ${finalFiles.join(', ')}.`;
+        }
+        if (finalBugs.length > 0) {
+          summary += ` Bugs (${finalBugs.length}): ${finalBugs.join(', ')}.`;
+        }
+        if (finalFiles.length === 0 && finalBugs.length === 0) {
+          summary = `Metadata cleared for ${nodeId}.`;
+        }
         console.log('📤 TOOL: node_metadata_update returning success:', summary);
         return { content: [{ type: 'text', text: summary }] };
       } catch (error) {

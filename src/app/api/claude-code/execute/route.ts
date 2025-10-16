@@ -509,10 +509,11 @@ export async function POST(req: NextRequest) {
           // Generic query options with orchestrator prompt
           const queryOptions: Options = {
             includePartialMessages: true,
-            systemPrompt: { type: "preset", preset: "claude_code" },
-            customSystemPrompt: orchestratorSystemPrompt,
-            permissionMode: 'bypassPermissions',
+            systemPrompt: orchestratorSystemPrompt,
             mcpServers: { 'graph-tools': mcpServer },
+            //allowedTools: ['Task'],
+            //disallowedTools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__graph-tools__node_metadata_update','mcp__graph-tools__read','mcp__graph-tools__node_create','mcp__graph-tools__node_edit','mcp__graph-tools__node_delete','mcp__graph-tools__edge_create','mcp__graph-tools__edge_delete','WebSearch',"SlashCommand"],
+            permissionMode: 'bypassPermissions',
             abortController: new AbortController(),
             cwd: workingDirectory,
             strictMcpConfig: true,

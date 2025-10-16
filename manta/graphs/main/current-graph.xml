@@ -3,14 +3,6 @@
   <nodes>
     <node id="graph-canvas" title="Interactive Graph Canvas" x="1335.459811997252" y="252" z="0">
       <description>The main visual graph interface built on React Flow that allows users to create, connect, and manipulate nodes in a visual canvas. Features zoom, pan, selection, and real-time updates.</description>
-      <metadata>
-        <file>src/components/GraphView.tsx</file>
-        <file>src/components/helper-lines/HelperLinesRenderer.tsx</file>
-        <file>src/components/helper-lines/useHelperLines.ts</file>
-        <file>src/components/helper-lines/config.ts</file>
-        <file>src/components/helper-lines/types.ts</file>
-        <file>src/components/helper-lines/utils.ts</file>
-      </metadata>
       <props>
         <prop name="canvas-background" title="Canvas Background" type="object">
         <field name="color" title="Background Color" type="color">#374151</field>
@@ -69,21 +61,6 @@
 
     <node id="property-editor-system" title="Property Editor System" x="1609.889780320273" y="-338.08315507078834" z="0">
       <description>A comprehensive CMS-style property editing system that supports multiple input types including color pickers, sliders, text areas, selects, checkboxes, and complex nested objects for managing node properties.</description>
-      <metadata>
-        <file>src/components/property-editors/index.tsx</file>
-        <file>src/components/property-editors/BasePropertyEditor.tsx</file>
-        <file>src/components/property-editors/BooleanPropertyEditor.tsx</file>
-        <file>src/components/property-editors/CheckboxPropertyEditor.tsx</file>
-        <file>src/components/property-editors/ColorPropertyEditor.tsx</file>
-        <file>src/components/property-editors/FontPropertyEditor.tsx</file>
-        <file>src/components/property-editors/NumberPropertyEditor.tsx</file>
-        <file>src/components/property-editors/ObjectPropertyEditor.tsx</file>
-        <file>src/components/property-editors/ObjectListPropertyEditor.tsx</file>
-        <file>src/components/property-editors/RadioPropertyEditor.tsx</file>
-        <file>src/components/property-editors/SelectPropertyEditor.tsx</file>
-        <file>src/components/property-editors/SliderPropertyEditor.tsx</file>
-        <file>src/components/property-editors/TextAreaPropertyEditor.tsx</file>
-      </metadata>
       <props>
         <prop name="editor-types" title="Available Editor Types" type="object-list">
         <item index="0">
@@ -162,9 +139,6 @@
 
     <node id="floating-ai-chat" title="Floating AI Chat Interface" x="593.5940010211175" y="-669.7877614295732" z="0">
       <description>A draggable floating chat interface that provides AI assistance with context awareness, node mentions, markdown rendering, and real-time streaming responses for interactive development guidance.</description>
-      <metadata>
-        <file>src/components/FloatingChat.tsx</file>
-      </metadata>
       <props>
         <prop name="chat-appearance" title="Chat Window Appearance" type="object">
         <field name="width" title="Window Width" type="number" min="250" max="500">288</field>
@@ -226,9 +200,6 @@
 
     <node id="node-sidebar" title="Selected Node Sidebar" x="1215.498795265732" y="-338.08315507078834" z="0">
       <description>A comprehensive sidebar for editing selected nodes, featuring title and description editing, property management, multi-selection support, and real-time debounced updates with error handling.</description>
-      <metadata>
-        <file>src/components/SelectedNodeSidebar.tsx</file>
-      </metadata>
       <props>
         <prop name="sidebar-layout" title="Sidebar Layout" type="object">
         <field name="width" title="Sidebar Width" type="number" min="250" max="500">320</field>
@@ -270,7 +241,9 @@
     <node id="search-overlay" title="Advanced Search Overlay" x="2.842170943040401e-14" y="15.540840844741865" z="0">
       <description>A powerful search interface that allows users to find nodes by title, description, or content with highlighting, keyboard navigation, case sensitivity options, and visual focus overlay on results.</description>
       <metadata>
-        <file>src/components/SearchOverlay.tsx</file>
+        <bugs>
+          <bug>Search overlay is not hiding when clicked on graph</bug>
+        </bugs>
       </metadata>
       <props>
         <prop name="search-behavior" title="Search Behavior" type="object">
@@ -300,9 +273,6 @@
 
     <node id="layers-sidebar" title="Layers Management Sidebar" x="440" y="15.540840844741865" z="0">
       <description>A layer management system that allows users to organize nodes into different layers, switch between them, and manage layer visibility and properties for complex project organization.</description>
-      <metadata>
-        <file>src/components/LayersSidebar.tsx</file>
-      </metadata>
       <props>
         <prop name="layer-display" title="Layer Display" type="object">
         <field name="showLayerCount" title="Show Layer Count" type="boolean">true</field>
@@ -338,13 +308,6 @@
 
     <node id="helper-lines-system" title="Helper Lines System" x="755.014935186286" y="240" z="0">
       <description>A smart alignment system that shows visual helper lines during node dragging to assist with precise positioning and alignment with other nodes on the canvas.</description>
-      <metadata>
-        <file>src/components/helper-lines/HelperLinesRenderer.tsx</file>
-        <file>src/components/helper-lines/useHelperLines.ts</file>
-        <file>src/components/helper-lines/config.ts</file>
-        <file>src/components/helper-lines/types.ts</file>
-        <file>src/components/helper-lines/utils.ts</file>
-      </metadata>
       <props>
         <prop name="line-appearance" title="Line Appearance" type="object">
         <field name="color" title="Line Color" type="color">#3b82f6</field>
@@ -380,9 +343,6 @@
 
     <node id="graph-state-management" title="Graph State Management" x="1418.2443177304654" y="693.0273121824972" z="0">
       <description>A comprehensive state management system using Zustand that handles graph data, node selection, real-time updates via SSE, optimistic updates, and synchronization between current and base graphs.</description>
-      <metadata>
-        <file>src/lib/store.ts</file>
-      </metadata>
       <props>
         <prop name="state-persistence" title="State Persistence" type="object">
         <field name="enableLocalStorage" title="Enable Local Storage" type="boolean">true</field>
@@ -418,10 +378,6 @@
 
     <node id="xml-graph-serialization" title="XML Graph Serialization" x="469.13698435831736" y="754.7374641264806" z="0">
       <description>A robust XML serialization system that converts between graph objects and XML format, handling complex nested properties, maintaining data integrity, and supporting round-trip conversions.</description>
-      <metadata>
-        <file>src/lib/graph-xml.ts</file>
-        <file>src/lib/graph-diff.ts</file>
-      </metadata>
       <props>
         <prop name="serialization-format" title="Serialization Format" type="object">
         <field name="encoding" title="Character Encoding" type="select">
@@ -458,10 +414,6 @@
 
     <node id="chat-service" title="AI Chat Service" x="1228.9903587839387" y="-920.857006776519" z="0">
       <description>A sophisticated chat service that manages AI conversations with streaming responses, context awareness, message history, and integration with the graph system for contextual assistance.</description>
-      <metadata>
-        <file>src/lib/chatService.ts</file>
-        <file>src/app/api/chat/route.ts</file>
-      </metadata>
       <props>
         <prop name="message-handling" title="Message Handling" type="object">
         <field name="maxHistory" title="Maximum Message History" type="number" min="10" max="1000">100</field>
@@ -492,57 +444,6 @@
 
     <node id="ui-component-library" title="UI Component Library" x="1929.8470455016936" y="-91.45915915525813" z="0">
       <description>A comprehensive collection of reusable UI components built with shadcn/ui and Tailwind CSS, including buttons, inputs, dialogs, cards, and specialized components for the graph interface.</description>
-      <metadata>
-        <file>src/components/ui/accordion.tsx</file>
-        <file>src/components/ui/alert-dialog.tsx</file>
-        <file>src/components/ui/avatar.tsx</file>
-        <file>src/components/ui/badge.tsx</file>
-        <file>src/components/ui/breadcrumb.tsx</file>
-        <file>src/components/ui/button.tsx</file>
-        <file>src/components/ui/calendar-rac.tsx</file>
-        <file>src/components/ui/calendar.tsx</file>
-        <file>src/components/ui/card.tsx</file>
-        <file>src/components/ui/chart.tsx</file>
-        <file>src/components/ui/checkbox-tree.tsx</file>
-        <file>src/components/ui/checkbox.tsx</file>
-        <file>src/components/ui/collapsible.tsx</file>
-        <file>src/components/ui/color-picker.tsx</file>
-        <file>src/components/ui/command.tsx</file>
-        <file>src/components/ui/cropper.tsx</file>
-        <file>src/components/ui/datefield-rac.tsx</file>
-        <file>src/components/ui/dialog.tsx</file>
-        <file>src/components/ui/dropdown-menu.tsx</file>
-        <file>src/components/ui/glare-card.tsx</file>
-        <file>src/components/ui/hover-card.tsx</file>
-        <file>src/components/ui/input.tsx</file>
-        <file>src/components/ui/label.tsx</file>
-        <file>src/components/ui/loader.tsx</file>
-        <file>src/components/ui/magic-card.tsx</file>
-        <file>src/components/ui/multiselect.tsx</file>
-        <file>src/components/ui/navigation-menu.tsx</file>
-        <file>src/components/ui/pagination.tsx</file>
-        <file>src/components/ui/popover.tsx</file>
-        <file>src/components/ui/progress.tsx</file>
-        <file>src/components/ui/radio-group.tsx</file>
-        <file>src/components/ui/resizable.tsx</file>
-        <file>src/components/ui/scroll-area.tsx</file>
-        <file>src/components/ui/select-native.tsx</file>
-        <file>src/components/ui/select.tsx</file>
-        <file>src/components/ui/shadcn-io/shimmering-text/index.tsx</file>
-        <file>src/components/ui/slider.tsx</file>
-        <file>src/components/ui/sonner.tsx</file>
-        <file>src/components/ui/stepper.tsx</file>
-        <file>src/components/ui/switch.tsx</file>
-        <file>src/components/ui/table.tsx</file>
-        <file>src/components/ui/tabs.tsx</file>
-        <file>src/components/ui/textarea.tsx</file>
-        <file>src/components/ui/timeline.tsx</file>
-        <file>src/components/ui/toast.tsx</file>
-        <file>src/components/ui/toggle-group.tsx</file>
-        <file>src/components/ui/toggle.tsx</file>
-        <file>src/components/ui/tooltip.tsx</file>
-        <file>src/components/ui/tree.tsx</file>
-      </metadata>
       <props>
         <prop name="design-system" title="Design System" type="object">
         <field name="colorPalette" title="Color Palette" type="select">
@@ -623,9 +524,6 @@
 
     <node id="message-renderer" title="Message Renderer" x="1931.3137830732448" y="-589.7877614295732" z="0">
       <description>A sophisticated message rendering system that handles markdown parsing, code syntax highlighting, math expressions, and rich content display for AI chat responses with Monaco Editor integration.</description>
-      <metadata>
-        <file>src/components/MessageRenderer.tsx</file>
-      </metadata>
       <props>
         <prop name="markdown-support" title="Markdown Support" type="object">
         <field name="enabled" title="Enable Markdown" type="boolean">true</field>
@@ -670,10 +568,6 @@
 
     <node id="main-application" title="Main Application Layout" x="187.54084084474187" y="-412.45915915525813" z="0">
       <description>The root application component that orchestrates the main layout with graph view, sidebars, floating chat, search overlay, and manages global state and event handling.</description>
-      <metadata>
-        <file>src/app/page.tsx</file>
-        <file>src/app/layout.tsx</file>
-      </metadata>
       <props>
         <prop name="layout-structure" title="Layout Structure" type="object">
         <field name="responsive" title="Responsive Design" type="boolean">true</field>
@@ -726,10 +620,6 @@
 
     <node id="graph-api-layer" title="Graph API Layer" x="469.13698435831736" y="1051.7092934787765" z="0">
       <description>The backend API layer that handles graph CRUD operations, XML serialization, real-time updates via SSE, and manages the persistence of graph data and node properties.</description>
-      <metadata>
-        <file>src/app/api/graph-api/route.ts</file>
-        <file>src/app/api/lib/graphApiUtils.ts</file>
-      </metadata>
       <props>
         <prop name="api-endpoints" title="API Endpoints" type="object-list">
         <item index="0">
@@ -840,10 +730,6 @@
 
     <node id="selection-badge-system" title="Selection Badge System" x="1228.9903587839387" y="-1191.1505529662118" z="0">
       <description>A visual badge system that displays current context in the chat interface, showing selected files, text selections, and node selections with the ability to remove context items.</description>
-      <metadata>
-        <file>src/components/SelectionBadge.tsx</file>
-        <file>src/lib/uiSelectionUtils.ts</file>
-      </metadata>
       <props>
         <prop name="badge-appearance" title="Badge Appearance" type="object">
         <field name="style" title="Badge Style" type="select">
@@ -903,10 +789,6 @@
 
     <node id="agent-orchestration-system" title="Agent Orchestration System" x="-1606.6392036512423" y="-51.83159618629037" z="0">
       <description>Central orchestration system that coordinates multi-agent workflows, analyzes user requests, delegates tasks to specialized subagents (graph-editor, code-builder), manages build flows, indexing flows, and ensures proper task completion verification through graph analysis.</description>
-      <metadata>
-        <file>src/app/api/agent-request/route.ts</file>
-        <file>src/app/api/lib/agentPrompts.ts</file>
-      </metadata>
       <props>
         <prop name="orchestrator-mode" title="Orchestrator Mode" type="select">
           <value>auto-detect</value>
@@ -945,11 +827,6 @@
 
     <node id="claude-code-executor" title="Claude Code Executor" x="-1606.6392036512423" y="-302.14855206098514" z="0">
       <description>Main execution engine that runs Claude Code SDK for task execution. Handles binary discovery, process management, streaming responses, tool orchestration, and provides the core runtime environment for all agent interactions with comprehensive logging and error handling.</description>
-      <metadata>
-        <file>src/app/api/claude-code/execute/route.ts</file>
-        <file>src/app/api/lib/claude-code-tools.ts</file>
-        <file>src/app/api/lib/claude-code-utils.ts</file>
-      </metadata>
       <props>
         <prop name="binary-discovery" title="Binary Discovery Settings" type="object">
         <field name="auto-detect" title="Auto-detect Claude Binary" type="boolean">true</field>
@@ -995,9 +872,6 @@
 
     <node id="graph-tools-system" title="Graph Tools System" x="-1289.6297747807757" y="-302.14855206098514" z="0">
       <description>MCP tools system providing graph manipulation capabilities including node creation, editing, deletion, edge management, property handling, diff analysis, and base graph synchronization. Serves as the primary interface between agents and the graph data structure.</description>
-      <metadata>
-        <file>src/app/api/lib/graphEditorTools.ts</file>
-      </metadata>
       <props>
         <prop name="tool-configuration" title="Tool Configuration" type="object">
         <field name="enable-validation" title="Enable Schema Validation" type="boolean">true</field>
@@ -1037,9 +911,6 @@
 
     <node id="graph-service-layer" title="Graph Service Layer" x="-1289.6297747807757" y="-51.83159618629037" z="0">
       <description>Core graph data management service handling file I/O operations, graph normalization, session management, SSE broadcasting, and layer support. Manages both current and base graph states with automatic persistence and real-time synchronization across the application.</description>
-      <metadata>
-        <file>src/app/api/lib/graph-service.ts</file>
-      </metadata>
       <props>
         <prop name="storage-configuration" title="Storage Configuration" type="object">
         <field name="file-format" title="Graph File Format" type="select">
@@ -1072,13 +943,6 @@
 
     <node id="graph-api-endpoints" title="Graph API Endpoints" x="-1289.6297747807757" y="188.16840381370963" z="0">
       <description>RESTful API layer providing HTTP endpoints for graph operations including GET/POST/PUT/PATCH/DELETE operations, SSE streaming, diff analysis, property updates, and graph type management (current vs base). Handles both XML and JSON formats with comprehensive error handling.</description>
-      <metadata>
-        <file>src/app/api/graph-api/route.ts</file>
-        <file>src/app/api/storage/route.ts</file>
-        <file>src/app/api/storage/initialize/route.ts</file>
-        <file>src/app/api/public/graph/route.ts</file>
-        <file>src/app/api/layers/route.ts</file>
-      </metadata>
       <props>
         <prop name="endpoint-configuration" title="API Endpoint Configuration" type="object">
         <field name="default-format" title="Default Response Format" type="select">
@@ -1116,10 +980,7 @@
     </node>
 
     <node id="agent-types-system" title="Agent Types System" x="-2092.9106671127392" y="395.69561167600114" z="0">
-      <description>Specialized agent definitions and prompt management system providing distinct agent types including orchestrator, graph-editor (with indexing/editing modes), and code-builder agents. Each agent has specific capabilities, tool access, and behavioral patterns optimized for their designated tasks.</description>
-      <metadata>
-        <file>src/app/api/lib/schemas.ts</file>
-      </metadata>
+      <description>Specialized agent definitions and prompt management system providing distinct agent types including orchestrator, indexing, editing, and building agents. Each agent has specific capabilities, tool access, and behavioral patterns optimized for their designated tasks.</description>
       <props>
         <prop name="agent-definitions" title="Agent Type Definitions" type="object-list">
         <item index="0">
@@ -1127,8 +988,9 @@
           <value>orchestrator</value>
           <options>
           <option>orchestrator</option>
-          <option>graph-editor</option>
-          <option>code-builder</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
           <option>custom</option>
           </options>
         </field>
@@ -1138,25 +1000,42 @@
         </item>
         <item index="1">
           <field name="type" title="Agent Type" type="select">
-          <value>graph-editor</value>
+          <value>indexing</value>
           <options>
           <option>orchestrator</option>
-          <option>graph-editor</option>
-          <option>code-builder</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
           <option>custom</option>
           </options>
         </field>
-          <field name="description" title="Description" type="text">Graph structure manipulation</field>
-          <field name="tools" title="Available Tools" type="text">graph-tools, file-analysis</field>
+          <field name="description" title="Description" type="text">Code analysis and indexing to graph with properties</field>
+          <field name="tools" title="Available Tools" type="text">graph-tools, code-analysis, file-reading</field>
           <field name="enabled" title="Enabled" type="boolean">true</field>
         </item>
         <item index="2">
           <field name="type" title="Agent Type" type="select">
-          <value>code-builder</value>
+          <value>editing</value>
           <options>
           <option>orchestrator</option>
-          <option>graph-editor</option>
-          <option>code-builder</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
+          <option>custom</option>
+          </options>
+        </field>
+          <field name="description" title="Description" type="text">Code analysis and indexing to graph with properties</field>
+          <field name="tools" title="Available Tools" type="text">graph-tools, code-analysis, file-reading</field>
+          <field name="enabled" title="Enabled" type="boolean">true</field>
+        </item>
+        <item index="2">
+          <field name="type" title="Agent Type" type="select">
+          <value>building</value>
+          <options>
+          <option>orchestrator</option>
+          <option>indexing</option>
+          <option>editing</option>
+          <option>building</option>
           <option>custom</option>
           </options>
         </field>
@@ -1347,10 +1226,6 @@ Focus on code implementation based on node specifications. Always run linting on
 
     <node id="project-configuration-system" title="Project Configuration System" x="-2092.9106671127392" y="685.8488759332516" z="0">
       <description>Project setup and status management system that handles project detection, directory configuration, framework analysis (Next.js, React, TypeScript), component discovery, and development environment setup. Provides project structure analysis and agent generation capabilities.</description>
-      <metadata>
-        <file>src/lib/project-config.ts</file>
-        <file>src/app/api/project-status/route.ts</file>
-      </metadata>
       <props>
         <prop name="project-detection" title="Project Detection Settings" type="object">
         <field name="auto-detect-framework" title="Auto-detect Framework" type="boolean">true</field>
@@ -1378,9 +1253,6 @@ Focus on code implementation based on node specifications. Always run linting on
 
     <node id="schema-validation-system" title="Schema Validation System" x="-860.9629424454772" y="108.16840381370963" z="0">
       <description>Comprehensive schema validation and type safety system using Zod schemas for all data structures including graphs, nodes, properties, messages, and API requests. Provides runtime validation, type inference, and data transformation capabilities across the entire application.</description>
-      <metadata>
-        <file>src/app/api/lib/schemas.ts</file>
-      </metadata>
       <props>
         <prop name="validation-strictness" title="Validation Strictness" type="select">
           <value>strict</value>
@@ -1442,11 +1314,6 @@ Focus on code implementation based on node specifications. Always run linting on
 
     <node id="graph-canvas-left-toolbar" title="Graph Canvas Left Toolbar" x="1727.4794866694112" y="327.33918868437416" z="0">
       <description>A dedicated toolbar component that provides exactly 3 tool options for the Interactive Graph Canvas: Select Tool (for selecting nodes/edges and creating connections), Pan Tool (for panning the view), and Add Node Tool (for creating new nodes). Handles tool state management and user interaction controls.</description>
-      <metadata>
-        <file>{
-  &quot;files&quot;: [&quot;src/components/GraphView.tsx&quot;]
-}</file>
-      </metadata>
       <props>
         <prop name="toolbar-position" title="Toolbar Position" type="object">
         <field name="side" title="Side" type="select">
