@@ -321,24 +321,31 @@ export default function SelectedNodeSidebar() {
 							</div>
 						</div>
 
-						{selectedNode.properties && selectedNode.properties.length > 0 && (
-							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
-								{/* Preserve original order from graph (no sorting) */}
-								{selectedNode.properties.map((property: Property, index: number) => (
-									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
-										<PropertyEditor
-											property={{
-												...property,
-												value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
-											}}
-											onChange={handlePropertyChange}
-											onPreview={handlePropertyPreview}
-											onBackendUpdate={handleBackendUpdate}
-										/>
-									</div>
-								))}
-							</div>
-						)}
+						{(() => {
+							// Filter out width/height properties for comment nodes
+							const displayProperties = selectedNode.properties?.filter(property =>
+								!((selectedNode as any).shape === 'comment' && (property.id === 'width' || property.id === 'height'))
+							) || [];
+
+							return displayProperties.length > 0 && (
+								<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
+									{/* Preserve original order from graph (no sorting) */}
+									{displayProperties.map((property: Property, index: number) => (
+										<div key={property.id} className={index < displayProperties.length - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
+											<PropertyEditor
+												property={{
+													...property,
+													value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
+												}}
+												onChange={handlePropertyChange}
+												onPreview={handlePropertyPreview}
+												onBackendUpdate={handleBackendUpdate}
+											/>
+										</div>
+									))}
+								</div>
+							);
+						})()}
 
 						{(() => {
 							const connections = getNodeConnections(selectedNode.id);

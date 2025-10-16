@@ -19,7 +19,8 @@ export const PropertyTypeEnum = z.enum([
   'slider',
   'font',
   'object',
-  'object-list'
+  'object-list',
+  'string'
 ]);
 export type PropertyType = z.infer<typeof PropertyTypeEnum>;
 

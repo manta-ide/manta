@@ -13,6 +13,7 @@ import ObjectPropertyEditor from './ObjectPropertyEditor';
 import ObjectListPropertyEditor from './ObjectListPropertyEditor';
 import TextAreaPropertyEditor from './TextAreaPropertyEditor';
 import FontPropertyEditor from './FontPropertyEditor';
+import TextPropertyEditor from './TextPropertyEditor';
 
 interface PropertyEditorProps {
   property: Property;
@@ -158,6 +159,13 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
         return (
           <SliderPropertyEditor
             property={property as Property & { type: 'slider' }}
+            onChange={handleChange}
+          />
+        );
+      case 'string':
+        return (
+          <TextPropertyEditor
+            property={property as Property & { type: 'string' }}
             onChange={handleChange}
           />
         );
