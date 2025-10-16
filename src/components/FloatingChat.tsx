@@ -58,6 +58,7 @@ export default function FloatingChat() {
   const [slashActive, setSlashActive] = useState(false);
   const [slashQuery, setSlashQuery] = useState('');
   const [slashIndex, setSlashIndex] = useState(0);
+  const slashListRef = useRef<HTMLDivElement | null>(null);
   const textareaDomId = 'floating-chat-input';
   const [pendingCaretPos, setPendingCaretPos] = useState<number | null>(null);
   
@@ -333,6 +334,14 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
           });
           return;
         }
+
+        // Unknown slash command (Claude's built-ins). Pass through unchanged so Claude handles it.
+        resetAfterSend();
+        await sendMessage(trimmed, {
+          ...contextSnapshot,
+          displayContent: rawInput
+        });
+        return;
       }
     }
 
@@ -363,8 +372,8 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     });
   };
 
-  // Supported slash commands
-  const SLASH_COMMANDS = useMemo(() => ([
+  // App-local helper commands
+  const STATIC_SLASH_COMMANDS = useMemo(() => ([
     { id: 'build', label: '/build', description: 'Build or refresh the graph' },
     { id: 'join', label: '/join', description: 'Merge nodes into one' },
     { id: 'split', label: '/split', description: 'Split a node into parts' },
@@ -374,16 +383,64 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
 
+
+  // Pinned order for our local commands
+  const PINNED_LOCAL = useMemo(() => (
+    ['beautify', 'build', 'index', 'join', 'split', 'sync']
+  ), []);
+
+  const sortSlashCommands = useCallback((a: { id: string; label: string }, b: { id: string; label: string }) => {
+    const ai = PINNED_LOCAL.indexOf(a.id);
+    const bi = PINNED_LOCAL.indexOf(b.id);
+    const aPinned = ai !== -1;
+    const bPinned = bi !== -1;
+    if (aPinned && bPinned) return ai - bi;
+    if (aPinned) return -1;
+    if (bPinned) return 1;
+    const al = a.label.toLowerCase();
+    const bl = b.label.toLowerCase();
+    if (al < bl) return -1;
+    if (al > bl) return 1;
+    return 0;
+  }, [PINNED_LOCAL]);
+
+
+  // Use only our app-specific slash commands
+  const ALL_SLASH_COMMANDS = useMemo(() => {
+    return STATIC_SLASH_COMMANDS.sort(sortSlashCommands)
+  }, [STATIC_SLASH_COMMANDS, sortSlashCommands])
+
   const slashCandidates = useMemo(() => {
     if (!slashActive) return [] as Array<{ id: string; label: string; description: string }>;
     const q = (slashQuery || '').toLowerCase();
-    const list = SLASH_COMMANDS.filter(c =>
+    const list = ALL_SLASH_COMMANDS.filter(c =>
       !q || c.label.slice(1).toLowerCase().startsWith(q) ||
       c.label.toLowerCase().includes(q) ||
       c.description.toLowerCase().includes(q)
     );
-    return list.slice(0, 8);
-  }, [slashActive, slashQuery, SLASH_COMMANDS]);
+    // Sort filtered list so pinned stay first, others alphabetical
+    return list.sort(sortSlashCommands);
+  }, [slashActive, slashQuery, ALL_SLASH_COMMANDS, sortSlashCommands]);
+
+  // Keep the highlighted slash item in view when navigating
+  useEffect(() => {
+    if (!slashActive) return;
+    const container = slashListRef.current;
+    if (!container) return;
+    const item = container.querySelector(
+      `[data-slash-index="${slashIndex}"]`
+    ) as HTMLElement | null;
+    if (!item) return;
+    const itemTop = item.offsetTop;
+    const itemBottom = itemTop + item.offsetHeight;
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+    if (itemTop < viewTop) {
+      container.scrollTop = itemTop;
+    } else if (itemBottom > viewBottom) {
+      container.scrollTop = itemBottom - container.clientHeight;
+    }
+  }, [slashIndex, slashActive, slashCandidates.length]);
 
   const handleClear = async () => {
     setClearing(true);
@@ -632,7 +689,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
 
   // Replace the typed slash token with the full command label and a space
   const handleSelectSlashCommand = (cmdId: string) => {
-    const cmd = SLASH_COMMANDS.find(c => c.id === cmdId);
+    const cmd = ALL_SLASH_COMMANDS.find(c => c.id === cmdId);
     if (!cmd) return;
     const val = input;
     const start = 0;
@@ -1142,13 +1199,14 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
             )}
             {/* Slash command dropdown */}
             {slashActive && slashCandidates.length > 0 && (
-              <div className="absolute bottom-10 left-0 w-full max-w-[18rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
+              <div ref={slashListRef} className="absolute bottom-10 left-0 w-full max-w-[18rem] max-h-64 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50">
                 {slashCandidates.map((c, i) => (
                   <button
                     type="button"
                     key={c.id}
                     onMouseDown={(ev) => { ev.preventDefault(); }}
                     onClick={() => handleSelectSlashCommand(c.id)}
+                    data-slash-index={i}
                     className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 ${i === slashIndex ? 'bg-zinc-800' : ''}`}
                   >
                     {c.id === 'build' ? (
