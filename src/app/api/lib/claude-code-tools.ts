@@ -203,7 +203,7 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
   if (!Array.isArray(metadata) && typeof metadata !== 'string') {
     const parsed = NodeMetadataSchema.safeParse(metadata);
     if (parsed.success) {
-      return { files: sanitizeMetadataFileEntries(parsed.data.files) };
+      return { files: sanitizeMetadataFileEntries(parsed.data.files), bugs: parsed.data.bugs || [] };
     }
     // Log warning if we have malformed metadata that needs extraction
     if (metadata && typeof metadata === 'object' && 'files' in metadata) {
@@ -219,7 +219,7 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
   if (files.length === 0) {
     return undefined;
   }
-  return { files };
+  return { files, bugs: [] };
 };
 
 // Filesystem helpers

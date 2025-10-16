@@ -383,32 +383,6 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
 
-  // Full set of Claude Code slash commands (fallback catalog)
-  const KNOWN_CLAUDE_COMMANDS = useMemo(() => ([
-    { id: 'add-dir', label: '/add-dir', description: 'Add additional working directories' },
-    { id: 'agents', label: '/agents', description: 'Manage custom AI subagents for specialized tasks' },
-    { id: 'bugReport', label: '/bugReport', description: 'Report bugs to Anthropic (shares conversation)' },
-    { id: 'clear', label: '/clear', description: 'Clear conversation history' },
-    { id: 'compact', label: '/compact', description: 'Compact conversation (optionally: /compact [instructions])' },
-    { id: 'config', label: '/config', description: 'Open Settings (Config tab)' },
-    { id: 'cost', label: '/cost', description: 'Show token usage statistics' },
-    { id: 'doctor', label: '/doctor', description: 'Check health of Claude Code installation' },
-    { id: 'help', label: '/help', description: 'Get usage help' },
-    { id: 'init', label: '/init', description: 'Initialize project with CLAUDE.md guide' },
-    { id: 'login', label: '/login', description: 'Switch Anthropic accounts' },
-    { id: 'logout', label: '/logout', description: 'Sign out of your Anthropic account' },
-    { id: 'mcp', label: '/mcp', description: 'Manage MCP server connections and OAuth' },
-    { id: 'memory', label: '/memory', description: 'Edit CLAUDE.md memory files' },
-    { id: 'model', label: '/model', description: 'Select or change the AI model' },
-    { id: 'permissions', label: '/permissions', description: 'View or update permissions' },
-    { id: 'pr_comments', label: '/pr_comments', description: 'View pull request comments' },
-    { id: 'review', label: '/review', description: 'Request code review' },
-    { id: 'rewind', label: '/rewind', description: 'Rewind the conversation and/or code' },
-    { id: 'status', label: '/status', description: 'Open Status (version, model, account, connectivity)' },
-    { id: 'terminal-setup', label: '/terminal-setup', description: 'Install Shift+Enter newline keybinding (iTerm2/VSCode)' },
-    { id: 'usage', label: '/usage', description: 'Show plan usage limits and rate limits' },
-    { id: 'vim', label: '/vim', description: 'Enter vim mode (insert/command)' },
-  ]), []);
 
   // Pinned order for our local commands
   const PINNED_LOCAL = useMemo(() => (
@@ -430,41 +404,11 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     return 0;
   }, [PINNED_LOCAL]);
 
-  // Claude Code slash commands discovered via SDK
-  const [remoteSlashCommands, setRemoteSlashCommands] = useState<Array<{ id: string; label: string; description: string }>>([])
 
-  useEffect(() => {
-    let mounted = true
-    const loadCommands = async () => {
-      try {
-        const res = await fetch('/api/claude-code/commands', { method: 'GET' })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        const cmds: Array<{ id: string; label: string; description: string }> = Array.isArray(data?.commands) ? data.commands : []
-        if (mounted) {
-          // Ensure at least /rewind is present
-          const hasRewind = cmds.some(c => c.id === 'rewind')
-          const withFallback = hasRewind ? cmds : [...cmds, { id: 'rewind', label: '/rewind', description: 'Rewind the last action' }]
-          setRemoteSlashCommands(withFallback)
-        }
-      } catch (e) {
-        // On failure, minimally expose /rewind so users can access it
-        if (mounted) setRemoteSlashCommands([{ id: 'rewind', label: '/rewind', description: 'Rewind the last action' }])
-      }
-    }
-    void loadCommands()
-    return () => { mounted = false }
-  }, [])
-
-  // Merge and dedupe by id
+  // Use only our local slash commands
   const ALL_SLASH_COMMANDS = useMemo(() => {
-    const map = new Map<string, { id: string; label: string; description: string }>()
-    for (const c of KNOWN_CLAUDE_COMMANDS) map.set(c.id, c)
-    for (const c of STATIC_SLASH_COMMANDS) map.set(c.id, c)
-    for (const c of remoteSlashCommands) map.set(c.id, c)
-    const merged = Array.from(map.values())
-    return merged.sort(sortSlashCommands)
-  }, [STATIC_SLASH_COMMANDS, KNOWN_CLAUDE_COMMANDS, remoteSlashCommands, sortSlashCommands])
+    return STATIC_SLASH_COMMANDS.sort(sortSlashCommands)
+  }, [STATIC_SLASH_COMMANDS, sortSlashCommands])
 
   const slashCandidates = useMemo(() => {
     if (!slashActive) return [] as Array<{ id: string; label: string; description: string }>;

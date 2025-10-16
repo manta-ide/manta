@@ -11,7 +11,7 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "dev": "cross-env MANTA_PROJECT_DIR=./dev-project NODE_ENV=development next dev",
+    "dev": "cross-env MANTA_PROJECT_DIR=./eval NODE_ENV=development next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
