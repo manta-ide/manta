@@ -127,9 +127,12 @@ export function getActiveLayerGraphPaths(): { current: string | null; base: stri
 export function createLayer(desiredName?: string): string {
   ensureLayersRoot();
   let name = desiredName?.trim();
+  const existingBeforeCreation = listLayers();
+  const isFirstLayer = existingBeforeCreation.length === 0;
+
   if (!name) {
     // Find next graphN name
-    const existing = new Set(listLayers());
+    const existing = new Set(existingBeforeCreation);
     let i = 1;
     while (existing.has(`graph${i}`)) i++;
     name = `graph${i}`;
@@ -145,8 +148,6 @@ export function createLayer(desiredName?: string): string {
   const basePath = path.join(dir, 'base-graph.xml');
 
   // Use welcome message only for the first layer
-  const existingLayers = listLayers();
-  const isFirstLayer = existingLayers.length === 0;
   const initialXml = isFirstLayer ? WELCOME_GRAPH_XML : EMPTY_GRAPH_XML;
 
   if (!fs.existsSync(basePath)) fs.writeFileSync(basePath, initialXml, 'utf8');
