@@ -42,7 +42,8 @@ export type Property = z.infer<typeof PropertySchema>;
 
 export const NodeMetadataSchema = z.object({
   files: z.array(z.string().min(1).trim()).default([]),
-  bugs: z.array(z.string().min(1).trim()).optional().default([])
+  bugs: z.array(z.string().min(1).trim()).optional().default([]),
+  ghosted: z.boolean().optional().default(false)
 });
 export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
 
