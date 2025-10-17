@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 
 # Load the data
-json_file_path = 'eval/eval-results-indexing_code_to_graph-0-2025-10-15.json'
+json_file_path = 'eval/eval-results-indexing_code_to_graph-0-2025-10-17.json'
 with open(json_file_path, 'r') as f:
     data = json.load(f)
 
@@ -21,7 +21,7 @@ nodes_created = [run['details']['nodesCreated'] for run in runs]
 edges_created = [run['details']['edgesCreated'] for run in runs]
 property_coverage = [run['details']['propertyCoverage'] for run in runs]
 relationship_accuracy = [run['details']['relationshipAccuracy'] for run in runs]
-properties_per_node = [run['details']['propertiesPerNode'] for run in runs]
+properties_per_node = [run['details']['averagePropertiesPerNode'] for run in runs]
 
 # Create subplots
 fig, axes = plt.subplots(3, 3, figsize=(18, 12))

@@ -35,10 +35,26 @@ Rules:
 - Use clear, descriptive titles and focused prompts for nodes
 - Keep descriptions concise (maximum 1 paragraph per node)
 - Sync to base graph immediately using alreadyImplemented=true
+- Do not run the project while indexing it.
+- Make sure to index all the code that is not ignored. 
 
+Component Rules:
+Make sure to index by level 3 - component, of the C4 model.
+In the C4 model, a component represents a cohesive grouping of related functionality encapsulated behind a well-defined interface, serving as an abstraction above individual code elements like classes, modules, or functions. 
+Components are not deployable units—they exist within a single deployable container and execute in the same process space. Their purpose is to express the logical structure of a system's implementation without being tied to packaging or deployment mechanisms such as JARs, DLLs, or namespaces. 
+A component may comprise multiple classes, files, or modules that collaborate to perform a distinct role within the system, making it the fundamental building block for reasoning about a container's internal architecture in the C4 model's third (component) level.
+
+Property Rules:
+Every C4 component should have a consistent set of descriptive and behavioral properties. Each component defines its identity (id, title, description, layer, stereotype) and its runtime context (containerId, language, threadingModel, stateful, deterministic, purity). It lists interfaces—both provided and required—each with its kind (sync, async, event, etc.), protocol (HTTP, gRPC, queue, etc.), parameters, and result types, all using structured object or object-list properties. Components also declare operations (name, category, strategy, parameters, side effects) and error policies (handling, retries, catalog), along with performance limits (complexity, latency, throughput, concurrency) and security attributes (auth, permissions, data classification, logging).
+
+Every property uses a constrained type from the allowed set: text for identifiers and labels, number or slider for quantitative limits and rates, select or radio for finite options, boolean or checkbox for flags, object for grouped structures, and object-list for repeatable collections. color and font appear only in presentation-layer components. Observability (logs, metrics, tracing), configuration (settings, feature flags, environment variables), data dependencies, scheduling, and versioning (semanticVersion, apiVersion, compatibility) are captured with these same primitives.
+
+In practice, this means every component—whether a UI widget, service, adapter, or utility—can be represented as one stable, machine-interpretable object graph. The schema provides predictable nesting: simple values at the edge (text, number, boolean), structured configuration in object groups, and repeatable structures in object-lists. By adhering to these few strict type and inclusion rules, an agent can deterministically generate or reconstruct the full property set for any arbitrary C4 component.
+
+--
 Output: Short status updates during analysis. End with summary of nodes created and properties added.
 
-Focus on accurate code analysis and property creation. Ensure all properties have meaningful default values from the code.`;
+Focus on accurate code analysis and property creation. Ensure all properties have meaningful default values.`;
 
 /**
  * Editing agent prompt - handles graph structure editing
@@ -159,13 +175,41 @@ JSON Structure (strict):
         "nodesCreated": 15,
         "expectedNodes": 20,
         "propertyCoverage": 0.9,
-        "relationshipAccuracy": 0.7
+        "relationshipAccuracy": 0.7,
+        "edgesCreated": 10,
+        "propertyCount": 25,
+        "averagePropertiesPerNode": 1.67,
+        "filesIndexed": 1,
+        "componentsIdentified": ["Component1", "Component2"]
       }
     }
   ],
   "summary": {
     "averageScore": 85,
-    "mainProblems": ["Missing relationships between components", "Incomplete property coverage"]
+    "minScore": 80,
+    "maxScore": 90,
+    "standardDeviation": 3.5,
+    "consistencyScore": 0.85,
+    "mainProblems": [
+      "Missing relationships between components",
+      "Incomplete property coverage",
+      "Property count variability across runs"
+    ],
+    "strengths": [
+      "Good component identification",
+      "Consistent node creation",
+      "Strong relationship accuracy"
+    ],
+    "averageMetrics": {
+      "nodesCreated": 15.0,
+      "edgesCreated": 10.0,
+      "propertyCoverage": 0.9,
+      "relationshipAccuracy": 0.7
+    },
+    "scoreRange": {
+      "min": 80,
+      "max": 90
+    }
   }
 }
 
