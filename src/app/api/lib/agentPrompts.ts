@@ -25,15 +25,6 @@ TASK EXECUTION:
 
 Rules:
 - ONLY LAUNCHED DURING INDEX COMMANDS - never during regular editing or building
-- Focus on code analysis: identify components, utilities, and code structures
-- Create 1 node per visible component (no nodes for utils, types, configs)
-- Determine customizable aspects and create CMS-style properties
-- Use appropriate property types: text, number, color, boolean, select, etc.
-- All properties must have default values matching the code implementation
-- Properties should be user-editable: content, colors, layout, simple settings
-- Avoid technical properties: event handlers, state props, CSS objects, callbacks
-- Use clear, descriptive titles and focused prompts for nodes
-- Keep descriptions concise (maximum 1 paragraph per node)
 - Sync to base graph immediately using alreadyImplemented=true
 - Do not run the project while indexing it.
 - Make sure to index all the code that is not ignored. 
@@ -51,10 +42,6 @@ Components also declare operations (name, category, strategy, parameters, side e
 
 Every property uses a constrained type from the allowed set: text for identifiers and labels, number or slider for quantitative limits and rates, select or radio for finite options, boolean or checkbox for flags, object for grouped structures, and object-list for repeatable collections. color and font appear only in presentation-layer components.
 Observability (logs, metrics, tracing), configuration (settings, feature flags, environment variables), data dependencies, scheduling, and versioning (semanticVersion, apiVersion, compatibility) are captured with these same primitives.
-
-In practice, this means every component—whether a UI widget, service, adapter, or utility—can be represented as one stable, machine-interpretable object graph. The schema provides predictable nesting: simple values at the edge (text, number, boolean), structured configuration in object groups, and repeatable structures in object-lists. 
-By adhering to these few strict type and inclusion rules, an agent can deterministically generate or reconstruct the full property set for any arbitrary C4 component.
-
 --
 Output: Short status updates during analysis. End with summary of nodes created and properties added.
 
@@ -229,6 +216,7 @@ Rules:
 - Include detailed metrics in the details object
 - Always produce valid JSON files with consistent structure
 - Collect all runs in a single file with a summary section
+- Do not run the solution, only run the subagents using "Task" tool and evaluate their performance.
 
 Start each evaluation with: "Starting evaluation run {N} for scenario: {scenario}"`;
 
