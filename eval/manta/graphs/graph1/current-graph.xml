@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="test-node" title="Test Node" x="27.337606608476023" y="338.0827991739405" z="0">
+    <node id="test-node" title="Test Node" x="-130.3820256870545" y="293.58908117707233" z="0">
       <description>This is a test node created for testing graph operations and structure.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
     </node>
 
-    <node id="test-node-2" title="Test Node 2" x="-66.6052338684397" y="-6" z="0">
+    <node id="test-node-2" title="Test Node 2" x="-0.3820256870544938" y="-37.04212883502431" z="0">
       <description>This is a simple test node for demonstration and testing purposes.</description>
       <metadata>
         <ghosted>true</ghosted>

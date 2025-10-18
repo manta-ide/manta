@@ -364,14 +364,17 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             top: '10px',
             right: '12px',
             zIndex: 3,
-            background: 'rgba(17, 24, 39, 0.55)',
-            color: '#f9fafb',
+            background: '#ef4444',
+            color: '#ffffff',
             padding: '4px 8px',
             borderRadius: '9999px',
             fontSize: '11px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           To be deleted
