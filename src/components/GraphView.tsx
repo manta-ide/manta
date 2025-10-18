@@ -40,7 +40,7 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
+import { Play, Hand, SquareDashed, Loader2, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 import Shape from './shapes';
 import MinimapNode from './MinimapNode';
@@ -217,11 +217,18 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const shape = (node as any).shape ||
     (() => {
       try {
+        // Check if this is a comment node (has width and height properties)
+        const hasWidthProp = Array.isArray(node.properties) && node.properties.some(p => p.id === 'width');
+        const hasHeightProp = Array.isArray(node.properties) && node.properties.some(p => p.id === 'height');
+        if (hasWidthProp && hasHeightProp) {
+          return 'comment';
+        }
+
         const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
         const v = (p && typeof p.value === 'string') ? p.value : undefined;
-        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'rectangle';
+        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'round-rectangle';
       } catch {
-        return 'rectangle';
+        return 'round-rectangle';
       }
     })();
   const isSvgShape = shape !== 'comment'; // All shapes except comment use SVG
@@ -258,28 +265,28 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const contentPadding: React.CSSProperties = (() => {
     switch (shape) {
       case 'circle':
-        return { padding: '32px' }; // More padding for circular shape to avoid text clipping at edges
+        return { padding: '40px', paddingTop: '50px' }; // More padding for circular shape, extra top padding to push content lower
       case 'triangle':
-        // Extra top padding so text doesn't collide with the apex
-        return { padding: '28px', paddingTop: '52px' } as React.CSSProperties;
+        // Extra top padding so text doesn't collide with the apex, and bottom padding for base
+        return { padding: '32px', paddingTop: '60px', paddingBottom: '24px' } as React.CSSProperties;
       case 'diamond':
-        return { padding: '36px' }; // Diamond needs significant padding to avoid sharp corners at edges
+        return { padding: '48px', paddingLeft: '56px', paddingRight: '56px' }; // Diamond needs significant padding to avoid sharp corners at edges
       case 'hexagon':
-        return { padding: '28px' }; // Hexagon has angled sides at top/bottom
+        return { padding: '32px' }; // Hexagon has angled sides at top/bottom
       case 'arrow-rectangle':
-        return { padding: '28px' }; // Arrow shape has point at right edge
+        return { padding: '32px', paddingRight: '40px' }; // Arrow shape has point at right edge
       case 'cylinder':
-        return { padding: '28px' }; // Cylinder has curved sections at top/bottom
+        return { padding: '36px', paddingTop: '44px', paddingBottom: '32px' }; // Cylinder has curved sections at top/bottom, extra top padding
       case 'parallelogram':
-        return { padding: '28px' }; // Parallelogram has angled sides
+        return { padding: '32px', paddingLeft: '48px', paddingRight: '48px' }; // Parallelogram has angled sides
       case 'round-rectangle':
-        return { padding: '28px' }; // Round rectangle has rounded corners
+        return { padding: '32px' }; // Round rectangle has rounded corners
       case 'rectangle':
-        return { padding: '28px' }; // Standard rectangle
+        return { padding: '32px' }; // Standard rectangle
       case 'comment':
         return { padding: '16px' };
       default:
-        return { padding: '28px' };
+        return { padding: '32px' };
     }
   })();
   // Parse dimensions from CSS strings to numbers for SVG
@@ -337,8 +344,30 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       {effectiveState === 'unbuilt' && shape !== 'comment' && (
         <div style={{
           position: 'absolute',
-          top: shape === 'circle' ? '32px' : shape === 'triangle' ? '52px' : shape === 'diamond' ? '36px' : '28px',
-          right: shape === 'circle' ? '32px' : shape === 'triangle' ? '28px' : shape === 'diamond' ? '36px' : '28px',
+          top: (() => {
+            switch (shape) {
+              case 'circle': return '50px';
+              case 'triangle': return '60px';
+              case 'diamond': return '48px';
+              case 'hexagon': return '32px';
+              case 'cylinder': return '44px';
+              case 'parallelogram': return '32px';
+              case 'arrow-rectangle': return '32px';
+              default: return '32px';
+            }
+          })(),
+          right: (() => {
+            switch (shape) {
+              case 'circle': return '40px';
+              case 'triangle': return '32px';
+              case 'diamond': return '56px';
+              case 'hexagon': return '32px';
+              case 'cylinder': return '36px';
+              case 'parallelogram': return '48px';
+              case 'arrow-rectangle': return '40px';
+              default: return '32px';
+            }
+          })(),
           width: indicatorSize,
           height: indicatorSize,
           borderRadius: '50%',
@@ -458,51 +487,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           </div>
         </div>
 
-        {/* Bottom metadata section - hide for comment nodes */}
-        {shape !== 'comment' && (
-          <div style={{
-            borderTop: '1px solid #f3f4f6',
-            paddingTop: '12px',
-            marginTop: '12px'
-          }}>
-
-            {/* Connections count */}
-            {(() => {
-              const connections = getNodeConnections(node.id);
-              return connections.length > 0 && (
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#9ca3af',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '6px',
-                  }}
-                >
-                  <Link size={12} />
-                  {connections.length} connection{connections.length !== 1 ? 's' : ''}
-                </div>
-              );
-            })()}
-
-            {/* Properties count */}
-            {node.properties && node.properties.length > 0 && (
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Settings size={12} />
-                {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Four visual connectors (top/right/bottom/left) - hide for comment nodes */}
@@ -515,9 +499,24 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
           {/* Right */}
           <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+            style={{ 
+              background: '#ffffff', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid #9ca3af', 
+              borderRadius: '50%', 
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              ...(shape === 'parallelogram' ? { top: '35%' } : {})
+            }} />
           <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+            style={{ 
+              background: 'transparent', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid transparent', 
+              borderRadius: '50%',
+              ...(shape === 'parallelogram' ? { top: '35%' } : {})
+            }} />
           {/* Bottom */}
           <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
             style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
@@ -525,9 +524,24 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
           {/* Left */}
           <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+            style={{ 
+              background: '#ffffff', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid #9ca3af', 
+              borderRadius: '50%', 
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              ...(shape === 'parallelogram' ? { top: '65%' } : {})
+            }} />
           <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+            style={{ 
+              background: 'transparent', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid transparent', 
+              borderRadius: '50%',
+              ...(shape === 'parallelogram' ? { top: '65%' } : {})
+            }} />
         </>
       )}
     </div>
@@ -832,7 +846,7 @@ function GraphCanvas() {
       title: 'New Node',
       prompt: '',
       comment: '',
-      shape: 'rectangle',
+      shape: 'round-rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
 
@@ -907,7 +921,6 @@ function GraphCanvas() {
       title: 'Comment',
       prompt: 'Add your comment here...',
       comment: '',
-      shape: 'comment', // Special shape for comments
       position: { x: position.x, y: position.y, z: 0 },
       properties: [
         { id: 'width', value: dimensions.width },
@@ -2048,8 +2061,8 @@ function GraphCanvas() {
       const minY = Math.min(commentDragStart.y, commentDragEnd.y);
       const maxY = Math.max(commentDragStart.y, commentDragEnd.y);
 
-      const width = Math.max(maxX - minX, 200); // Minimum width
-      const height = Math.max(maxY - minY, 100); // Minimum height
+      const width = Math.max(maxX - minX, 400); // Minimum width
+      const height = Math.max(maxY - minY, 250); // Minimum height
 
       // Create the comment node
       await createCommentNode({ x: minX, y: minY }, { width, height });

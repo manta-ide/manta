@@ -39,7 +39,7 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
-  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('rectangle');
+  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('round-rectangle');
   const [edgeShapeDraft, setEdgeShapeDraft] = useState<EdgeShape>('solid');
   const [edgeShapeError, setEdgeShapeError] = useState<string | null>(null);
 	// Building state is tracked locally since node.state was removed
@@ -110,7 +110,7 @@ export default function SelectedNodeSidebar() {
 		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
 		setRebuildError(null);
 		setRebuildSuccess(false);
-		
+
 		// Initialize property values from current properties
 		if (selectedNode?.properties && selectedNode.properties.length > 0) {
 			const initialValues: Record<string, any> = {};
@@ -119,7 +119,7 @@ export default function SelectedNodeSidebar() {
 			}
 			setPropertyValues(initialValues);
 		}
-	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties, selectedNode?.shape]);
 
   useEffect(() => {
     if (!Array.isArray(selectedEdgeIds) || selectedEdgeIds.length === 0) {
@@ -149,6 +149,7 @@ export default function SelectedNodeSidebar() {
       });
     }
   }, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
+
 
   const handleEdgeShapeChange = useCallback((newShape: EdgeShape) => {
     setEdgeShapeDraft(newShape);
@@ -288,22 +289,32 @@ export default function SelectedNodeSidebar() {
 						}}
 						placeholder="Enter node title..."
 					/>
-					<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
-					<SelectNative
-					  value={shapeDraft}
-					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
-					  className="bg-zinc-800 border-zinc-700 text-white"
-					>
-					  <option value="rectangle">Rectangle</option>
-					  <option value="circle">Circle</option>
-					  <option value="triangle">Triangle</option>
-					  <option value="diamond">Diamond</option>
-					  <option value="hexagon">Hexagon</option>
-					  <option value="arrow-rectangle">Arrow Rectangle</option>
-					  <option value="cylinder">Cylinder</option>
-					  <option value="parallelogram">Parallelogram</option>
-					  <option value="round-rectangle">Round Rectangle</option>
-					</SelectNative>
+					{/* Only show shape selector for non-comment nodes */}
+					{(() => {
+						const isCommentNode = Array.isArray(selectedNode.properties) &&
+							selectedNode.properties.some(p => p.id === 'width') &&
+							selectedNode.properties.some(p => p.id === 'height');
+						return !isCommentNode && (
+							<>
+								<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
+								<SelectNative
+								  value={shapeDraft}
+								  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
+								  className="bg-zinc-800 border-zinc-700 text-white"
+								>
+								  <option value="rectangle">Rectangle</option>
+								  <option value="circle">Circle</option>
+								  <option value="triangle">Triangle</option>
+								  <option value="diamond">Diamond</option>
+								  <option value="hexagon">Hexagon</option>
+								  <option value="arrow-rectangle">Arrow Rectangle</option>
+								  <option value="cylinder">Cylinder</option>
+								  <option value="parallelogram">Parallelogram</option>
+								  <option value="round-rectangle">Round Rectangle</option>
+								</SelectNative>
+							</>
+						);
+					})()}
 				</div>
 			)}
 		<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
@@ -408,24 +419,38 @@ export default function SelectedNodeSidebar() {
 							</div>
 						</div>
 
-						{selectedNode.properties && selectedNode.properties.length > 0 && (
-							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
-								{/* Preserve original order from graph (no sorting) */}
-								{selectedNode.properties.map((property: Property, index: number) => (
-									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
-										<PropertyEditor
-											property={{
-												...property,
-												value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
-											}}
-											onChange={handlePropertyChange}
-											onPreview={handlePropertyPreview}
-											onBackendUpdate={handleBackendUpdate}
-										/>
-									</div>
-								))}
-							</div>
-						)}
+						{(() => {
+							// Filter out width/height properties for comment nodes
+							const isCommentNode = Array.isArray(selectedNode.properties) &&
+								selectedNode.properties.some(p => p.id === 'width') &&
+								selectedNode.properties.some(p => p.id === 'height');
+							const visibleProperties = selectedNode.properties ?
+								selectedNode.properties.filter(p => {
+									if (isCommentNode && (p.id === 'width' || p.id === 'height')) {
+										return false;
+									}
+									return true;
+								}) : [];
+
+							return visibleProperties.length > 0 && (
+								<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
+									{/* Preserve original order from graph (no sorting) */}
+									{visibleProperties.map((property: Property, index: number) => (
+										<div key={property.id} className={index < visibleProperties.length - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
+											<PropertyEditor
+												property={{
+													...property,
+													value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
+												}}
+												onChange={handlePropertyChange}
+												onPreview={handlePropertyPreview}
+												onBackendUpdate={handleBackendUpdate}
+											/>
+										</div>
+									))}
+								</div>
+							);
+						})()}
 
 						{(() => {
 							const connections = getNodeConnections(selectedNode.id);
