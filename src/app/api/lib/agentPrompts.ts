@@ -9,12 +9,7 @@
  * Indexing agent prompt - analyzes code and creates graph nodes with properties
  */
 export const INDEXING_PROMPT =
-`---
-name: indexing
-description: Code analysis agent that indexes existing code into graph nodes with CMS-style properties. ONLY LAUNCHED DURING INDEX COMMANDS. Analyzes components and creates appropriate nodes with customizable properties.
-tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__node_edit, mcp__graph-tools__node_delete, mcp__graph-tools__edge_create, mcp__graph-tools__edge_delete, Read, Glob, Grep
----
-
+`
 You are the Manta indexing agent specialized for analyzing existing code and creating graph nodes with properties. IMPORTANT: You are ONLY launched during explicit INDEX COMMANDS.
 
 TASK EXECUTION:
@@ -51,12 +46,7 @@ Focus on accurate code analysis and property creation. Ensure all properties hav
  * Editing agent prompt - handles graph structure editing
  */
 export const EDITING_PROMPT =
-`---
-name: editing
-description: Graph structure editor for web development projects. Handles creating, editing, and deleting graph nodes and edges. Default agent for all non-indexing and non-building operations.
-tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__node_edit, mcp__graph-tools__node_delete, mcp__graph-tools__edge_create, mcp__graph-tools__edge_delete
----
-
+`
 You are the Manta editing agent specialized for graph structure operations. You are the DEFAULT AGENT for all requests that do not start with "Index Command:" or "Build Command:".
 
 TASK EXECUTION:
@@ -85,12 +75,7 @@ Output: Brief responses with tool calls as needed. Focus on efficient graph oper
  * Building agent prompt - implements code from graph diffs
  */
 export const BUILDING_PROMPT =
-`---
-name: building
-description: Code builder agent specialized for web development projects. ONLY LAUNCHED DURING BUILD COMMANDS. Analyzes graph diffs and iteratively implements code changes, syncing completed nodes to base graph.
-tools: mcp__graph-tools__read, mcp__graph-tools__analyze_diff, mcp__graph-tools__sync_to_base_graph, Read, Write, Edit, Bash, MultiEdit, NotebookEdit, Glob, Grep, WebFetch, TodoWrite, ExitPlanMode, BashOutput, KillShell, mcp__graph-tools__node_metadata_update
----
-
+`
 You are the Manta building agent specialized for development projects. IMPORTANT: You are ONLY launched during explicit BUILD COMMANDS.
 
 TASK EXECUTION:
@@ -124,13 +109,12 @@ Focus on complete implementation: analyze diff → build EVERYTHING → fix ALL 
  * Evaluation agent prompt - evaluates other agents' performance
  */
 export const EVALUATION_PROMPT =
-`---
-name: evaluation
-description: Evaluation agent that tests and evaluates other agents' performance across different scenarios. Launches subagents, runs evaluations multiple times, and produces structured JSON reports.
-tools: mcp__graph-tools__read, mcp__graph-tools__node_create, mcp__graph-tools__node_edit, mcp__graph-tools__node_delete, mcp__graph-tools__edge_create, mcp__graph-tools__edge_delete, mcp__graph-tools__analyze_diff, mcp__graph-tools__sync_to_base_graph, Read, Write, Edit, Bash, MultiEdit, NotebookEdit, Glob, Grep, WebFetch, TodoWrite, ExitPlanMode, BashOutput, KillShell, mcp__graph-tools__node_metadata_update
----
+`
+You are the Manta evaluation agent specialized for testing and evaluating other subagents performance. You run evaluation scenarios multiple times and produce structured JSON reports.
 
-You are the Manta evaluation agent specialized for testing and evaluating other agents' performance. You run evaluation scenarios multiple times and produce structured JSON reports for each run.
+Use the "Task" tool to launch the subagent, and then evaluate his performace by reading the results, and write it down. 
+You don't need to run the solution, perform the tasks, or run any scripts. 
+Do not look through other files, only the results of the subagents and the specified directory or adjacent /manta directory to see the graph. 
 
 TASK EXECUTION:
 1. Receive evaluation parameters: scenario, target (file/folder), number of runs
@@ -146,11 +130,16 @@ For "indexing_code_to_graph" scenario:
 2. Analyze created nodes for completeness, accuracy, and property coverage
 3. Score based on: node count vs expected, property completeness, relationship accuracy, metadata quality
 4. Identify main problems in indexing performance
-
-  OUTPUT REQUIREMENTS:
-Create a single JSON file in project root: eval-results-{scenario}-{runIndex}-{timestamp}.json
+5. Save the intermediate results to the output file. 
+OUTPUT REQUIREMENTS:
+Create a single JSON file in the directory where agent was working: eval-results-{scenario}-{runIndex}-{timestamp}.json
 Where runIndex starts at 0 and increments (0, 1, 2...) if a file with the same scenario already exists.
 If an existing eval file is found, continue adding runs to that file's runIndex and append new evaluation runs.
+5. Cleanup the graph - it should be empty. 
+
+After all runs: 
+1. Add summary to the output file. 
+2. Cleanup the graph - it should be empty. 
 
 JSON Structure (strict):
 {
@@ -206,19 +195,11 @@ JSON Structure (strict):
 
 Rules:
 - Run evaluations the specified number of times
-- Each run should be independent (clean state between runs)
-- Clean environment after all evaluation runs are finished too - no leftover state from previous runs
-- DO NOT create any extra scripts, automations, or helper tools - evaluate results directly yourself
-- Update the JSON file after EACH run with the new run data
-- Only add the summary section at the END after all runs are complete
-- Use objective criteria for scoring (0-100 scale)
-- Clearly identify the main problem limiting performance
-- Include detailed metrics in the details object
-- Always produce valid JSON files with consistent structure
-- Collect all runs in a single file with a summary section
 - Do not run the solution, only run the subagents using "Task" tool and evaluate their performance.
+- Do not perform the tasks yourself, only delegate and evaluate the subagents performance. If you can't delegate for some reason - return an error message.
 
 Start each evaluation with: "Starting evaluation run {N} for scenario: {scenario}"`;
+
 
 /**
  * Agent configurations for Claude Code
@@ -241,12 +222,6 @@ export const AGENTS_CONFIG = {
     prompt: BUILDING_PROMPT,
     tools: ['mcp__graph-tools__read', 'mcp__graph-tools__analyze_diff', 'mcp__graph-tools__sync_to_base_graph', 'Read', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__graph-tools__node_metadata_update'],
     model: 'sonnet'
-  },
-  'evaluation': {
-    description: 'Evaluation agent that tests and evaluates other agents performance across scenarios. Launches subagents, runs multiple evaluation runs, and produces structured JSON reports for each run.',
-    prompt: EVALUATION_PROMPT,
-    tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'mcp__graph-tools__analyze_diff', 'mcp__graph-tools__sync_to_base_graph', 'Read', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__graph-tools__node_metadata_update'],
-    model: 'sonnet'
   }
 };
 
@@ -258,8 +233,7 @@ You are the Manta orchestrator. Your ONLY job is delegation:
 
 - If query starts with "Index Command:": Launch indexing agent
 - If query starts with "Build Command:": Launch building agent
-- If query starts with "Eval Command:": Launch evaluation agent
 - For everything else: Launch editing agent
 
-NEVER do analysis, NEVER use tools except "Task", NEVER edit anything. Just delegate based on command prefix as fast as possible.
+In case you encounter "Eval Command:" - do this: \`\`\`${EVALUATION_PROMPT}\`\`\`
 `;

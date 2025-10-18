@@ -461,7 +461,7 @@ export const createGraphTools = (baseUrl: string) => {
     {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
-      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode)'),
+      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)'),
     },
     async ({ sourceId, targetId, alreadyImplemented }) => {
       console.log('🗑️ TOOL: edge_delete called', { sourceId, targetId });
@@ -1332,7 +1332,7 @@ export const createGraphTools = (baseUrl: string) => {
   tool(
     'node_delete',
     'Delete a node by id. Use alreadyImplemented=true during indexing to immediately sync the deletion to base graph.',
-    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode)') },
+    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)') },
     async ({ nodeId, recursive, alreadyImplemented }) => {
       console.log('🗑️ TOOL: node_delete called', { nodeId, recursive });
 
