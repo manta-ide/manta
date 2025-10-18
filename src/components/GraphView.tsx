@@ -155,11 +155,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const effectiveState = (() => {
     console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
-    if (node.metadata?.ghosted) {
-      console.log('   👻 Node is ghosted - marking as ghosted');
-      return 'ghosted';
-    }
-
     // Check if node has bugs - if so, it's always unbuilt
     const bugs = node.metadata?.bugs;
     const hasBugs = bugs && Array.isArray(bugs) && bugs.length > 0;
@@ -174,6 +169,14 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     }
 
     const baseNode = baseGraph.nodes.find((n: any) => n.id === node.id);
+    const isInCurrentGraph = data.graph?.nodes.some((n: any) => n.id === node.id) ?? false;
+
+    // Check if node exists in base graph but not in current graph (inverted diff for "to be deleted")
+    if (baseNode && !isInCurrentGraph) {
+      console.log('   👻 Node exists in base but not in current - marking as ghosted');
+      return 'ghosted';
+    }
+
     if (!baseNode) {
       console.log(`   ❌ No matching base node found`);
       return 'unbuilt'; // New node, consider unbuilt
@@ -352,7 +355,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         />
       )}
 
-      {node.metadata?.ghosted && (
+      {effectiveState === 'ghosted' && (
         <div
           style={{
             position: 'absolute',
@@ -1038,11 +1041,7 @@ function GraphCanvas() {
       setOptimisticOperationsActive(true);
 
       const nodeIdsToDelete = selectedNodes.map(node => node.id);
-      const baseNodeIdSet = new Set((baseGraph?.nodes || []).map((node: any) => node.id));
-      const ghostNodeIds = nodeIdsToDelete.filter(id => baseNodeIdSet.has(id));
-      const ghostNodeIdSet = new Set(ghostNodeIds);
-      const removableNodeIds = nodeIdsToDelete.filter(id => !baseNodeIdSet.has(id));
-      const removableNodeIdSet = new Set(removableNodeIds);
+      const removableNodeIdSet = new Set(nodeIdsToDelete);
 
       // Normalize edge IDs to server format (source-target)
       const normalizedEdgeIdsToDelete = selectedEdges.map(edge => {
@@ -1055,23 +1054,8 @@ function GraphCanvas() {
       const rawEdgeIdSet = new Set(selectedEdges.map(edge => edge.id));
 
       setNodes(prevNodes => prevNodes
-        .map(node => {
-          if (!ghostNodeIdSet.has(node.id)) return node;
-          const currentGraphNode = (node.data as any)?.node as GraphNode | undefined;
-          if (!currentGraphNode) {
-            return { ...node, selected: false };
-          }
-          const updatedMetadata = { ...(currentGraphNode.metadata || {}), ghosted: true };
-          return {
-            ...node,
-            selected: false,
-            data: {
-              ...node.data,
-              node: { ...currentGraphNode, metadata: updatedMetadata },
-            },
-          } as Node;
-        })
         .filter(node => !removableNodeIdSet.has(node.id))
+        .map(node => ({ ...node, selected: false }))
       );
 
       setEdges(prevEdges => prevEdges.filter(edge => {
@@ -1089,7 +1073,6 @@ function GraphCanvas() {
       setSelectedNodeIds([]);
 
       console.log('🗑️ Optimistically processed deletions', {
-        ghosted: Array.from(ghostNodeIdSet),
         removed: Array.from(removableNodeIdSet),
         removedEdges: Array.from(normalizedEdgeIdSet),
       });
@@ -1131,29 +1114,15 @@ function GraphCanvas() {
         currentGraph = graphData.graph || graphData;
       }
 
-      // Apply removals/ghosting to server-side graph
+      // Apply removals to server-side graph
       let updatedNodes = currentGraph.nodes || [];
       let updatedEdges = currentGraph.edges || [];
 
-      if (removableNodeIds.length > 0) {
+      if (nodeIdsToDelete.length > 0) {
         updatedNodes = updatedNodes.filter((node: any) => !removableNodeIdSet.has(node.id));
         updatedEdges = updatedEdges.filter((edge: any) =>
           !removableNodeIdSet.has(edge.source) && !removableNodeIdSet.has(edge.target)
         );
-      }
-
-      if (ghostNodeIds.length > 0) {
-        updatedNodes = updatedNodes.map((node: any) => {
-          if (!ghostNodeIdSet.has(node.id)) return node;
-          const existingMetadata = node.metadata && typeof node.metadata === 'object' ? node.metadata : {};
-          return {
-            ...node,
-            metadata: {
-              ...existingMetadata,
-              ghosted: true,
-            },
-          };
-        });
       }
 
       if (normalizedEdgeIdsToDelete.length > 0) {
@@ -1689,8 +1658,13 @@ function GraphCanvas() {
       const currentPositions = new Map<string, { x: number; y: number }>();
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
+      // Include nodes from base graph that are not in current graph (for ghosted display)
+      const currentNodeIds = new Set(graph.nodes.map(n => n.id));
+      const baseOnlyNodes = baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)) : [];
+      const allNodes = [...graph.nodes, ...baseOnlyNodes];
+
       // Sort nodes so comment nodes appear behind regular nodes (comments first in DOM)
-      const sortedNodes = [...graph.nodes].sort((a, b) => {
+      const sortedNodes = allNodes.sort((a, b) => {
         const aIsComment = (a as any).shape === 'comment';
         const bIsComment = (b as any).shape === 'comment';
         if (aIsComment && !bIsComment) return -1; // comments first
@@ -1701,9 +1675,12 @@ function GraphCanvas() {
       // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
       const reactFlowNodes: Node[] = sortedNodes.map((node) => {
         const isDragging = draggingNodeIdsRef.current.has(node.id);
-        const position = isDragging
-          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
-          : (nodePositions.get(node.id) || { x: 0, y: 0 });
+        let position = isDragging
+          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || node.position || { x: 0, y: 0 })
+          : (nodePositions.get(node.id) || node.position || { x: 0, y: 0 });
+
+        // For base-only nodes (ghosted), we still want to preserve any position data
+        // Don't add offset to prevent jumping - let them use their stored position
 
         const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
         // Extract width and height from properties for ReactFlow node
@@ -1735,13 +1712,19 @@ function GraphCanvas() {
         return rfNode;
       });
 
-      // Create edges from graph data
+      // Create edges from both base and current graphs
       const reactFlowEdges: Edge[] = [];
       // Deduplicate edges regardless of direction (A-B equals B-A),
       // but keep the original orientation and handle anchors of the first occurrence.
       const addedSymmetric = new Set<string>();
 
-      if ((graph as any).edges && (graph as any).edges.length > 0) {
+      // Collect edges from both base and current graphs
+      const allEdges = [
+        ...(baseGraph?.edges || []),
+        ...(graph as any).edges || []
+      ];
+
+      if (allEdges.length > 0) {
         const previouslySelectedEdges = new Set(
           (latestEdgesRef.current || [])
             .filter((e) => e.selected)
@@ -1751,7 +1734,7 @@ function GraphCanvas() {
         const posMap = new Map<string, { x: number; y: number }>();
         (reactFlowNodes || []).forEach((n) => posMap.set(n.id, { x: n.position.x, y: n.position.y }));
 
-        (graph as any).edges.forEach((edge: any) => {
+        allEdges.forEach((edge: any) => {
           const src = String(edge.source);
           const tgt = String(edge.target);
           const symKey = [src, tgt].sort().join('~');

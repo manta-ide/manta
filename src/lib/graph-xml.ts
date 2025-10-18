@@ -94,9 +94,6 @@ function normalizeMetadataBugs(metadata?: NodeMetadata | null): string[] {
   return bugs;
 }
 
-function normalizeMetadataGhosted(metadata?: NodeMetadata | null): boolean {
-  return metadata?.ghosted === true;
-}
 
 function filesFromXml(metadataNode: any): string[] {
   if (!metadataNode) return [];
@@ -154,28 +151,6 @@ function bugsFromXml(metadataNode: any): string[] {
   return result;
 }
 
-function ghostedFromXml(metadataNode: any): boolean {
-  if (metadataNode == null) return false;
-
-  const normalizeValue = (value: unknown): boolean => {
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value === 1;
-    if (typeof value === 'string') {
-      const trimmed = value.trim().toLowerCase();
-      if (trimmed === 'true' || trimmed === '1') return true;
-      if (trimmed === 'false' || trimmed === '0' || trimmed === '') return false;
-    }
-    if (value && typeof value === 'object') {
-      const innerValue = (value as Record<string, unknown>)['#text'] ?? (value as Record<string, unknown>)['@_value'];
-      if (innerValue !== undefined) {
-        return normalizeValue(innerValue);
-      }
-    }
-    return Boolean(value);
-  };
-
-  return normalizeValue(metadataNode);
-}
 
 function extractTagContent(xml: string, tag: string): string | null {
   // More precise extraction that handles nested structures better
@@ -420,7 +395,6 @@ export function graphToXml(graph: Graph): string {
     const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
     const metadataFiles = normalizeMetadataFiles((n as any).metadata);
     const metadataBugs = normalizeMetadataBugs((n as any).metadata);
-    const metadataGhosted = normalizeMetadataGhosted((n as any).metadata);
 
     const metadataParts: string[] = [];
     if (metadataFiles.length > 0) {
@@ -432,9 +406,6 @@ export function graphToXml(graph: Graph): string {
       metadataParts.push(
         `        <bugs>\n${metadataBugs.map(bug => `          <bug>${escapeXml(bug)}</bug>`).join('\n')}\n        </bugs>`
       );
-    }
-    if (metadataGhosted) {
-      metadataParts.push('        <ghosted>true</ghosted>');
     }
 
     let metadataXml = '';
@@ -811,18 +782,16 @@ export function xmlToGraph(xml: string): Graph {
 
       const metadataFiles = filesFromXml(nodeData.metadata?.files);
       const metadataBugs = bugsFromXml(nodeData.metadata?.bugs);
-      const metadataGhosted = ghostedFromXml(nodeData.metadata?.ghosted);
       // Optional shape
       const shapeRaw = (nodeData as any)['@_shape'];
       const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
 
-      // Build metadata object if we have files, bugs, or ghosted state
+      // Build metadata object if we have files or bugs
       let metadata: NodeMetadata | undefined = undefined;
-      if (metadataFiles.length > 0 || metadataBugs.length > 0 || metadataGhosted) {
+      if (metadataFiles.length > 0 || metadataBugs.length > 0) {
         metadata = {
           files: metadataFiles,
-          bugs: metadataBugs,
-          ...(metadataGhosted ? { ghosted: true } : {})
+          bugs: metadataBugs
         };
       }
 
