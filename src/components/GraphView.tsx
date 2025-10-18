@@ -258,20 +258,28 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const contentPadding: React.CSSProperties = (() => {
     switch (shape) {
       case 'circle':
-        return { padding: '20px' };
+        return { padding: '32px' }; // More padding for circular shape to avoid text clipping at edges
       case 'triangle':
         // Extra top padding so text doesn't collide with the apex
-        return { padding: '16px', paddingTop: '32px' } as React.CSSProperties;
-      case 'database':
-        return { padding: '16px' };
-      case 'page':
-        return { padding: '16px' };
-      case 'container':
-        return { padding: '20px' };
+        return { padding: '28px', paddingTop: '52px' } as React.CSSProperties;
+      case 'diamond':
+        return { padding: '36px' }; // Diamond needs significant padding to avoid sharp corners at edges
+      case 'hexagon':
+        return { padding: '28px' }; // Hexagon has angled sides at top/bottom
+      case 'arrow-rectangle':
+        return { padding: '28px' }; // Arrow shape has point at right edge
+      case 'cylinder':
+        return { padding: '28px' }; // Cylinder has curved sections at top/bottom
+      case 'parallelogram':
+        return { padding: '28px' }; // Parallelogram has angled sides
+      case 'round-rectangle':
+        return { padding: '28px' }; // Round rectangle has rounded corners
+      case 'rectangle':
+        return { padding: '28px' }; // Standard rectangle
       case 'comment':
         return { padding: '16px' };
       default:
-        return { padding: '20px' };
+        return { padding: '28px' };
     }
   })();
   // Parse dimensions from CSS strings to numbers for SVG
@@ -329,8 +337,8 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       {effectiveState === 'unbuilt' && shape !== 'comment' && (
         <div style={{
           position: 'absolute',
-          top: '10px',
-          right: '10px',
+          top: shape === 'circle' ? '32px' : shape === 'triangle' ? '52px' : shape === 'diamond' ? '36px' : '28px',
+          right: shape === 'circle' ? '32px' : shape === 'triangle' ? '28px' : shape === 'diamond' ? '36px' : '28px',
           width: indicatorSize,
           height: indicatorSize,
           borderRadius: '50%',

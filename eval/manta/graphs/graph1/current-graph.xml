@@ -1,12 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="test-node" title="Test Node" x="0" y="0" z="0" shape="arrow-rectangle">
+    <node id="test-node" title="Test Node" x="0" y="0" z="0" shape="parallelogram">
       <description>This is a test node created for testing graph operations and structure.</description>
     </node>
 
-    <node id="test-node-2" title="Test Node 2" x="329" y="239.5" z="0" shape="round-rectangle">
+    <node id="test-node-2" title="Test Node 2" x="489.5" y="143.5" z="0" shape="round-rectangle">
       <description>This is a simple test node for demonstration and testing purposes.</description>
+    </node>
+
+    <node id="node-1760772755043702" title="New Node" x="-31.707646943910092" y="319.2768283339018" z="0" shape="rectangle">
+    </node>
+
+    <node id="node-1760772945404630" title="Comment" x="677.1550048024884" y="490.4843177292278" z="0">
+      <description>Add your comment here...</description>
+      <props>
+        <prop name="width" title="width" type="string">200</prop>
+        <prop name="height" title="height" type="string">100</prop>
+      </props>
     </node>
   </nodes>
 
