@@ -1,39 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="test-node" title="Test Node" x="-11.179676772812684" y="413.6480405940699" z="0" shape="parallelogram">
-      <description>This is a test node created for testing graph operations and structure.</description>
-    </node>
 
-    <node id="test-node-2" title="Test Node 2" x="489.5" y="143.5" z="0" shape="round-rectangle">
-      <description>This is a simple test node for demonstration and testing purposes.</description>
-    </node>
-
-    <node id="node-1760773227965158" title="Comment" x="421.5681745926491" y="379.5831745862503" z="0">
-      <description>Add your comment here...</description>
-      <props>
-        <prop name="width" title="width" type="string">400</prop>
-        <prop name="height" title="height" type="string">250</prop>
-      </props>
-    </node>
-
-    <node id="node-1760773322975248" title="New Node" x="-612.4116994667934" y="-116.17130697988375" z="0" shape="rectangle">
-    </node>
-
-    <node id="node-1760773374164876" title="Test Node" x="-464.60077047617176" y="303.5" z="0" shape="cylinder">
-      <description>This is a test node created for testing graph operations and structure.</description>
-    </node>
-
-    <node id="node-1760773378931110" title="Test Node" x="-181.62148782107732" y="171.36773443737965" z="0" shape="circle">
-      <description>This is a test node created for testing graph operations and structure.</description>
-    </node>
-
-    <node id="node-1760773381324360" title="Test Node" x="-260" y="520.9189615339901" z="0" shape="diamond">
-      <description>This is a test node created for testing graph operations and structure.</description>
-    </node>
-
-    <node id="node-1760775752397281" title="New Node" x="-112.18282975577925" y="-153.6081368947517" z="0" shape="rectangle">
-    </node>
   </nodes>
 
   <edges>

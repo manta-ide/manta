@@ -5,26 +5,17 @@
   </nodes>
 
   <edges>
-    <edge id="stringutils-class-stringutils-capitalize" source="stringutils-class" target="stringutils-capitalize" role="contains"/>
-    <edge id="stringutils-class-stringutils-reverse" source="stringutils-class" target="stringutils-reverse" role="contains"/>
-    <edge id="stringutils-class-stringutils-ispalindrome" source="stringutils-class" target="stringutils-ispalindrome" role="contains"/>
-    <edge id="stringutils-class-stringutils-truncate" source="stringutils-class" target="stringutils-truncate" role="contains"/>
-    <edge id="mathutils-class-mathutils-factorial" source="mathutils-class" target="mathutils-factorial" role="contains"/>
-    <edge id="mathutils-class-mathutils-fibonacci" source="mathutils-class" target="mathutils-fibonacci" role="contains"/>
-    <edge id="mathutils-class-mathutils-isprime" source="mathutils-class" target="mathutils-isprime" role="contains"/>
-    <edge id="mathutils-class-mathutils-gcd" source="mathutils-class" target="mathutils-gcd" role="contains"/>
-    <edge id="userservice-class-dataprocessor-class" source="userservice-class" target="dataprocessor-class" role="depends-on"/>
-    <edge id="productservice-class-dataprocessor-class" source="productservice-class" target="dataprocessor-class" role="depends-on"/>
-    <edge id="userservice-class-stringutils-class" source="userservice-class" target="stringutils-class" role="uses"/>
-    <edge id="productservice-class-stringutils-class" source="productservice-class" target="stringutils-class" role="uses"/>
-    <edge id="servicefactory-class-userservice-class" source="servicefactory-class" target="userservice-class" role="creates"/>
-    <edge id="servicefactory-class-productservice-class" source="servicefactory-class" target="productservice-class" role="creates"/>
-    <edge id="application-class-servicefactory-class" source="application-class" target="servicefactory-class" role="uses"/>
-    <edge id="application-class-stringutils-class" source="application-class" target="stringutils-class" role="uses"/>
-    <edge id="application-class-mathutils-class" source="application-class" target="mathutils-class" role="uses"/>
-    <edge id="rundemo-function-application-class" source="rundemo-function" target="application-class" role="instantiates"/>
-    <edge id="userservice-class-r4-dataprocessor-class-r4" source="userservice-class-r4" target="dataprocessor-class-r4" role="depends-on"/>
-    <edge id="productservice-class-r4-dataprocessor-class-r4" source="productservice-class-r4" target="dataprocessor-class-r4" role="depends-on"/>
-    <edge id="application-class-r4-servicefactory-class-r4" source="application-class-r4" target="servicefactory-class-r4" role="uses"/>
+    <edge id="user-service-data-processor" source="user-service" target="data-processor" role="uses"/>
+    <edge id="user-service-string-utils" source="user-service" target="string-utils" role="uses"/>
+    <edge id="product-service-data-processor" source="product-service" target="data-processor" role="uses"/>
+    <edge id="product-service-string-utils" source="product-service" target="string-utils" role="uses"/>
+    <edge id="service-factory-data-processor" source="service-factory" target="data-processor" role="creates"/>
+    <edge id="service-factory-user-service" source="service-factory" target="user-service" role="creates"/>
+    <edge id="service-factory-product-service" source="service-factory" target="product-service" role="creates"/>
+    <edge id="application-service-factory" source="application" target="service-factory" role="uses"/>
+    <edge id="application-user-service" source="application" target="user-service" role="uses"/>
+    <edge id="application-product-service" source="application" target="product-service" role="uses"/>
+    <edge id="application-string-utils" source="application" target="string-utils" role="uses"/>
+    <edge id="application-math-utils" source="application" target="math-utils" role="uses"/>
   </edges>
 </graph>
