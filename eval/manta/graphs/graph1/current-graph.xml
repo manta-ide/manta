@@ -5,7 +5,7 @@
       <description>This is a simple test node for demonstration and testing purposes.</description>
     </node>
 
-    <node id="node-1760778705304729" title="Test Node 2" x="447.84153437865234" y="423.1921010743459" z="0" shape="arrow-rectangle">
+    <node id="node-1760778705304729" title="Test Node 2" x="940.850399536621" y="20" z="0" shape="arrow-rectangle">
       <description>This is a simple test node for demonstration and testing purposes.</description>
     </node>
 
@@ -27,9 +27,112 @@
 
     <node id="node-1760817625752505" title="New Node" x="4.194656903110257" y="-370.24290844327123" z="0" shape="round-rectangle">
     </node>
+
+    <node id="user-authentication" title="User Authentication" x="100" y="100" z="0">
+      <description>Handles user authentication and authorization for the application. Supports multiple authentication methods and configurable security levels.</description>
+      <props>
+        <prop name="auth-method" title="Authentication Method" type="select">
+          <value>JWT</value>
+          <options>
+          <option>JWT</option>
+          <option>OAuth2</option>
+          <option>Session</option>
+          <option>API Key</option>
+          </options>
+        </prop>
+        <prop name="security-level" title="Security Level" type="select">
+          <value>High</value>
+          <options>
+          <option>Low</option>
+          <option>Medium</option>
+          <option>High</option>
+          <option>Critical</option>
+          </options>
+        </prop>
+        <prop name="multi-factor" title="Multi-Factor Authentication" type="boolean">true</prop>
+        <prop name="session-timeout" title="Session Timeout (minutes)" type="number" min="5" max="1440">30</prop>
+      </props>
+    </node>
+
+    <node id="database-connection" title="Database Connection" x="400" y="100" z="0">
+      <description>Manages database connections and connection pooling. Configures database type, connection parameters, and performance settings.</description>
+      <props>
+        <prop name="db-type" title="Database Type" type="select">
+          <value>PostgreSQL</value>
+          <options>
+          <option>PostgreSQL</option>
+          <option>MySQL</option>
+          <option>MongoDB</option>
+          <option>Redis</option>
+          <option>SQLite</option>
+          </options>
+        </prop>
+        <prop name="db-name" title="Database Name" type="text">app_database</prop>
+        <prop name="connection-pool-size" title="Connection Pool Size" type="slider" min="5" max="100" step="5">20</prop>
+        <prop name="ssl-enabled" title="SSL Enabled" type="boolean">true</prop>
+        <prop name="port" title="Port" type="number">5432</prop>
+      </props>
+    </node>
+
+    <node id="api-endpoint" title="API Endpoint" x="82.30183808505521" y="431.3108248956643" z="0">
+      <description>Defines a RESTful API endpoint with HTTP method, path, and configuration options. Handles request validation and response formatting.</description>
+      <props>
+        <prop name="http-method" title="HTTP Method" type="select">
+          <value>POST</value>
+          <options>
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+          </options>
+        </prop>
+        <prop name="endpoint-path" title="Endpoint Path" type="text">/api/v1/users</prop>
+        <prop name="requires-auth" title="Requires Authentication" type="boolean">true</prop>
+        <prop name="rate-limit" title="Rate Limit (requests/min)" type="number" min="10" max="1000">100</prop>
+        <prop name="response-format" title="Response Format" type="select">
+          <value>JSON</value>
+          <options>
+          <option>JSON</option>
+          <option>XML</option>
+          <option>CSV</option>
+          <option>HTML</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="cache-layer" title="Cache Layer" x="565.8205813127307" y="648.0527888800741" z="0">
+      <description>Implements caching strategy to improve performance and reduce database load. Supports multiple cache backends and configurable TTL.</description>
+      <props>
+        <prop name="cache-backend" title="Cache Backend" type="select">
+          <value>Redis</value>
+          <options>
+          <option>Redis</option>
+          <option>Memcached</option>
+          <option>In-Memory</option>
+          <option>CDN</option>
+          </options>
+        </prop>
+        <prop name="ttl" title="TTL (seconds)" type="slider" min="60" max="86400" step="60">3600</prop>
+        <prop name="cache-enabled" title="Cache Enabled" type="boolean">true</prop>
+        <prop name="eviction-policy" title="Eviction Policy" type="select">
+          <value>LRU</value>
+          <options>
+          <option>LRU</option>
+          <option>LFU</option>
+          <option>FIFO</option>
+          <option>Random</option>
+          </options>
+        </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
-
+    <edge id="api-endpoint-user-authentication" source="api-endpoint" target="user-authentication" role="requires"/>
+    <edge id="api-endpoint-database-connection" source="api-endpoint" target="database-connection" role="uses"/>
+    <edge id="api-endpoint-cache-layer" source="api-endpoint" target="cache-layer" role="uses"/>
+    <edge id="cache-layer-database-connection" source="cache-layer" target="database-connection" role="fallback-to"/>
   </edges>
 </graph>
