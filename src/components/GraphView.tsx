@@ -40,8 +40,10 @@ import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
+import { Play, Hand, SquareDashed, Loader2, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
+import Shape from './shapes';
+import MinimapNode from './MinimapNode';
 import { useCopyPaste } from '@/lib/useCopyPaste';
 
 // Connection validation function
@@ -212,23 +214,42 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const nodeStyles = getNodeStyles();
 
   // Determine visual shape
-  const shape: 'rectangle' | 'circle' | 'triangle' | 'comment' = (node as any).shape ||
+  const shape = (node as any).shape ||
     (() => {
       try {
+        // Check if this is a comment node (has width and height properties)
+        const hasWidthProp = Array.isArray(node.properties) && node.properties.some(p => p.id === 'width');
+        const hasHeightProp = Array.isArray(node.properties) && node.properties.some(p => p.id === 'height');
+        if (hasWidthProp && hasHeightProp) {
+          return 'comment';
+        }
+
         const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
         const v = (p && typeof p.value === 'string') ? p.value : undefined;
-        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment') ? v : 'rectangle';
+        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'round-rectangle';
       } catch {
-        return 'rectangle';
+        return 'round-rectangle';
       }
     })();
-  const isDecorativeShape = shape !== 'rectangle' && shape !== 'comment';
+  const isSvgShape = shape !== 'comment'; // All shapes except comment use SVG
   const shapeDimensions: React.CSSProperties = (() => {
     switch (shape) {
       case 'circle':
         return { width: '200px', minHeight: '200px' };
       case 'triangle':
         return { width: '260px', minHeight: '180px' };
+      case 'diamond':
+        return { width: '220px', minHeight: '180px' };
+      case 'hexagon':
+        return { width: '240px', minHeight: '160px' };
+      case 'arrow-rectangle':
+        return { width: '240px', minHeight: '160px' };
+      case 'cylinder':
+        return { width: '200px', minHeight: '160px' };
+      case 'parallelogram':
+        return { width: '260px', minHeight: '160px' };
+      case 'round-rectangle':
+        return { width: '260px', minHeight: '160px' };
       case 'comment': {
         // Use custom dimensions from properties for comment nodes
         const widthProp = Array.isArray(node.properties) ? node.properties.find(p => p.id === 'width') : null;
@@ -244,64 +265,109 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const contentPadding: React.CSSProperties = (() => {
     switch (shape) {
       case 'circle':
-        return { padding: '20px' };
+        return { padding: '40px', paddingTop: '50px' }; // More padding for circular shape, extra top padding to push content lower
       case 'triangle':
-        // Extra top padding so text doesn't collide with the apex
-        return { padding: '16px', paddingTop: '32px' } as React.CSSProperties;
+        // Extra top padding so text doesn't collide with the apex, and bottom padding for base
+        return { padding: '32px', paddingTop: '60px', paddingBottom: '24px' } as React.CSSProperties;
+      case 'diamond':
+        return { padding: '48px', paddingLeft: '56px', paddingRight: '56px' }; // Diamond needs significant padding to avoid sharp corners at edges
+      case 'hexagon':
+        return { padding: '32px' }; // Hexagon has angled sides at top/bottom
+      case 'arrow-rectangle':
+        return { padding: '32px', paddingRight: '40px' }; // Arrow shape has point at right edge
+      case 'cylinder':
+        return { padding: '36px', paddingTop: '44px', paddingBottom: '32px' }; // Cylinder has curved sections at top/bottom, extra top padding
+      case 'parallelogram':
+        return { padding: '32px', paddingLeft: '48px', paddingRight: '48px' }; // Parallelogram has angled sides
+      case 'round-rectangle':
+        return { padding: '32px' }; // Round rectangle has rounded corners
+      case 'rectangle':
+        return { padding: '32px' }; // Standard rectangle
       case 'comment':
         return { padding: '16px' };
       default:
-        return { padding: '20px' };
+        return { padding: '32px' };
     }
   })();
-  const borderColor = selected ? '#2563eb' : '#e5e7eb';
+  // Parse dimensions from CSS strings to numbers for SVG
+  const parseDimension = (dim: string) => parseInt(dim.replace('px', '')) || 260;
+  const shapeWidth = parseDimension(shapeDimensions.width as string);
+  const shapeHeight = parseDimension(shapeDimensions.minHeight as string);
+
   return (
     <div
       className={`custom-node ${selected ? 'selected' : ''}`}
       style={{
-        ...nodeStyles,
-        // For decorative shapes and comments, let a background layer render the shape and border
-        background: (isDecorativeShape || shape === 'comment') ? 'transparent' : (nodeStyles as any).background,
-        border: (isDecorativeShape || shape === 'comment') ? 'none' : (nodeStyles as any).border,
-        boxShadow: (isDecorativeShape || shape === 'comment') ? 'none' : (nodeStyles as any).boxShadow,
-        borderRadius: (isDecorativeShape || shape === 'comment') ? 0 : '8px',
-        width: shapeDimensions.width,
-        minHeight: shapeDimensions.minHeight,
         position: 'relative',
+        width: shapeDimensions.width,
+        height: shapeDimensions.minHeight,
         fontFamily: 'Inter, sans-serif',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        zIndex: shape === 'comment' ? 0 : 1,
       }}
     >
-
-      {/* Shape background for circle/triangle and comment nodes */}
-      {(isDecorativeShape || shape === 'comment') && (
-        <div
-          aria-hidden
+      {/* SVG Shape */}
+      {isSvgShape && (
+        <Shape
+          type={shape as any}
+          width={shapeWidth}
+          height={shapeHeight}
+          fill={selected ? '#f8fafc' : '#ffffff'}
+          stroke={selected ? '#2563eb' : '#e5e7eb'}
+          strokeWidth={selected ? 2 : 1}
+          fillOpacity={1}
           style={{
             position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background: shape === 'comment' ? 'rgba(255, 255, 255, 0.8)' : (nodeStyles as any).background,
-            // mimic selection shadow/ring
-            boxShadow: (nodeStyles as any).boxShadow,
-            // draw a thin border that matches selection state
-            outline: `1px solid ${borderColor}`,
-            borderRadius: shape === 'circle' ? '9999px' : shape === 'comment' ? '8px' : 0,
-            clipPath: shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
+            top: 0,
+            left: 0,
             zIndex: 0,
           }}
         />
       )}
-      {/* No extra border for search hits; fading overlay handles focus */}
+
+      {/* Comment shape (special case) */}
+      {shape === 'comment' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: shapeDimensions.width,
+            height: shapeDimensions.minHeight,
+            background: 'rgba(255, 255, 255, 0.8)',
+            border: selected ? '2px solid #2563eb' : '1px solid #e5e7eb',
+            borderRadius: '8px',
+            zIndex: 0,
+          }}
+        />
+      )}
+
       {/* State indicators - only show for unbuilt nodes (not comments) */}
       {effectiveState === 'unbuilt' && shape !== 'comment' && (
         <div style={{
           position: 'absolute',
-          top: '10px',
-          right: '10px',
+          top: (() => {
+            switch (shape) {
+              case 'circle': return '50px';
+              case 'triangle': return '60px';
+              case 'diamond': return '48px';
+              case 'hexagon': return '32px';
+              case 'cylinder': return '44px';
+              case 'parallelogram': return '32px';
+              case 'arrow-rectangle': return '32px';
+              default: return '32px';
+            }
+          })(),
+          right: (() => {
+            switch (shape) {
+              case 'circle': return '40px';
+              case 'triangle': return '32px';
+              case 'diamond': return '56px';
+              case 'hexagon': return '32px';
+              case 'cylinder': return '36px';
+              case 'parallelogram': return '48px';
+              case 'arrow-rectangle': return '40px';
+              default: return '32px';
+            }
+          })(),
           width: indicatorSize,
           height: indicatorSize,
           borderRadius: '50%',
@@ -355,24 +421,19 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         />
       )}
 
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-      
-      {/* Clipped content wrapper so text stays within shape bounds */}
+      {/* Content wrapper */}
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
           zIndex: 1,
-          flex: 1,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           overflow: shape === 'comment' ? 'visible' : 'hidden',
-          borderRadius: (!isDecorativeShape && shape !== 'comment') ? '8px' : (shape === 'circle' ? '9999px' : shape === 'comment' ? '8px' : 0),
-          clipPath: (isDecorativeShape || shape === 'comment') && shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
           ...contentPadding,
         }}
       >
@@ -426,51 +487,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           </div>
         </div>
 
-        {/* Bottom metadata section - hide for comment nodes */}
-        {shape !== 'comment' && (
-          <div style={{
-            borderTop: '1px solid #f3f4f6',
-            paddingTop: '12px',
-            marginTop: '12px'
-          }}>
-
-            {/* Connections count */}
-            {(() => {
-              const connections = getNodeConnections(node.id);
-              return connections.length > 0 && (
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#9ca3af',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '6px',
-                  }}
-                >
-                  <Link size={12} />
-                  {connections.length} connection{connections.length !== 1 ? 's' : ''}
-                </div>
-              );
-            })()}
-
-            {/* Properties count */}
-            {node.properties && node.properties.length > 0 && (
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Settings size={12} />
-                {node.properties.length} propert{node.properties.length !== 1 ? 'ies' : 'y'}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Four visual connectors (top/right/bottom/left) - hide for comment nodes */}
@@ -483,9 +499,24 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
           {/* Right */}
           <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+            style={{ 
+              background: '#ffffff', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid #9ca3af', 
+              borderRadius: '50%', 
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              ...(shape === 'parallelogram' ? { top: '35%' } : {})
+            }} />
           <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+            style={{ 
+              background: 'transparent', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid transparent', 
+              borderRadius: '50%',
+              ...(shape === 'parallelogram' ? { top: '35%' } : {})
+            }} />
           {/* Bottom */}
           <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
             style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
@@ -493,9 +524,24 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
           {/* Left */}
           <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: '#ffffff', width: handleSize, height: handleSize, border: '1px solid #9ca3af', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }} />
+            style={{ 
+              background: '#ffffff', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid #9ca3af', 
+              borderRadius: '50%', 
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              ...(shape === 'parallelogram' ? { top: '65%' } : {})
+            }} />
           <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
+            style={{ 
+              background: 'transparent', 
+              width: handleSize, 
+              height: handleSize, 
+              border: '1px solid transparent', 
+              borderRadius: '50%',
+              ...(shape === 'parallelogram' ? { top: '65%' } : {})
+            }} />
         </>
       )}
     </div>
@@ -538,6 +584,9 @@ function GraphCanvas() {
     selectedNode,
     selectedNodeIds,
     setSelectedNodeIds,
+    setSelectedEdge,
+    selectedEdgeIds,
+    setSelectedEdgeIds,
     buildEntireGraph,
     isBuildingGraph,
     baseGraph,
@@ -587,12 +636,43 @@ function GraphCanvas() {
     opacity: 1,
   } as const;
   const unbuiltEdgeStyle = {
-    stroke: '#ef4444',  // Red dashes
+    stroke: '#ef4444',  // Highlight updated edges
     strokeWidth: 3,
-    strokeDasharray: '20,30',  // 20px red dash, 30px gap (longer dashes, fewer)
     opacity: 0.9,
     strokeLinecap: 'round' as const,
   } as const;
+
+  type EdgeShape = 'solid' | 'dotted';
+  const DEFAULT_EDGE_SHAPE: EdgeShape = 'solid';
+
+  const applyEdgeShapeToStyle = useCallback((style: any, shape: EdgeShape | undefined) => {
+    const nextStyle = { ...style } as any;
+    if (shape === 'dotted') {
+      nextStyle.strokeDasharray = '8,8';
+    } else if ('strokeDasharray' in nextStyle) {
+      delete nextStyle.strokeDasharray;
+    }
+    return nextStyle;
+  }, []);
+
+  const resolveEdgeShape = useCallback((edgeLike: any): EdgeShape => {
+    if (!edgeLike) return DEFAULT_EDGE_SHAPE;
+    const directShape = (edgeLike as any)?.shape;
+    if (directShape === 'dotted' || directShape === 'solid') return directShape;
+    const dataShape = (edgeLike as any)?.data?.shape;
+    if (dataShape === 'dotted' || dataShape === 'solid') return dataShape;
+
+    const id = (edgeLike as Edge)?.id || (edgeLike as any)?.id;
+    const source = (edgeLike as Edge)?.source || (edgeLike as any)?.source;
+    const target = (edgeLike as Edge)?.target || (edgeLike as any)?.target;
+
+    const matched = (graph?.edges || []).find((ge: any) => {
+      if (id && ge.id === id) return true;
+      return ge.source === source && ge.target === target;
+    });
+    const matchedShape = (matched as any)?.shape;
+    return matchedShape === 'dotted' || matchedShape === 'solid' ? matchedShape : DEFAULT_EDGE_SHAPE;
+  }, [graph]);
 
   // Helper to derive an arrow marker matching the current edge style
   // Increase marker size for better visibility
@@ -766,7 +846,7 @@ function GraphCanvas() {
       title: 'New Node',
       prompt: '',
       comment: '',
-      shape: 'rectangle',
+      shape: 'round-rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
 
@@ -841,7 +921,6 @@ function GraphCanvas() {
       title: 'Comment',
       prompt: 'Add your comment here...',
       comment: '',
-      shape: 'comment', // Special shape for comments
       position: { x: position.x, y: position.y, z: 0 },
       properties: [
         { id: 'width', value: dimensions.width },
@@ -1279,6 +1358,9 @@ function GraphCanvas() {
 
     if (!freshGraphNode) return;
 
+    setSelectedEdge(null, null);
+    setSelectedEdgeIds([]);
+
     // Check if shift or ctrl/cmd is pressed for multi-selection
     const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
 
@@ -1315,39 +1397,68 @@ function GraphCanvas() {
 
       // Removed iframe selection messaging
     }
-  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
+  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds]);
 
   // Handle edge selection (with multi-select support)
-  const onEdgeClick: EdgeMouseHandler = useCallback((event, _edge) => {
+  const onEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
     const isMulti = event.shiftKey || event.metaKey || event.ctrlKey;
     // prevent parent handlers from interfering with selection rectangle
     event.preventDefault();
     event.stopPropagation();
-    if (!isMulti) {
-      // Clear node selection when focusing an edge; let React Flow handle edge selection
+    const graphEdge = (graph?.edges || []).find((e: any) => e.id === edge.id || `${e.source}-${e.target}` === edge.id);
+
+    const clearNodeSelection = () => {
       setSelectedNode(null, null);
       setSelectedNodeIds([]);
+    };
 
-      // Removed iframe deselection messaging
+    if (!isMulti) {
+      // Clear node selection when focusing an edge; let React Flow handle edge selection
+      clearNodeSelection();
+      setSelectedEdgeIds([edge.id]);
+      setSelectedEdge(edge.id, graphEdge as any);
+      return;
     }
-  }, [setSelectedNode, setSelectedNodeIds]);
+
+    // Multi-select toggle behavior
+    const next = new Set(selectedEdgeIds || []);
+    if (next.has(edge.id)) {
+      next.delete(edge.id);
+    } else {
+      next.add(edge.id);
+    }
+    const nextIds = Array.from(next);
+    setSelectedEdgeIds(nextIds);
+
+    if (nextIds.length === 1) {
+      const singleId = nextIds[0];
+      const singleGraphEdge = (graph?.edges || []).find((e: any) => e.id === singleId || `${e.source}-${e.target}` === singleId);
+      setSelectedEdge(singleId, singleGraphEdge as any);
+    } else {
+      setSelectedEdge(null, null);
+    }
+
+    clearNodeSelection();
+  }, [graph, selectedEdgeIds, setSelectedEdge, setSelectedEdgeIds, setSelectedNode, setSelectedNodeIds]);
 
   // Ensure edge selection visually updates immediately when selection state changes
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => {
       const updated = applyEdgeChanges(changes, eds);
       return updated.map((e) => {
-        // Check if edge is unbuilt
+        const shape = resolveEdgeShape(e);
         const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-        const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+        const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+        const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
         return {
           ...e,
           style: nextStyle,
           markerEnd: makeArrowForStyle(nextStyle),
+          data: { ...(e.data || {}), shape },
         };
       });
     });
-  }, [setEdges, baseGraph]);
+  }, [setEdges, baseGraph, resolveEdgeShape, applyEdgeShapeToStyle]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -1411,12 +1522,16 @@ function GraphCanvas() {
         // Also refresh edge styling (built/unbuilt) against latest baseGraph
         setEdges(currentEdges =>
           currentEdges.map(e => {
+            const graphEdge = (graph?.edges || []).find((edge: any) => edge.id === e.id || (`${edge.source}-${edge.target}` === e.id));
+            const shape = resolveEdgeShape(graphEdge || e);
             const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-            const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
             return {
               ...e,
               style: nextStyle,
               markerEnd: makeArrowForStyle(nextStyle),
+              data: { ...(e.data || {}), shape },
             } as Edge;
           })
         );
@@ -1592,11 +1707,17 @@ function GraphCanvas() {
               
           // Check if edge is unbuilt
           const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
+          const shape = resolveEdgeShape(edge);
 
           // Check if either connected node is a comment to set edge z-index
           const sourceNode = sortedNodes.find(n => n.id === edge.source);
           const targetNode = sortedNodes.find(n => n.id === edge.target);
           const connectsToComment = (sourceNode as any)?.shape === 'comment' || (targetNode as any)?.shape === 'comment';
+
+          const baseStyle = previouslySelectedEdges.has(edge.id)
+            ? selectedEdgeStyle
+            : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+          const style = applyEdgeShapeToStyle(baseStyle, shape);
 
           reactFlowEdges.push({
             id: edge.id,
@@ -1605,17 +1726,12 @@ function GraphCanvas() {
             sourceHandle,
             targetHandle,
             type: 'default',
-            style: previouslySelectedEdges.has(edge.id)
-              ? selectedEdgeStyle
-              : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
-            markerEnd: makeArrowForStyle(
-              previouslySelectedEdges.has(edge.id)
-                ? selectedEdgeStyle
-                : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle)
-            ),
+            style,
+            markerEnd: makeArrowForStyle(style),
             interactionWidth: 24,
             selected: previouslySelectedEdges.has(edge.id),
             zIndex: connectsToComment ? -1 : 1,
+            data: { shape },
           });
           addedSymmetric.add(symKey);
           }
@@ -1687,6 +1803,9 @@ function GraphCanvas() {
     );
 
     // Store the new edge for potential rollback
+    const shape: EdgeShape = DEFAULT_EDGE_SHAPE;
+    const styledUnbuilt = applyEdgeShapeToStyle(unbuiltEdgeStyle, shape);
+
     const newEdge = {
       id: `${params.source}-${params.target}`,
       source: params.source!,
@@ -1694,10 +1813,11 @@ function GraphCanvas() {
       sourceHandle: params.sourceHandle || inferredSourceHandle,
       targetHandle: params.targetHandle || inferredTargetHandle,
       type: 'default' as const,
-      style: unbuiltEdgeStyle,
-      markerEnd: makeArrowForStyle(unbuiltEdgeStyle),
+      style: styledUnbuilt,
+      markerEnd: makeArrowForStyle(styledUnbuilt),
       interactionWidth: 24,
       selected: false,
+      data: { shape },
     };
 
     // Generate unique operation ID for tracking optimistic state
@@ -1729,6 +1849,7 @@ function GraphCanvas() {
       markerEnd: newEdge.markerEnd,
       interactionWidth: newEdge.interactionWidth,
       selected: false,
+      data: { shape },
     };
     setEdges((eds) => {
       if (eds.some(e => (e.source === customEdge.source && e.target === customEdge.target) || (e.source === customEdge.target && e.target === customEdge.source))) {
@@ -1770,6 +1891,7 @@ function GraphCanvas() {
         role: 'links-to',
         sourceHandle: newEdge.sourceHandle,
         targetHandle: newEdge.targetHandle,
+        shape,
       };
 
       // Add edge to graph if not existing (either direction)
@@ -1939,8 +2061,8 @@ function GraphCanvas() {
       const minY = Math.min(commentDragStart.y, commentDragEnd.y);
       const maxY = Math.max(commentDragStart.y, commentDragEnd.y);
 
-      const width = Math.max(maxX - minX, 200); // Minimum width
-      const height = Math.max(maxY - minY, 100); // Minimum height
+      const width = Math.max(maxX - minX, 400); // Minimum width
+      const height = Math.max(maxY - minY, 250); // Minimum height
 
       // Create the comment node
       await createCommentNode({ x: minX, y: minY }, { width, height });
@@ -2032,30 +2154,7 @@ function GraphCanvas() {
         elementsSelectable={true}
         deleteKeyCode={[]}
       >
-        <MiniMap
-          nodeColor={(node: any) => {
-            const nd = node.data?.node;
-            const baseGraph = node.data?.baseGraph;
-
-            // Check if node has bugs - if so, it's always unbuilt
-            const hasBugs = nd?.metadata?.bugs && Array.isArray(nd.metadata.bugs) && nd.metadata.bugs.length > 0;
-            if (hasBugs) return '#fbbf24'; // unbuilt (has bugs)
-
-            // Compute state dynamically using the same logic as node state computation
-            let nodeState = 'unbuilt';
-            if (baseGraph && nd) {
-              const baseNode = baseGraph.nodes.find((n: any) => n.id === nd.id);
-              if (baseNode) {
-                // Use the same diff logic - compares title, prompt, AND properties
-                const isSame = !nodesAreDifferent(baseNode, nd);
-                nodeState = isSame ? 'built' : 'unbuilt';
-              }
-            }
-
-            if (nodeState === 'built') return '#9ca3af';
-            return '#fbbf24'; // unbuilt
-          }}
-        />
+        <MiniMap nodeComponent={MinimapNode} />
         <Controls />
         <Background color="#374151" gap={20} />
         <HelperLines />

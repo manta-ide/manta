@@ -51,7 +51,7 @@ export const GraphNodeSchema = z.object({
   title: z.string(),
   prompt: z.string(),
   comment: z.string().optional(),
-  shape: z.enum(['rectangle', 'circle', 'triangle', 'comment']).optional(),
+  shape: z.enum(['rectangle', 'circle', 'triangle', 'comment', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
   properties: z.array(PropertySchema).optional(),
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
@@ -67,7 +67,9 @@ export const GraphEdgeSchema = z.object({
   role: z.string().optional(),
   sourceHandle: z.string().optional(),
   targetHandle: z.string().optional(),
+  shape: z.enum(['solid', 'dotted']).optional(),
 });
+export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });
 export type Graph = z.infer<typeof GraphSchema>;
 
