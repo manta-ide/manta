@@ -153,6 +153,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const effectiveState = (() => {
     console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
+    if (node.metadata?.ghosted) {
+      console.log('   👻 Node is ghosted - marking as ghosted');
+      return 'ghosted';
+    }
+
     // Check if node has bugs - if so, it's always unbuilt
     const bugs = node.metadata?.bugs;
     const hasBugs = bugs && Array.isArray(bugs) && bugs.length > 0;
@@ -195,6 +200,18 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
           borderRadius: '8px',
         };
+
+      case 'ghosted': {
+        const borderColor = selected ? '#2563eb' : '#d1d5db';
+        return {
+          background: 'rgba(243, 244, 246, 0.85)',
+          border: `1px dashed ${borderColor}`,
+          boxShadow: selected ? '0 0 0 2px rgba(37, 99, 235, 0.25)' : 'none',
+          borderRadius: '8px',
+          opacity: selected ? 0.75 : 0.55,
+          filter: 'saturate(0.3)',
+        };
+      }
 
       default: // Any other state - treat as unbuilt
         return {
@@ -294,6 +311,26 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             zIndex: 0,
           }}
         />
+      )}
+      {node.metadata?.ghosted && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '12px',
+            zIndex: 3,
+            background: 'rgba(17, 24, 39, 0.55)',
+            color: '#f9fafb',
+            padding: '4px 8px',
+            borderRadius: '9999px',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            pointerEvents: 'none',
+          }}
+        >
+          To be deleted
+        </div>
       )}
       {/* No extra border for search hits; fading overlay handles focus */}
       {/* State indicators - only show for unbuilt nodes (not comments) */}
@@ -921,32 +958,66 @@ function GraphCanvas() {
     const originalEdges = [...edges];
     const originalSelectedNodeIds = [...(selectedNodeIds || [])];
 
-    // Generate unique operation ID for tracking optimistic state
-    const operationId = `delete-${Date.now()}-${Math.random()}`;
-
     try {
       // Mark optimistic operation as in progress
       setOptimisticOperationsActive(true);
 
-      // Update local state immediately for optimistic UI
       const nodeIdsToDelete = selectedNodes.map(node => node.id);
+      const baseNodeIdSet = new Set((baseGraph?.nodes || []).map((node: any) => node.id));
+      const ghostNodeIds = nodeIdsToDelete.filter(id => baseNodeIdSet.has(id));
+      const ghostNodeIdSet = new Set(ghostNodeIds);
+      const removableNodeIds = nodeIdsToDelete.filter(id => !baseNodeIdSet.has(id));
+      const removableNodeIdSet = new Set(removableNodeIds);
+
       // Normalize edge IDs to server format (source-target)
-      const edgeIdsToDelete = selectedEdges.map(edge => {
-        const reactFlowId = edge.id || '';
-        if (reactFlowId.startsWith('reactflow__edge-') && edge.source && edge.target) {
+      const normalizedEdgeIdsToDelete = selectedEdges.map(edge => {
+        if (edge.id?.startsWith('reactflow__edge-') && edge.source && edge.target) {
           return `${edge.source}-${edge.target}`;
         }
-        return reactFlowId;
-      });
+        return edge.id || (edge.source && edge.target ? `${edge.source}-${edge.target}` : '');
+      }).filter(Boolean) as string[];
+      const normalizedEdgeIdSet = new Set(normalizedEdgeIdsToDelete);
+      const rawEdgeIdSet = new Set(selectedEdges.map(edge => edge.id));
 
-      setNodes(prevNodes => prevNodes.filter(node => !nodeIdsToDelete.includes(node.id)));
-      setEdges(prevEdges => prevEdges.filter(edge => !edgeIdsToDelete.includes(edge.id)));
+      setNodes(prevNodes => prevNodes
+        .map(node => {
+          if (!ghostNodeIdSet.has(node.id)) return node;
+          const currentGraphNode = (node.data as any)?.node as GraphNode | undefined;
+          if (!currentGraphNode) {
+            return { ...node, selected: false };
+          }
+          const updatedMetadata = { ...(currentGraphNode.metadata || {}), ghosted: true };
+          return {
+            ...node,
+            selected: false,
+            data: {
+              ...node.data,
+              node: { ...currentGraphNode, metadata: updatedMetadata },
+            },
+          } as Node;
+        })
+        .filter(node => !removableNodeIdSet.has(node.id))
+      );
+
+      setEdges(prevEdges => prevEdges.filter(edge => {
+        const normalizedId = edge.id && edge.id.startsWith('reactflow__edge-') && edge.source && edge.target
+          ? `${edge.source}-${edge.target}`
+          : (edge.id || `${edge.source}-${edge.target}`);
+        if (normalizedEdgeIdSet.has(normalizedId)) return false;
+        if (rawEdgeIdSet.has(edge.id)) return false;
+        if (removableNodeIdSet.has(edge.source) || removableNodeIdSet.has(edge.target)) return false;
+        return true;
+      }));
 
       // Clear selection
       setSelectedNode(null, null);
       setSelectedNodeIds([]);
 
-      console.log('🗑️ Optimistically deleted nodes:', nodeIdsToDelete, 'edges:', edgeIdsToDelete);
+      console.log('🗑️ Optimistically processed deletions', {
+        ghosted: Array.from(ghostNodeIdSet),
+        removed: Array.from(removableNodeIdSet),
+        removedEdges: Array.from(normalizedEdgeIdSet),
+      });
 
       // Now fetch current graph and persist changes
       const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -985,26 +1056,36 @@ function GraphCanvas() {
         currentGraph = graphData.graph || graphData;
       }
 
-      // Delete selected nodes from server graph
+      // Apply removals/ghosting to server-side graph
       let updatedNodes = currentGraph.nodes || [];
       let updatedEdges = currentGraph.edges || [];
 
-      if (nodeIdsToDelete.length > 0) {
-        updatedNodes = updatedNodes.filter((node: any) =>
-          !nodeIdsToDelete.includes(node.id)
-        );
-
-        // Also remove edges connected to deleted nodes
+      if (removableNodeIds.length > 0) {
+        updatedNodes = updatedNodes.filter((node: any) => !removableNodeIdSet.has(node.id));
         updatedEdges = updatedEdges.filter((edge: any) =>
-          !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
+          !removableNodeIdSet.has(edge.source) && !removableNodeIdSet.has(edge.target)
         );
       }
 
-      // Delete selected edges from server graph
-      if (edgeIdsToDelete.length > 0) {
-        updatedEdges = updatedEdges.filter((edge: any) =>
-          !edgeIdsToDelete.includes(edge.id)
-        );
+      if (ghostNodeIds.length > 0) {
+        updatedNodes = updatedNodes.map((node: any) => {
+          if (!ghostNodeIdSet.has(node.id)) return node;
+          const existingMetadata = node.metadata && typeof node.metadata === 'object' ? node.metadata : {};
+          return {
+            ...node,
+            metadata: {
+              ...existingMetadata,
+              ghosted: true,
+            },
+          };
+        });
+      }
+
+      if (normalizedEdgeIdsToDelete.length > 0) {
+        updatedEdges = updatedEdges.filter((edge: any) => {
+          const normalizedId = edge.id || `${edge.source}-${edge.target}`;
+          return !normalizedEdgeIdSet.has(normalizedId);
+        });
       }
 
       // Create new graph object to ensure proper reactivity
@@ -1054,7 +1135,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [nodes, edges, selectedNodeIds, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive]);
+  }, [nodes, edges, selectedNodeIds, baseGraph, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive, suppressSSE]);
 
   // Listen for delete-selected events from copy-paste operations
   useEffect(() => {

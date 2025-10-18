@@ -1,30 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="test-node" title="Test Node" x="12" y="340" z="0">
+      <description>This is a test node created for testing graph operations and structure.</description>
+    </node>
 
+    <node id="test-node-2" title="Test Node 2" x="12" y="12" z="0">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+    </node>
+
+    <node id="node-1760631515407903" title="New Node333" x="488" y="12" z="0" shape="rectangle">
+    </node>
   </nodes>
 
   <edges>
-    <edge id="stringutils-class-stringutils-capitalize" source="stringutils-class" target="stringutils-capitalize" role="contains"/>
-    <edge id="stringutils-class-stringutils-reverse" source="stringutils-class" target="stringutils-reverse" role="contains"/>
-    <edge id="stringutils-class-stringutils-ispalindrome" source="stringutils-class" target="stringutils-ispalindrome" role="contains"/>
-    <edge id="stringutils-class-stringutils-truncate" source="stringutils-class" target="stringutils-truncate" role="contains"/>
-    <edge id="mathutils-class-mathutils-factorial" source="mathutils-class" target="mathutils-factorial" role="contains"/>
-    <edge id="mathutils-class-mathutils-fibonacci" source="mathutils-class" target="mathutils-fibonacci" role="contains"/>
-    <edge id="mathutils-class-mathutils-isprime" source="mathutils-class" target="mathutils-isprime" role="contains"/>
-    <edge id="mathutils-class-mathutils-gcd" source="mathutils-class" target="mathutils-gcd" role="contains"/>
-    <edge id="userservice-class-dataprocessor-class" source="userservice-class" target="dataprocessor-class" role="depends-on"/>
-    <edge id="productservice-class-dataprocessor-class" source="productservice-class" target="dataprocessor-class" role="depends-on"/>
-    <edge id="userservice-class-stringutils-class" source="userservice-class" target="stringutils-class" role="uses"/>
-    <edge id="productservice-class-stringutils-class" source="productservice-class" target="stringutils-class" role="uses"/>
-    <edge id="servicefactory-class-userservice-class" source="servicefactory-class" target="userservice-class" role="creates"/>
-    <edge id="servicefactory-class-productservice-class" source="servicefactory-class" target="productservice-class" role="creates"/>
-    <edge id="application-class-servicefactory-class" source="application-class" target="servicefactory-class" role="uses"/>
-    <edge id="application-class-stringutils-class" source="application-class" target="stringutils-class" role="uses"/>
-    <edge id="application-class-mathutils-class" source="application-class" target="mathutils-class" role="uses"/>
-    <edge id="rundemo-function-application-class" source="rundemo-function" target="application-class" role="instantiates"/>
-    <edge id="userservice-class-r4-dataprocessor-class-r4" source="userservice-class-r4" target="dataprocessor-class-r4" role="depends-on"/>
-    <edge id="productservice-class-r4-dataprocessor-class-r4" source="productservice-class-r4" target="dataprocessor-class-r4" role="depends-on"/>
-    <edge id="application-class-r4-servicefactory-class-r4" source="application-class-r4" target="servicefactory-class-r4" role="uses"/>
+    <edge id="test-node-2-node-1760631515407903" source="test-node-2" target="node-1760631515407903" role="links-to"/>
+    <edge id="test-node-node-1760631515407903" source="test-node" target="node-1760631515407903" role="links-to"/>
   </edges>
 </graph>
