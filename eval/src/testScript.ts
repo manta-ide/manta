@@ -272,4 +272,4 @@ export function runDemo(): void {
 }
 
 // Uncomment the line below to run the demo automatically
-// runDemo();
+ runDemo();

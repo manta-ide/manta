@@ -3,9 +3,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 import os
+import glob
 
-# Load the data
-json_file_path = 'eval/eval-results-indexing_code_to_graph-0-2025-10-15.json'
+# Find the latest eval results JSON file
+eval_files = glob.glob('eval/eval-results-*.json')
+if not eval_files:
+    raise FileNotFoundError("No eval-results JSON files found in eval/")
+
+# Sort by timestamp in filename (assuming format: eval-results-{scenario}-{runIndex}-{timestamp}.json)
+eval_files.sort(key=lambda x: x.split('-')[-1].replace('.json', ''), reverse=True)
+json_file_path = eval_files[0]
+
+# Extract timestamp from filename for output naming
+timestamp_part = json_file_path.split('-')[-1].replace('.json', '')
 with open(json_file_path, 'r') as f:
     data = json.load(f)
 
@@ -21,7 +31,7 @@ nodes_created = [run['details']['nodesCreated'] for run in runs]
 edges_created = [run['details']['edgesCreated'] for run in runs]
 property_coverage = [run['details']['propertyCoverage'] for run in runs]
 relationship_accuracy = [run['details']['relationshipAccuracy'] for run in runs]
-properties_per_node = [run['details']['propertiesPerNode'] for run in runs]
+properties_per_node = [run['details']['averagePropertiesPerNode'] for run in runs]
 
 # Create subplots
 fig, axes = plt.subplots(3, 3, figsize=(18, 12))
@@ -138,19 +148,27 @@ axes[2, 2].legend()
 axes[2, 2].grid(True, alpha=0.3)
 
 plt.tight_layout()
-output_image_path = os.path.join(os.path.dirname(json_file_path), 'eval_results_plot.png')
+output_image_path = os.path.join(os.path.dirname(json_file_path), f'eval_results_plot-{timestamp_part}.png')
 plt.savefig(output_image_path, dpi=300, bbox_inches='tight')
+print(f"Plot saved to: {output_image_path}")
 plt.show()
 
 # Print summary statistics
+print(f"Loaded evaluation results from: {json_file_path}")
 print("Summary Statistics:")
 print(f"Average Score: {data['summary']['averageScore']:.1f}")
-print(f"Score Range: {data['summary']['scoreRange']['min']} - {data['summary']['scoreRange']['max']}")
+print(f"Score Range: {data['summary']['minScore']} - {data['summary']['maxScore']}")
 print(f"Average Nodes Created: {data['summary']['averageMetrics']['nodesCreated']:.1f}")
 print(f"Average Edges Created: {data['summary']['averageMetrics']['edgesCreated']:.1f}")
 print(f"Average Property Coverage: {data['summary']['averageMetrics']['propertyCoverage']:.2f}")
 print(f"Average Relationship Accuracy: {data['summary']['averageMetrics']['relationshipAccuracy']:.2f}")
+print(f"Standard Deviation: {data['summary']['standardDeviation']:.2f}")
+print(f"Consistency Score: {data['summary']['consistencyScore']:.2f}")
 
-print(f"\nMain Problems (occurrences):")
+print(f"\nMain Problems:")
 for problem in data['summary']['mainProblems']:
     print(f"- {problem}")
+
+print(f"\nStrengths:")
+for strength in data['summary']['strengths']:
+    print(f"- {strength}")

@@ -1,0 +1,194 @@
+{
+  "scenario": "indexing_code_to_graph",
+  "target": "/eval/src",
+  "runs": [
+    {
+      "runNumber": 1,
+      "timestamp": "2025-01-15T12:00:00Z",
+      "score": 95,
+      "mainProblem": "None - excellent indexing with comprehensive properties",
+      "details": {
+        "nodesCreated": 7,
+        "expectedNodes": 7,
+        "propertyCoverage": 1.0,
+        "relationshipAccuracy": 1.0,
+        "edgesCreated": 12,
+        "propertyCount": 147,
+        "averagePropertiesPerNode": 21.0,
+        "filesIndexed": 1,
+        "componentsIdentified": [
+          "StringUtils Component",
+          "MathUtils Component",
+          "DataProcessor Component",
+          "UserService Component",
+          "ProductService Component",
+          "ServiceFactory Component",
+          "Application Component"
+        ]
+      }
+    },
+    {
+      "runNumber": 2,
+      "timestamp": "2025-01-15T12:01:00Z",
+      "score": 92,
+      "mainProblem": "Slightly fewer properties per node (17 vs 21)",
+      "details": {
+        "nodesCreated": 7,
+        "expectedNodes": 7,
+        "propertyCoverage": 0.95,
+        "relationshipAccuracy": 1.0,
+        "edgesCreated": 12,
+        "propertyCount": 119,
+        "averagePropertiesPerNode": 17.0,
+        "filesIndexed": 1,
+        "componentsIdentified": [
+          "StringUtils",
+          "MathUtils",
+          "DataProcessor",
+          "UserService",
+          "ProductService",
+          "ServiceFactory",
+          "Application"
+        ]
+      }
+    },
+    {
+      "runNumber": 3,
+      "timestamp": "2025-01-15T12:02:00Z",
+      "score": 93,
+      "mainProblem": "Minor variation in property structure",
+      "details": {
+        "nodesCreated": 7,
+        "expectedNodes": 7,
+        "propertyCoverage": 0.95,
+        "relationshipAccuracy": 1.0,
+        "edgesCreated": 12,
+        "propertyCount": 126,
+        "averagePropertiesPerNode": 18.0,
+        "filesIndexed": 1,
+        "componentsIdentified": [
+          "StringUtils",
+          "MathUtils",
+          "DataProcessor",
+          "UserService",
+          "ProductService",
+          "ServiceFactory",
+          "Application"
+        ]
+      }
+    },
+    {
+      "runNumber": 4,
+      "timestamp": "2025-01-15T12:03:00Z",
+      "score": 92,
+      "mainProblem": "Property count variation (17 properties per node)",
+      "details": {
+        "nodesCreated": 7,
+        "expectedNodes": 7,
+        "propertyCoverage": 0.95,
+        "relationshipAccuracy": 1.0,
+        "edgesCreated": 12,
+        "propertyCount": 119,
+        "averagePropertiesPerNode": 17.0,
+        "filesIndexed": 1,
+        "componentsIdentified": [
+          "StringUtils",
+          "MathUtils",
+          "DataProcessor",
+          "UserService",
+          "ProductService",
+          "ServiceFactory",
+          "Application"
+        ]
+      }
+    },
+    {
+      "runNumber": 5,
+      "timestamp": "2025-01-15T12:04:00Z",
+      "score": 88,
+      "mainProblem": "Created interface nodes (User, Product) - inconsistent with previous runs",
+      "details": {
+        "nodesCreated": 9,
+        "expectedNodes": 7,
+        "propertyCoverage": 0.92,
+        "relationshipAccuracy": 0.95,
+        "edgesCreated": 16,
+        "propertyCount": 144,
+        "averagePropertiesPerNode": 16.0,
+        "filesIndexed": 1,
+        "componentsIdentified": [
+          "StringUtils",
+          "MathUtils",
+          "DataProcessor",
+          "UserService",
+          "ProductService",
+          "ServiceFactory",
+          "Application",
+          "User Interface",
+          "Product Interface"
+        ]
+      }
+    },
+    {
+      "runNumber": 6,
+      "timestamp": "2025-01-15T12:05:00Z",
+      "score": 94,
+      "mainProblem": "Minor property coverage variation",
+      "details": {
+        "nodesCreated": 7,
+        "expectedNodes": 7,
+        "propertyCoverage": 0.96,
+        "relationshipAccuracy": 1.0,
+        "edgesCreated": 12,
+        "propertyCount": 133,
+        "averagePropertiesPerNode": 19.0,
+        "filesIndexed": 1,
+        "componentsIdentified": [
+          "StringUtils",
+          "MathUtils",
+          "DataProcessor",
+          "UserService",
+          "ProductService",
+          "ServiceFactory",
+          "Application"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "averageScore": 92.33,
+    "minScore": 88,
+    "maxScore": 95,
+    "standardDeviation": 2.25,
+    "consistencyScore": 0.86,
+    "scoreRange": {
+      "min": 88,
+      "max": 95
+    },
+    "averageMetrics": {
+      "nodesCreated": 7.33,
+      "expectedNodes": 7,
+      "propertyCoverage": 0.955,
+      "relationshipAccuracy": 0.992,
+      "edgesCreated": 12.67,
+      "propertyCount": 131.33,
+      "averagePropertiesPerNode": 18.0,
+      "filesIndexed": 1
+    },
+    "mainProblems": [
+      "Property count variation (17-21 properties per node)",
+      "Inconsistent interface node creation (run 5: created User/Product interfaces when not expected)",
+      "Minor variations in property coverage (0.92-1.0)",
+      "Relationship accuracy inconsistency (run 5: 0.95 vs 1.0 in other runs)"
+    ],
+    "strengths": [
+      "Consistently identified all 7 expected components across most runs (83% of runs)",
+      "High overall scores (88-95 range) indicating reliable performance",
+      "Perfect relationship accuracy in 5 out of 6 runs (83%)",
+      "Excellent property coverage averaging 95.5%",
+      "Consistent edge creation (12 edges in 5 out of 6 runs)",
+      "Reliable file indexing (100% success rate)",
+      "Strong property extraction (average 131 properties, 18 per node)"
+    ]
+  }
+}

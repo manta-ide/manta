@@ -457,12 +457,13 @@ export const createGraphTools = (baseUrl: string) => {
   // edge_delete
   tool(
     'edge_delete',
-    'Delete a connection (edge) between two nodes in the graph.',
+    'Delete a connection (edge) between two nodes in the graph. Use alreadyImplemented=true during indexing to immediately sync the deletion to base graph.',
     {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
+      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)'),
     },
-    async ({ sourceId, targetId }) => {
+    async ({ sourceId, targetId, alreadyImplemented }) => {
       console.log('🗑️ TOOL: edge_delete called', { sourceId, targetId });
 
       try {
@@ -501,7 +502,24 @@ export const createGraphTools = (baseUrl: string) => {
         }
         console.log('✅ TOOL: edge_delete graph saved successfully');
 
-        const result = `Deleted edge from ${sourceId} to ${targetId}`;
+        // If alreadyImplemented is true, sync this deletion to base graph immediately
+        if (alreadyImplemented) {
+          console.log('🔄 TOOL: edge_delete syncing to base graph due to alreadyImplemented=true');
+          try {
+            const edgeId = `${sourceId}-${targetId}`;
+            const syncResult = await syncToBaseGraph([], [edgeId]);
+            if (!syncResult.success) {
+              console.log('⚠️ TOOL: edge_delete sync to base failed:', syncResult.error);
+              return { content: [{ type: 'text', text: `Warning: Edge deleted but failed to sync to base: ${syncResult.error}` }] };
+            }
+            console.log('✅ TOOL: edge_delete successfully synced to base graph');
+          } catch (syncError) {
+            console.error('💥 TOOL: edge_delete sync error:', syncError);
+            return { content: [{ type: 'text', text: `Warning: Edge deleted but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }] };
+          }
+        }
+
+        const result = `Deleted edge from ${sourceId} to ${targetId}${alreadyImplemented ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: edge_delete returning result:', result);
         return { content: [{ type: 'text', text: result }] };
       } catch (error) {
@@ -1314,7 +1332,7 @@ export const createGraphTools = (baseUrl: string) => {
   tool(
     'node_delete',
     'Delete a node by id. Use alreadyImplemented=true during indexing to immediately sync the deletion to base graph.',
-    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode)') },
+    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)') },
     async ({ nodeId, recursive, alreadyImplemented }) => {
       console.log('🗑️ TOOL: node_delete called', { nodeId, recursive });
 

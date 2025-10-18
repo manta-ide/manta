@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SelectNative } from "@/components/ui/select-native";
 
+type EdgeShape = 'solid' | 'dotted';
+
 export default function SelectedNodeSidebar() {
 	
 	const {
@@ -19,9 +21,14 @@ export default function SelectedNodeSidebar() {
 		setSelectedNode,
 		selectedNodeIds,
 		setSelectedNodeIds,
+		selectedEdgeId,
+		selectedEdge,
+		selectedEdgeIds,
+		setSelectedEdge,
 		triggerRefresh,
 		refreshGraph,
 		updateNode,
+		updateEdge,
 		updateProperty,
 		updatePropertyLocal,
 		connectToGraphEvents,
@@ -32,7 +39,9 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
-  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle'>('rectangle');
+  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('round-rectangle');
+  const [edgeShapeDraft, setEdgeShapeDraft] = useState<EdgeShape>('solid');
+  const [edgeShapeError, setEdgeShapeError] = useState<string | null>(null);
 	// Building state is tracked locally since node.state was removed
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const metadataFiles = Array.from(new Set(
@@ -101,7 +110,7 @@ export default function SelectedNodeSidebar() {
 		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
 		setRebuildError(null);
 		setRebuildSuccess(false);
-		
+
 		// Initialize property values from current properties
 		if (selectedNode?.properties && selectedNode.properties.length > 0) {
 			const initialValues: Record<string, any> = {};
@@ -110,9 +119,23 @@ export default function SelectedNodeSidebar() {
 			}
 			setPropertyValues(initialValues);
 		}
-	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties, selectedNode?.shape]);
 
-  const handleShapeChange = useCallback((newShape: 'rectangle') => {
+  useEffect(() => {
+    if (!Array.isArray(selectedEdgeIds) || selectedEdgeIds.length === 0) {
+      setEdgeShapeDraft('solid');
+      setEdgeShapeError(null);
+      return;
+    }
+
+    const edgeId = selectedEdgeId ?? selectedEdgeIds[0];
+    const graphEdge = graph?.edges?.find((edge) => edge.id === edgeId || `${edge.source}-${edge.target}` === edgeId);
+    const shapeValue = ((graphEdge as any)?.shape === 'dotted') ? 'dotted' : 'solid';
+    setEdgeShapeDraft(shapeValue);
+    setEdgeShapeError(null);
+  }, [selectedEdgeId, selectedEdgeIds, graph?.edges]);
+
+  const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle') => {
     setShapeDraft(newShape);
     if (selectedNode) {
       const updatedNode = { ...selectedNode, shape: newShape } as any;
@@ -126,6 +149,26 @@ export default function SelectedNodeSidebar() {
       });
     }
   }, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
+
+
+  const handleEdgeShapeChange = useCallback((newShape: EdgeShape) => {
+    setEdgeShapeDraft(newShape);
+    setEdgeShapeError(null);
+
+    const edgeId = selectedEdgeId ?? selectedEdgeIds[0];
+    if (!edgeId) return;
+
+    if (selectedEdge) {
+      setSelectedEdge(edgeId, { ...selectedEdge, shape: newShape } as any);
+    }
+
+    updateEdge(edgeId, { shape: newShape })
+      .catch((error) => {
+        console.error('Failed to save edge shape:', error);
+        setEdgeShapeError('Failed to save edge shape');
+        setTimeout(() => setEdgeShapeError(null), 3000);
+      });
+  }, [selectedEdgeId, selectedEdgeIds, selectedEdge, setSelectedEdge, updateEdge]);
 
 	// Cleanup timeouts on unmount and when node changes
 	useEffect(() => {
@@ -219,6 +262,12 @@ export default function SelectedNodeSidebar() {
 	}, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
 
 
+	const hasEdgeSelection = Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0;
+	const singleEdgeId = hasEdgeSelection && selectedEdgeIds.length === 1 ? (selectedEdgeId ?? selectedEdgeIds[0]) : null;
+	const singleGraphEdge = singleEdgeId ? graph?.edges?.find((edge) => edge.id === singleEdgeId || `${edge.source}-${edge.target}` === singleEdgeId) : null;
+	const singleEdgeSource = singleGraphEdge ? graph?.nodes?.find((n) => n.id === singleGraphEdge.source) : null;
+	const singleEdgeTarget = singleGraphEdge ? graph?.nodes?.find((n) => n.id === singleGraphEdge.target) : null;
+
 	return (
 		<div
 			className="flex-none border-r border-zinc-700 bg-zinc-900 text-white relative"
@@ -240,24 +289,73 @@ export default function SelectedNodeSidebar() {
 						}}
 						placeholder="Enter node title..."
 					/>
-					<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
-					<SelectNative
-					  value={shapeDraft}
-					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' )}
-					  className="bg-zinc-800 border-zinc-700 text-white"
-					>
-					  <option value="rectangle">Rectangle</option>
-					  {/* <option value="circle">Circle</option>
-					  <option value="triangle">Triangle</option> */}
-					</SelectNative>
+					{/* Only show shape selector for non-comment nodes */}
+					{(() => {
+						const isCommentNode = Array.isArray(selectedNode.properties) &&
+							selectedNode.properties.some(p => p.id === 'width') &&
+							selectedNode.properties.some(p => p.id === 'height');
+						return !isCommentNode && (
+							<>
+								<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
+								<SelectNative
+								  value={shapeDraft}
+								  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
+								  className="bg-zinc-800 border-zinc-700 text-white"
+								>
+								  <option value="rectangle">Rectangle</option>
+								  <option value="circle">Circle</option>
+								  <option value="triangle">Triangle</option>
+								  <option value="diamond">Diamond</option>
+								  <option value="hexagon">Hexagon</option>
+								  <option value="arrow-rectangle">Arrow Rectangle</option>
+								  <option value="cylinder">Cylinder</option>
+								  <option value="parallelogram">Parallelogram</option>
+								  <option value="round-rectangle">Round Rectangle</option>
+								</SelectNative>
+							</>
+						);
+					})()}
 				</div>
 			)}
-			<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
-				<div className="space-y-3 pb-16 min-w-0 overflow-hidden">
-				{/* Multi-select summary */}
-				{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
-					<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
-						<div className="text-xs font-medium text-zinc-300 mb-2">Multiple selection ({selectedNodeIds.length})</div>
+		<ScrollArea className="h-[calc(100vh-7rem)] px-3 py-2 [&_[data-radix-scroll-area-thumb]]:bg-zinc-600">
+			<div className="space-y-3 pb-8 min-w-0 overflow-hidden">
+			{hasEdgeSelection && (
+				<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
+					{selectedEdgeIds.length > 1 ? (
+						<>
+							<div className="text-xs font-medium text-zinc-300 mb-1">Multiple edges selected ({selectedEdgeIds.length})</div>
+							<div className="text-[11px] text-zinc-400">Select a single edge to change its shape.</div>
+						</>
+					) : singleGraphEdge ? (
+						<>
+							<div className="text-xs font-medium text-zinc-300 mb-2">Edge</div>
+							<div className="text-[11px] text-zinc-400 mb-3 truncate" title={`${singleEdgeSource?.title || singleGraphEdge.source} → ${singleEdgeTarget?.title || singleGraphEdge.target}`}>
+								{singleEdgeSource?.title || singleGraphEdge.source} → {singleEdgeTarget?.title || singleGraphEdge.target}
+							</div>
+							<div className="text-xs font-medium text-zinc-300 mb-2">Edge Shape</div>
+							<SelectNative
+								value={edgeShapeDraft}
+								onChange={(e) => handleEdgeShapeChange(e.target.value as EdgeShape)}
+								className="bg-zinc-800 border-zinc-700 text-white"
+							>
+								<option value="solid">Solid line</option>
+								<option value="dotted">Dotted line</option>
+							</SelectNative>
+							{edgeShapeError && (
+								<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5 mt-2">
+									{edgeShapeError}
+								</div>
+							)}
+						</>
+					) : (
+						<div className="text-[11px] text-zinc-400">Edge data unavailable.</div>
+					)}
+				</div>
+			)}
+			{/* Multi-select summary */}
+			{Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1 && (
+				<div className="border border-zinc-700/40 rounded p-2 bg-zinc-800/30">
+					<div className="text-xs font-medium text-zinc-300 mb-2">Multiple selection ({selectedNodeIds.length})</div>
 						<ul className="space-y-1">
 							{selectedNodeIds.map((id) => {
 								const n = graph?.nodes?.find(n => n.id === id);
@@ -280,12 +378,12 @@ export default function SelectedNodeSidebar() {
 					</div>
 				)}
 
-				{/* No selection state - sidebar remains visible with hint */}
-				{(!selectedNodeId || !selectedNode) && (!selectedNodeIds || selectedNodeIds.length === 0) && (
-					<div className="text-xs text-zinc-400 bg-zinc-800/30 rounded p-2 border border-zinc-700/20">
-						Select a node to edit properties.
-					</div>
-				)}
+			{/* No selection state - sidebar remains visible with hint */}
+			{(!selectedNodeId || !selectedNode) && (!selectedNodeIds || selectedNodeIds.length === 0) && !hasEdgeSelection && (
+				<div className="text-xs text-zinc-400 bg-zinc-800/30 rounded p-2 border border-zinc-700/20">
+					Select a node to edit properties.
+				</div>
+			)}
 
 				{/* Single selection details */}
 				{selectedNode && (!selectedNodeIds || selectedNodeIds.length <= 1) && (
@@ -321,24 +419,38 @@ export default function SelectedNodeSidebar() {
 							</div>
 						</div>
 
-						{selectedNode.properties && selectedNode.properties.length > 0 && (
-							<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
-								{/* Preserve original order from graph (no sorting) */}
-								{selectedNode.properties.map((property: Property, index: number) => (
-									<div key={property.id} className={index < (selectedNode.properties?.length || 0) - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
-										<PropertyEditor
-											property={{
-												...property,
-												value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
-											}}
-											onChange={handlePropertyChange}
-											onPreview={handlePropertyPreview}
-											onBackendUpdate={handleBackendUpdate}
-										/>
-									</div>
-								))}
-							</div>
-						)}
+						{(() => {
+							// Filter out width/height properties for comment nodes
+							const isCommentNode = Array.isArray(selectedNode.properties) &&
+								selectedNode.properties.some(p => p.id === 'width') &&
+								selectedNode.properties.some(p => p.id === 'height');
+							const visibleProperties = selectedNode.properties ?
+								selectedNode.properties.filter(p => {
+									if (isCommentNode && (p.id === 'width' || p.id === 'height')) {
+										return false;
+									}
+									return true;
+								}) : [];
+
+							return visibleProperties.length > 0 && (
+								<div className="space-y-1.5 border-t border-zinc-700/30 pt-3">
+									{/* Preserve original order from graph (no sorting) */}
+									{visibleProperties.map((property: Property, index: number) => (
+										<div key={property.id} className={index < visibleProperties.length - 1 ? "border-b border-zinc-700/20 pb-1.5 mb-1.5" : ""}>
+											<PropertyEditor
+												property={{
+													...property,
+													value: (propertyValues[property.id] !== undefined ? propertyValues[property.id] : property.value)
+												}}
+												onChange={handlePropertyChange}
+												onPreview={handlePropertyPreview}
+												onBackendUpdate={handleBackendUpdate}
+											/>
+										</div>
+									))}
+								</div>
+							);
+						})()}
 
 						{(() => {
 							const connections = getNodeConnections(selectedNode.id);
