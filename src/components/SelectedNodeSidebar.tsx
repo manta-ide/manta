@@ -39,7 +39,7 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
-  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('round-rectangle');
+  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('round-rectangle');
   const [edgeShapeDraft, setEdgeShapeDraft] = useState<EdgeShape>('solid');
   const [edgeShapeError, setEdgeShapeError] = useState<string | null>(null);
 	// Building state is tracked locally since node.state was removed
@@ -135,7 +135,7 @@ export default function SelectedNodeSidebar() {
     setEdgeShapeError(null);
   }, [selectedEdgeId, selectedEdgeIds, graph?.edges]);
 
-  const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle') => {
+  const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle') => {
     setShapeDraft(newShape);
     if (selectedNode) {
       const updatedNode = { ...selectedNode, shape: newShape } as any;
@@ -299,12 +299,11 @@ export default function SelectedNodeSidebar() {
 								<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
 								<SelectNative
 								  value={shapeDraft}
-								  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
+								  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
 								  className="bg-zinc-800 border-zinc-700 text-white"
 								>
 								  <option value="rectangle">Rectangle</option>
 								  <option value="circle">Circle</option>
-								  <option value="triangle">Triangle</option>
 								  <option value="diamond">Diamond</option>
 								  <option value="hexagon">Hexagon</option>
 								  <option value="arrow-rectangle">Arrow Rectangle</option>

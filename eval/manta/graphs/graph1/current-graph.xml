@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="test-node" title="Test Node" x="-130.3820256870545" y="293.58908117707233" z="0">
+    <node id="test-node" title="Test Node" x="-139.01477286825406" y="192.69384849680256" z="0" shape="cylinder">
       <description>This is a test node created for testing graph operations and structure.</description>
       <metadata>
         <ghosted>true</ghosted>
       </metadata>
     </node>
 
-    <node id="test-node-2" title="Test Node 2" x="-0.3820256870544938" y="-37.04212883502431" z="0">
+    <node id="test-node-2" title="Test Node 2" x="-130.38202568705447" y="-47.366079177287304" z="0" shape="rectangle">
       <description>This is a simple test node for demonstration and testing purposes.</description>
       <metadata>
         <ghosted>true</ghosted>
@@ -16,6 +16,48 @@
     </node>
 
     <node id="node-1760631515407903" title="New Node333" x="488" y="12" z="0" shape="rectangle">
+    </node>
+
+    <node id="node-1760778703457591" title="Test Node 2" x="129.61797431294553" y="364.1458963586832" z="0" shape="diamond">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
+    </node>
+
+    <node id="node-1760778705304729" title="Test Node 2" x="447.84153437865234" y="423.1921010743459" z="0" shape="arrow-rectangle">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
+    </node>
+
+    <node id="node-1760778707005327" title="Test Node 2" x="748" y="223.4018913409945" z="0" shape="hexagon">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
+    </node>
+
+    <node id="node-1760778732275333" title="Test Node 2" x="792.4825741428436" y="475.8694042563353" z="0" shape="parallelogram">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
+    </node>
+
+    <node id="node-1760778745772980" title="Test Node 2" x="-269.01477286825406" y="475.8694042563353" z="0" shape="round-rectangle">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
+    </node>
+
+    <node id="node-1760778761759938" title="Test Node 2" x="2286.5531968614264" y="-985.6780219104006" z="0" shape="rectangle">
+      <description>This is a simple test node for demonstration and testing purposes.</description>
+      <metadata>
+        <ghosted>true</ghosted>
+      </metadata>
     </node>
   </nodes>
 

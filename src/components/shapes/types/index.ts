@@ -8,7 +8,6 @@ import Hexagon from './hexagon';
 import Diamond from './diamond';
 import ArrowRectangle from './arrow-rectangle';
 import Cylinder from './cylinder';
-import Triangle from './triangle';
 import Parallelogram from './parallelogram';
 
 // here we register all the shapes that are available
@@ -21,7 +20,6 @@ export const ShapeComponents = {
   diamond: Diamond,
   'arrow-rectangle': ArrowRectangle,
   cylinder: Cylinder,
-  triangle: Triangle,
   parallelogram: Parallelogram,
 };
 

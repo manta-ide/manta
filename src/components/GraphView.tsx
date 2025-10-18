@@ -243,7 +243,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
 
         const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
         const v = (p && typeof p.value === 'string') ? p.value : undefined;
-        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'round-rectangle';
+        return (v === 'circle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'round-rectangle';
       } catch {
         return 'round-rectangle';
       }
@@ -253,8 +253,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     switch (shape) {
       case 'circle':
         return { width: '200px', minHeight: '200px' };
-      case 'triangle':
-        return { width: '260px', minHeight: '180px' };
       case 'diamond':
         return { width: '220px', minHeight: '180px' };
       case 'hexagon':
@@ -283,9 +281,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     switch (shape) {
       case 'circle':
         return { padding: '40px', paddingTop: '50px' }; // More padding for circular shape, extra top padding to push content lower
-      case 'triangle':
-        // Extra top padding so text doesn't collide with the apex, and bottom padding for base
-        return { padding: '32px', paddingTop: '60px', paddingBottom: '24px' } as React.CSSProperties;
       case 'diamond':
         return { padding: '48px', paddingLeft: '56px', paddingRight: '56px' }; // Diamond needs significant padding to avoid sharp corners at edges
       case 'hexagon':
@@ -387,7 +382,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           top: (() => {
             switch (shape) {
               case 'circle': return '50px';
-              case 'triangle': return '60px';
               case 'diamond': return '48px';
               case 'hexagon': return '32px';
               case 'cylinder': return '44px';
@@ -399,7 +393,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           right: (() => {
             switch (shape) {
               case 'circle': return '40px';
-              case 'triangle': return '32px';
               case 'diamond': return '56px';
               case 'hexagon': return '32px';
               case 'cylinder': return '36px';
@@ -539,23 +532,23 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
           {/* Right */}
           <Handle id="right" type="target" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ 
-              background: '#ffffff', 
-              width: handleSize, 
-              height: handleSize, 
-              border: '1px solid #9ca3af', 
-              borderRadius: '50%', 
+            style={{
+              background: '#ffffff',
+              width: handleSize,
+              height: handleSize,
+              border: '1px solid #9ca3af',
+              borderRadius: '50%',
               boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              ...(shape === 'parallelogram' ? { top: '35%' } : {})
+              ...(shape === 'parallelogram' ? { top: '50%', right: '20px' } : {})
             }} />
           <Handle id="right" type="source" position={Position.Right} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ 
-              background: 'transparent', 
-              width: handleSize, 
-              height: handleSize, 
-              border: '1px solid transparent', 
+            style={{
+              background: 'transparent',
+              width: handleSize,
+              height: handleSize,
+              border: '1px solid transparent',
               borderRadius: '50%',
-              ...(shape === 'parallelogram' ? { top: '35%' } : {})
+              ...(shape === 'parallelogram' ? { top: '50%', right: '20px' } : {})
             }} />
           {/* Bottom */}
           <Handle id="bottom" type="target" position={Position.Bottom} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
@@ -564,23 +557,23 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             style={{ background: 'transparent', width: handleSize, height: handleSize, border: '1px solid transparent', borderRadius: '50%' }} />
           {/* Left */}
           <Handle id="left" type="target" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ 
-              background: '#ffffff', 
-              width: handleSize, 
-              height: handleSize, 
-              border: '1px solid #9ca3af', 
-              borderRadius: '50%', 
+            style={{
+              background: '#ffffff',
+              width: handleSize,
+              height: handleSize,
+              border: '1px solid #9ca3af',
+              borderRadius: '50%',
               boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              ...(shape === 'parallelogram' ? { top: '65%' } : {})
+              ...(shape === 'parallelogram' ? { top: '50%', left: '20px' } : {})
             }} />
           <Handle id="left" type="source" position={Position.Left} isValidConnection={isValidConnection} isConnectableStart={true} isConnectableEnd={true}
-            style={{ 
-              background: 'transparent', 
-              width: handleSize, 
-              height: handleSize, 
-              border: '1px solid transparent', 
+            style={{
+              background: 'transparent',
+              width: handleSize,
+              height: handleSize,
+              border: '1px solid transparent',
               borderRadius: '50%',
-              ...(shape === 'parallelogram' ? { top: '65%' } : {})
+              ...(shape === 'parallelogram' ? { top: '50%', left: '20px' } : {})
             }} />
         </>
       )}
