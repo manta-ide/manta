@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="test-node" title="Test Node" x="0" y="0" z="0">
+    <node id="test-node" title="Test Node" x="0" y="0" z="0" shape="arrow-rectangle">
       <description>This is a test node created for testing graph operations and structure.</description>
     </node>
 
-    <node id="test-node-2" title="Test Node 2" x="100" y="100" z="0">
+    <node id="test-node-2" title="Test Node 2" x="329" y="239.5" z="0" shape="round-rectangle">
       <description>This is a simple test node for demonstration and testing purposes.</description>
     </node>
   </nodes>
 
   <edges>
-
+    <edge id="test-node-test-node-2" source="test-node" target="test-node-2" role="links-to"/>
   </edges>
 </graph>

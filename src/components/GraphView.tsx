@@ -42,6 +42,8 @@ import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
 import { Play, Settings, Hand, SquareDashed, Loader2, Link, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
+import Shape from './shapes';
+import MinimapNode from './MinimapNode';
 import { useCopyPaste } from '@/lib/useCopyPaste';
 
 // Connection validation function
@@ -212,23 +214,35 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const nodeStyles = getNodeStyles();
 
   // Determine visual shape
-  const shape: 'rectangle' | 'circle' | 'triangle' | 'comment' = (node as any).shape ||
+  const shape = (node as any).shape ||
     (() => {
       try {
         const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
         const v = (p && typeof p.value === 'string') ? p.value : undefined;
-        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment') ? v : 'rectangle';
+        return (v === 'circle' || v === 'triangle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'rectangle';
       } catch {
         return 'rectangle';
       }
     })();
-  const isDecorativeShape = shape !== 'rectangle' && shape !== 'comment';
+  const isSvgShape = shape !== 'comment'; // All shapes except comment use SVG
   const shapeDimensions: React.CSSProperties = (() => {
     switch (shape) {
       case 'circle':
         return { width: '200px', minHeight: '200px' };
       case 'triangle':
         return { width: '260px', minHeight: '180px' };
+      case 'diamond':
+        return { width: '220px', minHeight: '180px' };
+      case 'hexagon':
+        return { width: '240px', minHeight: '160px' };
+      case 'arrow-rectangle':
+        return { width: '240px', minHeight: '160px' };
+      case 'cylinder':
+        return { width: '200px', minHeight: '160px' };
+      case 'parallelogram':
+        return { width: '260px', minHeight: '160px' };
+      case 'round-rectangle':
+        return { width: '260px', minHeight: '160px' };
       case 'comment': {
         // Use custom dimensions from properties for comment nodes
         const widthProp = Array.isArray(node.properties) ? node.properties.find(p => p.id === 'width') : null;
@@ -248,54 +262,69 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       case 'triangle':
         // Extra top padding so text doesn't collide with the apex
         return { padding: '16px', paddingTop: '32px' } as React.CSSProperties;
+      case 'database':
+        return { padding: '16px' };
+      case 'page':
+        return { padding: '16px' };
+      case 'container':
+        return { padding: '20px' };
       case 'comment':
         return { padding: '16px' };
       default:
         return { padding: '20px' };
     }
   })();
-  const borderColor = selected ? '#2563eb' : '#e5e7eb';
+  // Parse dimensions from CSS strings to numbers for SVG
+  const parseDimension = (dim: string) => parseInt(dim.replace('px', '')) || 260;
+  const shapeWidth = parseDimension(shapeDimensions.width as string);
+  const shapeHeight = parseDimension(shapeDimensions.minHeight as string);
+
   return (
     <div
       className={`custom-node ${selected ? 'selected' : ''}`}
       style={{
-        ...nodeStyles,
-        // For decorative shapes and comments, let a background layer render the shape and border
-        background: (isDecorativeShape || shape === 'comment') ? 'transparent' : (nodeStyles as any).background,
-        border: (isDecorativeShape || shape === 'comment') ? 'none' : (nodeStyles as any).border,
-        boxShadow: (isDecorativeShape || shape === 'comment') ? 'none' : (nodeStyles as any).boxShadow,
-        borderRadius: (isDecorativeShape || shape === 'comment') ? 0 : '8px',
-        width: shapeDimensions.width,
-        minHeight: shapeDimensions.minHeight,
         position: 'relative',
+        width: shapeDimensions.width,
+        height: shapeDimensions.minHeight,
         fontFamily: 'Inter, sans-serif',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        zIndex: shape === 'comment' ? 0 : 1,
       }}
     >
-
-      {/* Shape background for circle/triangle and comment nodes */}
-      {(isDecorativeShape || shape === 'comment') && (
-        <div
-          aria-hidden
+      {/* SVG Shape */}
+      {isSvgShape && (
+        <Shape
+          type={shape as any}
+          width={shapeWidth}
+          height={shapeHeight}
+          fill={selected ? '#f8fafc' : '#ffffff'}
+          stroke={selected ? '#2563eb' : '#e5e7eb'}
+          strokeWidth={selected ? 2 : 1}
+          fillOpacity={1}
           style={{
             position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background: shape === 'comment' ? 'rgba(255, 255, 255, 0.8)' : (nodeStyles as any).background,
-            // mimic selection shadow/ring
-            boxShadow: (nodeStyles as any).boxShadow,
-            // draw a thin border that matches selection state
-            outline: `1px solid ${borderColor}`,
-            borderRadius: shape === 'circle' ? '9999px' : shape === 'comment' ? '8px' : 0,
-            clipPath: shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
+            top: 0,
+            left: 0,
             zIndex: 0,
           }}
         />
       )}
-      {/* No extra border for search hits; fading overlay handles focus */}
+
+      {/* Comment shape (special case) */}
+      {shape === 'comment' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: shapeDimensions.width,
+            height: shapeDimensions.minHeight,
+            background: 'rgba(255, 255, 255, 0.8)',
+            border: selected ? '2px solid #2563eb' : '1px solid #e5e7eb',
+            borderRadius: '8px',
+            zIndex: 0,
+          }}
+        />
+      )}
+
       {/* State indicators - only show for unbuilt nodes (not comments) */}
       {effectiveState === 'unbuilt' && shape !== 'comment' && (
         <div style={{
@@ -355,24 +384,19 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         />
       )}
 
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-      
-      {/* Clipped content wrapper so text stays within shape bounds */}
+      {/* Content wrapper */}
       <div
         style={{
-          position: 'relative',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
           zIndex: 1,
-          flex: 1,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           overflow: shape === 'comment' ? 'visible' : 'hidden',
-          borderRadius: (!isDecorativeShape && shape !== 'comment') ? '8px' : (shape === 'circle' ? '9999px' : shape === 'comment' ? '8px' : 0),
-          clipPath: (isDecorativeShape || shape === 'comment') && shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : undefined,
           ...contentPadding,
         }}
       >
@@ -2032,30 +2056,7 @@ function GraphCanvas() {
         elementsSelectable={true}
         deleteKeyCode={[]}
       >
-        <MiniMap
-          nodeColor={(node: any) => {
-            const nd = node.data?.node;
-            const baseGraph = node.data?.baseGraph;
-
-            // Check if node has bugs - if so, it's always unbuilt
-            const hasBugs = nd?.metadata?.bugs && Array.isArray(nd.metadata.bugs) && nd.metadata.bugs.length > 0;
-            if (hasBugs) return '#fbbf24'; // unbuilt (has bugs)
-
-            // Compute state dynamically using the same logic as node state computation
-            let nodeState = 'unbuilt';
-            if (baseGraph && nd) {
-              const baseNode = baseGraph.nodes.find((n: any) => n.id === nd.id);
-              if (baseNode) {
-                // Use the same diff logic - compares title, prompt, AND properties
-                const isSame = !nodesAreDifferent(baseNode, nd);
-                nodeState = isSame ? 'built' : 'unbuilt';
-              }
-            }
-
-            if (nodeState === 'built') return '#9ca3af';
-            return '#fbbf24'; // unbuilt
-          }}
-        />
+        <MiniMap nodeComponent={MinimapNode} />
         <Controls />
         <Background color="#374151" gap={20} />
         <HelperLines />

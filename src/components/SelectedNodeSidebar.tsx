@@ -32,7 +32,7 @@ export default function SelectedNodeSidebar() {
 	const { actions } = useChatService();
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
-  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle'>('rectangle');
+  const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('rectangle');
 	// Building state is tracked locally since node.state was removed
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
 	const metadataFiles = Array.from(new Set(
@@ -112,7 +112,7 @@ export default function SelectedNodeSidebar() {
 		}
 	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties]);
 
-  const handleShapeChange = useCallback((newShape: 'rectangle') => {
+  const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle') => {
     setShapeDraft(newShape);
     if (selectedNode) {
       const updatedNode = { ...selectedNode, shape: newShape } as any;
@@ -243,12 +243,18 @@ export default function SelectedNodeSidebar() {
 					<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">Node Shape</div>
 					<SelectNative
 					  value={shapeDraft}
-					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' )}
+					  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
 					  className="bg-zinc-800 border-zinc-700 text-white"
 					>
 					  <option value="rectangle">Rectangle</option>
-					  {/* <option value="circle">Circle</option>
-					  <option value="triangle">Triangle</option> */}
+					  <option value="circle">Circle</option>
+					  <option value="triangle">Triangle</option>
+					  <option value="diamond">Diamond</option>
+					  <option value="hexagon">Hexagon</option>
+					  <option value="arrow-rectangle">Arrow Rectangle</option>
+					  <option value="cylinder">Cylinder</option>
+					  <option value="parallelogram">Parallelogram</option>
+					  <option value="round-rectangle">Round Rectangle</option>
 					</SelectNative>
 				</div>
 			)}
