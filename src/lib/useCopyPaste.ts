@@ -210,6 +210,11 @@ export function useCopyPaste() {
         // Create Graph-compatible edges for the store
         const newGraphEdges = newEdges.map((edge, index) => {
           const originalEdge = bufferedEdges[index];
+          const edgeShape = ((originalEdge?.data as any)?.shape === 'dotted' || (originalEdge?.data as any)?.shape === 'solid')
+            ? (originalEdge.data as any).shape
+            : ((originalEdge as any)?.shape === 'dotted' || (originalEdge as any)?.shape === 'solid')
+              ? (originalEdge as any).shape
+              : undefined;
           return {
             id: edge.id,
             source: edge.source,
@@ -217,6 +222,7 @@ export function useCopyPaste() {
             role: (originalEdge as any).role || 'links-to',
             sourceHandle: edge.sourceHandle || undefined,
             targetHandle: edge.targetHandle || undefined,
+            ...(edgeShape ? { shape: edgeShape } : {}),
           };
         });
 
