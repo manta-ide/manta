@@ -562,6 +562,9 @@ function GraphCanvas() {
     selectedNode,
     selectedNodeIds,
     setSelectedNodeIds,
+    setSelectedEdge,
+    selectedEdgeIds,
+    setSelectedEdgeIds,
     buildEntireGraph,
     isBuildingGraph,
     baseGraph,
@@ -611,12 +614,43 @@ function GraphCanvas() {
     opacity: 1,
   } as const;
   const unbuiltEdgeStyle = {
-    stroke: '#ef4444',  // Red dashes
+    stroke: '#ef4444',  // Highlight updated edges
     strokeWidth: 3,
-    strokeDasharray: '20,30',  // 20px red dash, 30px gap (longer dashes, fewer)
     opacity: 0.9,
     strokeLinecap: 'round' as const,
   } as const;
+
+  type EdgeShape = 'solid' | 'dotted';
+  const DEFAULT_EDGE_SHAPE: EdgeShape = 'solid';
+
+  const applyEdgeShapeToStyle = useCallback((style: any, shape: EdgeShape | undefined) => {
+    const nextStyle = { ...style } as any;
+    if (shape === 'dotted') {
+      nextStyle.strokeDasharray = '8,8';
+    } else if ('strokeDasharray' in nextStyle) {
+      delete nextStyle.strokeDasharray;
+    }
+    return nextStyle;
+  }, []);
+
+  const resolveEdgeShape = useCallback((edgeLike: any): EdgeShape => {
+    if (!edgeLike) return DEFAULT_EDGE_SHAPE;
+    const directShape = (edgeLike as any)?.shape;
+    if (directShape === 'dotted' || directShape === 'solid') return directShape;
+    const dataShape = (edgeLike as any)?.data?.shape;
+    if (dataShape === 'dotted' || dataShape === 'solid') return dataShape;
+
+    const id = (edgeLike as Edge)?.id || (edgeLike as any)?.id;
+    const source = (edgeLike as Edge)?.source || (edgeLike as any)?.source;
+    const target = (edgeLike as Edge)?.target || (edgeLike as any)?.target;
+
+    const matched = (graph?.edges || []).find((ge: any) => {
+      if (id && ge.id === id) return true;
+      return ge.source === source && ge.target === target;
+    });
+    const matchedShape = (matched as any)?.shape;
+    return matchedShape === 'dotted' || matchedShape === 'solid' ? matchedShape : DEFAULT_EDGE_SHAPE;
+  }, [graph]);
 
   // Helper to derive an arrow marker matching the current edge style
   // Increase marker size for better visibility
@@ -1303,6 +1337,9 @@ function GraphCanvas() {
 
     if (!freshGraphNode) return;
 
+    setSelectedEdge(null, null);
+    setSelectedEdgeIds([]);
+
     // Check if shift or ctrl/cmd is pressed for multi-selection
     const isMultiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
 
@@ -1339,39 +1376,68 @@ function GraphCanvas() {
 
       // Removed iframe selection messaging
     }
-  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds]);
+  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds]);
 
   // Handle edge selection (with multi-select support)
-  const onEdgeClick: EdgeMouseHandler = useCallback((event, _edge) => {
+  const onEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
     const isMulti = event.shiftKey || event.metaKey || event.ctrlKey;
     // prevent parent handlers from interfering with selection rectangle
     event.preventDefault();
     event.stopPropagation();
-    if (!isMulti) {
-      // Clear node selection when focusing an edge; let React Flow handle edge selection
+    const graphEdge = (graph?.edges || []).find((e: any) => e.id === edge.id || `${e.source}-${e.target}` === edge.id);
+
+    const clearNodeSelection = () => {
       setSelectedNode(null, null);
       setSelectedNodeIds([]);
+    };
 
-      // Removed iframe deselection messaging
+    if (!isMulti) {
+      // Clear node selection when focusing an edge; let React Flow handle edge selection
+      clearNodeSelection();
+      setSelectedEdgeIds([edge.id]);
+      setSelectedEdge(edge.id, graphEdge as any);
+      return;
     }
-  }, [setSelectedNode, setSelectedNodeIds]);
+
+    // Multi-select toggle behavior
+    const next = new Set(selectedEdgeIds || []);
+    if (next.has(edge.id)) {
+      next.delete(edge.id);
+    } else {
+      next.add(edge.id);
+    }
+    const nextIds = Array.from(next);
+    setSelectedEdgeIds(nextIds);
+
+    if (nextIds.length === 1) {
+      const singleId = nextIds[0];
+      const singleGraphEdge = (graph?.edges || []).find((e: any) => e.id === singleId || `${e.source}-${e.target}` === singleId);
+      setSelectedEdge(singleId, singleGraphEdge as any);
+    } else {
+      setSelectedEdge(null, null);
+    }
+
+    clearNodeSelection();
+  }, [graph, selectedEdgeIds, setSelectedEdge, setSelectedEdgeIds, setSelectedNode, setSelectedNodeIds]);
 
   // Ensure edge selection visually updates immediately when selection state changes
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => {
       const updated = applyEdgeChanges(changes, eds);
       return updated.map((e) => {
-        // Check if edge is unbuilt
+        const shape = resolveEdgeShape(e);
         const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-        const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+        const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+        const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
         return {
           ...e,
           style: nextStyle,
           markerEnd: makeArrowForStyle(nextStyle),
+          data: { ...(e.data || {}), shape },
         };
       });
     });
-  }, [setEdges, baseGraph]);
+  }, [setEdges, baseGraph, resolveEdgeShape, applyEdgeShapeToStyle]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
@@ -1435,12 +1501,16 @@ function GraphCanvas() {
         // Also refresh edge styling (built/unbuilt) against latest baseGraph
         setEdges(currentEdges =>
           currentEdges.map(e => {
+            const graphEdge = (graph?.edges || []).find((edge: any) => edge.id === e.id || (`${edge.source}-${edge.target}` === e.id));
+            const shape = resolveEdgeShape(graphEdge || e);
             const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-            const nextStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
             return {
               ...e,
               style: nextStyle,
               markerEnd: makeArrowForStyle(nextStyle),
+              data: { ...(e.data || {}), shape },
             } as Edge;
           })
         );
@@ -1616,11 +1686,17 @@ function GraphCanvas() {
               
           // Check if edge is unbuilt
           const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
+          const shape = resolveEdgeShape(edge);
 
           // Check if either connected node is a comment to set edge z-index
           const sourceNode = sortedNodes.find(n => n.id === edge.source);
           const targetNode = sortedNodes.find(n => n.id === edge.target);
           const connectsToComment = (sourceNode as any)?.shape === 'comment' || (targetNode as any)?.shape === 'comment';
+
+          const baseStyle = previouslySelectedEdges.has(edge.id)
+            ? selectedEdgeStyle
+            : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+          const style = applyEdgeShapeToStyle(baseStyle, shape);
 
           reactFlowEdges.push({
             id: edge.id,
@@ -1629,17 +1705,12 @@ function GraphCanvas() {
             sourceHandle,
             targetHandle,
             type: 'default',
-            style: previouslySelectedEdges.has(edge.id)
-              ? selectedEdgeStyle
-              : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle),
-            markerEnd: makeArrowForStyle(
-              previouslySelectedEdges.has(edge.id)
-                ? selectedEdgeStyle
-                : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle)
-            ),
+            style,
+            markerEnd: makeArrowForStyle(style),
             interactionWidth: 24,
             selected: previouslySelectedEdges.has(edge.id),
             zIndex: connectsToComment ? -1 : 1,
+            data: { shape },
           });
           addedSymmetric.add(symKey);
           }
@@ -1711,6 +1782,9 @@ function GraphCanvas() {
     );
 
     // Store the new edge for potential rollback
+    const shape: EdgeShape = DEFAULT_EDGE_SHAPE;
+    const styledUnbuilt = applyEdgeShapeToStyle(unbuiltEdgeStyle, shape);
+
     const newEdge = {
       id: `${params.source}-${params.target}`,
       source: params.source!,
@@ -1718,10 +1792,11 @@ function GraphCanvas() {
       sourceHandle: params.sourceHandle || inferredSourceHandle,
       targetHandle: params.targetHandle || inferredTargetHandle,
       type: 'default' as const,
-      style: unbuiltEdgeStyle,
-      markerEnd: makeArrowForStyle(unbuiltEdgeStyle),
+      style: styledUnbuilt,
+      markerEnd: makeArrowForStyle(styledUnbuilt),
       interactionWidth: 24,
       selected: false,
+      data: { shape },
     };
 
     // Generate unique operation ID for tracking optimistic state
@@ -1753,6 +1828,7 @@ function GraphCanvas() {
       markerEnd: newEdge.markerEnd,
       interactionWidth: newEdge.interactionWidth,
       selected: false,
+      data: { shape },
     };
     setEdges((eds) => {
       if (eds.some(e => (e.source === customEdge.source && e.target === customEdge.target) || (e.source === customEdge.target && e.target === customEdge.source))) {
@@ -1794,6 +1870,7 @@ function GraphCanvas() {
         role: 'links-to',
         sourceHandle: newEdge.sourceHandle,
         targetHandle: newEdge.targetHandle,
+        shape,
       };
 
       // Add edge to graph if not existing (either direction)
