@@ -8,9 +8,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { isValidSelection } from '@/app/api/lib/selectionUtils';
-import { 
-  Message, 
+import {
+  Message,
   MessageContext
 } from '@/app/api/lib/schemas';
 
@@ -20,7 +19,6 @@ import {
  */
 interface SendMessageOptions {
   includeFile?: boolean;
-  includeSelection?: boolean;
   includeNodes?: boolean;
   displayContent?: string;
   resume?: string;
@@ -28,57 +26,34 @@ interface SendMessageOptions {
 }
 
 export function useChatService() {
-  const { currentFile, selection, setSelection, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
+  const { currentFile, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Load chat history (no user check anymore)
+  // Load chat history (no persistence - empty on load)
 useEffect(() => {
   loadChatHistory();
 }, []);
 
 
-  // Function to load chat history from database
+  // Function to load chat history (no persistence - empty on load)
   const loadChatHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const response = await fetch('/api/chat', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const { chatHistory } = await response.json();
-        setMessages(chatHistory || []);
-      } else {
-        // Only log error if it's not a 404 (no chat history yet)
-        if (response.status !== 404) {
-          console.error('Failed to load chat history:', response.status, response.statusText);
-        }
-        // Set empty array for new sessions
-        setMessages([]);
-      }
+      // Chat history is not persisted - always start with empty array
+      setMessages([]);
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      console.error('Error initializing chat history:', error);
     } finally {
       setLoadingHistory(false);
     }
   }, []);
 
-  // Function to save chat history to database
+  // Function to save chat history (no persistence - messages are not saved)
   const saveChatHistory = useCallback(async (newMessages: Message[]) => {
-    try {
-      await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ chatHistory: newMessages }),
-      });
-    } catch (error) {
-      console.error('Error saving chat history:', error);
-    }
+    // Chat history is not persisted - this is a no-op
   }, []);
 
   const sendMessage = useCallback(async (input: string, options?: SendMessageOptions) => {
@@ -93,28 +68,15 @@ useEffect(() => {
 
     // Use context flags if provided, otherwise include everything
     const shouldIncludeFile = options?.includeFile !== false;
-    const shouldIncludeSelection = options?.includeSelection !== false;
     const shouldIncludeNodes = options?.includeNodes !== false;
 
-    // Only use selection if it's valid and should be included
-    const validSelection = (shouldIncludeSelection && isValidSelection(selection)) ? selection : null;
-    
-    const roundedSelection = validSelection ? {
-        x: Math.round(validSelection.x),
-        y: Math.round(validSelection.y),
-        width: Math.round(validSelection.width),
-        height: Math.round(validSelection.height),
-        selectedElements: validSelection.selectedElements
-      } : null;
-
-    // Store current selection context
+    // Store current context
     const messageContext: MessageContext = {
-      currentFile: (shouldIncludeFile && currentFile) || undefined,
-      selection: roundedSelection || undefined
+      currentFile: (shouldIncludeFile && currentFile) || undefined
     };
 
     // Create base user message for UI
-    const userMessage: Message = { 
+    const userMessage: Message = {
       role: 'user',
       variables: {
         USER_REQUEST: agentContent
@@ -122,19 +84,6 @@ useEffect(() => {
       content: displayContent,
       messageContext
     };
-
-    // Add selection variables if selection is valid
-    if (roundedSelection) {
-      userMessage.variables = {
-        ...userMessage.variables,
-        SELECTION: '1',
-        SELECTION_X: roundedSelection.x.toString(),
-        SELECTION_Y: roundedSelection.y.toString(),
-        SELECTION_WIDTH: roundedSelection.width.toString(),
-        SELECTION_HEIGHT: roundedSelection.height.toString(),
-        SELECTION_ELEMENTS: roundedSelection.selectedElements
-      };
-    }
 
     // Add selected node variables if nodes are selected and should be included
     if (shouldIncludeNodes && selectedNodeIds.length > 0) {
@@ -529,16 +478,7 @@ useEffect(() => {
         setLoading(false);
       }
 
-      // Clear selection if it was valid and used
-      if (validSelection) {
-        setSelection(null);
-      }
       console.log("Skipping graph refresh");
-      // Only refresh if the graph was actually modified
-      /* if (result.graphModified) {
-        await loadProjectFromFileSystem();
-        triggerRefresh();
-      } */
 
     } catch (error) {
       console.error('Chat service error:', error);
@@ -558,7 +498,7 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory]);
+  }, [currentFile, selectedNodeId, selectedNode, selectedNodeIds, messages, saveChatHistory]);
 
   // Function to clear chat history
   const clearMessages = useCallback(async () => {
@@ -566,16 +506,7 @@ useEffect(() => {
       // Clear frontend state immediately
       setMessages([]);
       setLoading(false);
-      
-      // Clear chat history from database
-      const response = await fetch('/api/chat', {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to clear chat history from database');
-      }
+      // Chat history is not persisted - no database to clear
     } catch (error) {
       console.error('Error clearing conversation:', error);
     }

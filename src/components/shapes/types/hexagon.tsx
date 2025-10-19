@@ -1,4 +1,4 @@
-import { type ShapeProps } from '.';
+import { type ShapeProps, type ShapeConfig } from '.';
 import { generatePath } from './utils';
 
 function Hexagon({ width, height, ...svgAttributes }: ShapeProps) {
@@ -15,5 +15,31 @@ function Hexagon({ width, height, ...svgAttributes }: ShapeProps) {
 
   return <path d={hexagonPath} {...svgAttributes} />;
 }
+
+export const hexagonConfig: ShapeConfig = {
+  dimensions: {
+    width: 240,
+    height: 160,
+  },
+  contentPadding: {
+    padding: '32px', // Hexagon has angled sides at top/bottom
+  },
+  indicatorPosition: {
+    top: '32px',
+    right: '32px',
+  },
+  showStateIndicators: true,
+  showHandles: true,
+  fontSize: {
+    title: 16,
+    content: 13,
+  },
+  contentLayout: {
+    clipOverflow: true,
+    flexContent: true,
+    maxDescriptionLines: 3,
+  },
+  zIndex: 0,
+};
 
 export default Hexagon;

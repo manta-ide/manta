@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Selection, FileNode, Graph, GraphNode, GraphEdge } from '@/app/api/lib/schemas';
+import { FileNode, Graph, GraphNode, GraphEdge } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { autoMarkUnbuiltFromBaseGraph } from './graph-diff';
 
@@ -25,7 +25,6 @@ interface ProjectStore {
   currentFile: string | null;
   selectedFile: string | null;
   fileTree: FileNode[];
-  selection: Selection | null;
   refreshTrigger: number;
 
   // Graph state
@@ -64,7 +63,6 @@ interface ProjectStore {
   createFile: (path: string, content: string) => Promise<void>;
   setCurrentFile: (path: string | null) => void;
   setSelectedFile: (path: string | null) => void;
-  setSelection: (selection: Selection | null) => void;
   getFileContent: (path: string) => string;
   getAllFiles: () => Map<string, string>;
   setFileCacheContent: (path: string, content: string) => void;
@@ -187,7 +185,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   currentFile: null,
   selectedFile: null,
   fileTree: [],
-  selection: null,
   refreshTrigger: 0,
 
   // Graph state
@@ -226,7 +223,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     currentFile: null,
     selectedFile: null,
     fileTree: [],
-    selection: null,
     refreshTrigger: 0,
     layers: [],
     activeLayer: null,
@@ -327,7 +323,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   setCurrentFile: (path) => set({ currentFile: path }),
   setSelectedFile: (path) => set({ selectedFile: path }),
-  setSelection: (selection) => set({ selection }),
   setSelectedNode: (id, node = null) => {
     const prevId = get().selectedNodeId;
     const prevNode = get().selectedNode;

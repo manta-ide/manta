@@ -74,3 +74,4 @@ export function hasAnyFiles(projectDir: string = getDevProjectDir()): boolean {
     return false;
   }
 }
+

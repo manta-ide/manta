@@ -1,20 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
-    <node id="test-node" title="Test Node" x="12" y="340" z="0">
-      <description>This is a test node created for testing graph operations and structure.</description>
-    </node>
 
-    <node id="test-node-2" title="Test Node 2" x="12" y="12" z="0">
-      <description>This is a simple test node for demonstration and testing purposes.</description>
-    </node>
-
-    <node id="node-1760631515407903" title="New Node333" x="488" y="12" z="0" shape="rectangle">
-    </node>
   </nodes>
 
   <edges>
-    <edge id="test-node-2-node-1760631515407903" source="test-node-2" target="node-1760631515407903" role="links-to"/>
-    <edge id="test-node-node-1760631515407903" source="test-node" target="node-1760631515407903" role="links-to"/>
+
   </edges>
 </graph>

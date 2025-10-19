@@ -1,10 +1,7 @@
 'use client';
 
-import { XIcon, File, MousePointer, GitBranch } from 'lucide-react';
+import { XIcon, File, GitBranch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { formatSelectionLabel } from '@/lib/uiSelectionUtils';
-import { isValidSelection } from '@/app/api/lib/selectionUtils';
-import { Selection } from '@/app/api/lib/schemas';
 
 // Helper function to get just the filename from a full path
 function getFilenameFromPath(fullPath: string): string {
@@ -12,7 +9,7 @@ function getFilenameFromPath(fullPath: string): string {
 }
 
 interface SelectionBadgeProps {
-  type: 'file' | 'area' | 'node';
+  type: 'file' | 'node';
   label: string;
   onRemove: () => void;
 }
@@ -22,10 +19,8 @@ export function SelectionBadge({ type, label, onRemove }: SelectionBadgeProps) {
     <Badge variant="outline" className="gap-1 pr-1 border-zinc-600 text-white bg-transparent">
       {type === 'file' ? (
         <File className="w-3 h-3" />
-      ) : type === 'node' ? (
-        <GitBranch className="w-3 h-3" />
       ) : (
-        <MousePointer className="w-3 h-3" />
+        <GitBranch className="w-3 h-3" />
       )}
       <span className="text-xs">{label}</span>
       <button
@@ -40,26 +35,20 @@ export function SelectionBadge({ type, label, onRemove }: SelectionBadgeProps) {
 
 interface SelectionBadgesProps {
   currentFile: string | null;
-  selection: Selection | null;
   selectedNodeIds: string[];
   selectedNodes?: any[];
   onRemoveFile: () => void;
-  onRemoveSelection: () => void;
   onRemoveNodes: () => void;
 }
 
 export default function SelectionBadges({
   currentFile,
-  selection,
   selectedNodeIds,
   selectedNodes,
   onRemoveFile,
-  onRemoveSelection,
   onRemoveNodes
 }: SelectionBadgesProps) {
-  const validSelection = isValidSelection(selection);
-
-  if (!currentFile && !validSelection && selectedNodeIds.length === 0) return null;
+  if (!currentFile && selectedNodeIds.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-2 p-2">
@@ -68,13 +57,6 @@ export default function SelectionBadges({
           type="file"
           label={getFilenameFromPath(currentFile)}
           onRemove={onRemoveFile}
-        />
-      )}
-      {validSelection && (
-        <SelectionBadge
-          type="area"
-          label={formatSelectionLabel(selection)}
-          onRemove={onRemoveSelection}
         />
       )}
       {selectedNodeIds.length > 0 && (
@@ -94,24 +76,22 @@ export default function SelectionBadges({
 
 // New component for displaying badges in messages (read-only)
 interface MessageBadgeProps {
-  type: 'file' | 'area' | 'node';
+  type: 'file' | 'node';
   label: string;
   variant?: 'light' | 'dark';
 }
 
 export function MessageBadge({ type, label, variant = 'light' }: MessageBadgeProps) {
-  const badgeClass = variant === 'dark' 
-    ? "border-zinc-600 text-white bg-transparent" 
+  const badgeClass = variant === 'dark'
+    ? "border-zinc-600 text-white bg-transparent"
     : "border-zinc-600 text-white bg-transparent";
-    
+
   return (
     <Badge variant="outline" className={`gap-1 text-xs border ${badgeClass}`}>
       {type === 'file' ? (
         <File className="w-3 h-3" />
-      ) : type === 'node' ? (
-        <GitBranch className="w-3 h-3" />
       ) : (
-        <MousePointer className="w-3 h-3" />
+        <GitBranch className="w-3 h-3" />
       )}
       <span>{label}</span>
     </Badge>
@@ -121,16 +101,13 @@ export function MessageBadge({ type, label, variant = 'light' }: MessageBadgePro
 // Component for displaying badges within messages
 interface MessageBadgesProps {
   currentFile?: string | null;
-  selection?: Selection | null;
   selectedNodeId?: string | null;
   selectedNode?: any | null;
   variant?: 'light' | 'dark';
 }
 
-export function MessageBadges({ currentFile, selection, selectedNodeId, selectedNode, variant = 'light' }: MessageBadgesProps) {
-  const validSelection = isValidSelection(selection);
-  
-  if (!currentFile && !validSelection && !selectedNodeId) return null;
+export function MessageBadges({ currentFile, selectedNodeId, selectedNode, variant = 'light' }: MessageBadgesProps) {
+  if (!currentFile && !selectedNodeId) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5 mb-2">
@@ -138,13 +115,6 @@ export function MessageBadges({ currentFile, selection, selectedNodeId, selected
         <MessageBadge
           type="file"
           label={getFilenameFromPath(currentFile)}
-          variant={variant}
-        />
-      )}
-      {validSelection && (
-        <MessageBadge
-          type="area"
-          label={formatSelectionLabel(selection)}
           variant={variant}
         />
       )}

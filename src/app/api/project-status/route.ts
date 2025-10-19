@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { projectExists, hasAnyFiles, getDevProjectDir } from '@/lib/project-config';
+import { projectExists, hasAnyFiles } from '@/lib/project-config';
 
 export async function GET() {
   try {

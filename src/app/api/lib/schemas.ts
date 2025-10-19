@@ -42,10 +42,24 @@ export type Property = z.infer<typeof PropertySchema>;
 
 export const NodeMetadataSchema = z.object({
   files: z.array(z.string().min(1).trim()).default([]),
-  bugs: z.array(z.string().min(1).trim()).optional().default([]),
-  ghosted: z.boolean().optional().default(false)
+  bugs: z.array(z.string().min(1).trim()).optional().default([])
 });
 export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
+
+export const MetadataInputSchema = z.union([
+  NodeMetadataSchema,
+  z.array(z.string().min(1).trim()),
+  z.string().min(1).trim(),
+  // Allow more flexible nested structures that will be normalized
+  z.object({
+    files: z.union([
+      z.array(z.string().min(1).trim()),
+      z.object({ files: z.array(z.string().min(1).trim()) }),
+      z.array(z.object({ files: z.array(z.string().min(1).trim()) }))
+    ])
+  })
+]);
+export type MetadataInput = z.infer<typeof MetadataInputSchema>;
 
 export const GraphNodeSchema = z.object({
   id: z.string(),
@@ -74,16 +88,9 @@ export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });
 export type Graph = z.infer<typeof GraphSchema>;
 
-// Message context for providing file and selection information
+// Message context for providing file information
 export const MessageContextSchema = z.object({
   currentFile: z.string().optional(),
-  selection: z.object({
-    x: z.number(),
-    y: z.number(),
-    width: z.number(),
-    height: z.number(),
-    selectedElements: z.string(),
-  }).optional(),
 });
 
 export type MessageContext = z.infer<typeof MessageContextSchema>;
@@ -111,13 +118,6 @@ export const MessageVariablesSchema = z.object({
   GRAPH_DATA: z.string().optional(),
   GRAPH_NODE_COUNT: z.string().optional(),
   
-  // Selection context
-  SELECTION: z.string().optional(),
-  SELECTION_X: z.string().optional(),
-  SELECTION_Y: z.string().optional(),
-  SELECTION_WIDTH: z.string().optional(),
-  SELECTION_HEIGHT: z.string().optional(),
-  SELECTION_ELEMENTS: z.string().optional(),
   
   // Node-specific context
   NODE_ID: z.string().optional(),
@@ -158,22 +158,11 @@ export const ParsedMessageSchema = z.object({
 
 export type ParsedMessage = z.infer<typeof ParsedMessageSchema>;
 
-// Selection schema for UI interactions
-export const SelectionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  width: z.number(),
-  height: z.number(),
-  selectedElements: z.string(),
-});
-
-export type Selection = z.infer<typeof SelectionSchema>;
 
 // Client chat request schema
 export const ClientChatRequestSchema = z.object({
   message: z.string(),
   currentFile: z.string().optional(),
-  selection: SelectionSchema.optional(),
 });
 
 export type ClientChatRequest = z.infer<typeof ClientChatRequestSchema>;
@@ -185,8 +174,7 @@ export const TestCaseSchema = z.object({
   id: z.string().optional(),
   input: z.string(),
   // Optional context for each test case
-  currentFile: z.string().optional(),
-  selection: SelectionSchema.optional()
+  currentFile: z.string().optional()
 });
 
 export type TestCase = z.infer<typeof TestCaseSchema>;
@@ -356,7 +344,6 @@ export const ProjectStoreSchema = z.object({
   currentFile: z.string().nullable(),
   selectedFile: z.string().nullable(),
   fileTree: z.array(FileNodeSchema),
-  selection: SelectionSchema.nullable(),
   refreshTrigger: z.number(),
   selectedNodeId: z.string().nullable(),
   selectedNode: GraphNodeSchema.nullable(),

@@ -1,13 +1,75 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { graphToXml } from '@/lib/graph-xml';
-import { Message, MessageSchema } from '@/app/api/lib/schemas';
-import { storeGraph } from '@/app/api/lib/graph-service';
-import { fetchGraphFromApi } from '@/app/api/lib/graphApiUtils';
-import { setCurrentGraph, resetPendingChanges, setGraphEditorAuthHeaders, setGraphEditorBaseUrl, setGraphEditorSaveFn } from '@/app/api/lib/graphEditorTools';
-import { loadBaseGraphFromFile, storeBaseGraph } from '@/app/api/lib/graph-service';
-import { formatTraceMessage } from '@/lib/chatService';
+import { MessageSchema, Graph } from '@/app/api/lib/schemas';
 
+/* =========================
+   Graph Editor Config
+   ========================= */
+let defaultAuthHeaders: Record<string, string> | undefined;
+let overrideBaseUrl: string | undefined;
+let overrideSaveGraphFn: ((graph: Graph) => Promise<boolean>) | undefined;
+
+function setGraphEditorAuthHeaders(headers?: Record<string, string>) {
+  defaultAuthHeaders = headers;
+}
+
+function getBaseUrl(): string {
+  const envUrl = overrideBaseUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (envUrl && /^https?:\/\//i.test(envUrl)) return envUrl;
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
+  return envUrl || vercelUrl || 'http://localhost:3000';
+}
+
+function setGraphEditorBaseUrl(url?: string) {
+  overrideBaseUrl = url;
+}
+
+function setGraphEditorSaveFn(fn?: (graph: Graph) => Promise<boolean>) {
+  overrideSaveGraphFn = fn;
+}
+
+// Graph state management
+let pendingGraph: Graph | null = null;
+let originalGraph: Graph | null = null;
+
+async function setCurrentGraph(graph?: Graph): Promise<void> {
+  if (graph) {
+    pendingGraph = graph;
+    originalGraph = JSON.parse(JSON.stringify(graph));
+  } else {
+    // Try to fetch from API
+    try {
+      const baseUrl = getBaseUrl();
+      const response = await fetch(`${baseUrl}/api/graph-api`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...defaultAuthHeaders,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.graph) {
+          pendingGraph = data.graph;
+          originalGraph = JSON.parse(JSON.stringify(data.graph));
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch graph from API:', error);
+    }
+  }
+}
+
+function resetPendingChanges() {
+  pendingGraph = null;
+  originalGraph = null;
+}
+
+/* =========================
+   Request Schema
+   ========================= */
 const RequestSchema = z.object({
   userMessage: MessageSchema,
   selectedNodeId: z.string().optional(),
