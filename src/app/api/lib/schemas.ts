@@ -46,6 +46,21 @@ export const NodeMetadataSchema = z.object({
 });
 export type NodeMetadata = z.infer<typeof NodeMetadataSchema>;
 
+export const MetadataInputSchema = z.union([
+  NodeMetadataSchema,
+  z.array(z.string().min(1).trim()),
+  z.string().min(1).trim(),
+  // Allow more flexible nested structures that will be normalized
+  z.object({
+    files: z.union([
+      z.array(z.string().min(1).trim()),
+      z.object({ files: z.array(z.string().min(1).trim()) }),
+      z.array(z.object({ files: z.array(z.string().min(1).trim()) }))
+    ])
+  })
+]);
+export type MetadataInput = z.infer<typeof MetadataInputSchema>;
+
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),

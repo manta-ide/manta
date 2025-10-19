@@ -1,20 +1,6 @@
-import { tool } from '@anthropic-ai/claude-agent-sdk';
+import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import { PropertySchema, NodeMetadataSchema } from './schemas';
-
-const MetadataInputSchema = z.union([
-  NodeMetadataSchema,
-  z.array(z.string().min(1).trim()),
-  z.string().min(1).trim(),
-  // Allow more flexible nested structures that will be normalized
-  z.object({
-    files: z.union([
-      z.array(z.string().min(1).trim()),
-      z.object({ files: z.array(z.string().min(1).trim()) }),
-      z.array(z.object({ files: z.array(z.string().min(1).trim()) }))
-    ])
-  })
-]);
+import { PropertySchema, MetadataInputSchema } from './schemas';
 
 export const createGraphTools = (baseUrl: string) => {
   console.log('🔧 Creating graph tools (graph-service backed)', { baseUrl });
@@ -422,4 +408,10 @@ export const createGraphTools = (baseUrl: string) => {
   ),
 
   ];
+};
+
+export const createGraphMcpServer = (baseUrl: string) => {
+  console.log('🔧 Creating graph MCP server', { baseUrl });
+  const tools = createGraphTools(baseUrl);
+  return createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
 };

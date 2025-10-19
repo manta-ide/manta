@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { query, createSdkMcpServer, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-agent-sdk';
+import { query, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
-import { createGraphTools } from '../../lib/claude-code-tools';
+import { createGraphMcpServer } from '../../lib/claude-code-tools';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
 
@@ -480,8 +480,7 @@ export async function POST(req: NextRequest) {
 
           // Configure based on subagent
           const baseUrl = getBaseUrl(req as any);
-          const tools = createGraphTools(baseUrl);
-          const mcpServer = createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
+          const mcpServer = createGraphMcpServer(baseUrl);
 
           // Log the working directory
           const workingDirectory = projectDir();
