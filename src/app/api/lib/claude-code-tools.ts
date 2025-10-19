@@ -226,8 +226,8 @@ export const createGraphTools = (baseUrl: string) => {
 
         console.log('📤 TOOL: analyze_diff API success');
         return result;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('💥 TOOL: analyze_diff API call error:', errorMessage);
         return { content: [{ type: 'text', text: `Error: Failed to analyze diff via API: ${errorMessage}` }] };
       }

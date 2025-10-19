@@ -8,9 +8,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { isValidSelection } from '@/app/api/lib/selectionUtils';
-import { 
-  Message, 
+import {
+  Message,
   MessageContext
 } from '@/app/api/lib/schemas';
 
@@ -20,7 +19,6 @@ import {
  */
 interface SendMessageOptions {
   includeFile?: boolean;
-  includeSelection?: boolean;
   includeNodes?: boolean;
   displayContent?: string;
   resume?: string;
@@ -28,7 +26,7 @@ interface SendMessageOptions {
 }
 
 export function useChatService() {
-  const { currentFile, selection, setSelection, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
+  const { currentFile, selectedNodeId, selectedNode, selectedNodeIds } = useProjectStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,28 +91,15 @@ useEffect(() => {
 
     // Use context flags if provided, otherwise include everything
     const shouldIncludeFile = options?.includeFile !== false;
-    const shouldIncludeSelection = options?.includeSelection !== false;
     const shouldIncludeNodes = options?.includeNodes !== false;
 
-    // Only use selection if it's valid and should be included
-    const validSelection = (shouldIncludeSelection && isValidSelection(selection)) ? selection : null;
-    
-    const roundedSelection = validSelection ? {
-        x: Math.round(validSelection.x),
-        y: Math.round(validSelection.y),
-        width: Math.round(validSelection.width),
-        height: Math.round(validSelection.height),
-        selectedElements: validSelection.selectedElements
-      } : null;
-
-    // Store current selection context
+    // Store current context
     const messageContext: MessageContext = {
-      currentFile: (shouldIncludeFile && currentFile) || undefined,
-      selection: roundedSelection || undefined
+      currentFile: (shouldIncludeFile && currentFile) || undefined
     };
 
     // Create base user message for UI
-    const userMessage: Message = { 
+    const userMessage: Message = {
       role: 'user',
       variables: {
         USER_REQUEST: agentContent
@@ -122,19 +107,6 @@ useEffect(() => {
       content: displayContent,
       messageContext
     };
-
-    // Add selection variables if selection is valid
-    if (roundedSelection) {
-      userMessage.variables = {
-        ...userMessage.variables,
-        SELECTION: '1',
-        SELECTION_X: roundedSelection.x.toString(),
-        SELECTION_Y: roundedSelection.y.toString(),
-        SELECTION_WIDTH: roundedSelection.width.toString(),
-        SELECTION_HEIGHT: roundedSelection.height.toString(),
-        SELECTION_ELEMENTS: roundedSelection.selectedElements
-      };
-    }
 
     // Add selected node variables if nodes are selected and should be included
     if (shouldIncludeNodes && selectedNodeIds.length > 0) {
@@ -529,10 +501,6 @@ useEffect(() => {
         setLoading(false);
       }
 
-      // Clear selection if it was valid and used
-      if (validSelection) {
-        setSelection(null);
-      }
       console.log("Skipping graph refresh");
       // Only refresh if the graph was actually modified
       /* if (result.graphModified) {
@@ -558,7 +526,7 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, setSelection, messages, saveChatHistory]);
+  }, [currentFile, selectedNodeId, selectedNode, selectedNodeIds, messages, saveChatHistory]);
 
   // Function to clear chat history
   const clearMessages = useCallback(async () => {

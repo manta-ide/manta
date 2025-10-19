@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { getDevProjectDir } from '@/lib/project-config';
+import { getDevProjectDir } from '@/app/api/project-status/route';
 
 const WELCOME_GRAPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">

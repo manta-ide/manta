@@ -38,7 +38,7 @@ const SLASH_AGENT_MESSAGES: Record<string, (userText: string) => string> = {
 };
 
 export default function FloatingChat() {
-  const { currentFile, selection, selectedNodeId, selectedNode, selectedNodeIds, graph, setSelectedNode, setSelectedNodeIds } = useProjectStore();
+  const { currentFile, selectedNodeId, selectedNode, selectedNodeIds, graph, setSelectedNode, setSelectedNodeIds } = useProjectStore();
   const [input, setInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -63,7 +63,6 @@ export default function FloatingChat() {
   
   // Local state to track what context should be included in the next message
   const [includeFile, setIncludeFile] = useState(false);
-  const [includeSelection, setIncludeSelection] = useState(false);
   const [includeNodes, setIncludeNodes] = useState(false);
 
   // Use simplified chat service
@@ -108,10 +107,6 @@ export default function FloatingChat() {
   useLayoutEffect(() => {
     if (currentFile) setIncludeFile(true);
   }, [currentFile]);
-
-  useLayoutEffect(() => {
-    if (selection) setIncludeSelection(true);
-  }, [selection]);
 
   useLayoutEffect(() => {
     if (selectedNodeIds.length > 0) setIncludeNodes(true);
@@ -299,13 +294,11 @@ export default function FloatingChat() {
 
     const contextSnapshot = {
       includeFile,
-      includeSelection,
       includeNodes
     };
 
     const resetAfterSend = () => {
       setIncludeFile(false);
-      setIncludeSelection(false);
       setIncludeNodes(false);
       setMentionedNodeIds([]);
       setMentionActive(false);
@@ -387,7 +380,6 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
 
           await sendMessage(agentForwardContent, {
             includeFile: contextSnapshot.includeFile,
-            includeSelection: contextSnapshot.includeSelection,
             includeNodes: contextSnapshot.includeNodes,
             // Preserve the original text (with @tags) for UI display
             displayContent: rawInput,
@@ -1012,7 +1004,6 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
                 {m.content && (
                   <MessageBadges
                     currentFile={m.messageContext?.currentFile}
-                    selection={m.messageContext?.selection}
                     selectedNodeId={m.variables?.SELECTED_NODE_ID}
                     selectedNode={m.variables?.SELECTED_NODE_TITLE ? { title: m.variables.SELECTED_NODE_TITLE } : null}
                     variant={m.role === 'user' ? 'light' : 'dark'}
@@ -1097,11 +1088,9 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
           {/* Show current selection badges above input for context */}
           <SelectionBadges
             currentFile={includeFile ? currentFile : null}
-            selection={includeSelection ? selection : null}
             selectedNodeIds={includeNodes ? selectedNodeIds : []}
             selectedNodes={includeNodes ? selectedNodes : []}
             onRemoveFile={() => setIncludeFile(false)}
-            onRemoveSelection={() => setIncludeSelection(false)}
             onRemoveNodes={() => { setIncludeNodes(false); setMentionedNodeIds([]); }}
           />
           

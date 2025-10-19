@@ -1,7 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="node-1760857630740318" title="New Node" x="74" y="486" z="0" shape="hexagon">
+    </node>
 
+    <node id="node-176085972949383" title="Comment" x="74.42220214032342" y="183.9008538521245" z="0">
+      <description>Add your comment here...</description>
+      <props>
+        <prop name="width" title="width" type="string">400</prop>
+        <prop name="height" title="height" type="string">250</prop>
+      </props>
+    </node>
+
+    <node id="node-1760859733121626" title="New Node" x="-176.2220129534599" y="718.6158928957923" z="0" shape="arrow-rectangle">
+    </node>
   </nodes>
 
   <edges>

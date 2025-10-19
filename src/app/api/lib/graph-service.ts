@@ -3,7 +3,7 @@ import { GraphSchema, GraphNodeSchema } from './schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import fs from 'fs';
 import path from 'path';
-import { getDevProjectDir } from '@/lib/project-config';
+import { getDevProjectDir } from '../project-status/route';
 import { activeLayerDir, getActiveLayer, getActiveLayerGraphPaths, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo, createLayer } from '@/lib/layers';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
