@@ -32,51 +32,28 @@ export function useChatService() {
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Load chat history (no user check anymore)
+  // Load chat history (no persistence - empty on load)
 useEffect(() => {
   loadChatHistory();
 }, []);
 
 
-  // Function to load chat history from database
+  // Function to load chat history (no persistence - empty on load)
   const loadChatHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const response = await fetch('/api/chat', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const { chatHistory } = await response.json();
-        setMessages(chatHistory || []);
-      } else {
-        // Only log error if it's not a 404 (no chat history yet)
-        if (response.status !== 404) {
-          console.error('Failed to load chat history:', response.status, response.statusText);
-        }
-        // Set empty array for new sessions
-        setMessages([]);
-      }
+      // Chat history is not persisted - always start with empty array
+      setMessages([]);
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      console.error('Error initializing chat history:', error);
     } finally {
       setLoadingHistory(false);
     }
   }, []);
 
-  // Function to save chat history to database
+  // Function to save chat history (no persistence - messages are not saved)
   const saveChatHistory = useCallback(async (newMessages: Message[]) => {
-    try {
-      await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ chatHistory: newMessages }),
-      });
-    } catch (error) {
-      console.error('Error saving chat history:', error);
-    }
+    // Chat history is not persisted - this is a no-op
   }, []);
 
   const sendMessage = useCallback(async (input: string, options?: SendMessageOptions) => {
@@ -502,11 +479,6 @@ useEffect(() => {
       }
 
       console.log("Skipping graph refresh");
-      // Only refresh if the graph was actually modified
-      /* if (result.graphModified) {
-        await loadProjectFromFileSystem();
-        triggerRefresh();
-      } */
 
     } catch (error) {
       console.error('Chat service error:', error);
@@ -534,16 +506,7 @@ useEffect(() => {
       // Clear frontend state immediately
       setMessages([]);
       setLoading(false);
-      
-      // Clear chat history from database
-      const response = await fetch('/api/chat', {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to clear chat history from database');
-      }
+      // Chat history is not persisted - no database to clear
     } catch (error) {
       console.error('Error clearing conversation:', error);
     }
