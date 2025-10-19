@@ -23,25 +23,21 @@ export const roundRectangleConfig: ShapeConfig = {
   contentPadding: {
     padding: '32px', // Round rectangle has rounded corners
   },
-  zIndex: 0,
   indicatorPosition: {
     top: '32px',
     right: '32px',
   },
-  zIndex: 0,
   showStateIndicators: true,
   showHandles: true,
   fontSize: {
     title: 16,
     content: 13,
   },
-  zIndex: 0,
   contentLayout: {
     clipOverflow: true,
     flexContent: true,
     maxDescriptionLines: 3,
   },
-  zIndex: 0,
 };
 
 export default RoundRectangle;

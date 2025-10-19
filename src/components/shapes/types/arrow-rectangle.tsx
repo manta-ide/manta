@@ -25,25 +25,21 @@ export const arrowRectangleConfig: ShapeConfig = {
     padding: '32px',
     paddingRight: '40px', // Arrow shape has point at right edge
   },
-  zIndex: 0,
   indicatorPosition: {
     top: '32px',
     right: '40px',
   },
-  zIndex: 0,
   showStateIndicators: true,
   showHandles: true,
   fontSize: {
     title: 16,
     content: 13,
   },
-  zIndex: 0,
   contentLayout: {
     clipOverflow: true,
     flexContent: true,
     maxDescriptionLines: 3,
   },
-  zIndex: 0,
 };
 
 export default ArrowRectangle;

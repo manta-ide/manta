@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getDevProjectDir } from '../project-status/route';
+import { getDevProjectDir } from '@/lib/project-config';
 
 const projectDir = () => {
   // Use the configured development project directory

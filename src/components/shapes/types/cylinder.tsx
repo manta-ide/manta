@@ -30,25 +30,21 @@ export const cylinderConfig: ShapeConfig = {
     paddingTop: '44px',
     paddingBottom: '32px', // Cylinder has curved sections at top/bottom, extra top padding
   },
-  zIndex: 0,
   indicatorPosition: {
     top: '44px',
     right: '36px',
   },
-  zIndex: 0,
   showStateIndicators: true,
   showHandles: true,
   fontSize: {
     title: 16,
     content: 13,
   },
-  zIndex: 0,
   contentLayout: {
     clipOverflow: true,
     flexContent: true,
     maxDescriptionLines: 3,
   },
-  zIndex: 0,
 };
 
 export default Cylinder;

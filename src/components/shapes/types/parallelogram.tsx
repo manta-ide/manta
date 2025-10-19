@@ -24,31 +24,26 @@ export const parallelogramConfig: ShapeConfig = {
     padding: '32px',
     paddingLeft: '48px',
     paddingRight: '48px', // Parallelogram has angled sides
-  },
-  zIndex: 0,
+  },  
   indicatorPosition: {
     top: '32px',
     right: '48px',
   },
-  zIndex: 0,
   handlePositions: {
     left: { top: '50%', left: '20px' },
     right: { top: '50%', right: '20px' },
   },
-  zIndex: 0,
   showStateIndicators: true,
   showHandles: true,
   fontSize: {
     title: 16,
     content: 13,
   },
-  zIndex: 0,
   contentLayout: {
     clipOverflow: true,
     flexContent: true,
     maxDescriptionLines: 3,
   },
-  zIndex: 0,
 };
 
 export default Parallelogram;

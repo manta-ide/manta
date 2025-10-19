@@ -1,4 +1,4 @@
-import { getDevProjectDir } from '../project-status/route';
+import { getDevProjectDir } from '@/lib/project-config';
 import * as fs from 'fs';
 
 // Helper function to get base URL from request

@@ -23,25 +23,21 @@ export const diamondConfig: ShapeConfig = {
     paddingLeft: '56px',
     paddingRight: '56px', // Diamond needs significant padding to avoid sharp corners at edges
   },
-  zIndex: 0,
   indicatorPosition: {
     top: '48px',
     right: '56px',
   },
-  zIndex: 0,
   showStateIndicators: true,
   showHandles: true,
   fontSize: {
     title: 16,
     content: 13,
   },
-  zIndex: 0,
   contentLayout: {
     clipOverflow: true,
     flexContent: true,
     maxDescriptionLines: 3,
   },
-  zIndex: 0,
 };
 
 export default Diamond;

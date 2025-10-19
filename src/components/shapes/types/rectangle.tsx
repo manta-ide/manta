@@ -19,25 +19,21 @@ export const rectangleConfig: ShapeConfig = {
   contentPadding: {
     padding: '32px', // Standard rectangle
   },
-  zIndex: 0,
   indicatorPosition: {
     top: '32px',
     right: '32px',
   },
-  zIndex: 0,
   showStateIndicators: true,
   showHandles: true,
   fontSize: {
     title: 16,
     content: 13,
   },
-  zIndex: 0,
   contentLayout: {
     clipOverflow: true,
     flexContent: true,
     maxDescriptionLines: 3,
   },
-  zIndex: 0,
 };
 
 export default Rectangle;
