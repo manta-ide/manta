@@ -466,8 +466,50 @@ ${optionsXml}
       const nestedXml = graphToXml(nestedGraphContent);
       // Extract just the nodes and edges content from the nested graph XML
       const lines = nestedXml.split('\n');
-      const nodeStartIdx = lines.findIndex(l => l.includes('<nodes>'));
-      const edgeEndIdx = lines.findIndex(l => l.includes('</edges>'));
+      
+      // Find the root-level <nodes> and <edges> sections
+      let nodeStartIdx = -1;
+      let nodeEndIdx = -1;
+      let edgeStartIdx = -1;
+      let edgeEndIdx = -1;
+      let nodesDepth = 0;
+      let edgesDepth = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Track <nodes> sections with depth
+        if (line.includes('<nodes>') || line.includes('<nodes ')) {
+          if (nodesDepth === 0 && nodeStartIdx === -1) {
+            nodeStartIdx = i;
+          }
+          nodesDepth++;
+        }
+        if (line.includes('</nodes>')) {
+          nodesDepth--;
+          if (nodesDepth === 0 && nodeStartIdx !== -1 && nodeEndIdx === -1) {
+            nodeEndIdx = i;
+          }
+        }
+        
+        // Track <edges> sections with depth (only after nodes section is complete)
+        if (nodeEndIdx !== -1) {
+          if (line.includes('<edges>') || line.includes('<edges ')) {
+            if (edgesDepth === 0 && edgeStartIdx === -1) {
+              edgeStartIdx = i;
+            }
+            edgesDepth++;
+          }
+          if (line.includes('</edges>')) {
+            edgesDepth--;
+            if (edgesDepth === 0 && edgeStartIdx !== -1 && edgeEndIdx === -1) {
+              edgeEndIdx = i;
+              break; // We're done
+            }
+          }
+        }
+      }
+      
       if (nodeStartIdx !== -1 && edgeEndIdx !== -1) {
         const graphContent = lines
           .slice(nodeStartIdx, edgeEndIdx + 1)
@@ -476,6 +518,7 @@ ${optionsXml}
         nestedGraph = `\n      <graph>\n${graphContent}\n      </graph>`;
       }
     } catch (e) {
+      console.error('Error serializing nested graph:', e);
       // Fallback: include empty graph
       nestedGraph = `\n      <graph>\n        <nodes></nodes>\n        <edges></edges>\n      </graph>`;
     }

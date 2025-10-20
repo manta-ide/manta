@@ -154,7 +154,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
 
   // Derive effective visual state based on base graph comparison
   const effectiveState = (() => {
-    console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
     // Check if node has bugs - if so, it's always unbuilt
     const bugs = node.metadata?.bugs;
@@ -179,7 +178,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     }
 
     if (!baseNode) {
-      console.log(`   ❌ No matching base node found`);
       return 'unbuilt'; // New node, consider unbuilt
     }
 
@@ -854,35 +852,54 @@ function GraphCanvas() {
           nodes: [...graph.nodes, newNode]
         };
       } else {
-        // Adding to nested graph - need to rebuild the tree
-        updatedGraph = { ...graph };
-        let current = updatedGraph;
-        
-        // Navigate to parent and update it
-        for (let i = 0; i < navigationPath.length; i++) {
-          const nodeId = navigationPath[i];
-          const nodeIndex = current.nodes.findIndex(n => n.id === nodeId);
-          if (nodeIndex === -1) break;
+        // Adding to nested graph - need to rebuild the tree recursively
+        const rebuildGraphWithNewNode = (g: Graph, path: string[], node: GraphNode, depth: number = 0): Graph => {
+          const indent = '  '.repeat(depth);
+          console.log(`${indent}🔄 rebuildGraphWithNewNode: path=${path.join('/')}, nodes in graph=${g.nodes?.length || 0}`);
           
-          const node = current.nodes[nodeIndex];
-          if (i === navigationPath.length - 1) {
-            // This is the target - add node to its graph
-            const updatedNode = {
-              ...node,
-              graph: {
-                ...(node.graph || { nodes: [], edges: [] }),
-                nodes: [...(node.graph?.nodes || []), newNode]
-              }
-            };
-            current.nodes[nodeIndex] = updatedNode;
-          } else {
-            // Continue navigating
-            current = node.graph || { nodes: [], edges: [] };
+          if (path.length === 0) {
+            // Add to this level's nodes
+            console.log(`${indent}✅ Adding node at depth ${depth}, was ${g.nodes?.length || 0} nodes, now ${(g.nodes?.length || 0) + 1}`);
+            return { ...g, nodes: [...(g.nodes || []), node] };
           }
+          
+          // Need to find and update the node at path[0]
+          const targetNodeId = path[0];
+          const remainingPath = path.slice(1);
+          console.log(`${indent}🔍 Looking for node '${targetNodeId}' in ${g.nodes?.length || 0} nodes`);
+          
+          return {
+            ...g,
+            nodes: (g.nodes || []).map((n) => {
+              if (n.id === targetNodeId) {
+                console.log(`${indent}✓ Found node '${targetNodeId}', recursing with path ${remainingPath.join('/')}`);
+                // Found the node - recurse into its graph
+                return {
+                  ...n,
+                  graph: rebuildGraphWithNewNode(n.graph || { nodes: [], edges: [] }, remainingPath, node, depth + 1)
+                };
+              }
+              return n;
+            })
+          };
+        };
+        
+        console.log('🏗️ Starting recursive rebuild for navigationPath:', navigationPath);
+        updatedGraph = rebuildGraphWithNewNode(graph, navigationPath, newNode);
+        
+        // Trace through the entire nested structure
+        let checkNode: any = updatedGraph.nodes?.[0];
+        let level = 0;
+        while (checkNode && level < 5) {
+          console.log(`  Level ${level}: node '${checkNode.id}' has graph with ${checkNode.graph?.nodes?.length || 0} nodes`);
+          checkNode = checkNode.graph?.nodes?.[0];
+          level++;
         }
+        console.log('🏗️ Rebuild complete');
       }
       
-      useProjectStore.setState({ graph: updatedGraph });
+      // Note: Don't set state here - syncGraph will handle it
+      // useProjectStore.setState({ graph: updatedGraph });
 
       // Create ReactFlow node and add to local state (already selected)
       const reactFlowNode: Node = {
@@ -902,8 +919,14 @@ function GraphCanvas() {
 
       console.log('➕ Optimistically created new node:', newNodeId);
 
-      // Persist update via API (real-time updates will sync)
-      await updateNode(newNodeId, newNode);
+      // Persist entire graph via API (not just the node)
+      console.log('📊 Syncing graph with nodes count:', updatedGraph.nodes.length, 'navigationPath:', navigationPath);
+      // Log the structure of the first node to see if nested graph exists
+      if (updatedGraph.nodes.length > 0 && navigationPath.length > 0) {
+        const firstNode = updatedGraph.nodes[0];
+        console.log('📌 First node:', { id: firstNode.id, hasNestedGraph: !!firstNode.graph, nestedNodeCount: firstNode.graph?.nodes?.length || 0 });
+      }
+      await useProjectStore.getState().syncGraph(updatedGraph);
 
       // No folder creation needed - navigation is based on nested graph structure
 
@@ -927,27 +950,34 @@ function GraphCanvas() {
             nodes: graph.nodes.filter(n => n.id !== newNodeId)
           };
         } else {
-          // Revert the nested change
-          let current = revertedGraph;
-          for (let i = 0; i < navigationPath.length; i++) {
-            const nodeId = navigationPath[i];
-            const nodeIndex = current.nodes.findIndex(n => n.id === nodeId);
-            if (nodeIndex === -1) break;
-            
-            const node = current.nodes[nodeIndex];
-            if (i === navigationPath.length - 1) {
-              const updatedNode = {
-                ...node,
-                graph: {
-                  ...(node.graph || { nodes: [], edges: [] }),
-                  nodes: (node.graph?.nodes || []).filter((n: any) => n.id !== newNodeId)
-                }
-              };
-              current.nodes[nodeIndex] = updatedNode;
-            } else {
-              current = node.graph || { nodes: [], edges: [] };
+          // Revert the nested change using recursive rebuild
+          const rebuildGraphWithoutNode = (g: Graph, path: string[], nodeIdToRemove: string): Graph => {
+            if (path.length === 0) {
+              return { ...g, nodes: g.nodes.filter(n => n.id !== nodeIdToRemove) };
             }
-          }
+            
+            return {
+              ...g,
+              nodes: g.nodes.map((n) => {
+                if (n.id === path[0]) {
+                  if (path.length === 1) {
+                    return {
+                      ...n,
+                      graph: rebuildGraphWithoutNode(n.graph || { nodes: [], edges: [] }, [], nodeIdToRemove)
+                    };
+                  } else {
+                    return {
+                      ...n,
+                      graph: rebuildGraphWithoutNode(n.graph || { nodes: [], edges: [] }, path.slice(1), nodeIdToRemove)
+                    };
+                  }
+                }
+                return n;
+              })
+            };
+          };
+          
+          revertedGraph = rebuildGraphWithoutNode(graph, navigationPath, newNodeId);
         }
         useProjectStore.setState({ graph: revertedGraph });
       }
@@ -984,6 +1014,47 @@ function GraphCanvas() {
       setSelectedNodeIds([newNodeId]);
 
 
+      // Build updated graph with node added to current navigation level
+      let updatedGraph = { ...graph };
+      if (navigationPath.length === 0) {
+        // Adding to root graph
+        updatedGraph = {
+          ...graph,
+          nodes: [...graph.nodes, newNode]
+        };
+      } else {
+        // Adding to nested graph - need to rebuild the tree recursively
+        const rebuildGraphWithNewNode = (g: Graph, path: string[], node: GraphNode): Graph => {
+          if (path.length === 0) {
+            // Add to this level's nodes
+            return { ...g, nodes: [...(g.nodes || []), node] };
+          }
+          
+          // Need to find and update the node at path[0]
+          const targetNodeId = path[0];
+          const remainingPath = path.slice(1);
+          
+          return {
+            ...g,
+            nodes: (g.nodes || []).map((n) => {
+              if (n.id === targetNodeId) {
+                // Found the node - recurse into its graph
+                return {
+                  ...n,
+                  graph: rebuildGraphWithNewNode(n.graph || { nodes: [], edges: [] }, remainingPath, node)
+                };
+              }
+              return n;
+            })
+          };
+        };
+        
+        updatedGraph = rebuildGraphWithNewNode(graph, navigationPath, newNode);
+      }
+      
+      // Note: Don't set state here - syncGraph will handle it
+      // useProjectStore.setState({ graph: updatedGraph });
+
       // Create ReactFlow node and add to local state (already selected)
       const reactFlowNode: Node = {
         id: newNodeId,
@@ -1004,8 +1075,9 @@ function GraphCanvas() {
 
       console.log('➕ Optimistically created new comment node:', newNodeId);
 
-      // Persist update via API (real-time updates will sync)
-      await updateNode(newNodeId, newNode);
+      // Persist entire graph via API (not just the node)
+      console.log('📊 Syncing comment graph with nodes count:', updatedGraph.nodes.length, 'navigationPath:', navigationPath);
+      await useProjectStore.getState().syncGraph(updatedGraph);
 
       // Create a layer for the new comment node under the current active layer
       // No folder creation needed - navigation is based on nested graph structure
@@ -2273,37 +2345,37 @@ function GraphCanvas() {
               >
                 Root
               </button>
-              {navigationPath.map((nodeId, index) => (
-                <React.Fragment key={nodeId}>
-                  <span className="text-zinc-500">/</span>
-                  <button
-                    onClick={() => setNavigationPath(navigationPath.slice(0, index + 1))}
-                    className={`hover:text-white transition-colors ${
-                      index === navigationPath.length - 1 ? 'text-white font-medium' : 'text-zinc-400'
-                    }`}
-                  >
-                    {nodeId}
-                  </button>
-                </React.Fragment>
-              ))}
+              {navigationPath.map((nodeId, index) => {
+                // Find node title by traversing the graph
+                let nodeTitle = nodeId;
+                let current: Graph | undefined | null = graph;
+                for (let i = 0; i <= index && current; i++) {
+                  const pathNodeId = navigationPath[i];
+                  const node: GraphNode | undefined = current.nodes?.find(n => n.id === pathNodeId);
+                  if (i === index) {
+                    nodeTitle = node?.title || nodeId;
+                  }
+                  current = node?.graph;
+                }
+                
+                return (
+                  <React.Fragment key={nodeId}>
+                    <span className="text-zinc-500">/</span>
+                    <button
+                      onClick={() => setNavigationPath(navigationPath.slice(0, index + 1))}
+                      className={`hover:text-white transition-colors ${
+                        index === navigationPath.length - 1 ? 'text-white font-medium' : 'text-zinc-400'
+                      }`}
+                      title={nodeTitle}
+                    >
+                      {nodeTitle}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         )}
-
-        {/* Back Button */}
-        {navigationPath.length > 0 && (
-          <div className="absolute top-4 right-4 z-50">
-            <Button
-              onClick={() => setNavigationPath(navigationPath.slice(0, -1))}
-              variant="outline"
-              size="sm"
-              className="bg-zinc-800 text-zinc-400 border-zinc-600 hover:bg-zinc-700 hover:text-white"
-            >
-              ← Back
-            </Button>
-          </div>
-        )}
-
         <HelperLines />
       </ReactFlow>
 
