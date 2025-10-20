@@ -519,6 +519,10 @@ function GraphCanvas() {
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isAutoLayouting, setIsAutoLayouting] = useState(false);
 
+  // Double-click detection
+  const lastClickRef = useRef<{ nodeId: string; timestamp: number } | null>(null);
+  const DOUBLE_CLICK_DELAY = 300; // ms
+
   // Helper lines functionality
   const { rebuildIndex, updateHelperLines, HelperLines } = useHelperLines();
 
@@ -539,7 +543,7 @@ function GraphCanvas() {
   // Get optimistic operations flag from store to prevent real-time updates during local operations
 
 
-  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
+  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode, createLayer, setActiveLayer } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
     setSelectedNode,
@@ -849,6 +853,9 @@ function GraphCanvas() {
       // Persist update via API (real-time updates will sync)
       await updateNode(newNodeId, newNode);
 
+      // Create a layer for the new node
+      await createLayer(newNodeId);
+
       // Switch back to select tool after creating node
       setCurrentTool('select');
 
@@ -872,7 +879,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive]);
+  }, [graph, generateNodeId, updateNode, createLayer, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, baseGraph, suppressSSE]);
 
   // Create a new comment node at the specified position with custom dimensions
   const createCommentNode = useCallback(async (position: { x: number; y: number }, dimensions: { width: number; height: number }) => {
@@ -929,6 +936,9 @@ function GraphCanvas() {
       // Persist update via API (real-time updates will sync)
       await updateNode(newNodeId, newNode);
 
+      // Create a layer for the new comment node
+      await createLayer(newNodeId);
+
       // Switch back to select tool after creating comment
       setCurrentTool('select');
 
@@ -952,7 +962,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool]);
+  }, [graph, generateNodeId, updateNode, createLayer, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, baseGraph, suppressSSE]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -1331,6 +1341,25 @@ function GraphCanvas() {
 
     if (!freshGraphNode) return;
 
+    // Check for double-click to switch to layer
+    const now = Date.now();
+    const isDoubleClick = lastClickRef.current &&
+      lastClickRef.current.nodeId === node.id &&
+      (now - lastClickRef.current.timestamp) < DOUBLE_CLICK_DELAY;
+
+    if (isDoubleClick) {
+      // Double-click detected: switch to the layer named after this node
+      console.log(`🔄 Switching to layer: ${node.id}`);
+      setActiveLayer(node.id).catch(error => {
+        console.warn('Failed to switch to layer:', error);
+      });
+      lastClickRef.current = null; // Reset for next click
+      return; // Don't do normal selection on double-click
+    } else {
+      // Single click: update last click info and proceed with selection
+      lastClickRef.current = { nodeId: node.id, timestamp: now };
+    }
+
     setSelectedEdge(null, null);
     setSelectedEdgeIds([]);
 
@@ -1370,7 +1399,7 @@ function GraphCanvas() {
 
       // Removed iframe selection messaging
     }
-  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds]);
+  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds, setActiveLayer]);
 
   // Handle edge selection (with multi-select support)
   const onEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
