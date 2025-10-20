@@ -840,7 +840,14 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, title, prompt, properties, position, syncToBase, metadata } = params;
+        const { nodeId: providedId, title, prompt, properties, position, syncToBase, metadata } = params;
+
+        // Generate nodeId if not provided
+        const nodeId = providedId || `node-${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        
+        // Use defaults for title and prompt if not provided
+        const nodeTitle = title || 'New Node';
+        const nodePrompt = prompt || '';
 
         console.log('🔍 TOOL: node_create checking if node already exists:', nodeId);
         const existingNode = validatedGraph.nodes.find((n: any) => n.id === nodeId);
@@ -853,9 +860,10 @@ export async function POST(req: NextRequest) {
 
         const node: any = {
           id: nodeId,
-          title,
-          prompt,
+          title: nodeTitle,
+          prompt: nodePrompt,
           properties: properties || [],
+          graph: { nodes: [], edges: [] }, // Empty nested graph
           ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
         };
         const normalizedMetadata = normalizeNodeMetadata(metadata);
@@ -874,22 +882,7 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: node_create graph saved successfully');
 
-        // Create a layer for the new node under the current active layer
-        try {
-          const { getActiveLayer } = await import('@/lib/layers');
-          const activeLayer = getActiveLayer();
-          console.log('📁 TOOL: node_create creating layer for node:', nodeId, 'under parent:', activeLayer);
-          createLayer(nodeId, activeLayer || undefined);
-          console.log('✅ TOOL: node_create layer created successfully');
-
-          // Broadcast layer update to UI
-          const { getLayersInfo } = await import('@/lib/layers');
-          const layersInfo = getLayersInfo();
-          broadcastGraphJson({ type: 'layers-changed', layers: layersInfo.layers, activeLayer: layersInfo.activeLayer });
-        } catch (layerError) {
-          console.warn('⚠️ TOOL: node_create failed to create layer:', layerError);
-          // Don't fail the entire operation if layer creation fails
-        }
+        // No folder creation needed - navigation is based on nested graph structure
 
         // If syncToBase is true, sync this node to base graph immediately
         if (syncToBase) {
@@ -945,6 +938,11 @@ export async function POST(req: NextRequest) {
 
         const existing = validatedGraph.nodes[idx];
         const next = { ...existing } as any;
+
+        // Ensure nested graph exists (even if not being edited)
+        if (!next.graph) {
+          next.graph = { nodes: [], edges: [] };
+        }
 
         // Merge simple fields (only update if provided)
         if (title !== undefined) {
@@ -1808,7 +1806,7 @@ export async function PATCH(req: NextRequest) {
     const user = { id: 'default-user' };
     
     const body = await req.json();
-    const { nodeId, propertyId, value } = body;
+    const { nodeId, propertyId, value, navigationPath = [] } = body;
     
     if (!nodeId || !propertyId) {
       return NextResponse.json(
@@ -1831,16 +1829,29 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Find the node and update the property
-    const nodeIndex = graph.nodes.findIndex(n => n.id === nodeId);
+    // Navigate to the target graph based on navigationPath
+    let targetGraph = graph;
+    for (const pathNodeId of navigationPath) {
+      const parentNode = targetGraph.nodes?.find(n => n.id === pathNodeId);
+      if (!parentNode || !parentNode.graph) {
+        return NextResponse.json(
+          { error: `Navigation failed: node ${pathNodeId} or its graph not found` },
+          { status: 404 }
+        );
+      }
+      targetGraph = parentNode.graph;
+    }
+
+    // Find the node in the target graph and update the property
+    const nodeIndex = targetGraph.nodes.findIndex(n => n.id === nodeId);
     if (nodeIndex === -1) {
       return NextResponse.json(
-        { error: 'Node not found' },
+        { error: 'Node not found in target graph' },
         { status: 404 }
       );
     }
 
-    const node = graph.nodes[nodeIndex];
+    const node = targetGraph.nodes[nodeIndex];
     const propertyIndex = node.properties?.findIndex(p => p.id === propertyId);
 
     if (propertyIndex === -1 || propertyIndex === undefined || !node.properties) {
@@ -1850,7 +1861,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Update the property value directly in the graph
+    // Update the property value directly in the target graph
     node.properties[propertyIndex] = { ...node.properties[propertyIndex], value };
 
     // Save the updated graph without broadcasting (user-initiated change)
@@ -1861,7 +1872,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Property updated successfully',
-      updatedNode: getGraphSession()?.nodes.find(n => n.id === nodeId) || null
+      updatedNode: targetGraph.nodes.find(n => n.id === nodeId) || null
     });
   } catch (error) {
     console.error('❌ Graph API PATCH error:', error);

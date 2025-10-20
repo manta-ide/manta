@@ -7,110 +7,105 @@ import { Button } from '@/components/ui/button';
 import ResizeHandle from './ResizeHandle';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
-import { getParentLayerPath, getLayerName, buildLayerTree, type LayerNode } from '@/lib/layer-utils';
+import type { GraphNode, Graph } from '@/app/api/lib/schemas';
 
 type Props = { open?: boolean };
 
+// Tree node for displaying graph nodes
+interface GraphNodeTreeNode {
+  node: GraphNode;
+  children: GraphNodeTreeNode[];
+  level: number;
+  isLast: boolean;
+  parentPath: boolean[];
+}
+
+function buildGraphTree(graph: Graph | null, parentNodeId?: string): GraphNodeTreeNode[] {
+  if (!graph || !graph.nodes) return [];
+
+  // If parentNodeId is provided, get the nested graph from that node
+  let sourceGraph = graph;
+  if (parentNodeId) {
+    const parentNode = graph.nodes.find(n => n.id === parentNodeId);
+    if (parentNode?.graph) {
+      sourceGraph = parentNode.graph;
+    } else {
+      return [];
+    }
+  }
+
+  const nodes = sourceGraph.nodes || [];
+  const nodeMap = new Map<string, GraphNodeTreeNode>();
+
+  // Create tree nodes for each graph node
+  nodes.forEach((node) => {
+    const treeNode: GraphNodeTreeNode = {
+      node,
+      children: [],
+      level: 0,
+      isLast: false,
+      parentPath: []
+    };
+    nodeMap.set(node.id, treeNode);
+  });
+
+  // Root level nodes are all top-level nodes in the graph
+  const rootNodes = Array.from(nodeMap.values());
+
+  // Sort by node title
+  rootNodes.sort((a, b) => a.node.title.localeCompare(b.node.title));
+
+  // Set isLast flag
+  rootNodes.forEach((node: GraphNodeTreeNode, index: number) => {
+    node.isLast = index === rootNodes.length - 1;
+  });
+
+  return rootNodes;
+}
+
 export default function LayersSidebar({ open = true }: Props) {
-  const { layers, activeLayer, loadLayers, setActiveLayer, createLayer, deleteLayer, cloneLayer, renameLayer, graphLoading, rightSidebarWidth, setRightSidebarWidth } = useProjectStore();
-  const [parentForNewLayer, setParentForNewLayer] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [editingLayer, setEditingLayer] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState('');
-  const [editingMode, setEditingMode] = useState<'rename' | null>(null);
-  const [expandedLayers, setExpandedLayers] = useState<Set<string>>(new Set(['graph1']));
+  const { graph, graphLoading, rightSidebarWidth, setRightSidebarWidth, navigationPath, setNavigationPath } = useProjectStore();
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const indent = 20;
 
-  useEffect(() => { loadLayers(); }, [loadLayers]);
-
-  // Organize layers into a tree structure based on filesystem hierarchy
-  const layerTree = useMemo(() => {
-    return buildLayerTree(layers);
-  }, [layers]);
-
-  const nextDefaultName = useMemo(() => {
-    const nums = layers
-      .map((n) => Number((n.match(/(\d+)$/)?.[1]) || '0'))
-      .filter((v) => !Number.isNaN(v));
-    const max = nums.length > 0 ? Math.max(...nums) : 0;
-    return `graph${max + 1}`;
-  }, [layers]);
-
-  const doCreate = async (parentPath?: string) => {
-    const name = nextDefaultName;
-    setCreating(true);
-    const created = await createLayer(name, parentPath);
-    setCreating(false);
-    if (created) {
-      await setActiveLayer(created);
-      // Start editing the newly created layer to allow renaming
-      startEditing(created);
-    }
-    setParentForNewLayer(null); // Reset parent selection
-  };
-
-  const startEditing = (layerName: string) => {
-    setEditingLayer(layerName);
-    setEditingMode('rename');
-    setEditingValue(getLayerName(layerName));
-  };
-
-  const cancelEditing = () => {
-    setEditingLayer(null);
-    setEditingValue('');
-    setEditingMode(null);
-  };
-
-  const saveEditing = async () => {
-    if (!editingLayer || !editingValue.trim()) return;
-
-    const newLayerName = editingValue.trim();
-    const currentLayerName = getLayerName(editingLayer);
-
-    if (newLayerName === currentLayerName) {
-      cancelEditing();
-      return;
+  // Build tree from current graph (based on navigation path)
+  const currentGraph = useMemo(() => {
+    if (!graph || navigationPath.length === 0) {
+      return graph;
     }
 
-    // Construct the full new path by replacing the last part of the old path
-    const parentPath = getParentLayerPath(editingLayer);
-    const newFullPath = parentPath ? `${parentPath}/${newLayerName}` : newLayerName;
-
-    const renamed = await renameLayer(editingLayer, newFullPath);
-    if (renamed) {
-      cancelEditing();
+    let current: Graph | undefined = graph;
+    for (const nodeId of navigationPath) {
+      if (!current) break;
+      const node: GraphNode | undefined = current.nodes?.find(n => n.id === nodeId);
+      current = node?.graph;
     }
-  };
+    return current || graph;
+  }, [graph, navigationPath]);
 
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      saveEditing();
-    } else if (e.key === 'Escape') {
-      cancelEditing();
-    }
-  };
+  const graphTree = useMemo(() => {
+    return buildGraphTree(currentGraph);
+  }, [currentGraph]);
 
-  const toggleExpanded = (layerName: string) => {
-    setExpandedLayers(prev => {
+  const toggleExpanded = (nodeId: string) => {
+    setExpandedNodes(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(layerName)) {
-        newSet.delete(layerName);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
       } else {
-        newSet.add(layerName);
+        newSet.add(nodeId);
       }
       return newSet;
     });
   };
 
-  // Render a layer node with tree styling like tree.tsx
-  const renderLayerNode = (node: LayerNode): React.ReactNode => {
-    const isActive = node.name === activeLayer;
-    const isEditing = editingLayer === node.name;
-    const hasChildren = node.children.length > 0;
-    const isExpanded = expandedLayers.has(node.name);
+  // Render a graph node with tree styling
+  const renderNodeItem = (item: GraphNodeTreeNode): React.ReactNode => {
+    const hasNestedGraph = !!(item.node.graph && item.node.graph.nodes && item.node.graph.nodes.length > 0);
+    const isExpanded = expandedNodes.has(item.node.id);
 
     const getDefaultIcon = () =>
-      hasChildren ? (
+      hasNestedGraph ? (
         isExpanded ? (
           <FolderOpen className="h-4 w-4" />
         ) : (
@@ -121,34 +116,42 @@ export default function LayersSidebar({ open = true }: Props) {
       );
 
     return (
-      <div key={node.name} className="select-none">
+      <div key={item.node.id} className="select-none">
         <motion.div
           className={cn(
             "flex items-center py-2 px-3 cursor-pointer transition-all duration-200 relative group rounded",
-            isActive
-              ? "bg-zinc-800 border border-blue-600"
-              : "bg-zinc-800/40 border border-zinc-700 hover:bg-zinc-700"
+            "bg-zinc-800/40 border border-zinc-700 hover:bg-zinc-700"
           )}
-          style={{ paddingLeft: node.level * indent + 12 }}
+          style={{ paddingLeft: item.level * indent + 12 }}
           onClick={(e) => {
-            if (hasChildren) toggleExpanded(node.name);
-            if (!e.ctrlKey && !e.metaKey && node.name !== activeLayer) {
-              setActiveLayer(node.name);
+            if (hasNestedGraph) {
+              toggleExpanded(item.node.id);
+            }
+            if (!e.ctrlKey && !e.metaKey) {
+              // Double-click or navigate into nested graph
+              if (hasNestedGraph && e.detail === 2) {
+                setNavigationPath([...navigationPath, item.node.id]);
+              }
+            }
+          }}
+          onDoubleClick={() => {
+            if (hasNestedGraph) {
+              setNavigationPath([...navigationPath, item.node.id]);
             }
           }}
           whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
         >
           {/* Tree Lines */}
-          {node.level > 0 && (
+          {item.level > 0 && (
             <div className="absolute left-0 top-0 bottom-0 pointer-events-none">
-              {node.parentPath.map((isLastInPath, pathIndex) => (
+              {item.parentPath.map((isLastInPath, pathIndex) => (
                 <div
                   key={pathIndex}
                   className="absolute top-0 bottom-0 border-l border-zinc-600/40"
                   style={{
                     left: pathIndex * indent + 12,
                     display:
-                      pathIndex === node.parentPath.length - 1 && node.isLast
+                      pathIndex === item.parentPath.length - 1 && item.isLast
                         ? "none"
                         : "block",
                   }}
@@ -157,16 +160,16 @@ export default function LayersSidebar({ open = true }: Props) {
               <div
                 className="absolute top-1/2 border-t border-zinc-600/40"
                 style={{
-                  left: (node.level - 1) * indent + 12,
+                  left: (item.level - 1) * indent + 12,
                   width: indent - 4,
                   transform: "translateY(-1px)",
                 }}
               />
-              {node.isLast && (
+              {item.isLast && (
                 <div
                   className="absolute top-0 border-l border-zinc-600/40"
                   style={{
-                    left: (node.level - 1) * indent + 12,
+                    left: (item.level - 1) * indent + 12,
                     height: "50%",
                   }}
                 />
@@ -177,10 +180,10 @@ export default function LayersSidebar({ open = true }: Props) {
           {/* Expand Icon */}
           <motion.div
             className="flex items-center justify-center w-4 h-4 mr-1"
-            animate={{ rotate: hasChildren && isExpanded ? 90 : 0 }}
+            animate={{ rotate: hasNestedGraph && isExpanded ? 90 : 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
           >
-            {hasChildren && (
+            {hasNestedGraph && (
               <ChevronRight className="h-3 w-3 text-zinc-400" />
             )}
           </motion.div>
@@ -194,83 +197,15 @@ export default function LayersSidebar({ open = true }: Props) {
             {getDefaultIcon()}
           </motion.div>
 
-          {/* Label */}
-          <span className="text-sm truncate flex-1">
-            {isEditing ? (
-              <input
-                className="text-left text-xs flex-1 bg-zinc-700 border border-blue-500 rounded px-1 outline-none w-full"
-                value={editingValue}
-                onChange={(e) => setEditingValue(e.target.value)}
-                onKeyDown={handleEditKeyDown}
-                onBlur={saveEditing}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <span className={cn(isActive ? "text-white" : "text-zinc-300")} title={node.name}>
-                {getLayerName(node.name)}
-              </span>
-            )}
+          {/* Node Title */}
+          <span className="text-sm truncate flex-1 text-zinc-300">
+            {item.node.title}
           </span>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                doCreate(node.name);
-              }}
-              variant="ghost"
-              size="sm"
-              className="w-6 h-6 p-0 hover:bg-zinc-700 text-zinc-400"
-              title="Create child layer"
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                startEditing(node.name);
-              }}
-              variant="ghost"
-              size="sm"
-              className="w-6 h-6 p-0 hover:bg-zinc-700 text-zinc-400"
-              title="Rename layer"
-            >
-              <Pencil className="w-3 h-3" />
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                const parentPath = getParentLayerPath(node.name) || undefined;
-                cloneLayer(node.name, `${getLayerName(node.name)}-copy`, parentPath);
-              }}
-              variant="ghost"
-              size="sm"
-              className="w-6 h-6 p-0 hover:bg-zinc-700 text-zinc-400"
-              title="Clone layer"
-            >
-              <Copy className="w-3 h-3" />
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteLayer(node.name);
-              }}
-              disabled={layers.length <= 1}
-              variant="ghost"
-              size="sm"
-              className="w-6 h-6 p-0 hover:bg-red-600/80 text-zinc-400 hover:text-white disabled:opacity-50"
-              title="Delete layer"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
         </motion.div>
 
-        {/* Children */}
+        {/* Children (nested graph nodes) */}
         <AnimatePresence>
-          {hasChildren && isExpanded && (
+          {hasNestedGraph && isExpanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
@@ -290,7 +225,16 @@ export default function LayersSidebar({ open = true }: Props) {
                   delay: 0.1,
                 }}
               >
-                {node.children.map(child => renderLayerNode(child))}
+                {item.node.graph?.nodes?.map((childNode: GraphNode) => {
+                  const childItem: GraphNodeTreeNode = {
+                    node: childNode,
+                    children: [],
+                    level: item.level + 1,
+                    isLast: childNode === item.node.graph?.nodes?.[item.node.graph.nodes.length - 1],
+                    parentPath: item.parentPath.concat(item.isLast)
+                  };
+                  return renderNodeItem(childItem);
+                })}
               </motion.div>
             </motion.div>
           )}
@@ -308,21 +252,40 @@ export default function LayersSidebar({ open = true }: Props) {
     >
       <div className="px-3 py-2 border-b border-zinc-700 flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
-          Layers
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => doCreate()}
-            variant="outline"
-            size="sm"
-            className="bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300"
-            title="Create new layer"
-            style={{ width: '32px', height: '32px', padding: '0' }}
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+          Graph Nodes
+          {navigationPath.length > 0 && (
+            <span className="text-zinc-500">({navigationPath.length} level{navigationPath.length !== 1 ? 's' : ''})</span>
+          )}
         </div>
       </div>
+
+      {/* Navigation breadcrumb */}
+      {navigationPath.length > 0 && (
+        <div className="px-3 py-2 border-b border-zinc-700 text-xs text-zinc-400 space-y-1">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setNavigationPath([])}
+              className="text-zinc-400 hover:text-white transition-colors underline"
+            >
+              Root
+            </button>
+            {navigationPath.map((nodeId, index) => {
+              const node = currentGraph?.nodes?.find(n => n.id === nodeId);
+              return (
+                <React.Fragment key={nodeId}>
+                  <span>/</span>
+                  <button
+                    onClick={() => setNavigationPath(navigationPath.slice(0, index + 1))}
+                    className="text-zinc-400 hover:text-white transition-colors underline"
+                  >
+                    {node?.title || nodeId}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <motion.div
         className="p-2 flex-1 overflow-y-auto"
@@ -330,13 +293,13 @@ export default function LayersSidebar({ open = true }: Props) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
-        {layerTree.length === 0 ? (
+        {graphTree.length === 0 ? (
           <div className="text-xs text-zinc-400 text-center py-8">
-            No layers yet. Create one to start.
+            {navigationPath.length > 0 ? 'No nodes in nested graph' : 'No nodes in graph yet'}
           </div>
         ) : (
           <div className="space-y-1">
-            {layerTree.map((rootNode) => renderLayerNode(rootNode))}
+            {graphTree.map((item) => renderNodeItem(item))}
           </div>
         )}
       </motion.div>

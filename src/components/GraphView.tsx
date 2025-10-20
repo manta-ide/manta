@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   ReactFlow,
@@ -543,7 +543,7 @@ function GraphCanvas() {
   // Get optimistic operations flag from store to prevent real-time updates during local operations
 
 
-  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode, createLayer, setActiveLayer, activeLayer } = useProjectStore();
+  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
     setSelectedNode,
@@ -558,7 +558,9 @@ function GraphCanvas() {
     isBuildingGraph,
     baseGraph,
     setBaseGraph,
-    loadBaseGraph
+    loadBaseGraph,
+    navigationPath,
+    setNavigationPath,
   } = useProjectStore();
   // Tool modes: 'select', 'pan', 'add-node', 'comment'
   const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node' | 'comment'>('select');
@@ -566,8 +568,10 @@ function GraphCanvas() {
   const [isCreatingComment, setIsCreatingComment] = useState(false);
   const [commentDragStart, setCommentDragStart] = useState<{ x: number; y: number } | null>(null);
   const [commentDragEnd, setCommentDragEnd] = useState<{ x: number; y: number } | null>(null);
+
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
+
   // Use the store for graph data
   const {
     graph,
@@ -586,6 +590,21 @@ function GraphCanvas() {
     searchOpen,
   } = useProjectStore();
 
+  // Get the current graph being viewed (root or nested)
+  const currentGraph = useMemo(() => {
+    if (!graph || navigationPath.length === 0) {
+      return graph || { nodes: [], edges: [] }; // Return graph or empty fallback
+    }
+
+    // Navigate to nested graph
+    let current: Graph | undefined = graph;
+    for (const nodeId of navigationPath) {
+      if (!current) break;
+      const node: GraphNode | undefined = current.nodes?.find(n => n.id === nodeId);
+      current = node?.graph;
+    }
+    return current || graph || { nodes: [], edges: [] }; // Fallback to root or empty graph
+  }, [graph, navigationPath]);
 
   const { suppressSSE } = useProjectStore.getState();
   const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
@@ -814,7 +833,8 @@ function GraphCanvas() {
       prompt: '',
       comment: '',
       shape: 'round-rectangle',
-      position: { x: position.x, y: position.y, z: 0 }
+      position: { x: position.x, y: position.y, z: 0 },
+      graph: { nodes: [], edges: [] } // Empty nested graph
     };
 
     try {
@@ -825,11 +845,43 @@ function GraphCanvas() {
       setSelectedNode(newNodeId, newNode);
       setSelectedNodeIds([newNodeId]);
 
-      // Update local graph state immediately for instant feedback
-      const updatedGraph = {
-        ...graph,
-        nodes: [...graph.nodes, newNode]
-      };
+      // Build updated graph with node added to current navigation level
+      let updatedGraph = { ...graph };
+      if (navigationPath.length === 0) {
+        // Adding to root graph
+        updatedGraph = {
+          ...graph,
+          nodes: [...graph.nodes, newNode]
+        };
+      } else {
+        // Adding to nested graph - need to rebuild the tree
+        updatedGraph = { ...graph };
+        let current = updatedGraph;
+        
+        // Navigate to parent and update it
+        for (let i = 0; i < navigationPath.length; i++) {
+          const nodeId = navigationPath[i];
+          const nodeIndex = current.nodes.findIndex(n => n.id === nodeId);
+          if (nodeIndex === -1) break;
+          
+          const node = current.nodes[nodeIndex];
+          if (i === navigationPath.length - 1) {
+            // This is the target - add node to its graph
+            const updatedNode = {
+              ...node,
+              graph: {
+                ...(node.graph || { nodes: [], edges: [] }),
+                nodes: [...(node.graph?.nodes || []), newNode]
+              }
+            };
+            current.nodes[nodeIndex] = updatedNode;
+          } else {
+            // Continue navigating
+            current = node.graph || { nodes: [], edges: [] };
+          }
+        }
+      }
+      
       useProjectStore.setState({ graph: updatedGraph });
 
       // Create ReactFlow node and add to local state (already selected)
@@ -841,7 +893,7 @@ function GraphCanvas() {
           node: newNode,
           properties: newNode.properties,
           baseGraph: baseGraph,
-          graph: graph
+          graph: currentGraph
         },
         type: 'custom',
         selected: true, // Node is already selected
@@ -853,8 +905,7 @@ function GraphCanvas() {
       // Persist update via API (real-time updates will sync)
       await updateNode(newNodeId, newNode);
 
-      // Create a layer for the new node under the current active layer
-      await createLayer(newNodeId, activeLayer || undefined);
+      // No folder creation needed - navigation is based on nested graph structure
 
       // Switch back to select tool after creating node
       setCurrentTool('select');
@@ -869,17 +920,42 @@ function GraphCanvas() {
       // Remove the node from both local states if persistence failed
       setNodes((nds) => nds.filter(n => n.id !== newNodeId));
       if (graph) {
-        const revertedGraph = {
-          ...graph,
-          nodes: graph.nodes.filter(n => n.id !== newNodeId)
-        };
+        let revertedGraph = { ...graph };
+        if (navigationPath.length === 0) {
+          revertedGraph = {
+            ...graph,
+            nodes: graph.nodes.filter(n => n.id !== newNodeId)
+          };
+        } else {
+          // Revert the nested change
+          let current = revertedGraph;
+          for (let i = 0; i < navigationPath.length; i++) {
+            const nodeId = navigationPath[i];
+            const nodeIndex = current.nodes.findIndex(n => n.id === nodeId);
+            if (nodeIndex === -1) break;
+            
+            const node = current.nodes[nodeIndex];
+            if (i === navigationPath.length - 1) {
+              const updatedNode = {
+                ...node,
+                graph: {
+                  ...(node.graph || { nodes: [], edges: [] }),
+                  nodes: (node.graph?.nodes || []).filter((n: any) => n.id !== newNodeId)
+                }
+              };
+              current.nodes[nodeIndex] = updatedNode;
+            } else {
+              current = node.graph || { nodes: [], edges: [] };
+            }
+          }
+        }
         useProjectStore.setState({ graph: revertedGraph });
       }
 
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNode, createLayer, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, baseGraph, suppressSSE]);
+  }, [graph, navigationPath, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setCurrentTool, setOptimisticOperationsActive, baseGraph, currentGraph, suppressSSE]);
 
   // Create a new comment node at the specified position with custom dimensions
   const createCommentNode = useCallback(async (position: { x: number; y: number }, dimensions: { width: number; height: number }) => {
@@ -895,7 +971,8 @@ function GraphCanvas() {
       properties: [
         { id: 'width', value: dimensions.width },
         { id: 'height', value: dimensions.height }
-      ]
+      ],
+      graph: { nodes: [], edges: [] } // Empty nested graph
     };
 
     try {
@@ -906,12 +983,6 @@ function GraphCanvas() {
       setSelectedNode(newNodeId, newNode);
       setSelectedNodeIds([newNodeId]);
 
-      // Update local graph state immediately for instant feedback
-      const updatedGraph = {
-        ...graph,
-        nodes: [...graph.nodes, newNode]
-      };
-      useProjectStore.setState({ graph: updatedGraph });
 
       // Create ReactFlow node and add to local state (already selected)
       const reactFlowNode: Node = {
@@ -937,7 +1008,7 @@ function GraphCanvas() {
       await updateNode(newNodeId, newNode);
 
       // Create a layer for the new comment node under the current active layer
-      await createLayer(newNodeId, activeLayer || undefined);
+      // No folder creation needed - navigation is based on nested graph structure
 
       // Switch back to select tool after creating comment
       setCurrentTool('select');
@@ -952,17 +1023,42 @@ function GraphCanvas() {
       // Remove the node from both local states if persistence failed
       setNodes((nds) => nds.filter(n => n.id !== newNodeId));
       if (graph) {
-        const revertedGraph = {
-          ...graph,
-          nodes: graph.nodes.filter(n => n.id !== newNodeId)
-        };
+        let revertedGraph = { ...graph };
+        if (navigationPath.length === 0) {
+          revertedGraph = {
+            ...graph,
+            nodes: graph.nodes.filter(n => n.id !== newNodeId)
+          };
+        } else {
+          // Revert the nested change
+          let current = revertedGraph;
+          for (let i = 0; i < navigationPath.length; i++) {
+            const nodeId = navigationPath[i];
+            const nodeIndex = current.nodes.findIndex(n => n.id === nodeId);
+            if (nodeIndex === -1) break;
+            
+            const node = current.nodes[nodeIndex];
+            if (i === navigationPath.length - 1) {
+              const updatedNode = {
+                ...node,
+                graph: {
+                  ...(node.graph || { nodes: [], edges: [] }),
+                  nodes: (node.graph?.nodes || []).filter((n: any) => n.id !== newNodeId)
+                }
+              };
+              current.nodes[nodeIndex] = updatedNode;
+            } else {
+              current = node.graph || { nodes: [], edges: [] };
+            }
+          }
+        }
         useProjectStore.setState({ graph: revertedGraph });
       }
 
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNode, createLayer, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, baseGraph, suppressSSE]);
+  }, [graph, navigationPath, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, baseGraph, suppressSSE]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -1320,7 +1416,7 @@ function GraphCanvas() {
   // Handle node selection
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
     // Always get the fresh node data from the current graph state
-    const freshGraphNode = graph?.nodes?.find(n => n.id === node.id);
+    const freshGraphNode = currentGraph?.nodes?.find(n => n.id === node.id);
     const reactFlowNode = node.data?.node as GraphNode;
 
     if (!freshGraphNode) return;
@@ -1332,13 +1428,14 @@ function GraphCanvas() {
       (now - lastClickRef.current.timestamp) < DOUBLE_CLICK_DELAY;
 
     if (isDoubleClick) {
-      // Double-click detected: switch to the layer named after this node
-      // The layer path is constructed as {currentActiveLayer}/{nodeId}
-      const layerPath = activeLayer ? `${activeLayer}/${node.id}` : node.id;
-      console.log(`🔄 Switching to layer: ${layerPath}`);
-      setActiveLayer(layerPath).catch(error => {
-        console.warn('Failed to switch to layer:', error);
-      });
+      // Double-click detected: navigate into the node's nested graph if it exists
+      const graphNode = currentGraph?.nodes?.find(n => n.id === node.id);
+      if (graphNode?.graph) {
+        console.log(`🔄 Navigating into nested graph of node: ${node.id}`);
+        setNavigationPath([...navigationPath, node.id]);
+      } else {
+        console.log(`📝 Node ${node.id} has no nested graph to navigate into`);
+      }
       lastClickRef.current = null; // Reset for next click
       return; // Don't do normal selection on double-click
     } else {
@@ -1363,7 +1460,7 @@ function GraphCanvas() {
           setSelectedNode(null, null);
         } else if (selectedNodeId === node.id && newSelection.length > 0) {
           // Set the first remaining node as the main selected node
-          const firstNode = graph?.nodes?.find(n => n.id === newSelection[0]);
+          const firstNode = currentGraph?.nodes?.find(n => n.id === newSelection[0]);
           if (firstNode) {
             setSelectedNode(newSelection[0], firstNode);
           }
@@ -1385,7 +1482,7 @@ function GraphCanvas() {
 
       // Removed iframe selection messaging
     }
-  }, [setSelectedNode, graph, selectedNodeId, selectedNodeIds, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds, setActiveLayer]);
+  }, [setSelectedNode, currentGraph, selectedNodeId, selectedNodeIds, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds, navigationPath]);
 
   // Handle edge selection (with multi-select support)
   const onEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
@@ -1393,7 +1490,7 @@ function GraphCanvas() {
     // prevent parent handlers from interfering with selection rectangle
     event.preventDefault();
     event.stopPropagation();
-    const graphEdge = (graph?.edges || []).find((e: any) => e.id === edge.id || `${e.source}-${e.target}` === edge.id);
+    const graphEdge = (currentGraph?.edges || []).find((e: any) => e.id === edge.id || `${e.source}-${e.target}` === edge.id);
 
     const clearNodeSelection = () => {
       setSelectedNode(null, null);
@@ -1420,14 +1517,14 @@ function GraphCanvas() {
 
     if (nextIds.length === 1) {
       const singleId = nextIds[0];
-      const singleGraphEdge = (graph?.edges || []).find((e: any) => e.id === singleId || `${e.source}-${e.target}` === singleId);
+      const singleGraphEdge = (currentGraph?.edges || []).find((e: any) => e.id === singleId || `${e.source}-${e.target}` === singleId);
       setSelectedEdge(singleId, singleGraphEdge as any);
     } else {
       setSelectedEdge(null, null);
     }
 
     clearNodeSelection();
-  }, [graph, selectedEdgeIds, setSelectedEdge, setSelectedEdgeIds, setSelectedNode, setSelectedNodeIds]);
+  }, [setSelectedNode, setSelectedNodeIds, setSelectedEdge, setSelectedEdgeIds, selectedEdgeIds, currentGraph]);
 
   // Ensure edge selection visually updates immediately when selection state changes
   const onEdgesChangeWithStyle: OnEdgesChange = useCallback((changes) => {
@@ -1472,8 +1569,8 @@ function GraphCanvas() {
 
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
-        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position })),
-        edges: graph.edges || []
+        nodes: currentGraph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position })),
+        edges: currentGraph.edges || []
       });
 
       const isPropertyOnlyChange = prevGraphStructureRef.current === currentStructure && latestNodesRef.current.length > 0;
@@ -1485,7 +1582,7 @@ function GraphCanvas() {
         // Update node payloads to reflect latest graph node data AND new baseGraph reference
         setNodes(currentNodes =>
           currentNodes.map(node => {
-            const graphNode = graph.nodes.find(n => n.id === node.id);
+            const graphNode = currentGraph.nodes.find(n => n.id === node.id);
             if (graphNode) {
               const shouldBeSelected = (selectedNodeIds && selectedNodeIds.length > 0)
                 ? selectedNodeIds.includes(node.id)
@@ -1499,7 +1596,7 @@ function GraphCanvas() {
                   node: graphNode,
                   properties: graphNode.properties || [],
                   baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
-                  graph: graph
+                  graph: currentGraph
                 }
               };
             }
@@ -1510,7 +1607,7 @@ function GraphCanvas() {
         // Also refresh edge styling (built/unbuilt) against latest baseGraph
         setEdges(currentEdges =>
           currentEdges.map(e => {
-            const graphEdge = (graph?.edges || []).find((edge: any) => edge.id === e.id || (`${edge.source}-${edge.target}` === e.id));
+            const graphEdge = (currentGraph?.edges || []).find((edge: any) => edge.id === e.id || (`${edge.source}-${edge.target}` === e.id));
             const shape = resolveEdgeShape(graphEdge || e);
             const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
             const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
@@ -1534,7 +1631,7 @@ function GraphCanvas() {
       let nodePositions = new Map<string, { x: number; y: number }>();
       const nodesMissingPos: string[] = [];
 
-      graph.nodes.forEach(node => {
+      currentGraph.nodes.forEach(node => {
         if (node.position) {
           nodePositions.set(node.id, { x: node.position.x, y: node.position.y });
         } else {
@@ -1546,12 +1643,12 @@ function GraphCanvas() {
       if (nodesMissingPos.length > 0) {
         try {
           const elk = new ELK();
-          const elkNodes = graph.nodes.map(n => ({ id: n.id, width: 260, height: 160 }));
+          const elkNodes = currentGraph.nodes.map(n => ({ id: n.id, width: 260, height: 160 }));
           const seen = new Set<string>();
           const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
           // From explicit edges
-          if (Array.isArray((graph as any).edges)) {
-            (graph as any).edges.forEach((e: any, i: number) => {
+          if (Array.isArray((currentGraph as any).edges)) {
+            (currentGraph as any).edges.forEach((e: any, i: number) => {
               const id = `${e.source}-${e.target}`;
               if (!seen.has(id)) {
                 elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
@@ -1601,9 +1698,9 @@ function GraphCanvas() {
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
       // Include nodes from base graph that are not in current graph (for ghosted display)
-      const currentNodeIds = new Set(graph.nodes.map(n => n.id));
+      const currentNodeIds = new Set(currentGraph.nodes.map(n => n.id));
       const baseOnlyNodes = baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)) : [];
-      const allNodes = [...graph.nodes, ...baseOnlyNodes];
+      const allNodes = [...currentGraph.nodes, ...baseOnlyNodes];
 
       // Sort nodes by z-index (lower z-index renders first/behind)
       const sortedNodes = allNodes.sort((a, b) => {
@@ -1665,7 +1762,7 @@ function GraphCanvas() {
       // Collect edges from both base and current graphs
       const allEdges = [
         ...(baseGraph?.edges || []),
-        ...(graph as any).edges || []
+        ...(currentGraph as any).edges || []
       ];
 
       if (allEdges.length > 0) {
@@ -1762,7 +1859,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
+  }, [graphsLoaded, currentGraph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -2165,6 +2262,48 @@ function GraphCanvas() {
         <MiniMap nodeComponent={MinimapNode} />
         <Controls />
         <Background color="#374151" gap={20} />
+
+        {/* Navigation Breadcrumb */}
+        {navigationPath.length > 0 && (
+          <div className="absolute top-4 left-4 z-50 bg-zinc-800 text-white px-3 py-2 rounded-lg shadow-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <button
+                onClick={() => setNavigationPath([])}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                Root
+              </button>
+              {navigationPath.map((nodeId, index) => (
+                <React.Fragment key={nodeId}>
+                  <span className="text-zinc-500">/</span>
+                  <button
+                    onClick={() => setNavigationPath(navigationPath.slice(0, index + 1))}
+                    className={`hover:text-white transition-colors ${
+                      index === navigationPath.length - 1 ? 'text-white font-medium' : 'text-zinc-400'
+                    }`}
+                  >
+                    {nodeId}
+                  </button>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Back Button */}
+        {navigationPath.length > 0 && (
+          <div className="absolute top-4 right-4 z-50">
+            <Button
+              onClick={() => setNavigationPath(navigationPath.slice(0, -1))}
+              variant="outline"
+              size="sm"
+              className="bg-zinc-800 text-zinc-400 border-zinc-600 hover:bg-zinc-700 hover:text-white"
+            >
+              ← Back
+            </Button>
+          </div>
+        )}
+
         <HelperLines />
       </ReactFlow>
 
@@ -2363,7 +2502,7 @@ function GraphCanvas() {
             Layers
           </Button>
         )}
-        
+
         {/* Rebuild Full Graph Button */}
         {/* <Button
           onClick={rebuildFullGraph}

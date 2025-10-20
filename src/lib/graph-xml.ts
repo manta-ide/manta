@@ -459,7 +459,28 @@ ${optionsXml}
     const shape = (n as any).shape;
     const shapeAttr = shape ? ` shape="${escapeXml(String(shape))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}\n    </node>`;
+    // Include nested graph (always add, even if empty)
+    let nestedGraph = '';
+    try {
+      const nestedGraphContent = n.graph || { nodes: [], edges: [] };
+      const nestedXml = graphToXml(nestedGraphContent);
+      // Extract just the nodes and edges content from the nested graph XML
+      const lines = nestedXml.split('\n');
+      const nodeStartIdx = lines.findIndex(l => l.includes('<nodes>'));
+      const edgeEndIdx = lines.findIndex(l => l.includes('</edges>'));
+      if (nodeStartIdx !== -1 && edgeEndIdx !== -1) {
+        const graphContent = lines
+          .slice(nodeStartIdx, edgeEndIdx + 1)
+          .join('\n')
+          .replace(/^/gm, '  ');
+        nestedGraph = `\n      <graph>\n${graphContent}\n      </graph>`;
+      }
+    } catch (e) {
+      // Fallback: include empty graph
+      nestedGraph = `\n      <graph>\n        <nodes></nodes>\n        <edges></edges>\n      </graph>`;
+    }
+
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}${nestedGraph}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }>;
@@ -795,6 +816,17 @@ export function xmlToGraph(xml: string): Graph {
         };
       }
 
+      // Parse nested graph if present
+      let nestedGraph: Graph | undefined = undefined;
+      if (nodeData.graph) {
+        try {
+          const nestedXml = xmlBuilder.build({ graph: nodeData.graph });
+          nestedGraph = xmlToGraph(`<?xml version="1.0" encoding="UTF-8"?>\n${nestedXml}`);
+        } catch (e) {
+          console.warn(`Failed to parse nested graph for node ${id}:`, e);
+        }
+      }
+
       return {
         id,
         title,
@@ -802,7 +834,8 @@ export function xmlToGraph(xml: string): Graph {
         properties,
         ...(position ? { position } : {}),
         ...(metadata ? { metadata } : {}),
-        ...(shape ? { shape: shape as any } : {})
+        ...(shape ? { shape: shape as any } : {}),
+        ...(nestedGraph ? { graph: nestedGraph } : {})
       } as GraphNode;
     });
 

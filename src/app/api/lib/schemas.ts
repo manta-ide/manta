@@ -71,7 +71,8 @@ export const GraphNodeSchema = z.object({
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
-  metadata: NodeMetadataSchema.optional()
+  metadata: NodeMetadataSchema.optional(),
+  graph: z.lazy(():any => GraphSchema.optional()) // Nested graph support
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 
@@ -677,7 +678,29 @@ ${optionsXml}
     const yAttr = hasPos ? ` y="${escapeXml(String((n as any).position.y))}"` : '';
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}\n    </node>`;
+
+    // Include nested graph (always add, even if empty)
+    let nestedGraph = '';
+    try {
+      const nestedGraphContent = n.graph || { nodes: [], edges: [] };
+      const nestedXml = graphToXml(nestedGraphContent);
+      // Extract just the nodes and edges content from the nested graph XML
+      const lines = nestedXml.split('\n');
+      const nodeStartIdx = lines.findIndex(l => l.includes('<nodes>'));
+      const edgeEndIdx = lines.findIndex(l => l.includes('</edges>'));
+      if (nodeStartIdx !== -1 && edgeEndIdx !== -1) {
+        const graphContent = lines
+          .slice(nodeStartIdx, edgeEndIdx + 1)
+          .join('\n')
+          .replace(/^/gm, '  ');
+        nestedGraph = `\n      <graph>\n${graphContent}\n      </graph>`;
+      }
+    } catch (e) {
+      console.error('[graphToXml] Error serializing nested graph:', e);
+      nestedGraph = `\n      <graph>\n        <nodes></nodes>\n        <edges></edges>\n      </graph>`;
+    }
+
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}${nestedGraph}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -968,12 +991,23 @@ export function xmlToGraph(xml: string): Graph {
         }
       } catch {}
 
+      // Parse nested graph if present
+      let nestedGraph: Graph | undefined = undefined;
+      if (nodeData.graph) {
+        try {
+          nestedGraph = xmlToGraph(`<?xml version="1.0" encoding="UTF-8"?>\n${xmlBuilder.build(nodeData.graph)}`);
+        } catch (e) {
+          console.warn(`Failed to parse nested graph for node ${id}:`, e);
+        }
+      }
+
       return {
         id,
         title,
         prompt: unescapeXml(description),
         properties,
-        ...(position ? { position } : {})
+        ...(position ? { position } : {}),
+        ...(nestedGraph ? { graph: nestedGraph } : {})
       } as GraphNode;
     });
 
