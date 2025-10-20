@@ -619,8 +619,22 @@ async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ 
     // Sync edges
     if (edgeIds && edgeIds.length > 0) {
       for (const edgeId of edgeIds) {
-        const currentEdge = currentGraph.edges?.find((e: any) => e.id === edgeId);
-        const baseEdgeIdx = baseGraph.edges?.findIndex((e: any) => e.id === edgeId) ?? -1;
+        // Parse edgeId to extract source and target (format: sourceId-targetId)
+        const [sourceId, targetId] = edgeId.includes('-') ? edgeId.split('-', 2) : [edgeId, ''];
+        
+        // Find edge in current graph by id, or by source/target if id is in format sourceId-targetId
+        const currentEdge = currentGraph.edges?.find((e: any) => {
+          if (e.id === edgeId) return true;
+          if (sourceId && targetId && e.source === sourceId && e.target === targetId) return true;
+          return false;
+        });
+        
+        // Find edge in base graph by id, or by source/target
+        const baseEdgeIdx = baseGraph.edges?.findIndex((e: any) => {
+          if (e.id === edgeId) return true;
+          if (sourceId && targetId && e.source === sourceId && e.target === targetId) return true;
+          return false;
+        }) ?? -1;
 
         if (currentEdge) {
           // Edge exists in current graph
@@ -634,6 +648,10 @@ async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ 
             baseGraph.edges = baseGraph.edges || [];
             baseGraph.edges.push({ ...currentEdge });
           }
+        } else if (baseEdgeIdx >= 0) {
+          // Edge doesn't exist in current but exists in base - remove from base
+          console.log('🗑️ TOOL: syncToBaseGraph removing edge from base:', edgeId);
+          baseGraph.edges.splice(baseEdgeIdx, 1);
         }
       }
     }
@@ -820,7 +838,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, title, prompt, properties, position, alreadyImplemented, metadata } = params;
+        const { nodeId, title, prompt, properties, position, syncToBase, metadata } = params;
 
         console.log('🔍 TOOL: node_create checking if node already exists:', nodeId);
         const existingNode = validatedGraph.nodes.find((n: any) => n.id === nodeId);
@@ -854,9 +872,9 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: node_create graph saved successfully');
 
-        // If alreadyImplemented is true, sync this node to base graph immediately
-        if (alreadyImplemented) {
-          console.log('🔄 TOOL: node_create syncing to base graph due to alreadyImplemented=true');
+        // If syncToBase is true, sync this node to base graph immediately
+        if (syncToBase) {
+          console.log('🔄 TOOL: node_create syncing to base graph due to syncToBase=true');
           try {
             const syncResult = await syncToBaseGraph([nodeId], []);
             if (!syncResult.success) {
@@ -870,7 +888,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.${alreadyImplemented ? ' (synced to base graph)' : ''}`;
+        const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.${syncToBase ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: node_create returning success:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1072,7 +1090,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, recursive, alreadyImplemented } = params;
+        const { nodeId, recursive, syncToBase } = params;
 
         console.log('🔍 TOOL: node_delete checking if node exists:', nodeId);
         const byId = new Map<string, any>(validatedGraph.nodes.map((n: any) => [n.id, n]));
@@ -1122,9 +1140,9 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: node_delete graph saved successfully');
 
-        // If alreadyImplemented is true, sync this deletion to base graph immediately
-        if (alreadyImplemented) {
-          console.log('🔄 TOOL: node_delete syncing to base graph due to alreadyImplemented=true');
+        // If syncToBase is true, sync this deletion to base graph immediately
+        if (syncToBase) {
+          console.log('🔄 TOOL: node_delete syncing to base graph due to syncToBase=true');
           try {
             // Get the IDs of all nodes that were deleted
             const deletedNodeIds = Array.from(toDelete);
@@ -1140,7 +1158,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const result = `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}${alreadyImplemented ? ' (synced to base graph)' : ''}`;
+        const result = `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}${syncToBase ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: node_delete returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1164,7 +1182,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, role, alreadyImplemented } = params;
+        const { sourceId, targetId, role, syncToBase } = params;
 
         // Validate that both nodes exist
         console.log('🔍 TOOL: edge_create validating source node:', sourceId);
@@ -1215,9 +1233,9 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: edge_create graph saved successfully');
 
-        // If alreadyImplemented is true, sync this edge to base graph immediately
-        if (alreadyImplemented) {
-          console.log('🔄 TOOL: edge_create syncing to base graph due to alreadyImplemented=true');
+        // If syncToBase is true, sync this edge to base graph immediately
+        if (syncToBase) {
+          console.log('🔄 TOOL: edge_create syncing to base graph due to syncToBase=true');
           try {
             const edgeId = newEdge.id;
             const syncResult = await syncToBaseGraph([], [edgeId]);
@@ -1232,7 +1250,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${alreadyImplemented ? ' (synced to base graph)' : ''}`;
+        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${syncToBase ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: edge_create returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1256,7 +1274,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, alreadyImplemented } = params;
+        const { sourceId, targetId, syncToBase } = params;
 
         // Check if edge exists
         console.log('🔍 TOOL: edge_delete checking for existing edge');
@@ -1279,9 +1297,9 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: edge_delete graph saved successfully');
 
-        // If alreadyImplemented is true, sync this deletion to base graph immediately
-        if (alreadyImplemented) {
-          console.log('🔄 TOOL: edge_delete syncing to base graph due to alreadyImplemented=true');
+        // If syncToBase is true, sync this deletion to base graph immediately
+        if (syncToBase) {
+          console.log('🔄 TOOL: edge_delete syncing to base graph due to syncToBase=true');
           try {
             const edgeId = `${sourceId}-${targetId}`;
             const syncResult = await syncToBaseGraph([], [edgeId]);
@@ -1296,7 +1314,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const result = `Deleted edge from ${sourceId} to ${targetId}${alreadyImplemented ? ' (synced to base graph)' : ''}`;
+        const result = `Deleted edge from ${sourceId} to ${targetId}${syncToBase ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: edge_delete returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1423,6 +1441,49 @@ export async function POST(req: NextRequest) {
         console.error('💥 TOOL: sync_to_base_graph error:', error);
         const errorMsg = `Failed to sync to base graph: ${error instanceof Error ? error.message : String(error)}`;
         return NextResponse.json({ error: errorMsg }, { status: 500 });
+      }
+    }
+
+    if (action === 'graph_clear') {
+      console.log('🧹 TOOL: graph_clear called', params);
+
+      try {
+        const { graphType = 'current' } = params;
+
+        // Create empty graph structure
+        const emptyGraph = {
+          nodes: [],
+          edges: []
+        };
+
+        console.log(`💾 TOOL: graph_clear clearing ${graphType} graph`);
+
+        // Clear the specified graph(s)
+        if (graphType === 'both') {
+          // Clear both current and base graphs
+          await storeBaseGraph(emptyGraph, user.id);
+          await storeCurrentGraphFromAgent(emptyGraph, user.id);
+          console.log('✅ TOOL: graph_clear cleared both current and base graphs');
+        } else if (graphType === 'base') {
+          // Clear only base graph
+          await storeBaseGraph(emptyGraph, user.id);
+          console.log('✅ TOOL: graph_clear cleared base graph');
+        } else {
+          // Clear current graph (default)
+          const saveResult = await saveGraph(emptyGraph);
+          if (!saveResult.success) {
+            return NextResponse.json({ error: saveResult.error }, { status: 500 });
+          }
+          console.log('✅ TOOL: graph_clear cleared current graph');
+        }
+
+        const result = `Successfully cleared ${graphType} graph (left empty nodes and edges tags, and outer structure)`;
+        console.log('📤 TOOL: graph_clear returning result:', result);
+        return NextResponse.json({ content: [{ type: 'text', text: result }] });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('💥 TOOL: graph_clear error:', errorMessage);
+        return NextResponse.json({ error: `Error: Failed to clear graph: ${errorMessage}` }, { status: 500 });
       }
     }
 

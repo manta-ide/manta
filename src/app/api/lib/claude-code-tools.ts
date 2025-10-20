@@ -31,6 +31,14 @@ export const createGraphTools = (baseUrl: string) => {
           return { content: [{ type: 'text', text: `Error: ${errorData.error || 'Failed to read graph'}` }] };
         }
 
+        // For individual node requests, the API returns plain text (not JSON)
+        if (nodeId) {
+          const text = await response.text();
+          console.log('📤 TOOL: read returning node data');
+          return { content: [{ type: 'text', text }] };
+        }
+
+        // For graph summary requests, the API returns JSON
         const result = await response.json();
 
         if (result.error) {
@@ -40,13 +48,6 @@ export const createGraphTools = (baseUrl: string) => {
 
         console.log('📤 TOOL: read API success');
 
-        // For individual node requests, the API returns formatted text directly
-        if (nodeId) {
-          console.log('📤 TOOL: read returning node data');
-          return { content: [{ type: 'text', text: result }] };
-        }
-
-        // For graph summary requests, the API returns JSON
         if (result.success && result.graph) {
           console.log('📤 TOOL: read returning formatted graph summary');
           const nodes = result.graph.nodes?.map((n: any) => ({ id: n.id, title: n.title })) || [];
@@ -67,14 +68,14 @@ export const createGraphTools = (baseUrl: string) => {
   // edge_create
   tool(
     'edge_create',
-    'Create a connection (edge) between two nodes in the graph. Use alreadyImplemented=true during indexing to immediately sync the edge to base graph.',
+    'Create a connection (edge) between two nodes in the graph. Use syncToBase=true during indexing to immediately sync the edge to base graph.',
     {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
       role: z.string().optional(),
-      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this edge to base graph (used during indexing mode)'),
+      syncToBase: z.boolean().optional().describe('If true, immediately sync this edge to base graph (used during indexing mode)'),
     },
-    async ({ sourceId, targetId, role, alreadyImplemented }) => {
+    async ({ sourceId, targetId, role, syncToBase }) => {
       console.log('🔗 TOOL: edge_create called via API', { sourceId, targetId, role });
 
       try {
@@ -86,7 +87,7 @@ export const createGraphTools = (baseUrl: string) => {
             sourceId,
             targetId,
             role,
-            alreadyImplemented
+            syncToBase
           })
         });
 
@@ -110,13 +111,13 @@ export const createGraphTools = (baseUrl: string) => {
   // edge_delete
   tool(
     'edge_delete',
-    'Delete a connection (edge) between two nodes in the graph. Use alreadyImplemented=true during indexing to immediately sync the deletion to base graph.',
+    'Delete a connection (edge) between two nodes in the graph. Use syncToBase=true during indexing to immediately sync the deletion to base graph.',
     {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
-      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)'),
+      syncToBase: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)'),
     },
-    async ({ sourceId, targetId, alreadyImplemented }) => {
+    async ({ sourceId, targetId, syncToBase }) => {
       console.log('🗑️ TOOL: edge_delete called via API', { sourceId, targetId });
 
       try {
@@ -127,7 +128,7 @@ export const createGraphTools = (baseUrl: string) => {
             action: 'edge_delete',
             sourceId,
             targetId,
-            alreadyImplemented
+            syncToBase
           })
         });
 
@@ -151,17 +152,17 @@ export const createGraphTools = (baseUrl: string) => {
   // node_create
   tool(
     'node_create',
-    'Create a new node and persist it to the graph. Use alreadyImplemented=true during indexing to immediately sync the node to base graph.',
+    'Create a new node and persist it to the graph. Use syncToBase=true during indexing to immediately sync the node to base graph.',
     {
       nodeId: z.string().min(1),
       title: z.string().min(1),
       prompt: z.string().min(1),
       properties: z.array(PropertySchema).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
-      alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this node to base graph (used during indexing mode)'),
+      syncToBase: z.boolean().optional().describe('If true, immediately sync this node to base graph (used during indexing mode)'),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, title, prompt, properties, position, alreadyImplemented, metadata }) => {
+    async ({ nodeId, title, prompt, properties, position, syncToBase, metadata }) => {
       console.log('➕ TOOL: node_create called via API', { nodeId, title, position: !!position, metadata });
 
       try {
@@ -175,7 +176,7 @@ export const createGraphTools = (baseUrl: string) => {
           prompt,
             properties,
             position,
-            alreadyImplemented,
+            syncToBase,
             metadata
           })
         });
@@ -373,9 +374,9 @@ export const createGraphTools = (baseUrl: string) => {
   // node_delete
   tool(
     'node_delete',
-    'Delete a node by id. Use alreadyImplemented=true during indexing to immediately sync the deletion to base graph.',
-    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), alreadyImplemented: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)') },
-    async ({ nodeId, recursive, alreadyImplemented }) => {
+    'Delete a node by id. Use syncToBase=true during indexing to immediately sync the deletion to base graph.',
+    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true), syncToBase: z.boolean().optional().describe('If true, immediately sync this deletion to base graph (used during indexing mode or cleanup)') },
+    async ({ nodeId, recursive, syncToBase }) => {
       console.log('🗑️ TOOL: node_delete called via API', { nodeId, recursive });
 
       try {
@@ -386,7 +387,7 @@ export const createGraphTools = (baseUrl: string) => {
             action: 'node_delete',
             nodeId,
             recursive,
-            alreadyImplemented
+            syncToBase
           })
         });
 
@@ -403,6 +404,43 @@ export const createGraphTools = (baseUrl: string) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('💥 TOOL: node_delete API call error:', errorMessage);
         return { content: [{ type: 'text', text: `Error: Failed to delete node via API: ${errorMessage}` }] };
+      }
+    }
+  ),
+
+  // graph_clear
+  tool(
+    'graph_clear',
+    'Fully clear the graph, leaving only empty nodes and edges tags, and outer structure. Can clear current graph, base graph, or both.',
+    {
+      graphType: z.enum(['current', 'base', 'both']).default('current').describe('Which graph(s) to clear: "current" (working graph), "base" (completed implementations), or "both"')
+    },
+    async ({ graphType = 'current' }) => {
+      console.log('🧹 TOOL: graph_clear called via API', { graphType });
+
+      try {
+        const response = await fetch(`${baseUrl}/api/graph-api`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'graph_clear',
+            graphType
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+          console.error('❌ TOOL: graph_clear API error:', result.error);
+          return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+        }
+
+        console.log('📤 TOOL: graph_clear API success');
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('💥 TOOL: graph_clear API call error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to clear graph via API: ${errorMessage}` }] };
       }
     }
   ),
