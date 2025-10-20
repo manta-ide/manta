@@ -73,10 +73,11 @@ export const createGraphTools = (baseUrl: string) => {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
       role: z.string().optional(),
+      shape: z.enum(['solid', 'dotted']).optional().describe('The visual shape/style of the edge line (solid or dotted)'),
       syncToBase: z.boolean().optional().describe('If true, immediately sync this edge to base graph (used during indexing mode)'),
     },
-    async ({ sourceId, targetId, role, syncToBase }) => {
-      console.log('🔗 TOOL: edge_create called via API', { sourceId, targetId, role });
+    async ({ sourceId, targetId, role, shape, syncToBase }) => {
+      console.log('🔗 TOOL: edge_create called via API', { sourceId, targetId, role, shape });
 
       try {
         const response = await fetch(`${baseUrl}/api/graph-api`, {
@@ -87,6 +88,7 @@ export const createGraphTools = (baseUrl: string) => {
             sourceId,
             targetId,
             role,
+            shape,
             syncToBase
           })
         });

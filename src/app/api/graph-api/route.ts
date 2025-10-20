@@ -1182,7 +1182,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, role, syncToBase } = params;
+        const { sourceId, targetId, role, shape, syncToBase } = params;
 
         // Validate that both nodes exist
         console.log('🔍 TOOL: edge_create validating source node:', sourceId);
@@ -1218,7 +1218,8 @@ export async function POST(req: NextRequest) {
           id: `${sourceId}-${targetId}`,
           source: sourceId,
           target: targetId,
-          role: role || 'links-to'
+          role: role || 'links-to',
+          ...(shape ? { shape } : {})
         };
         console.log('🆕 TOOL: edge_create creating new edge:', newEdge);
 
@@ -1250,7 +1251,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${syncToBase ? ' (synced to base graph)' : ''}`;
+        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${shape ? ` [${shape}]` : ''}${syncToBase ? ' (synced to base graph)' : ''}`;
         console.log('📤 TOOL: edge_create returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
