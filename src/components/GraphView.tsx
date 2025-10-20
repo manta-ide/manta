@@ -543,7 +543,7 @@ function GraphCanvas() {
   // Get optimistic operations flag from store to prevent real-time updates during local operations
 
 
-  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode, createLayer, setActiveLayer } = useProjectStore();
+  const { optimisticOperationsActive, setOptimisticOperationsActive, updateNode, createLayer, setActiveLayer, activeLayer } = useProjectStore();
   // Multi-selection lives in the global store so sidebar can reflect it
   const {
     setSelectedNode,
@@ -787,8 +787,8 @@ function GraphCanvas() {
 
   // Generate unique node ID
   const generateNodeId = useCallback(() => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000);
+    const timestamp = Date.now() % 10000; // Last 4 digits of timestamp
+    const random = Math.floor(Math.random() * 100); // 2-digit random
     return `node-${timestamp}${random}`;
   }, []);
 
@@ -853,8 +853,8 @@ function GraphCanvas() {
       // Persist update via API (real-time updates will sync)
       await updateNode(newNodeId, newNode);
 
-      // Create a layer for the new node
-      await createLayer(newNodeId);
+      // Create a layer for the new node under the current active layer
+      await createLayer(newNodeId, activeLayer || undefined);
 
       // Switch back to select tool after creating node
       setCurrentTool('select');
@@ -936,8 +936,8 @@ function GraphCanvas() {
       // Persist update via API (real-time updates will sync)
       await updateNode(newNodeId, newNode);
 
-      // Create a layer for the new comment node
-      await createLayer(newNodeId);
+      // Create a layer for the new comment node under the current active layer
+      await createLayer(newNodeId, activeLayer || undefined);
 
       // Switch back to select tool after creating comment
       setCurrentTool('select');
@@ -1211,22 +1211,6 @@ function GraphCanvas() {
     latestEdgesRef.current = edges;
   }, [edges]);
 
-  // Fit view to center the graph when nodes first load
-  const hasFittedRef = useRef(false);
-  useEffect(() => {
-    if (nodes.length > 0 && !hasFittedRef.current) {
-      // Defer to next tick to ensure layout/DOM size is ready
-      setTimeout(() => {
-        try {
-          reactFlow.fitView({ padding: 0.2, duration: 500, includeHiddenNodes: true });
-        } catch {}
-      }, 0);
-      hasFittedRef.current = true;
-    }
-    if (nodes.length === 0) {
-      hasFittedRef.current = false;
-    }
-  }, [nodes, reactFlow]);
 
   // Select active search result node (no auto-pan or zoom)
   useEffect(() => {
@@ -1349,8 +1333,10 @@ function GraphCanvas() {
 
     if (isDoubleClick) {
       // Double-click detected: switch to the layer named after this node
-      console.log(`🔄 Switching to layer: ${node.id}`);
-      setActiveLayer(node.id).catch(error => {
+      // The layer path is constructed as {currentActiveLayer}/{nodeId}
+      const layerPath = activeLayer ? `${activeLayer}/${node.id}` : node.id;
+      console.log(`🔄 Switching to layer: ${layerPath}`);
+      setActiveLayer(layerPath).catch(error => {
         console.warn('Failed to switch to layer:', error);
       });
       lastClickRef.current = null; // Reset for next click

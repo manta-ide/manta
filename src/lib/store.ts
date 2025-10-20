@@ -73,8 +73,8 @@ interface ProjectStore {
   setResetting: (resetting: boolean) => void;
   // Layer operations
   loadLayers: () => Promise<void>;
-  createLayer: (name?: string) => Promise<string | null>;
-  cloneLayer: (from: string, name?: string) => Promise<string | null>;
+  createLayer: (name?: string, parentPath?: string) => Promise<string | null>;
+  cloneLayer: (from: string, name?: string, parentPath?: string) => Promise<string | null>;
   renameLayer: (from: string, to: string) => Promise<string | null>;
   setActiveLayer: (name: string) => Promise<void>;
   deleteLayer: (name: string) => Promise<void>;
@@ -392,9 +392,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       console.warn('Failed to load layers:', e);
     }
   },
-  createLayer: async (name?: string) => {
+  createLayer: async (name?: string, parentPath?: string) => {
     try {
-      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, parentPath }) });
       if (!res.ok) return null;
       const data = await res.json();
       await get().loadLayers();
@@ -404,9 +404,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return null;
     }
   },
-  cloneLayer: async (from: string, name?: string) => {
+  cloneLayer: async (from: string, name?: string, parentPath?: string) => {
     try {
-      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cloneFrom: from, name, setActive: true }) });
+      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cloneFrom: from, name, parentPath, setActive: true }) });
       if (!res.ok) return null;
       const data = await res.json();
       await get().loadLayers();
@@ -439,6 +439,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
     // Update immediately for UI feedback; SSE will also refresh graph
     set({ activeLayer: name });
+    // Clear baseGraph to prevent stale diff calculations when switching layers
+    set({ baseGraph: null });
     // Refresh both current and base graphs after switch to ensure proper diff calculation
     await get().loadGraph();
     await get().loadBaseGraph();
@@ -1025,6 +1027,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               console.log('🔁 SSE: Active layer changed to', data.activeLayer);
               set({ activeLayer: data.activeLayer ?? null, graphLoading: true });
               get().loadGraph().catch(() => {});
+              return;
+            }
+
+            // Handle layers list changes
+            if (data?.type === 'layers-changed') {
+              console.log('📂 SSE: Layers changed, updating layer list');
+              set({
+                layers: Array.isArray(data.layers) ? data.layers : [],
+                activeLayer: data.activeLayer ?? null
+              });
               return;
             }
 

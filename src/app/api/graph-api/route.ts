@@ -4,6 +4,8 @@ import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 import { GraphSchema, PropertySchema, NodeMetadataSchema } from '../lib/schemas';
 import type { NodeMetadata } from '../lib/schemas';
+import { createLayer } from '@/lib/layers';
+import { broadcastGraphJson } from '../lib/graph-service';
 import path from 'path';
 import { z } from 'zod';
 
@@ -871,6 +873,23 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: saveResult.error }, { status: 500 });
         }
         console.log('✅ TOOL: node_create graph saved successfully');
+
+        // Create a layer for the new node under the current active layer
+        try {
+          const { getActiveLayer } = await import('@/lib/layers');
+          const activeLayer = getActiveLayer();
+          console.log('📁 TOOL: node_create creating layer for node:', nodeId, 'under parent:', activeLayer);
+          createLayer(nodeId, activeLayer || undefined);
+          console.log('✅ TOOL: node_create layer created successfully');
+
+          // Broadcast layer update to UI
+          const { getLayersInfo } = await import('@/lib/layers');
+          const layersInfo = getLayersInfo();
+          broadcastGraphJson({ type: 'layers-changed', layers: layersInfo.layers, activeLayer: layersInfo.activeLayer });
+        } catch (layerError) {
+          console.warn('⚠️ TOOL: node_create failed to create layer:', layerError);
+          // Don't fail the entire operation if layer creation fails
+        }
 
         // If syncToBase is true, sync this node to base graph immediately
         if (syncToBase) {

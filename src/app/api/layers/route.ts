@@ -40,12 +40,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     // Clone operation if cloneFrom is provided
     if (body?.cloneFrom) {
-      const newName = cloneLayer(String(body.cloneFrom), body?.name);
+      const newName = cloneLayer(String(body.cloneFrom), body?.name, body?.parentPath);
       if (body?.setActive !== false) setActiveLayer(newName);
       return NextResponse.json({ success: true, name: newName, clonedFrom: String(body.cloneFrom) });
     }
     // Otherwise create a new empty layer
-    const name = createLayer(body?.name);
+    const name = createLayer(body?.name, body?.parentPath);
     if (body?.setActive) setActiveLayer(name);
     return NextResponse.json({ success: true, name });
   } catch (error) {

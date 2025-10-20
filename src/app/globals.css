@@ -11,7 +11,6 @@
   overflow: hidden;
 }
 
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -52,6 +51,29 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-color-fd-card: var(----color-fd-card);
+  --color-color-fd-background: var(----color-fd-background);
+  --color-hu-ring: var(----hu-ring);
+  --color-hu-input: var(----hu-input);
+  --color-hu-border: var(----hu-border);
+  --color-hu-destructive-foreground: var(----hu-destructive-foreground);
+  --color-hu-destructive: var(----hu-destructive);
+  --color-hu-accent-foreground: var(----hu-accent-foreground);
+  --color-hu-accent: var(----hu-accent);
+  --color-hu-muted-foreground: var(----hu-muted-foreground);
+  --color-hu-muted: var(----hu-muted);
+  --color-hu-secondary-foreground: var(----hu-secondary-foreground);
+  --color-hu-secondary: var(----hu-secondary);
+  --color-hu-primary-foreground: var(----hu-primary-foreground);
+  --color-hu-primary: var(----hu-primary);
+  --color-hu-card-foreground: var(----hu-card-foreground);
+  --color-hu-card: var(----hu-card);
+  --color-hu-foreground: var(----hu-foreground);
+  --color-hu-background: var(----hu-background);
+  --card-radius: var(----card-radius);
+  --radius: var(----radius);
+  --hu-font-jetbrains: var(----hu-font-jetbrains);
+  --hu-font-geist: var(----hu-font-geist);
 }
 
 :root {
@@ -88,6 +110,28 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.871 0.006 286.286);
+  --hu-font-geist: var(--font-geist);
+  --hu-font-jetbrains: var(--font-jetbrains-mono);
+  --card-radius: 1rem;
+  --hu-background: hsl(0, 0%, 100%);
+  --hu-foreground: hsl(0, 0%, 14%);
+  --hu-card: hsl(0, 0%, 99%);
+  --hu-card-foreground: hsl(0, 0%, 14%);
+  --hu-primary: hsl(235, 100%, 60%);
+  --hu-primary-foreground: hsl(0, 0%, 98%);
+  --hu-secondary: hsl(0, 0%, 97%);
+  --hu-secondary-foreground: hsl(0, 0%, 20%);
+  --hu-muted: hsl(0, 0%, 97%);
+  --hu-muted-foreground: hsl(0, 0%, 56%);
+  --hu-accent: hsl(0, 0%, 96%);
+  --hu-accent-foreground: hsl(0, 0%, 20%);
+  --hu-destructive: hsl(9, 96%, 47%);
+  --hu-destructive-foreground: hsl(0, 0%, 98%);
+  --hu-border: hsl(0, 0%, 92%);
+  --hu-input: hsl(0, 0%, 100%);
+  --hu-ring: hsl(0, 0%, 71%);
+  --color-fd-background: hsl(var(--hu-background));
+  --color-fd-card: hsl(var(--hu-background));
 }
 
 .dark {
@@ -123,6 +167,25 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.274 0.006 286.033);
   --sidebar-ring: oklch(0.442 0.017 285.786);
+  --hu-background: hsl(0, 0%, 7%);
+  --hu-foreground: hsl(0, 0%, 100%);
+  --hu-card: hsl(0, 0%, 9%);
+  --hu-card-foreground: hsl(0, 0%, 100%);
+  --hu-primary: hsl(235, 100%, 60%);
+  --hu-primary-foreground: hsl(0, 0%, 98%);
+  --hu-secondary: hsl(0, 0%, 15%);
+  --hu-secondary-foreground: hsl(0, 0%, 100%);
+  --hu-muted: hsl(0, 0%, 15%);
+  --hu-muted-foreground: hsl(0, 0%, 71%);
+  --hu-accent: hsl(0, 0%, 15%);
+  --hu-accent-foreground: hsl(0, 0%, 100%);
+  --hu-destructive: hsl(0, 84%, 50%);
+  --hu-destructive-foreground: hsl(0, 0%, 98%);
+  --hu-border: 0, 0%, 100%, 10%;
+  --hu-input: 0, 0%, 100%, 5%;
+  --hu-ring: hsl(0, 0%, 56%);
+  --color-fd-background: hsl(var(--hu-background));
+  --color-fd-card: hsl(var(--hu-background));
 }
 
 .select-none {

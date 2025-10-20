@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
+import { getParentLayerPath } from './layer-utils';
 
 const WELCOME_GRAPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
@@ -61,18 +62,52 @@ export function ensureLayersRoot(): void {
   fs.mkdirSync(layersRootDir(), { recursive: true });
 }
 
+// Recursively find all layer directories
+function findLayerDirectories(dir: string, basePath: string = ''): string[] {
+  const layers: string[] = [];
+
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = basePath ? `${basePath}/${entry.name}` : entry.name;
+
+        // Check if this directory contains graph files (is a layer)
+        const currentGraphPath = path.join(fullPath, 'current-graph.xml');
+        const baseGraphPath = path.join(fullPath, 'base-graph.xml');
+
+        if (fs.existsSync(currentGraphPath) && fs.existsSync(baseGraphPath)) {
+          layers.push(relativePath);
+        }
+
+        // Recursively search subdirectories
+        const subLayers = findLayerDirectories(fullPath, relativePath);
+        layers.push(...subLayers);
+      }
+    }
+  } catch {
+    // Directory doesn't exist or can't be read
+  }
+
+  return layers;
+}
+
 export function listLayers(): string[] {
   try {
     ensureLayersRoot();
-    const entries = fs
-      .readdirSync(layersRootDir(), { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name);
-    // Sort by numeric suffix if present, then lexicographically
-    return entries.sort((a, b) => {
-      const ma = a.match(/(\d+)$/);
-      const mb = b.match(/(\d+)$/);
-      if (ma && mb) return Number(ma[1]) - Number(mb[1]);
+    const layers = findLayerDirectories(layersRootDir());
+    // Sort by depth first, then by name
+    return layers.sort((a, b) => {
+      const depthA = (a.match(/\//g) || []).length;
+      const depthB = (b.match(/\//g) || []).length;
+
+      if (depthA !== depthB) {
+        return depthA - depthB;
+      }
+
+      // Same depth, sort lexicographically
       return a.localeCompare(b);
     });
   } catch {
@@ -115,6 +150,7 @@ export function getLayerGraphPaths(name: string): { current: string; base: strin
   };
 }
 
+
 export function getActiveLayerGraphPaths(): { current: string | null; base: string | null } {
   const dir = activeLayerDir();
   if (!dir) return { current: null, base: null };
@@ -124,7 +160,13 @@ export function getActiveLayerGraphPaths(): { current: string | null; base: stri
   };
 }
 
-export function createLayer(desiredName?: string): string {
+// Get layer name (last part of path)
+function getLayerName(layerPath: string): string {
+  const parts = layerPath.split('/');
+  return parts[parts.length - 1];
+}
+
+export function createLayer(desiredName?: string, parentPath?: string): string {
   ensureLayersRoot();
   let name = desiredName?.trim();
   if (!name) {
@@ -134,11 +176,14 @@ export function createLayer(desiredName?: string): string {
     while (existing.has(`graph${i}`)) i++;
     name = `graph${i}`;
   } else {
-    // Sanitize name: keep simple alphanum, dash, underscore
-    name = name.replace(/[^a-zA-Z0-9-_]/g, '').trim() || 'graph1';
+    // Sanitize name: keep simple alphanum, dash, underscore, and forward slash for paths
+    name = name.replace(/[^a-zA-Z0-9-_\/]/g, '').trim() || 'graph1';
   }
 
-  const dir = path.join(layersRootDir(), name);
+  // If parentPath is provided, prepend it to create nested path
+  const fullName = parentPath ? `${parentPath}/${name}` : name;
+
+  const dir = path.join(layersRootDir(), fullName);
   fs.mkdirSync(dir, { recursive: true });
 
   const currentPath = path.join(dir, 'current-graph.xml');
@@ -152,7 +197,7 @@ export function createLayer(desiredName?: string): string {
   if (!fs.existsSync(basePath)) fs.writeFileSync(basePath, initialXml, 'utf8');
   if (!fs.existsSync(currentPath)) fs.writeFileSync(currentPath, initialXml, 'utf8');
 
-  return name;
+  return fullName;
 }
 
 export function deleteLayer(name: string): void {
@@ -234,41 +279,42 @@ export function renameLayer(sourceName: string, newName: string): string {
   return targetName;
 }
 
-export function cloneLayer(sourceName: string, desiredName?: string): string {
+export function cloneLayer(sourceName: string, desiredName?: string, parentPath?: string): string {
   ensureLayersRoot();
   const srcDir = path.join(layersRootDir(), sourceName);
   if (!fs.existsSync(srcDir)) {
     throw new Error(`Source layer not found: ${sourceName}`);
   }
 
-  // Determine target name
+  // Determine target name and path
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9-_]/g, '').trim();
   let targetName = sanitize(desiredName || '');
   if (!targetName) {
-    // Prefer `<source>-copy`, then `<source>-copy-2`, etc.
-    const base = sanitize(`${sourceName}-copy`);
-    targetName = base;
-    const existing = new Set(listLayers());
-    if (existing.has(targetName)) {
-      let i = 2;
-      while (existing.has(`${base}-${i}`)) i++;
-      targetName = `${base}-${i}`;
-    }
-  } else {
-    // Ensure uniqueness
-    const existing = new Set(listLayers());
-    if (existing.has(targetName)) {
-      let i = 2;
-      while (existing.has(`${targetName}-${i}`)) i++;
-      targetName = `${targetName}-${i}`;
-    }
+    // Use source layer name + "-copy"
+    const sourceLayerName = getLayerName(sourceName);
+    targetName = `${sourceLayerName}-copy`;
   }
 
-  const dstDir = path.join(layersRootDir(), targetName);
+  // Determine full target path
+  const targetPath = parentPath ? `${parentPath}/${targetName}` : targetName;
+
+  // Ensure uniqueness
+  const existing = new Set(listLayers());
+  let finalTargetPath = targetPath;
+  if (existing.has(finalTargetPath)) {
+    const baseName = getLayerName(finalTargetPath);
+    const parentPath = getParentLayerPath(finalTargetPath);
+    const basePath = parentPath ? `${parentPath}/${baseName}` : baseName;
+    let i = 2;
+    while (existing.has(parentPath ? `${parentPath}/${baseName}-${i}` : `${baseName}-${i}`)) i++;
+    finalTargetPath = parentPath ? `${parentPath}/${baseName}-${i}` : `${baseName}-${i}`;
+  }
+
+  const dstDir = path.join(layersRootDir(), finalTargetPath);
   fs.mkdirSync(dstDir, { recursive: true });
 
   const srcPaths = getLayerGraphPaths(sourceName);
-  const dstPaths = getLayerGraphPaths(targetName);
+  const dstPaths = getLayerGraphPaths(finalTargetPath);
 
   // Copy files if they exist; otherwise create empty placeholders
   if (fs.existsSync(srcPaths.base)) {
@@ -282,7 +328,7 @@ export function cloneLayer(sourceName: string, desiredName?: string): string {
     fs.writeFileSync(dstPaths.current, EMPTY_GRAPH_XML, 'utf8');
   }
 
-  return targetName;
+  return finalTargetPath;
 }
 
 export function getLayersInfo(): LayersInfo {
