@@ -16,19 +16,21 @@ interface GraphNodeTreeNode {
   level: number;
   isLast: boolean;
   parentPath: boolean[];
+  navigationPath: string[]; // Full path from root to this node
 }
 
 function buildGraphTree(graph: Graph | null): GraphNodeTreeNode[] {
   if (!graph || !graph.nodes) return [];
 
   const nodes = graph.nodes || [];
-  
+
   // Create tree nodes for each graph node
   const treeNodes: GraphNodeTreeNode[] = nodes.map((node, index) => ({
     node,
     level: 0,
     isLast: index === nodes.length - 1,
-    parentPath: []
+    parentPath: [],
+    navigationPath: [node.id] // Root nodes have path [nodeId]
   }));
 
   // Sort by node title
@@ -65,11 +67,10 @@ export default function LayersSidebar({ open = true }: Props) {
   };
 
   // Check if a node is currently selected (highlighted) based on navigationPath
-  const isNodeSelected = (nodeId: string, level: number): boolean => {
-    // Only highlight the last node in the navigation path
-    if (navigationPath.length === 0) return false;
-    const lastLevel = navigationPath.length - 1;
-    return level === lastLevel && navigationPath[level] === nodeId;
+  const isNodeSelected = (nodeNavigationPath: string[]): boolean => {
+    // Check if this node's navigation path matches the current navigation path
+    return navigationPath.length === nodeNavigationPath.length &&
+           navigationPath.every((id, index) => id === nodeNavigationPath[index]);
   };
 
   // Check if root is selected
@@ -80,9 +81,10 @@ export default function LayersSidebar({ open = true }: Props) {
     if (navigationPath.length > 0) {
       setExpandedNodes(prev => {
         const newSet = new Set(prev);
-        // Expand only the currently selected node (last one in path)
-        const selectedNodeId = navigationPath[navigationPath.length - 1];
-        newSet.add(selectedNodeId);
+        // Expand all nodes in the navigation path (ancestors of selected node)
+        navigationPath.forEach(nodeId => {
+          newSet.add(nodeId);
+        });
         return newSet;
       });
     }
@@ -99,7 +101,7 @@ export default function LayersSidebar({ open = true }: Props) {
   const renderNodeItem = (item: GraphNodeTreeNode): React.ReactNode => {
     const hasNestedGraph = !!(item.node.graph && item.node.graph.nodes && item.node.graph.nodes.length > 0);
     const isExpanded = expandedNodes.has(item.node.id);
-    const isSelected = isNodeSelected(item.node.id, item.level);
+    const isSelected = isNodeSelected(item.navigationPath);
 
     const getDefaultIcon = () =>
       hasNestedGraph ? (
@@ -122,8 +124,8 @@ export default function LayersSidebar({ open = true }: Props) {
           style={{ paddingLeft: item.level * indent + 12 }}
           onClick={(e) => {
             e.stopPropagation();
-            // Click to navigate to this node
-            setNavigationPath(navigationPath.slice(0, item.level).concat(item.node.id));
+            // Click to navigate to this node using the correct navigation path
+            setNavigationPath(item.navigationPath);
             // Collapse siblings at same level when selecting this node
             setExpandedNodes(prev => {
               const newSet = new Set(prev);
@@ -233,7 +235,8 @@ export default function LayersSidebar({ open = true }: Props) {
                     node: childNode,
                     level: item.level + 1,
                     isLast: childIndex === item.node.graph!.nodes!.length - 1,
-                    parentPath: item.parentPath.concat(item.isLast)
+                    parentPath: item.parentPath.concat(item.isLast),
+                    navigationPath: [...item.navigationPath, childNode.id] // Extend parent path
                   };
                   return renderNodeItem(childItem);
                 })}

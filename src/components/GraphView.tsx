@@ -152,6 +152,23 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Calculate indicator dot size based on zoom level
   const indicatorSize = isZoomedOut ? '16px' : '12px';
 
+  // Helper function to find a node recursively in a graph (including nested graphs)
+  const findNodeRecursively = (graph: any, nodeId: string): any => {
+    // Check root level first
+    const rootNode = graph.nodes?.find((n: any) => n.id === nodeId);
+    if (rootNode) return rootNode;
+
+    // Recursively search in nested graphs
+    for (const node of graph.nodes || []) {
+      if (node.graph) {
+        const found = findNodeRecursively(node.graph, nodeId);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  };
+
   // Derive effective visual state based on base graph comparison
   const effectiveState = (() => {
 
@@ -168,8 +185,10 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       return 'unbuilt'; // No base graph, consider unbuilt
     }
 
-    const baseNode = baseGraph.nodes.find((n: any) => n.id === node.id);
-    const isInCurrentGraph = data.graph?.nodes.some((n: any) => n.id === node.id) ?? false;
+    // Find the base node recursively (including in nested graphs)
+    const baseNode = findNodeRecursively(baseGraph, node.id);
+    // Check if node exists anywhere in the current full graph (including nested graphs)
+    const isInCurrentGraph = !!findNodeRecursively(data.graph, node.id);
 
     // Check if node exists in base graph but not in current graph (inverted diff for "to be deleted")
     if (baseNode && !isInCurrentGraph) {
@@ -184,7 +203,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     // Use the same diff logic as analyzeGraphDiff - compares title, prompt, AND properties
     const isSame = !nodesAreDifferent(baseNode, node);
     const result = isSame ? 'built' : 'unbuilt';
-    console.log(`   ✅ Result: ${result} (using full diff comparison including properties)`);
+    console.log(`   ✅ Result: ${result} (using full diff comparison including properties and nested graphs)`);
 
     return result;
   })();
@@ -697,14 +716,20 @@ function GraphCanvas() {
       return { id: n.id, width, height } as any;
     });
 
+    // Create set of node IDs at current level for validation
+    const currentLevelNodeIds = new Set(g.nodes.map(n => n.id));
+
     const seen = new Set<string>();
     const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
     if (Array.isArray((g as any).edges)) {
       (g as any).edges.forEach((e: any, i: number) => {
-        const id = `${e.source}-${e.target}`;
-        if (!seen.has(id)) {
-          elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
-          seen.add(id);
+        // Only include edges where both source and target exist at the current level
+        if (currentLevelNodeIds.has(e.source) && currentLevelNodeIds.has(e.target)) {
+          const id = `${e.source}-${e.target}`;
+          if (!seen.has(id)) {
+            elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
+            seen.add(id);
+          }
         }
       });
     }
@@ -1746,15 +1771,22 @@ function GraphCanvas() {
         try {
           const elk = new ELK();
           const elkNodes = currentGraph.nodes.map(n => ({ id: n.id, width: 260, height: 160 }));
+
+          // Create set of node IDs at current level for validation
+          const currentLevelNodeIds = new Set(currentGraph.nodes.map(n => n.id));
+
           const seen = new Set<string>();
           const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
-          // From explicit edges
+          // From explicit edges - only include edges where both source and target exist at current level
           if (Array.isArray((currentGraph as any).edges)) {
             (currentGraph as any).edges.forEach((e: any, i: number) => {
-              const id = `${e.source}-${e.target}`;
-              if (!seen.has(id)) {
-                elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
-                seen.add(id);
+              // Only include edges where both nodes exist at the current level
+              if (currentLevelNodeIds.has(e.source) && currentLevelNodeIds.has(e.target)) {
+                const id = `${e.source}-${e.target}`;
+                if (!seen.has(id)) {
+                  elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
+                  seen.add(id);
+                }
               }
             });
           }

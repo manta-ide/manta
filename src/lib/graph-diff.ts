@@ -15,7 +15,7 @@ export interface GraphDiff {
 }
 
 /**
- * Analyzes differences between base and current graphs
+ * Analyzes differences between base and current graphs (recursively handles nested graphs)
  */
 export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDiff {
   console.log(`🔍 Analyzing graph diff: {baseNodes: ${baseGraph.nodes.length}, currentNodes: ${currentGraph.nodes.length}}`);
@@ -29,6 +29,19 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
     unbuiltEdges: []
   };
 
+  // Recursively analyze graphs
+  analyzeGraphDiffRecursive(baseGraph, currentGraph, diff, '');
+
+  return diff;
+}
+
+/**
+ * Recursively analyzes differences between graphs at any nesting level
+ */
+function analyzeGraphDiffRecursive(baseGraph: Graph, currentGraph: Graph, diff: GraphDiff, path: string): void {
+  const indent = path ? '  '.repeat(path.split('.').length) : '';
+  console.log(`${indent}🔍 Analyzing level: ${path || 'root'} {baseNodes: ${baseGraph.nodes.length}, currentNodes: ${currentGraph.nodes.length}}`);
+
   // Compare nodes
   const currentNodeMap = new Map(currentGraph.nodes.map(n => [n.id, n]));
   const baseNodeMap = new Map(baseGraph.nodes.map(n => [n.id, n]));
@@ -37,13 +50,28 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
   for (const [nodeId, currentNode] of Array.from(currentNodeMap.entries())) {
     const baseNode = baseNodeMap.get(nodeId);
     if (!baseNode) {
-      console.log(`   ➕ Added node: ${nodeId} (${currentNode.title})`);
+      console.log(`${indent}   ➕ Added node: ${nodeId} (${currentNode.title})`);
       diff.addedNodes.push(nodeId);
     } else if (nodesAreDifferent(baseNode, currentNode) || hasBugs(currentNode)) {
-      console.log(`   ✏️ Modified node: ${nodeId} (${currentNode.title})${hasBugs(currentNode) ? ' (has bugs)' : ''}`);
+      console.log(`${indent}   ✏️ Modified node: ${nodeId} (${currentNode.title})${hasBugs(currentNode) ? ' (has bugs)' : ''}`);
       diff.modifiedNodes.push(nodeId);
     } else {
-      console.log(`   ✅ Unchanged node: ${nodeId} (${currentNode.title})`);
+      console.log(`${indent}   ✅ Unchanged node: ${nodeId} (${currentNode.title})`);
+    }
+
+    // Recursively analyze nested graphs if both nodes have them
+    if (currentNode.graph && baseNode?.graph) {
+      analyzeGraphDiffRecursive(baseNode.graph, currentNode.graph, diff, `${path}${path ? '.' : ''}${nodeId}`);
+    } else if (currentNode.graph && !baseNode?.graph) {
+      // Current has nested graph but base doesn't - all nested nodes are added
+      console.log(`${indent}   📁 Node ${nodeId} gained nested graph - analyzing...`);
+      const emptyGraph = { nodes: [], edges: [] };
+      analyzeGraphDiffRecursive(emptyGraph, currentNode.graph, diff, `${path}${path ? '.' : ''}${nodeId}`);
+    } else if (!currentNode.graph && baseNode?.graph) {
+      // Base has nested graph but current doesn't - all nested nodes are deleted
+      console.log(`${indent}   📁 Node ${nodeId} lost nested graph - analyzing...`);
+      const emptyGraph = { nodes: [], edges: [] };
+      analyzeGraphDiffRecursive(baseNode.graph, emptyGraph, diff, `${path}${path ? '.' : ''}${nodeId}`);
     }
   }
 
@@ -51,7 +79,7 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
   for (const [nodeId] of Array.from(baseNodeMap.entries())) {
     if (!currentNodeMap.has(nodeId)) {
       const baseNode = baseNodeMap.get(nodeId);
-      console.log(`   ➖ Deleted node: ${nodeId} (${baseNode?.title})`);
+      console.log(`${indent}   ➖ Deleted node: ${nodeId} (${baseNode?.title})`);
       diff.deletedNodes.push(nodeId);
     }
   }
@@ -76,8 +104,6 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
       diff.deletedEdges.push(edgeKey);
     }
   }
-
-  return diff;
 }
 
 /**
@@ -88,14 +114,13 @@ export function hasBugs(node: any): boolean {
 }
 
 /**
- * Compares two nodes to determine if they are different
+ * Compares two nodes to determine if they are different (including nested graphs)
  */
 export function nodesAreDifferent(node1: any, node2: any): boolean {
   // Compare title and prompt
   if (node1.title !== node2.title || node1.prompt !== node2.prompt) {
     return true;
   }
-
 
   // Compare properties
   const props1 = Array.isArray(node1.properties) ? node1.properties : [];
@@ -142,11 +167,36 @@ export function nodesAreDifferent(node1: any, node2: any): boolean {
     }
   }
 
+  // Compare nested graphs recursively
+  const graph1 = node1.graph || { nodes: [], edges: [] };
+  const graph2 = node2.graph || { nodes: [], edges: [] };
+
+  // Normalize edges arrays
+  const edges1 = graph1.edges || [];
+  const edges2 = graph2.edges || [];
+
+  // Quick check: different number of nodes or edges
+  if (graph1.nodes.length !== graph2.nodes.length || edges1.length !== edges2.length) {
+    return true;
+  }
+
+  // If both have no nodes and no edges, they're equivalent
+  if (graph1.nodes.length === 0 && graph2.nodes.length === 0 && edges1.length === 0 && edges2.length === 0) {
+    return false;
+  }
+
+  // Compare nested graphs by checking if any nested nodes are different
+  const nestedDiff = analyzeGraphDiff(graph1, graph2);
+  if (nestedDiff.addedNodes.length > 0 || nestedDiff.modifiedNodes.length > 0 || nestedDiff.deletedNodes.length > 0 ||
+      nestedDiff.addedEdges.length > 0 || nestedDiff.deletedEdges.length > 0) {
+    return true;
+  }
+
   return false; // Nodes are identical
 }
 
 /**
- * Marks nodes as unbuilt if they differ from the base graph
+ * Marks nodes as unbuilt if they differ from the base graph (recursively handles nested graphs)
  */
 export function markUnbuiltNodesFromDiff(graph: Graph, diff: GraphDiff): Graph {
   console.log('🏷️ Marking node states based on diff...');
@@ -155,11 +205,21 @@ export function markUnbuiltNodesFromDiff(graph: Graph, diff: GraphDiff): Graph {
     // Mark as unbuilt if added or modified
     if (diff.addedNodes.includes(node.id) || diff.modifiedNodes.includes(node.id)) {
       console.log(`   🔴 ${node.id} (${node.title}): unbuilt (${diff.addedNodes.includes(node.id) ? 'added' : 'modified'})`);
-      return { ...node, state: 'unbuilt' as const };
+      const updatedNode = { ...node, state: 'unbuilt' as const };
+      // Recursively mark nested nodes if this node has a nested graph
+      if (updatedNode.graph) {
+        updatedNode.graph = markUnbuiltNodesFromDiff(updatedNode.graph, diff);
+      }
+      return updatedNode;
     }
     // Mark as built if exists in both graphs and not modified (identical to base)
     console.log(`   🟢 ${node.id} (${node.title}): built (unchanged)`);
-    return { ...node, state: 'built' as const };
+    const updatedNode = { ...node, state: 'built' as const };
+    // Recursively mark nested nodes if this node has a nested graph
+    if (updatedNode.graph) {
+      updatedNode.graph = markUnbuiltNodesFromDiff(updatedNode.graph, diff);
+    }
+    return updatedNode;
   });
 
   const result = {
@@ -175,13 +235,27 @@ export function markUnbuiltNodesFromDiff(graph: Graph, diff: GraphDiff): Graph {
 }
 
 /**
- * Determines if an edge is unbuilt by checking if it exists in the base graph
+ * Determines if an edge is unbuilt by checking if it exists in the base graph (recursively searches nested graphs)
  */
 export function isEdgeUnbuilt(edge: { source: string; target: string }, baseGraph: Graph | null): boolean {
-  if (!baseGraph || !baseGraph.edges) return true; // No base graph means all edges are unbuilt
+  if (!baseGraph) return true; // No base graph means all edges are unbuilt
 
-  const edgeKey = `${edge.source}-${edge.target}`;
-  return !baseGraph.edges.some(baseEdge => `${baseEdge.source}-${baseEdge.target}` === edgeKey);
+  // Check root level edges
+  if (baseGraph.edges) {
+    const edgeKey = `${edge.source}-${edge.target}`;
+    if (baseGraph.edges.some(baseEdge => `${baseEdge.source}-${baseEdge.target}` === edgeKey)) {
+      return false; // Edge exists at root level - it's built
+    }
+  }
+
+  // Recursively check nested graphs
+  for (const node of baseGraph.nodes) {
+    if (node.graph && !isEdgeUnbuilt(edge, node.graph)) {
+      return false; // Edge exists in nested graph - it's built
+    }
+  }
+
+  return true; // Edge not found anywhere - it's unbuilt
 }
 
 /**

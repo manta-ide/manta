@@ -647,6 +647,120 @@ async function readLocalGraph(): Promise<any | null> {
 }
 
 // Helper function to sync specific nodes/edges to base graph
+// Helper function to find an edge recursively in a graph (including nested graphs)
+function findEdgeRecursively(graph: any, edgeId: string): any | null {
+  // Check root level edges
+  if (graph.edges) {
+    const edge = graph.edges.find((e: any) => e.id === edgeId || `${e.source}-${e.target}` === edgeId);
+    if (edge) return edge;
+  }
+
+  // Check nested graphs
+  if (graph.nodes) {
+    for (const node of graph.nodes) {
+      if (node.graph) {
+        const found = findEdgeRecursively(node.graph, edgeId);
+        if (found) return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+// Helper function to remove an edge recursively from a graph
+function removeEdgeRecursively(graph: any, edgeId: string): boolean {
+  // Check root level edges
+  if (graph.edges) {
+    const edgeIdx = graph.edges.findIndex((e: any) => e.id === edgeId || `${e.source}-${e.target}` === edgeId);
+    if (edgeIdx >= 0) {
+      graph.edges.splice(edgeIdx, 1);
+      return true;
+    }
+  }
+
+  // Check nested graphs
+  if (graph.nodes) {
+    for (const node of graph.nodes) {
+      if (node.graph && removeEdgeRecursively(node.graph, edgeId)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Helper function to add an edge to the correct nesting level in base graph
+function addEdgeRecursively(baseGraph: any, edge: any, edgeId: string, currentGraph?: any): void {
+  if (!currentGraph) {
+    // Fallback: add to root level
+    baseGraph.edges = baseGraph.edges || [];
+    const existingIdx = baseGraph.edges.findIndex((e: any) => e.id === edgeId || `${e.source}-${e.target}` === edgeId);
+    if (existingIdx >= 0) {
+      baseGraph.edges[existingIdx] = { ...edge };
+    } else {
+      baseGraph.edges.push({ ...edge });
+    }
+    return;
+  }
+
+  // Find the nesting level where this edge exists in the current graph
+  function findEdgeLevel(graph: any, targetEdgeId: string, path: string[] = []): string[] | null {
+    // Check root level edges
+    if (graph.edges) {
+      const found = graph.edges.find((e: any) => e.id === targetEdgeId || `${e.source}-${e.target}` === targetEdgeId);
+      if (found) return path;
+    }
+
+    // Check nested graphs
+    if (graph.nodes) {
+      for (const node of graph.nodes) {
+        if (node.graph) {
+          const found = findEdgeLevel(node.graph, targetEdgeId, [...path, node.id]);
+          if (found) return found;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  const edgePath = findEdgeLevel(currentGraph, edgeId);
+  if (edgePath && edgePath.length > 0) {
+    // Navigate to the correct level in base graph and add the edge there
+    let targetGraph = baseGraph;
+    for (const nodeId of edgePath) {
+      const node = targetGraph.nodes?.find((n: any) => n.id === nodeId);
+      if (!node) {
+        // Node doesn't exist in base at this level, can't add edge
+        console.warn('⚠️ Cannot add edge to base graph - target node not found at path:', edgePath);
+        return;
+      }
+      node.graph = node.graph || { nodes: [], edges: [] };
+      targetGraph = node.graph;
+    }
+
+    // Add edge at the correct level
+    targetGraph.edges = targetGraph.edges || [];
+    const existingIdx = targetGraph.edges.findIndex((e: any) => e.id === edgeId || `${e.source}-${e.target}` === edgeId);
+    if (existingIdx >= 0) {
+      targetGraph.edges[existingIdx] = { ...edge };
+    } else {
+      targetGraph.edges.push({ ...edge });
+    }
+  } else {
+    // Edge not found in current graph, add to root level as fallback
+    baseGraph.edges = baseGraph.edges || [];
+    const existingIdx = baseGraph.edges.findIndex((e: any) => e.id === edgeId || `${e.source}-${e.target}` === edgeId);
+    if (existingIdx >= 0) {
+      baseGraph.edges[existingIdx] = { ...edge };
+    } else {
+      baseGraph.edges.push({ ...edge });
+    }
+  }
+}
+
 // Helper function to find a node recursively in a graph (including nested graphs)
 function findNodeRecursively(graph: any, nodeId: string): any | null {
   // Check root level
@@ -667,7 +781,7 @@ function findNodeRecursively(graph: any, nodeId: string): any | null {
 // Helper function to sync a node recursively (including its nested graph)
 function syncNodeRecursively(baseGraph: any, currentNode: any): void {
   const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === currentNode.id) ?? -1;
-  
+
   if (baseNodeIdx >= 0) {
     // Update existing node in base graph
     console.log('🔄 TOOL: syncToBaseGraph updating node:', currentNode.id);
@@ -678,6 +792,56 @@ function syncNodeRecursively(baseGraph: any, currentNode: any): void {
     baseGraph.nodes = baseGraph.nodes || [];
     baseGraph.nodes.push(cloneGraph(currentNode));
   }
+}
+
+// Helper function to collect all edges from a node tree recursively
+function collectEdgesFromNode(node: any, collectedEdges: Set<string>): void {
+  if (node.graph && node.graph.edges) {
+    for (const edge of node.graph.edges) {
+      collectedEdges.add(edge.id || `${edge.source}-${edge.target}`);
+    }
+  }
+  if (node.graph && node.graph.nodes) {
+    for (const childNode of node.graph.nodes) {
+      collectEdgesFromNode(childNode, collectedEdges);
+    }
+  }
+}
+
+// Helper function to collect all node IDs in a tree
+function collectNodeIds(node: any, nodeIds: Set<string>): void {
+  nodeIds.add(node.id);
+  if (node.graph && node.graph.nodes) {
+    for (const childNode of node.graph.nodes) {
+      collectNodeIds(childNode, nodeIds);
+    }
+  }
+}
+
+// Helper function to collect edges that reference any node in the given tree
+function collectRelatedEdges(graph: any, treeNode: any, collectedEdges: Set<string>): void {
+  const treeNodeIds = new Set<string>();
+  collectNodeIds(treeNode, treeNodeIds);
+
+  // Recursively search the entire graph for edges that reference any node in the tree
+  function searchForRelatedEdges(g: any): void {
+    if (g.edges) {
+      for (const edge of g.edges) {
+        if (treeNodeIds.has(edge.source) || treeNodeIds.has(edge.target)) {
+          collectedEdges.add(edge.id || `${edge.source}-${edge.target}`);
+        }
+      }
+    }
+    if (g.nodes) {
+      for (const node of g.nodes) {
+        if (node.graph) {
+          searchForRelatedEdges(node.graph);
+        }
+      }
+    }
+  }
+
+  searchForRelatedEdges(graph);
 }
 
 async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ success: boolean; error?: string }> {
@@ -732,10 +896,50 @@ async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ 
           if (rootNode) {
             // Sync the entire root node (which includes all nested children)
             console.log('🌳 TOOL: syncToBaseGraph syncing tree from root:', rootNodeId);
-            syncNodeRecursively(baseGraph, rootNode);
+            // First, get the current complete root node from the current graph
+            const completeRootNode = currentGraph.nodes?.find((n: any) => n.id === rootNodeId);
+            const nodeToSync = completeRootNode || rootNode;
+
+            // Sync the node tree
+            syncNodeRecursively(baseGraph, nodeToSync);
+
+            // Also collect and sync all edges from this node tree AND from the entire current graph
+            const collectedEdges = new Set<string>();
+            collectEdgesFromNode(nodeToSync, collectedEdges);
+
+            // Also collect edges that might reference nodes in this tree (even if edges are elsewhere in the graph)
+            collectRelatedEdges(currentGraph, nodeToSync, collectedEdges);
+
+            if (collectedEdges.size > 0) {
+              console.log('🔗 TOOL: syncToBaseGraph also syncing edges from tree and related:', Array.from(collectedEdges));
+              // Add these edges to the edgeIds to be synced
+              edgeIds = edgeIds || [];
+              for (const edgeId of collectedEdges) {
+                if (!edgeIds.includes(edgeId)) {
+                  edgeIds.push(edgeId);
+                }
+              }
+            }
           } else {
             // Node is at root level
             syncNodeRecursively(baseGraph, currentNode);
+
+            // Also collect and sync edges from root-level node tree AND related edges
+            const collectedEdges = new Set<string>();
+            collectEdgesFromNode(currentNode, collectedEdges);
+
+            // Also collect edges that reference nodes in this tree
+            collectRelatedEdges(currentGraph, currentNode, collectedEdges);
+
+            if (collectedEdges.size > 0) {
+              console.log('🔗 TOOL: syncToBaseGraph also syncing edges from root node tree and related:', Array.from(collectedEdges));
+              edgeIds = edgeIds || [];
+              for (const edgeId of collectedEdges) {
+                if (!edgeIds.includes(edgeId)) {
+                  edgeIds.push(edgeId);
+                }
+              }
+            }
           }
         } else {
           // Node doesn't exist in current - check if it's in base and remove it
@@ -751,39 +955,28 @@ async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ 
     // Sync edges
     if (edgeIds && edgeIds.length > 0) {
       for (const edgeId of edgeIds) {
-        // Parse edgeId to extract source and target (format: sourceId-targetId)
-        const [sourceId, targetId] = edgeId.includes('-') ? edgeId.split('-', 2) : [edgeId, ''];
-        
-        // Find edge in current graph by id, or by source/target if id is in format sourceId-targetId
-        const currentEdge = currentGraph.edges?.find((e: any) => {
-          if (e.id === edgeId) return true;
-          if (sourceId && targetId && e.source === sourceId && e.target === targetId) return true;
-          return false;
-        });
-        
-        // Find edge in base graph by id, or by source/target
-        const baseEdgeIdx = baseGraph.edges?.findIndex((e: any) => {
-          if (e.id === edgeId) return true;
-          if (sourceId && targetId && e.source === sourceId && e.target === targetId) return true;
-          return false;
-        }) ?? -1;
+        // Find edge recursively in current graph
+        const currentEdge = findEdgeRecursively(currentGraph, edgeId);
+
+        // Find edge recursively in base graph
+        const baseEdge = findEdgeRecursively(baseGraph, edgeId);
 
         if (currentEdge) {
           // Edge exists in current graph
-          if (baseEdgeIdx >= 0) {
-            // Update existing edge in base graph
+          if (baseEdge) {
+            // Update existing edge in base graph (but since we can't easily get the index recursively, we'll remove and re-add)
             console.log('🔄 TOOL: syncToBaseGraph updating edge:', edgeId);
-            baseGraph.edges[baseEdgeIdx] = { ...currentEdge };
+            removeEdgeRecursively(baseGraph, edgeId);
+            addEdgeRecursively(baseGraph, currentEdge, edgeId, currentGraph);
           } else {
             // Add new edge to base graph
             console.log('➕ TOOL: syncToBaseGraph adding edge:', edgeId);
-            baseGraph.edges = baseGraph.edges || [];
-            baseGraph.edges.push({ ...currentEdge });
+            addEdgeRecursively(baseGraph, currentEdge, edgeId, currentGraph);
           }
-        } else if (baseEdgeIdx >= 0) {
+        } else if (baseEdge) {
           // Edge doesn't exist in current but exists in base - remove from base
           console.log('🗑️ TOOL: syncToBaseGraph removing edge from base:', edgeId);
-          baseGraph.edges.splice(baseEdgeIdx, 1);
+          removeEdgeRecursively(baseGraph, edgeId);
         }
       }
     }
@@ -1423,20 +1616,20 @@ export async function POST(req: NextRequest) {
 
         // Validate that both nodes exist at the target level
         console.log('🔍 TOOL: edge_create validating source node:', sourceId, 'at path:', targetPath);
-        const sourceNode = targetGraph.nodes.find((n: any) => n.id === sourceId);
+        // Find source node recursively in the entire graph (not just at the target path level)
+        const sourceNode = findNodeRecursively(graph, sourceId);
         if (!sourceNode) {
-          console.error('❌ TOOL: edge_create source node not found:', sourceId, 'at path:', targetPath);
-          const errorMsg = `Source node '${sourceId}' not found at specified path. Available nodes: ${targetGraph.nodes.map((n: any) => n.id).join(', ')}`;
-          return NextResponse.json({ error: errorMsg }, { status: 404 });
+          console.error('❌ TOOL: edge_create source node not found:', sourceId, 'in entire graph');
+          return NextResponse.json({ error: `Source node '${sourceId}' not found in graph` }, { status: 404 });
         }
         console.log('✅ TOOL: edge_create found source node:', sourceNode.title);
 
         console.log('🔍 TOOL: edge_create validating target node:', targetId);
-        const targetNode = targetGraph.nodes.find((n: any) => n.id === targetId);
+        // Find target node recursively in the entire graph (not just at the target path level)
+        const targetNode = findNodeRecursively(graph, targetId);
         if (!targetNode) {
-          console.error('❌ TOOL: edge_create target node not found:', targetId, 'at path:', targetPath);
-          const errorMsg = `Target node '${targetId}' not found at specified path. Available nodes: ${targetGraph.nodes.map((n: any) => n.id).join(', ')}`;
-          return NextResponse.json({ error: errorMsg }, { status: 404 });
+          console.error('❌ TOOL: edge_create target node not found:', targetId, 'in entire graph');
+          return NextResponse.json({ error: `Target node '${targetId}' not found in graph` }, { status: 404 });
         }
         console.log('✅ TOOL: edge_create found target node:', targetNode.title);
 
