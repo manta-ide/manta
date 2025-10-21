@@ -688,96 +688,126 @@ function GraphCanvas() {
     return rects;
   }, [nodes, searchResults, searchOpen]);
 
-  // Auto layout all nodes using ELK and persist positions
+  // Helper function to recursively layout a graph and all its nested graphs
+  const layoutGraphRecursively = useCallback(async (g: Graph, elk: any, nodeMarginX: number, nodeMarginY: number): Promise<Graph> => {
+    // Layout current level
+    const elkNodes = g.nodes.map(n => {
+      const width = 260 + nodeMarginX * 2;
+      const height = 160 + nodeMarginY * 2;
+      return { id: n.id, width, height } as any;
+    });
+
+    const seen = new Set<string>();
+    const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
+    if (Array.isArray((g as any).edges)) {
+      (g as any).edges.forEach((e: any, i: number) => {
+        const id = `${e.source}-${e.target}`;
+        if (!seen.has(id)) {
+          elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
+          seen.add(id);
+        }
+      });
+    }
+
+    const elkGraph = {
+      id: 'root',
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.layered.layering.strategy': 'LONGEST_PATH',
+        'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+        'elk.layered.thoroughness': '7',
+        'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+        'elk.edgeRouting': 'ORTHOGONAL',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '120',
+        'elk.layered.spacing.edgeEdgeBetweenLayers': '36',
+        'elk.spacing.nodeNode': '72',
+        'elk.spacing.edgeNode': '48',
+        'elk.spacing.edgeEdge': '36',
+        'elk.spacing.componentComponent': '96',
+        'elk.spacing.portPort': '12',
+        'elk.spacing.portNode': '12',
+        'elk.spacing.labelNode': '12',
+        'elk.layered.mergeEdges': 'true',
+      },
+      children: elkNodes,
+      edges: elkEdges,
+    } as any;
+
+    const res = await elk.layout(elkGraph);
+    const posMap = new Map<string, { x: number; y: number }>();
+    (res.children || []).forEach((c: any) => {
+      posMap.set(c.id, { x: Math.round(c.x || 0), y: Math.round(c.y || 0) });
+    });
+
+    // Update positions and recursively layout nested graphs
+    const updatedNodes = await Promise.all(g.nodes.map(async (n) => {
+      const p = posMap.get(n.id);
+      const updatedNode = {
+        ...n,
+        ...(p ? { position: { x: p.x, y: p.y, z: 0 } } : {}),
+      };
+
+      // Recursively layout nested graph if it exists and has nodes
+      if (updatedNode.graph && updatedNode.graph.nodes && updatedNode.graph.nodes.length > 0) {
+        updatedNode.graph = await layoutGraphRecursively(updatedNode.graph, elk, nodeMarginX, nodeMarginY);
+      }
+
+      return updatedNode;
+    }));
+
+    return { ...g, nodes: updatedNodes };
+  }, []);
+
+  // Auto layout all nodes using ELK and persist positions (recursive through all nested graphs)
   const autoLayout = useCallback(async () => {
     if (!graph) return;
     setIsAutoLayouting(true);
     setOptimisticOperationsActive(true);
     try {
       const elk = new ELK();
-      // Add buffer space around each node to avoid tight packing
-      const nodeMarginX = 48; // horizontal padding on each side (increased)
-      const nodeMarginY = 48; // vertical padding on each side (increased)
-      // Build ELK nodes with measured or default sizes
-      const rfNodeMap = new Map(nodes.map(n => [n.id, n]));
-      const elkNodes = graph.nodes.map(n => {
-        const rf = rfNodeMap.get(n.id);
-        const width = (rf?.width ?? 260) + nodeMarginX * 2;
-        const height = (rf?.height ?? 160) + nodeMarginY * 2;
-        return { id: n.id, width, height } as any;
-      });
-      const seen = new Set<string>();
-      const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
-      if (Array.isArray((graph as any).edges)) {
-        (graph as any).edges.forEach((e: any, i: number) => {
-          const id = `${e.source}-${e.target}`;
-          if (!seen.has(id)) {
-            elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
-            seen.add(id);
-          }
-        });
-      }
+      const nodeMarginX = 48;
+      const nodeMarginY = 48;
 
-      const elkGraph = {
-        id: 'root',
-        layoutOptions: {
-          'elk.algorithm': 'layered',
-          'elk.direction': 'RIGHT',
-          // Consider node sizes and reduce crossings
-          'elk.layered.layering.strategy': 'LONGEST_PATH',
-          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-          'elk.layered.thoroughness': '7',
-          'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-          'elk.edgeRouting': 'ORTHOGONAL',
-          // Spacing for less overlap and clearer edges (increased)
-          'elk.layered.spacing.nodeNodeBetweenLayers': '120',
-          'elk.layered.spacing.edgeEdgeBetweenLayers': '36',
-          'elk.spacing.nodeNode': '72',
-          'elk.spacing.edgeNode': '48',
-          'elk.spacing.edgeEdge': '36',
-          'elk.spacing.componentComponent': '96',
-          'elk.spacing.portPort': '12',
-          'elk.spacing.portNode': '12',
-          'elk.spacing.labelNode': '12',
-          'elk.layered.mergeEdges': 'true',
-        },
-        children: elkNodes,
-        edges: elkEdges,
-      } as any;
+      console.log('🎨 Starting recursive auto layout for entire graph hierarchy...');
+      
+      // Recursively layout the entire graph hierarchy
+      const updatedGraph = await layoutGraphRecursively(graph, elk, nodeMarginX, nodeMarginY);
 
-      const res = await elk.layout(elkGraph);
-      const posMap = new Map<string, { x: number; y: number }>();
-      (res.children || []).forEach((c: any) => {
-        posMap.set(c.id, { x: Math.round(c.x || 0), y: Math.round(c.y || 0) });
-      });
+      console.log('✅ Recursive auto layout complete, saving graph...');
 
-      // Update RF nodes immediately for feedback
+      // Update RF nodes immediately for feedback (only for current visible level)
+      const currentLevelNodes = navigationPath.length === 0 
+        ? updatedGraph.nodes 
+        : (() => {
+            let current: any = updatedGraph;
+            for (const nodeId of navigationPath) {
+              const node = current.nodes?.find((n: any) => n.id === nodeId);
+              if (node?.graph) current = node.graph;
+            }
+            return current.nodes || [];
+          })();
+
       setNodes(prev => prev.map(n => {
-        const p = posMap.get(n.id);
-        return p ? { ...n, position: { x: p.x, y: p.y } } : n;
+        const updatedNode = currentLevelNodes.find((un: any) => un.id === n.id);
+        if (updatedNode?.position) {
+          return { ...n, position: { x: updatedNode.position.x, y: updatedNode.position.y } };
+        }
+        return n;
       }));
 
-      // Persist to graph (single PUT)
-      const updatedGraph: Graph = {
-        ...graph,
-        nodes: graph.nodes.map(n => {
-          const p = posMap.get(n.id);
-          return p ? { ...n, position: { x: p.x, y: p.y, z: 0 } } : n;
-        }),
-      } as Graph;
-
       await useProjectStore.getState().syncGraph(updatedGraph);
-
-      // Also update local store explicitly to avoid races
       useProjectStore.setState({ graph: updatedGraph });
       suppressSSE?.(1000);
+      
+      console.log('🎉 Auto layout saved successfully!');
     } catch (e) {
       console.error('Auto layout failed:', e);
     } finally {
       setOptimisticOperationsActive(false);
       setIsAutoLayouting(false);
     }
-  }, [graph, nodes, setNodes, setOptimisticOperationsActive, suppressSSE]);
+  }, [graph, nodes, setNodes, setOptimisticOperationsActive, suppressSSE, navigationPath, layoutGraphRecursively]);
 
   // Listen for global commands (from chat slash commands or elsewhere)
   useEffect(() => {
@@ -1770,8 +1800,21 @@ function GraphCanvas() {
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
       // Include nodes from base graph that are not in current graph (for ghosted display)
-      const currentNodeIds = new Set(currentGraph.nodes.map(n => n.id));
-      const baseOnlyNodes = baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)) : [];
+      // Navigate to the same nested level in base graph for proper ghosted display
+      const baseGraphAtLevel = baseGraph && navigationPath.length > 0
+        ? (() => {
+            let current: any = baseGraph;
+            for (const nodeId of navigationPath) {
+              const node = current.nodes?.find((n: any) => n.id === nodeId);
+              if (!node?.graph) return null;
+              current = node.graph;
+            }
+            return current;
+          })()
+        : baseGraph;
+
+      const currentNodeIds = new Set(currentGraph.nodes.map((n: any) => n.id));
+      const baseOnlyNodes = baseGraphAtLevel ? baseGraphAtLevel.nodes.filter((n: any) => !currentNodeIds.has(n.id)) : [];
       const allNodes = [...currentGraph.nodes, ...baseOnlyNodes];
 
       // Sort nodes by z-index (lower z-index renders first/behind)
@@ -1795,10 +1838,10 @@ function GraphCanvas() {
         // For base-only nodes (ghosted), we still want to preserve any position data
         // Don't add offset to prevent jumping - let them use their stored position
 
-        const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
+        const backgroundColor = node.properties?.find((p: any) => p.id === 'background-color')?.value;
         // Extract width and height from properties for ReactFlow node
-        const widthProp = node.properties?.find(p => p.id === 'width');
-        const heightProp = node.properties?.find(p => p.id === 'height');
+        const widthProp = node.properties?.find((p: any) => p.id === 'width');
+        const heightProp = node.properties?.find((p: any) => p.id === 'height');
         const nodeWidth = widthProp?.value;
         const nodeHeight = heightProp?.value;
 
@@ -1825,15 +1868,15 @@ function GraphCanvas() {
         return rfNode;
       });
 
-      // Create edges from both base and current graphs
+      // Create edges from both base and current graphs (at the appropriate level)
       const reactFlowEdges: Edge[] = [];
       // Deduplicate edges regardless of direction (A-B equals B-A),
       // but keep the original orientation and handle anchors of the first occurrence.
       const addedSymmetric = new Set<string>();
 
-      // Collect edges from both base and current graphs
+      // Collect edges from both base and current graphs at the same level
       const allEdges = [
-        ...(baseGraph?.edges || []),
+        ...(baseGraphAtLevel?.edges || []),
         ...(currentGraph as any).edges || []
       ];
 

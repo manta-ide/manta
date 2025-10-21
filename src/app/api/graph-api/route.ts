@@ -20,6 +20,56 @@ const cloneGraph = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value));
 };
 
+// Helper function to navigate to a nested graph level using a path
+const navigateToNestedGraph = (graph: any, path: string[]): any | null => {
+  if (!path || path.length === 0) return graph;
+  
+  let current = graph;
+  for (const nodeId of path) {
+    if (!current || !current.nodes) return null;
+    const node = current.nodes.find((n: any) => n.id === nodeId);
+    if (!node) return null;
+    current = node.graph || { nodes: [], edges: [] };
+  }
+  return current;
+};
+
+// Helper function to rebuild graph tree after making changes at a nested level
+const rebuildGraphWithModification = (
+  graph: any,
+  path: string[],
+  modifyFn: (g: any) => any,
+  depth: number = 0
+): any => {
+  if (path.length === 0) {
+    // We've reached the target level - apply the modification
+    return modifyFn(graph);
+  }
+  
+  // Need to find and update the node at path[0]
+  const targetNodeId = path[0];
+  const remainingPath = path.slice(1);
+  
+  return {
+    ...graph,
+    nodes: (graph.nodes || []).map((n: any) => {
+      if (n.id === targetNodeId) {
+        // Found the node - recurse into its graph
+        return {
+          ...n,
+          graph: rebuildGraphWithModification(
+            n.graph || { nodes: [], edges: [] },
+            remainingPath,
+            modifyFn,
+            depth + 1
+          )
+        };
+      }
+      return n;
+    })
+  };
+};
+
 // Property normalization function
 const normalizeProperty = (prop: any): any => {
   try {
@@ -254,6 +304,7 @@ export async function GET(req: NextRequest) {
     const fresh = url.searchParams.get('fresh') === 'true'; // Force fresh read from filesystem
     const graphType = url.searchParams.get('type') || url.searchParams.get('graphType'); // 'current', 'base', 'diff', or undefined for default
     const nodeId = url.searchParams.get('nodeId'); // For reading specific nodes
+    const pathParam = url.searchParams.get('path'); // For navigating to nested graph levels
     const accept = (req.headers.get('accept') || '').toLowerCase();
     const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
@@ -447,13 +498,39 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // Check if requesting a specific node
+      // Navigate to nested graph level if path is provided
+      let targetGraph = graph;
+      if (pathParam) {
+        try {
+          const path = JSON.parse(decodeURIComponent(pathParam));
+          if (Array.isArray(path) && path.length > 0) {
+            console.log('🧭 GET: navigating to nested level, path:', path);
+            targetGraph = navigateToNestedGraph(graph, path);
+            if (!targetGraph) {
+              console.error('❌ GET: navigation path not found:', path);
+              return NextResponse.json(
+                { error: `Invalid path: Could not navigate to nested graph level. Path: ${path.join(' -> ')}` },
+                { status: 400 }
+              );
+            }
+            console.log('✅ GET: reached nested level, nodes:', targetGraph.nodes?.length || 0);
+          }
+        } catch (parseError) {
+          console.error('❌ GET: failed to parse path parameter:', parseError);
+          return NextResponse.json(
+            { error: 'Invalid path parameter: must be a JSON array of node IDs' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Check if requesting a specific node (from the target graph level)
       if (nodeId) {
         console.log('🎯 GET: looking for specific node:', nodeId);
-        const node = graph.nodes?.find((n: any) => n.id === nodeId);
+        const node = targetGraph.nodes?.find((n: any) => n.id === nodeId);
         if (!node) {
           console.error('❌ GET: node not found:', nodeId);
-          const availableNodes = graph.nodes?.map((n: any) => n.id).join(', ') || 'none';
+          const availableNodes = targetGraph.nodes?.map((n: any) => n.id).join(', ') || 'none';
           return NextResponse.json(
             { error: `Node with ID '${nodeId}' not found. Available nodes: ${availableNodes}` },
             { status: 404 }
@@ -462,12 +539,12 @@ export async function GET(req: NextRequest) {
         console.log('✅ GET: found node:', node.title);
 
         // Find all connections (edges) for this node
-        const edges = graph.edges || [];
+        const edges = targetGraph.edges || [];
         const nodeConnections = edges.filter((e: any) => e.source === nodeId || e.target === nodeId);
 
         // Create a map of node IDs to titles for better display
         const nodeTitleMap = new Map<string, string>();
-        graph.nodes?.forEach((n: any) => {
+        targetGraph.nodes?.forEach((n: any) => {
           nodeTitleMap.set(n.id, n.title);
         });
 
@@ -509,10 +586,10 @@ export async function GET(req: NextRequest) {
       }
 
     if (!wantsJson) {
-      const xml = graphToXml(graph);
+      const xml = graphToXml(targetGraph);
       return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Accept-Charset': 'utf-8' } });
     }
-    return NextResponse.json({ success: true, graph });
+    return NextResponse.json({ success: true, graph: targetGraph });
   } catch (error) {
     console.error('Error fetching graph data:', error);
     return NextResponse.json(
@@ -570,6 +647,39 @@ async function readLocalGraph(): Promise<any | null> {
 }
 
 // Helper function to sync specific nodes/edges to base graph
+// Helper function to find a node recursively in a graph (including nested graphs)
+function findNodeRecursively(graph: any, nodeId: string): any | null {
+  // Check root level
+  const node = graph.nodes?.find((n: any) => n.id === nodeId);
+  if (node) return node;
+  
+  // Check nested graphs
+  for (const n of graph.nodes || []) {
+    if (n.graph && n.graph.nodes) {
+      const found = findNodeRecursively(n.graph, nodeId);
+      if (found) return found;
+    }
+  }
+  
+  return null;
+}
+
+// Helper function to sync a node recursively (including its nested graph)
+function syncNodeRecursively(baseGraph: any, currentNode: any): void {
+  const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === currentNode.id) ?? -1;
+  
+  if (baseNodeIdx >= 0) {
+    // Update existing node in base graph
+    console.log('🔄 TOOL: syncToBaseGraph updating node:', currentNode.id);
+    baseGraph.nodes[baseNodeIdx] = cloneGraph(currentNode);
+  } else {
+    // Add new node to base graph
+    console.log('➕ TOOL: syncToBaseGraph adding node:', currentNode.id);
+    baseGraph.nodes = baseGraph.nodes || [];
+    baseGraph.nodes.push(cloneGraph(currentNode));
+  }
+}
+
 async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ success: boolean; error?: string }> {
   console.log('🔄 TOOL: syncToBaseGraph called', { nodeIds, edgeIds });
 
@@ -592,28 +702,48 @@ async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ 
     console.log('📊 TOOL: syncToBaseGraph - current:', currentGraph.nodes?.length || 0, 'nodes,', currentGraph.edges?.length || 0, 'edges');
     console.log('📊 TOOL: syncToBaseGraph - base:', baseGraph.nodes?.length || 0, 'nodes,', baseGraph.edges?.length || 0, 'edges');
 
-    // Sync nodes
+    // Sync nodes (search recursively through nested graphs)
     if (nodeIds && nodeIds.length > 0) {
       for (const nodeId of nodeIds) {
-        const currentNode = currentGraph.nodes?.find((n: any) => n.id === nodeId);
-        const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === nodeId) ?? -1;
-
+        // Find node recursively in current graph (might be nested)
+        const currentNode = findNodeRecursively(currentGraph, nodeId);
+        
         if (currentNode) {
-          // Node exists in current graph
-          if (baseNodeIdx >= 0) {
-            // Update existing node in base graph
-            console.log('🔄 TOOL: syncToBaseGraph updating node:', nodeId);
-            baseGraph.nodes[baseNodeIdx] = { ...currentNode };
-          } else {
-            // Add new node to base graph
-            console.log('➕ TOOL: syncToBaseGraph adding node:', nodeId);
-            baseGraph.nodes = baseGraph.nodes || [];
-            baseGraph.nodes.push({ ...currentNode });
+          // Node exists in current graph - sync it recursively to base
+          console.log('🔍 TOOL: syncToBaseGraph found node recursively:', nodeId);
+          
+          // We need to sync this node to the same nesting level in base graph
+          // For now, we'll sync the entire tree structure by finding the root parent and syncing that
+          // This ensures the nesting structure is preserved
+          
+          // Find which root-level node contains this nested node
+          let rootNodeId: string | null = null;
+          let rootNode: any = null;
+          
+          for (const node of currentGraph.nodes || []) {
+            const found = findNodeRecursively({ nodes: [node] }, nodeId);
+            if (found) {
+              rootNodeId = node.id;
+              rootNode = node;
+              break;
+            }
           }
-        } else if (baseNodeIdx >= 0) {
-          // Node doesn't exist in current but exists in base - remove from base
-          console.log('🗑️ TOOL: syncToBaseGraph removing node from base:', nodeId);
-          baseGraph.nodes.splice(baseNodeIdx, 1);
+          
+          if (rootNode) {
+            // Sync the entire root node (which includes all nested children)
+            console.log('🌳 TOOL: syncToBaseGraph syncing tree from root:', rootNodeId);
+            syncNodeRecursively(baseGraph, rootNode);
+          } else {
+            // Node is at root level
+            syncNodeRecursively(baseGraph, currentNode);
+          }
+        } else {
+          // Node doesn't exist in current - check if it's in base and remove it
+          const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === nodeId) ?? -1;
+          if (baseNodeIdx >= 0) {
+            console.log('🗑️ TOOL: syncToBaseGraph removing node from base:', nodeId);
+            baseGraph.nodes.splice(baseNodeIdx, 1);
+          }
         }
       }
     }
@@ -840,7 +970,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId: providedId, title, prompt, properties, position, syncToBase, metadata } = params;
+        const { nodeId: providedId, title, prompt, properties, children, path, position, syncToBase, metadata } = params;
 
         // Generate nodeId if not provided
         const nodeId = providedId || `node-${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -849,11 +979,21 @@ export async function POST(req: NextRequest) {
         const nodeTitle = title || 'New Node';
         const nodePrompt = prompt || '';
 
-        console.log('🔍 TOOL: node_create checking if node already exists:', nodeId);
-        const existingNode = validatedGraph.nodes.find((n: any) => n.id === nodeId);
+        // Navigate to the target nested level if path is provided
+        const targetPath = path && Array.isArray(path) && path.length > 0 ? path : [];
+        const targetGraph = targetPath.length > 0 ? navigateToNestedGraph(validatedGraph, targetPath) : validatedGraph;
+        
+        if (!targetGraph) {
+          console.error('❌ TOOL: node_create navigation path not found:', targetPath);
+          const errorMsg = `Invalid path: Could not navigate to nested graph level. Path: ${targetPath.join(' -> ')}`;
+          return NextResponse.json({ error: errorMsg }, { status: 400 });
+        }
+
+        console.log('🔍 TOOL: node_create checking if node already exists:', nodeId, 'at path:', targetPath);
+        const existingNode = targetGraph.nodes.find((n: any) => n.id === nodeId);
         if (existingNode) {
           console.error('❌ TOOL: node_create node already exists:', nodeId);
-          const errorMsg = `Node with ID '${nodeId}' already exists. Please use a different node ID or use node_edit to modify the existing node.`;
+          const errorMsg = `Node with ID '${nodeId}' already exists at this level. Please use a different node ID or use node_edit to modify the existing node.`;
           return NextResponse.json({ error: errorMsg }, { status: 400 });
         }
         console.log('✅ TOOL: node_create node ID is available');
@@ -864,16 +1004,28 @@ export async function POST(req: NextRequest) {
           prompt: nodePrompt,
           properties: properties || [],
           graph: { nodes: [], edges: [] }, // Empty nested graph
-          ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
+          ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {}),
+          ...(children && children.length > 0 ? { children } : {})
         };
         const normalizedMetadata = normalizeNodeMetadata(metadata);
         if (normalizedMetadata) {
           node.metadata = normalizedMetadata;
         }
-        console.log('🆕 TOOL: node_create creating new node:', { id: nodeId, title, propertiesCount: node.properties.length });
+        console.log('🆕 TOOL: node_create creating new node:', { id: nodeId, title, propertiesCount: node.properties.length, hasChildren: !!children, childrenCount: children?.length, path: targetPath });
 
-        validatedGraph.nodes.push(node);
-        console.log('✅ TOOL: node_create added node, total nodes:', validatedGraph.nodes.length);
+        // Apply the change at the correct nested level
+        if (targetPath.length > 0) {
+          const modifyFn = (g: any) => ({
+            ...g,
+            nodes: [...(g.nodes || []), node]
+          });
+          const updatedGraph = rebuildGraphWithModification(validatedGraph, targetPath, modifyFn);
+          Object.assign(validatedGraph, updatedGraph);
+          console.log('✅ TOOL: node_create added node at nested level, path:', targetPath);
+        } else {
+          validatedGraph.nodes.push(node);
+          console.log('✅ TOOL: node_create added node at root level, total nodes:', validatedGraph.nodes.length);
+        }
 
         console.log('💾 TOOL: node_create saving updated graph');
         const saveResult = await saveGraph(validatedGraph);
@@ -926,17 +1078,27 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_edit schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, mode = 'replace', title, prompt, properties, children, position, metadata } = params;
+        const { nodeId, mode = 'replace', title, prompt, properties, children, path, position, metadata } = params;
 
-        console.log('🔍 TOOL: node_edit looking for node:', nodeId);
-        const idx = validatedGraph.nodes.findIndex((n: any) => n.id === nodeId);
-        if (idx === -1) {
-          console.error('❌ TOOL: node_edit node not found:', nodeId);
-          return NextResponse.json({ error: `Node ${nodeId} not found` }, { status: 404 });
+        // Navigate to the target nested level if path is provided
+        const targetPath = path && Array.isArray(path) && path.length > 0 ? path : [];
+        const targetGraph = targetPath.length > 0 ? navigateToNestedGraph(validatedGraph, targetPath) : validatedGraph;
+        
+        if (!targetGraph) {
+          console.error('❌ TOOL: node_edit navigation path not found:', targetPath);
+          const errorMsg = `Invalid path: Could not navigate to nested graph level. Path: ${targetPath.join(' -> ')}`;
+          return NextResponse.json({ error: errorMsg }, { status: 400 });
         }
-        console.log('✅ TOOL: node_edit found node at index:', idx, 'title:', validatedGraph.nodes[idx].title);
 
-        const existing = validatedGraph.nodes[idx];
+        console.log('🔍 TOOL: node_edit looking for node:', nodeId, 'at path:', targetPath);
+        const idx = targetGraph.nodes.findIndex((n: any) => n.id === nodeId);
+        if (idx === -1) {
+          console.error('❌ TOOL: node_edit node not found:', nodeId, 'at path:', targetPath);
+          return NextResponse.json({ error: `Node ${nodeId} not found at specified path` }, { status: 404 });
+        }
+        console.log('✅ TOOL: node_edit found node at index:', idx, 'title:', targetGraph.nodes[idx].title);
+
+        const existing = targetGraph.nodes[idx];
         const next = { ...existing } as any;
 
         // Ensure nested graph exists (even if not being edited)
@@ -1074,7 +1236,19 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        validatedGraph.nodes[idx] = next;
+        // Apply the change at the correct nested level
+        if (targetPath.length > 0) {
+          const modifyFn = (g: any) => ({
+            ...g,
+            nodes: g.nodes.map((n: any, i: number) => i === idx ? next : n)
+          });
+          const updatedGraph = rebuildGraphWithModification(validatedGraph, targetPath, modifyFn);
+          Object.assign(validatedGraph, updatedGraph);
+          console.log('✅ TOOL: node_edit updated node at nested level, path:', targetPath);
+        } else {
+          targetGraph.nodes[idx] = next;
+          console.log('✅ TOOL: node_edit updated node at root level');
+        }
         console.log('💾 TOOL: node_edit saving updated graph');
         const saveResult = await saveGraph(validatedGraph);
         if (!saveResult.success) {
@@ -1107,21 +1281,26 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, recursive, syncToBase } = params;
+        const { nodeId, recursive, path, syncToBase } = params;
 
-        console.log('🔍 TOOL: node_delete checking if node exists:', nodeId);
-        const byId = new Map<string, any>(validatedGraph.nodes.map((n: any) => [n.id, n]));
+        // Navigate to the target nested level if path is provided
+        const targetPath = path && Array.isArray(path) && path.length > 0 ? path : [];
+        const targetGraph = targetPath.length > 0 ? navigateToNestedGraph(validatedGraph, targetPath) : validatedGraph;
+        
+        if (!targetGraph) {
+          console.error('❌ TOOL: node_delete navigation path not found:', targetPath);
+          const errorMsg = `Invalid path: Could not navigate to nested graph level. Path: ${targetPath.join(' -> ')}`;
+          return NextResponse.json({ error: errorMsg }, { status: 400 });
+        }
+
+        console.log('🔍 TOOL: node_delete checking if node exists:', nodeId, 'at path:', targetPath);
+        const byId = new Map<string, any>(targetGraph.nodes.map((n: any) => [n.id, n]));
         if (!byId.has(nodeId)) {
-          console.error('❌ TOOL: node_delete node not found:', nodeId);
-          const errorMsg = `Node with ID '${nodeId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
+          console.error('❌ TOOL: node_delete node not found:', nodeId, 'at path:', targetPath);
+          const errorMsg = `Node with ID '${nodeId}' not found at specified path. Available nodes: ${targetGraph.nodes.map((n: any) => n.id).join(', ')}`;
           return NextResponse.json({ error: errorMsg }, { status: 404 });
         }
         console.log('✅ TOOL: node_delete node found:', byId.get(nodeId).title);
-
-        console.log('🔄 TOOL: node_delete cleaning up references');
-        validatedGraph.nodes.forEach((n: any) => {
-          if (Array.isArray(n.children)) n.children = n.children.filter((c: any) => c.id !== nodeId);
-        });
 
         console.log('🗂️ TOOL: node_delete collecting nodes to delete');
         const toDelete = new Set<string>();
@@ -1136,18 +1315,49 @@ export async function POST(req: NextRequest) {
         collect(nodeId);
 
         console.log('🗑️ TOOL: node_delete will delete nodes:', Array.from(toDelete));
-        const originalCount = validatedGraph.nodes.length;
-        validatedGraph.nodes = validatedGraph.nodes.filter((n: any) => !toDelete.has(n.id));
-        console.log('✅ TOOL: node_delete removed nodes, count changed from', originalCount, 'to', validatedGraph.nodes.length);
 
-        // Also remove any explicit edges that reference deleted nodes
-        const beforeEdges = (validatedGraph.edges || []).length;
-        if (Array.isArray(validatedGraph.edges)) {
-          validatedGraph.edges = validatedGraph.edges.filter((e: any) => !toDelete.has(e.source) && !toDelete.has(e.target));
-        }
-        const afterEdges = (validatedGraph.edges || []).length;
-        if (beforeEdges !== afterEdges) {
-          console.log('✅ TOOL: node_delete removed edges connected to deleted nodes,', beforeEdges, '->', afterEdges);
+        // Apply deletion at the correct nested level
+        if (targetPath.length > 0) {
+          const modifyFn = (g: any) => {
+            // Clean up references
+            const cleanedNodes = (g.nodes || []).map((n: any) => ({
+              ...n,
+              children: Array.isArray(n.children) ? n.children.filter((c: any) => !toDelete.has(c.id)) : n.children
+            }));
+            
+            // Remove deleted nodes
+            const filteredNodes = cleanedNodes.filter((n: any) => !toDelete.has(n.id));
+            
+            // Remove edges connected to deleted nodes
+            const filteredEdges = Array.isArray(g.edges) 
+              ? g.edges.filter((e: any) => !toDelete.has(e.source) && !toDelete.has(e.target))
+              : g.edges;
+            
+            return { ...g, nodes: filteredNodes, edges: filteredEdges };
+          };
+          const updatedGraph = rebuildGraphWithModification(validatedGraph, targetPath, modifyFn);
+          Object.assign(validatedGraph, updatedGraph);
+          console.log('✅ TOOL: node_delete removed nodes at nested level, path:', targetPath);
+        } else {
+          // Clean up references at root level
+          console.log('🔄 TOOL: node_delete cleaning up references');
+          targetGraph.nodes.forEach((n: any) => {
+            if (Array.isArray(n.children)) n.children = n.children.filter((c: any) => !toDelete.has(c.id));
+          });
+
+          const originalCount = targetGraph.nodes.length;
+          targetGraph.nodes = targetGraph.nodes.filter((n: any) => !toDelete.has(n.id));
+          console.log('✅ TOOL: node_delete removed nodes at root level, count changed from', originalCount, 'to', targetGraph.nodes.length);
+
+          // Also remove any explicit edges that reference deleted nodes
+          const beforeEdges = (targetGraph.edges || []).length;
+          if (Array.isArray(targetGraph.edges)) {
+            targetGraph.edges = targetGraph.edges.filter((e: any) => !toDelete.has(e.source) && !toDelete.has(e.target));
+          }
+          const afterEdges = (targetGraph.edges || []).length;
+          if (beforeEdges !== afterEdges) {
+            console.log('✅ TOOL: node_delete removed edges connected to deleted nodes,', beforeEdges, '->', afterEdges);
+          }
         }
 
         console.log('💾 TOOL: node_delete saving updated graph');
@@ -1199,30 +1409,40 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, role, shape, syncToBase } = params;
+        const { sourceId, targetId, role, shape, path, syncToBase } = params;
 
-        // Validate that both nodes exist
-        console.log('🔍 TOOL: edge_create validating source node:', sourceId);
-        const sourceNode = validatedGraph.nodes.find((n: any) => n.id === sourceId);
+        // Navigate to the target nested level if path is provided
+        const targetPath = path && Array.isArray(path) && path.length > 0 ? path : [];
+        const targetGraph = targetPath.length > 0 ? navigateToNestedGraph(validatedGraph, targetPath) : validatedGraph;
+        
+        if (!targetGraph) {
+          console.error('❌ TOOL: edge_create navigation path not found:', targetPath);
+          const errorMsg = `Invalid path: Could not navigate to nested graph level. Path: ${targetPath.join(' -> ')}`;
+          return NextResponse.json({ error: errorMsg }, { status: 400 });
+        }
+
+        // Validate that both nodes exist at the target level
+        console.log('🔍 TOOL: edge_create validating source node:', sourceId, 'at path:', targetPath);
+        const sourceNode = targetGraph.nodes.find((n: any) => n.id === sourceId);
         if (!sourceNode) {
-          console.error('❌ TOOL: edge_create source node not found:', sourceId);
-          const errorMsg = `Source node '${sourceId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
+          console.error('❌ TOOL: edge_create source node not found:', sourceId, 'at path:', targetPath);
+          const errorMsg = `Source node '${sourceId}' not found at specified path. Available nodes: ${targetGraph.nodes.map((n: any) => n.id).join(', ')}`;
           return NextResponse.json({ error: errorMsg }, { status: 404 });
         }
         console.log('✅ TOOL: edge_create found source node:', sourceNode.title);
 
         console.log('🔍 TOOL: edge_create validating target node:', targetId);
-        const targetNode = validatedGraph.nodes.find((n: any) => n.id === targetId);
+        const targetNode = targetGraph.nodes.find((n: any) => n.id === targetId);
         if (!targetNode) {
-          console.error('❌ TOOL: edge_create target node not found:', targetId);
-          const errorMsg = `Target node '${targetId}' not found. Available nodes: ${validatedGraph.nodes.map((n: any) => n.id).join(', ')}`;
+          console.error('❌ TOOL: edge_create target node not found:', targetId, 'at path:', targetPath);
+          const errorMsg = `Target node '${targetId}' not found at specified path. Available nodes: ${targetGraph.nodes.map((n: any) => n.id).join(', ')}`;
           return NextResponse.json({ error: errorMsg }, { status: 404 });
         }
         console.log('✅ TOOL: edge_create found target node:', targetNode.title);
 
         // Check if edge already exists
         console.log('🔍 TOOL: edge_create checking for existing edge');
-        const existingEdge = (validatedGraph.edges || []).find((e: any) => e.source === sourceId && e.target === targetId);
+        const existingEdge = (targetGraph.edges || []).find((e: any) => e.source === sourceId && e.target === targetId);
         if (existingEdge) {
           console.error('❌ TOOL: edge_create edge already exists:', `${sourceId}-${targetId}`);
           const errorMsg = `Edge from '${sourceId}' to '${targetId}' already exists. Current role: ${existingEdge.role || 'none'}`;
@@ -1240,9 +1460,20 @@ export async function POST(req: NextRequest) {
         };
         console.log('🆕 TOOL: edge_create creating new edge:', newEdge);
 
-        validatedGraph.edges = validatedGraph.edges || [];
-        validatedGraph.edges.push(newEdge);
-        console.log('✅ TOOL: edge_create added edge, total edges:', validatedGraph.edges.length);
+        // Apply edge creation at the correct nested level
+        if (targetPath.length > 0) {
+          const modifyFn = (g: any) => ({
+            ...g,
+            edges: [...(g.edges || []), newEdge]
+          });
+          const updatedGraph = rebuildGraphWithModification(validatedGraph, targetPath, modifyFn);
+          Object.assign(validatedGraph, updatedGraph);
+          console.log('✅ TOOL: edge_create added edge at nested level, path:', targetPath);
+        } else {
+          targetGraph.edges = targetGraph.edges || [];
+          targetGraph.edges.push(newEdge);
+          console.log('✅ TOOL: edge_create added edge at root level, total edges:', targetGraph.edges.length);
+        }
 
         console.log('💾 TOOL: edge_create saving updated graph');
         const saveResult = await saveGraph(validatedGraph);
@@ -1292,21 +1523,42 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, syncToBase } = params;
+        const { sourceId, targetId, path, syncToBase } = params;
+
+        // Navigate to the target nested level if path is provided
+        const targetPath = path && Array.isArray(path) && path.length > 0 ? path : [];
+        const targetGraph = targetPath.length > 0 ? navigateToNestedGraph(validatedGraph, targetPath) : validatedGraph;
+        
+        if (!targetGraph) {
+          console.error('❌ TOOL: edge_delete navigation path not found:', targetPath);
+          const errorMsg = `Invalid path: Could not navigate to nested graph level. Path: ${targetPath.join(' -> ')}`;
+          return NextResponse.json({ error: errorMsg }, { status: 400 });
+        }
 
         // Check if edge exists
-        console.log('🔍 TOOL: edge_delete checking for existing edge');
-        const edgeIndex = (validatedGraph.edges || []).findIndex((e: any) => e.source === sourceId && e.target === targetId);
+        console.log('🔍 TOOL: edge_delete checking for existing edge at path:', targetPath);
+        const edgeIndex = (targetGraph.edges || []).findIndex((e: any) => e.source === sourceId && e.target === targetId);
         if (edgeIndex === -1) {
-          console.error('❌ TOOL: edge_delete edge not found:', `${sourceId}-${targetId}`);
-          const errorMsg = `Edge from '${sourceId}' to '${targetId}' not found.`;
+          console.error('❌ TOOL: edge_delete edge not found:', `${sourceId}-${targetId}`, 'at path:', targetPath);
+          const errorMsg = `Edge from '${sourceId}' to '${targetId}' not found at specified path.`;
           return NextResponse.json({ error: errorMsg }, { status: 404 });
         }
         console.log('✅ TOOL: edge_delete found edge at index:', edgeIndex);
 
-        // Remove the edge
-        validatedGraph.edges.splice(edgeIndex, 1);
-        console.log('✅ TOOL: edge_delete removed edge, total edges:', validatedGraph.edges.length);
+        // Apply deletion at the correct nested level
+        if (targetPath.length > 0) {
+          const modifyFn = (g: any) => ({
+            ...g,
+            edges: (g.edges || []).filter((e: any, i: number) => i !== edgeIndex)
+          });
+          const updatedGraph = rebuildGraphWithModification(validatedGraph, targetPath, modifyFn);
+          Object.assign(validatedGraph, updatedGraph);
+          console.log('✅ TOOL: edge_delete removed edge at nested level, path:', targetPath);
+        } else {
+          // Remove the edge at root level
+          targetGraph.edges.splice(edgeIndex, 1);
+          console.log('✅ TOOL: edge_delete removed edge at root level, total edges:', targetGraph.edges.length);
+        }
 
         console.log('💾 TOOL: edge_delete saving updated graph');
         const saveResult = await saveGraph(validatedGraph);
