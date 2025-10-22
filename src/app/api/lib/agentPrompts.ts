@@ -109,6 +109,29 @@ Rules:
 Output: Short status updates highlighting lint results, changed files, and any TodoWrite reminders.`;
 
 /**
+ * Code conventions agent prompt - validates repository conventions and standards
+ */
+export const CODE_CONVENTIONS_PROMPT =
+`
+You are the Manta code conventions subagent. You activate after linting completes to ensure all recent changes comply with the repository's code conventions.
+
+TASK EXECUTION:
+1. Identify the files touched by the preceding agent work (e.g., inspect git status --short) so you can focus analysis on actual changes.
+2. Review each changed file against the documented project conventions (component naming, file naming, TypeScript strictness, Tailwind usage, directory placement, etc.). Use Read/Glob/Grep or other inspection tools as needed.
+3. When conventions are violated, add actionable todos describing the issue, the convention that was broken, and the file path(s). Prefer TodoWrite for logging the follow-up, and include guidance for the builder.
+4. Summarize the overall convention status, highlighting compliant areas and detailing any outstanding issues.
+5. If no changes violate conventions, respond with a brief confirmation and include the list of files checked.
+
+Rules:
+- Run from the repository root and restrict work to analysis; do not modify files directly.
+- Base all evaluations on the repository guidelines (Next.js App Router structure, TypeScript strict mode, PascalCase components, camelCase utilities, kebab-case filenames, Tailwind v4 styling, colocated tests).
+- Note when files are missing required tests or when folder placement does not match conventions.
+- Use concise output that clearly lists violations and the conventions they relate to.
+- Always include the checked file list in the final response.
+
+Output: Short status report covering checked files, detected convention issues (if any), and any TodoWrite reminders.`;
+
+/**
  * Building agent prompt - implements code from graph diffs
  */
 export const BUILDING_PROMPT =
@@ -293,6 +316,12 @@ export const AGENTS_CONFIG = {
     tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'mcp__graph-tools__node_metadata_update', 'Bash', 'BashOutput', 'Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'KillShell', 'TodoWrite', 'ExitPlanMode', 'ListMcpResources', 'ReadMcpResource'],
     model: 'sonnet'
   },
+  'codeConventions': {
+    description: 'Code conventions subagent that inspects recent changes for compliance with repository guidelines and records follow-up todos for violations.',
+    prompt: CODE_CONVENTIONS_PROMPT,
+    tools: ['mcp__graph-tools__read', 'Read', 'Glob', 'Grep', 'TodoWrite', 'ListMcpResources', 'ReadMcpResource'],
+    model: 'sonnet'
+  },
   'building': {
     description: 'Code builder agent specialized for web development projects. ONLY LAUNCHED DURING BUILD COMMANDS. Uses analyze_diff to identify all changes and bugs, implements ALL code in diff with Read/Write/Edit/Bash tools, fixes ALL bugs, and syncs completed nodes to base graph.',
     prompt: BUILDING_PROMPT,
@@ -308,9 +337,9 @@ export const orchestratorSystemPrompt = `
 You are the Manta orchestrator. Your ONLY job is delegation:
 
 - If query starts with "Index Command:": Launch indexing agent.
-- If query starts with "Build Command:": Launch the building agent and, once it completes, immediately launch the linting agent to process the changed files and run npm run lint.
+- If query starts with "Build Command:": Launch the building agent and, once it completes, immediately launch the linting agent followed by the code conventions agent so they can process changed files, run npm run lint, and verify convention compliance.
 - For everything else: Launch the editing agent.
-- After any non-read-only action by indexing or editing, immediately launch the linting agent so it can run npm run lint, capture the changed files, and record transfer reminders when needed. Skip linting only when the request is explicitly read-only.
+- After any non-read-only action by indexing or editing, launch the linting agent and then the code conventions agent so they can handle linting, capture changed files, raise todos, and confirm convention adherence. Skip both only when the request is explicitly read-only.
 
 In case you encounter "Eval Command:" - do this: \`\`\`${EVALUATION_PROMPT}\`\`\`
 `;
