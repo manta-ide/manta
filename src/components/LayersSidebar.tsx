@@ -124,7 +124,10 @@ export default function LayersSidebar({ open = true }: Props) {
               <div key={c4Layer.name} className={`flex items-center justify-between rounded border px-2 py-1 ${isActive ? 'bg-zinc-800 border-blue-600' : 'bg-zinc-800/40 border-zinc-700'} gap-2`}>
                 <button
                   className={`text-left text-xs flex-1 truncate flex items-center gap-2 ${isActive ? 'text-white' : 'text-zinc-300'}`}
-                  onClick={() => setActiveLayer(c4Layer.name)}
+                  onClick={() => {
+                    // Dispatch event to save viewport before switching layers
+                    window.dispatchEvent(new CustomEvent('manta:switch-layer', { detail: { layerName: c4Layer.name } }));
+                  }}
                   title={isActive ? 'Active layer' : 'Set active'}
                 >
                   <Icon className={`w-3 h-3 ${c4Layer.color}`} />
@@ -173,7 +176,10 @@ export default function LayersSidebar({ open = true }: Props) {
                 ) : (
                   <button
                     className={`text-left text-xs flex-1 truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}
-                    onClick={() => setActiveLayer(name)}
+                    onClick={() => {
+                      // Dispatch event to save viewport before switching layers
+                      window.dispatchEvent(new CustomEvent('manta:switch-layer', { detail: { layerName: name } }));
+                    }}
                     title={isActive ? 'Active layer' : 'Set active'}
                   >
                     {name}

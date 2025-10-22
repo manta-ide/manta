@@ -57,6 +57,7 @@ interface ProjectStore {
   rightSidebarWidth: number;
   setLeftSidebarWidth: (width: number) => void;
   setRightSidebarWidth: (width: number) => void;
+
   
   // File operations
   loadProject: () => Promise<void>;
@@ -215,6 +216,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Sidebar layout state
   leftSidebarWidth: 320,
   rightSidebarWidth: 288,
+
   // Search state (defaults)
   searchOpen: false,
   searchQuery: '',
@@ -484,6 +486,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const constrainedWidth = Math.max(200, Math.min(600, width));
     set({ rightSidebarWidth: constrainedWidth });
   },
+
   
   // Graph operations
   loadLayerDefinitions: async () => {

@@ -520,6 +520,9 @@ function GraphCanvas() {
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isAutoLayouting, setIsAutoLayouting] = useState(false);
+  // Track viewport state for layer switching
+  const [currentViewport, setCurrentViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  const [pendingLayerSwitch, setPendingLayerSwitch] = useState<string | null>(null);
 
   // Helper lines functionality
   const { rebuildIndex, updateHelperLines, HelperLines } = useHelperLines();
@@ -775,14 +778,24 @@ function GraphCanvas() {
         void buildEntireGraph();
       }
     };
+    const onSwitchLayer = (event: CustomEvent) => {
+      const { layerName } = event.detail;
+      // Save current viewport locally and mark layer switch as pending
+      setCurrentViewport(viewport);
+      setPendingLayerSwitch(layerName);
+      void useProjectStore.getState().setActiveLayer(layerName);
+    };
 
     window.addEventListener('manta:auto-layout', onAutoLayout as EventListener);
     window.addEventListener('manta:build-graph', onBuildGraph as EventListener);
+    window.addEventListener('manta:switch-layer', onSwitchLayer as EventListener);
     return () => {
       window.removeEventListener('manta:auto-layout', onAutoLayout as EventListener);
       window.removeEventListener('manta:build-graph', onBuildGraph as EventListener);
+      window.removeEventListener('manta:switch-layer', onSwitchLayer as EventListener);
     };
-  }, [autoLayout, buildEntireGraph, isAutoLayouting, isBuildingGraph, graph]);
+  }, [autoLayout, buildEntireGraph, isAutoLayouting, isBuildingGraph, graph, viewport]);
+
 
   // Generate unique node ID
   const generateNodeId = useCallback(() => {
@@ -1761,6 +1774,29 @@ function GraphCanvas() {
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
 
+      // Restore saved viewport after layer switch to prevent flickering
+      if (currentViewport) {
+        // Use multiple strategies to ensure viewport is restored after rendering
+        const restoreViewport = () => {
+          try {
+            reactFlow.setViewport(currentViewport, { duration: 0 });
+            // Clear the preserved viewport after successful restoration
+            setCurrentViewport(null);
+            setPendingLayerSwitch(null);
+          } catch (error) {
+            console.warn('Failed to restore viewport:', error);
+          }
+        };
+
+        // Try multiple timing strategies to ensure DOM is ready
+        requestAnimationFrame(() => {
+          // First attempt immediately after DOM update
+          restoreViewport();
+          // Backup attempt after a short delay
+          setTimeout(restoreViewport, 50);
+        });
+      }
+
       // Select root node by default only once on initial load if nothing is selected
       // Avoid auto-selecting again after user clears the selection
       // if (!selectedNodeId && (!selectedNodeIds || selectedNodeIds.length === 0) && reactFlowNodes.length > 0 && !hasAutoSelectedRef.current) {
@@ -1770,7 +1806,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, baseGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
+  }, [graphsLoaded, graph, baseGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, reactFlow]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -2169,6 +2205,12 @@ function GraphCanvas() {
         nodesConnectable={currentTool === 'select'}
         elementsSelectable={true}
         deleteKeyCode={[]}
+        onViewportChange={(viewport) => {
+          // Only update currentViewport if we're not preserving a viewport during layer switch
+          if (!currentViewport) {
+            setCurrentViewport(viewport);
+          }
+        }}
       >
         <MiniMap nodeComponent={MinimapNode} />
         <Controls />
