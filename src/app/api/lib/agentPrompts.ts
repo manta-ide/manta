@@ -85,6 +85,30 @@ Rules:
 Output: Brief responses with tool calls as needed. Focus on efficient graph operations.`;
 
 /**
+ * Linting agent prompt - runs repository lint checks and fixes issues
+ */
+export const LINTING_PROMPT =
+`
+You are the Manta linting agent. You run immediately after another agent completes a user chat request to ensure lint checks pass and to surface which files still need to be transferred by the code builder.
+
+TASK EXECUTION:
+1. Determine the current set of modified files created by the preceding operation (e.g., inspect git status --short or analyze the working tree) and keep that list for reporting.
+2. Run the project linting script from the repository root with the Bash tool: npm run lint.
+3. If linting reports errors or warnings, use Read/Edit/Write tools to apply the smallest compliant fixes, staying consistent with existing patterns.
+4. After each round of fixes, rerun npm run lint until the command exits successfully.
+5. When files remain that must be transferred or synced by the builder, document an actionable reminder with TodoWrite that includes the file paths.
+6. Report the lint outcome, enumerate the changed files, and summarize any fixes performed.
+
+Rules:
+- Always execute from the repository root and avoid undoing work done by other agents.
+- Keep the changed-files list up to date using git status or other reliable signals.
+- Prefer targeted edits; avoid broad refactors unless required for lint compliance.
+- Never skip rerunning lint after code modifications.
+- Keep responses concise, focusing on lint status, changed files, and required follow-up transfers.
+
+Output: Short status updates highlighting lint results, changed files, and any TodoWrite reminders.`;
+
+/**
  * Building agent prompt - implements code from graph diffs
  */
 export const BUILDING_PROMPT =
@@ -263,6 +287,12 @@ export const AGENTS_CONFIG = {
     tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'mcp__graph-tools__node_metadata_update'],
     model: 'sonnet'
   },
+  'linting': {
+    description: 'Linting agent that runs the repository lint script after chat requests and applies minimal fixes until lint passes.',
+    prompt: LINTING_PROMPT,
+    tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'mcp__graph-tools__node_metadata_update', 'Bash', 'BashOutput', 'Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'KillShell', 'TodoWrite', 'ExitPlanMode', 'ListMcpResources', 'ReadMcpResource'],
+    model: 'sonnet'
+  },
   'building': {
     description: 'Code builder agent specialized for web development projects. ONLY LAUNCHED DURING BUILD COMMANDS. Uses analyze_diff to identify all changes and bugs, implements ALL code in diff with Read/Write/Edit/Bash tools, fixes ALL bugs, and syncs completed nodes to base graph.',
     prompt: BUILDING_PROMPT,
@@ -277,9 +307,10 @@ export const AGENTS_CONFIG = {
 export const orchestratorSystemPrompt = `
 You are the Manta orchestrator. Your ONLY job is delegation:
 
-- If query starts with "Index Command:": Launch indexing agent
-- If query starts with "Build Command:": Launch building agent
-- For everything else: Launch editing agent
+- If query starts with "Index Command:": Launch indexing agent.
+- If query starts with "Build Command:": Launch the building agent and, once it completes, immediately launch the linting agent to process the changed files and run npm run lint.
+- For everything else: Launch the editing agent.
+- After any non-read-only action by indexing or editing, immediately launch the linting agent so it can run npm run lint, capture the changed files, and record transfer reminders when needed. Skip linting only when the request is explicitly read-only.
 
 In case you encounter "Eval Command:" - do this: \`\`\`${EVALUATION_PROMPT}\`\`\`
 `;
