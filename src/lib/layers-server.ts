@@ -64,8 +64,13 @@ export function listLayers(): string[] {
       .readdirSync(layersRootDir())
       .filter((file) => file.endsWith('.json') && file !== 'active-layer.json')
       .map((file) => file.replace('.json', ''));
-    // Sort by creation time if available, otherwise lexicographically
-    return entries.sort((a, b) => {
+
+    // Always include C4 layers first
+    const c4Layers = ['system', 'container', 'component', 'code'];
+    const userLayers = entries.filter(layer => !c4Layers.includes(layer));
+
+    // Sort user layers by creation time if available, otherwise lexicographically
+    const sortedUserLayers = userLayers.sort((a, b) => {
       try {
         const layerA = loadLayerDefinition(a);
         const layerB = loadLayerDefinition(b);
@@ -74,8 +79,11 @@ export function listLayers(): string[] {
         return a.localeCompare(b);
       }
     });
+
+    return [...c4Layers, ...sortedUserLayers];
   } catch {
-    return [];
+    // Return C4 layers even if directory doesn't exist
+    return ['system', 'container', 'component', 'code'];
   }
 }
 
@@ -89,9 +97,9 @@ export function getActiveLayer(): string | null {
     }
   } catch {}
 
-  // Fallback to first available layer
+  // Fallback to system layer (C4 architecture)
   const layers = listLayers();
-  return layers.length > 0 ? layers[0] : null;
+  return layers.includes('system') ? 'system' : (layers.length > 0 ? layers[0] : null);
 }
 
 export function setActiveLayer(name: string | null): void {

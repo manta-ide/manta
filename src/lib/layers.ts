@@ -22,8 +22,10 @@ export function applyLayerToGraph(graph: Graph, layerDefOrName: LayerDefinition 
   if (typeof layerDefOrName === 'string' && c4Layers.includes(layerDefOrName)) {
     const c4Type = layerDefOrName as 'system' | 'container' | 'component' | 'code';
 
-    // Filter nodes by C4 type
-    const filteredNodes = graph.nodes.filter(node => (node as any).type === c4Type);
+    // Filter nodes by C4 type, but exclude ghosted nodes (nodes marked for deletion)
+    const filteredNodes = graph.nodes.filter(node =>
+      (node as any).type === c4Type && (node as any).state !== 'ghosted'
+    );
 
     // Create a set of filtered node IDs for efficient lookup
     const nodeIdSet = new Set(filteredNodes.map(node => node.id));
@@ -42,8 +44,10 @@ export function applyLayerToGraph(graph: Graph, layerDefOrName: LayerDefinition 
   // Handle regular layer definitions
   const layerDef = layerDefOrName as LayerDefinition;
 
-  // Filter nodes to only those in the layer
-  const filteredNodes = graph.nodes.filter(node => layerDef.nodeIds.includes(node.id));
+  // Filter nodes to only those in the layer, but exclude ghosted nodes (nodes marked for deletion)
+  const filteredNodes = graph.nodes.filter(node =>
+    layerDef.nodeIds.includes(node.id) && (node as any).state !== 'ghosted'
+  );
 
   // Create a set of node IDs for efficient lookup
   const nodeIdSet = new Set(layerDef.nodeIds);

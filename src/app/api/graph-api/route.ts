@@ -231,14 +231,9 @@ async function getSessionFromRequest(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
+    // Ensure layers directory exists (C4 layers are always available)
+    const { ensureLayersRoot } = await import('@/lib/layers-server');
     ensureLayersRoot();
-    const info = getLayersInfo();
-    if (info.layers.length === 0) {
-      const name = createLayer('graph1');
-      setActiveLayer(name);
-    }
 
     // Get current user session for all GET requests
     const session = await getSessionFromRequest(req);
@@ -1716,14 +1711,9 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
+    // Ensure layers directory exists (C4 layers are always available)
+    const { ensureLayersRoot } = await import('@/lib/layers-server');
     ensureLayersRoot();
-    const info = getLayersInfo();
-    if (info.layers.length === 0) {
-      const name = createLayer('graph1');
-      setActiveLayer(name);
-    }
 
     // Get current user session
     const session = await getSessionFromRequest(req);
@@ -1775,14 +1765,9 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
+    // Ensure layers directory exists (C4 layers are always available)
+    const { ensureLayersRoot } = await import('@/lib/layers-server');
     ensureLayersRoot();
-    const info = getLayersInfo();
-    if (info.layers.length === 0) {
-      const name = createLayer('graph1');
-      setActiveLayer(name);
-    }
 
     // Get current user session
     const session = await getSessionFromRequest(req);
@@ -1856,14 +1841,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
+    // Ensure layers directory exists (C4 layers are always available)
+    const { ensureLayersRoot } = await import('@/lib/layers-server');
     ensureLayersRoot();
-    const info = getLayersInfo();
-    if (info.layers.length === 0) {
-      const name = createLayer('graph1');
-      setActiveLayer(name);
-    }
 
     console.log('🗑️ Deleting graph...', req.body);
 

@@ -578,6 +578,7 @@ function GraphCanvas() {
     disconnectFromGraphEvents,
     deleteNode,
     loadGraphs,
+    activeLayer,
     // search state
     searchResults,
     searchActiveIndex,
@@ -1141,15 +1142,31 @@ function GraphCanvas() {
   // Track when graphs are loaded
   const [graphsLoaded, setGraphsLoaded] = useState(false);
 
-  // Initialize graphs when component mounts
+  // Initialize layers and graphs when component mounts
   useEffect(() => {
-    console.log('🏁 GraphView component mounted, calling loadGraphs...');
-    loadGraphs().then(() => {
-      console.log('🏁 loadGraphs completed, setting graphsLoaded to true');
-      setGraphsLoaded(true);
+    console.log('🏁 GraphView component mounted, loading layers and graphs...');
+
+    // Load layers first to ensure activeLayer is set before graph loading
+    const { loadLayers } = useProjectStore.getState();
+    loadLayers().then(() => {
+      console.log('✅ Layers loaded, now loading graphs...');
+      // Now load graphs after layers are loaded
+      loadGraphs().then(() => {
+        console.log('✅ Graphs loaded, setting graphsLoaded to true');
+        setGraphsLoaded(true);
+      }).catch(error => {
+        console.error('❌ loadGraphs failed:', error);
+        setGraphsLoaded(true); // Still set to true to avoid infinite loading
+      });
     }).catch(error => {
-      console.error('❌ loadGraphs failed:', error);
-      setGraphsLoaded(true); // Still set to true to avoid infinite loading
+      console.error('❌ loadLayers failed:', error);
+      // Still try to load graphs even if layers fail
+      loadGraphs().then(() => {
+        setGraphsLoaded(true);
+      }).catch(graphError => {
+        console.error('❌ loadGraphs also failed:', graphError);
+        setGraphsLoaded(true);
+      });
     });
   }, [loadGraphs]);
 
@@ -1206,22 +1223,22 @@ function GraphCanvas() {
     latestEdgesRef.current = edges;
   }, [edges]);
 
-  // Fit view to center the graph when nodes first load
-  const hasFittedRef = useRef(false);
+  // Fit view to center the graph on initial application load only
+  const hasInitiallyFittedRef = useRef(false);
+
   useEffect(() => {
-    if (nodes.length > 0 && !hasFittedRef.current) {
+    // Only fit view on the very first time nodes are loaded in the application
+    // This preserves viewport position when switching between layers
+    if (nodes.length > 0 && !hasInitiallyFittedRef.current && graphsLoaded) {
       // Defer to next tick to ensure layout/DOM size is ready
       setTimeout(() => {
         try {
           reactFlow.fitView({ padding: 0.2, duration: 500, includeHiddenNodes: true });
         } catch {}
       }, 0);
-      hasFittedRef.current = true;
+      hasInitiallyFittedRef.current = true;
     }
-    if (nodes.length === 0) {
-      hasFittedRef.current = false;
-    }
-  }, [nodes, reactFlow]);
+  }, [nodes, reactFlow, graphsLoaded]);
 
   // Select active search result node (no auto-pan or zoom)
   useEffect(() => {
@@ -1449,16 +1466,16 @@ function GraphCanvas() {
         return;
       }
 
-      // Wait for both graphs to be loaded and not loading
-      if (!graphsLoaded || !graph || !graph.nodes || loading) {
-        console.log('⏳ Waiting for graphs to load...', { graphsLoaded, graph: !!graph, loading });
+      // Wait for both graphs and layers to be loaded and not loading
+      if (!graphsLoaded || !graph || !graph.nodes || loading || activeLayer === null) {
+        console.log('⏳ Waiting for graphs and layers to load...', { graphsLoaded, graph: !!graph, loading, activeLayer });
         setNodes([]);
         setEdges([]);
         return;
       }
 
       // Both graphs are loaded together synchronously
-      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, baseGraph: !!baseGraph });
+      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, baseGraph: !!baseGraph, activeLayer });
 
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
@@ -1590,9 +1607,10 @@ function GraphCanvas() {
       const currentPositions = new Map<string, { x: number; y: number }>();
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
-      // Include nodes from base graph that are not in current graph (for ghosted display)
+      // Include nodes from base graph that are not in current graph (for ghosted display in full view only)
       const currentNodeIds = new Set(graph.nodes.map(n => n.id));
-      const baseOnlyNodes = baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)) : [];
+      const isLayerView = activeLayer && ['system', 'container', 'component', 'code'].includes(activeLayer);
+      const baseOnlyNodes = !isLayerView && baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)).map(node => ({ ...node, state: 'ghosted' as const })) : [];
       const allNodes = [...graph.nodes, ...baseOnlyNodes];
 
       // Sort nodes by z-index (lower z-index renders first/behind)
@@ -1752,7 +1770,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
+  }, [graphsLoaded, graph, baseGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);

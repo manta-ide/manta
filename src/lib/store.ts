@@ -490,9 +490,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     try {
       const state = get();
       const layerDefinitions = new Map<string, LayerDefinition>();
+      const c4Layers = ['system', 'container', 'component', 'code'];
 
-      // Load definitions for all layers
+      // Load definitions for user layers only (skip C4 layers as they don't have definitions)
       for (const layerName of state.layers) {
+        if (c4Layers.includes(layerName)) {
+          continue; // Skip C4 layers
+        }
+
         try {
           const res = await fetch(`/api/layers/${layerName}`, { method: 'GET' });
           if (res.ok) {
@@ -520,23 +525,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
       // Apply active layer filtering and positioning
       const state = get();
-      let graph = fullGraph;
+
+      // First, mark nodes as unbuilt based on differences from base graph (on full graph)
+      let fullGraphWithDiff = autoMarkUnbuiltFromBaseGraph(fullGraph, state.baseGraph);
+
+      // Then apply layer filtering to the diff-marked graph
+      let graph = fullGraphWithDiff;
       if (state.activeLayer) {
         const c4Layers = ['system', 'container', 'component', 'code'];
         if (c4Layers.includes(state.activeLayer)) {
           // For C4 layers, filter by type directly
-          graph = applyLayerToGraph(fullGraph, state.activeLayer);
+          graph = applyLayerToGraph(fullGraphWithDiff, state.activeLayer);
         } else {
           // For user layers, use the layer definition
           const layerDef = state.layerDefinitions.get(state.activeLayer);
           if (layerDef) {
-            graph = applyLayerToGraph(fullGraph, layerDef);
+            graph = applyLayerToGraph(fullGraphWithDiff, layerDef);
           }
         }
       }
-
-      // Automatically mark nodes as unbuilt based on differences from base graph
-      graph = autoMarkUnbuiltFromBaseGraph(graph, state.baseGraph);
 
       set({ graph, graphLoading: false, graphError: null });
     } catch (error) {
@@ -639,10 +646,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               console.log(`   ${node.id} (${node.title}): ${'state' in node ? 'has computed state' : 'no state field'}`);
             });
 
-            console.log('✅ Graphs loaded and states computed after template application');
+            // Apply active layer filtering and positioning
+            const templateState = get();
+            let templateGraph = currentGraph;
+            if (templateState.activeLayer) {
+              const c4Layers = ['system', 'container', 'component', 'code'];
+              if (c4Layers.includes(templateState.activeLayer)) {
+                // For C4 layers, filter by type directly
+                templateGraph = applyLayerToGraph(currentGraph, templateState.activeLayer);
+              } else {
+                // For user layers, use the layer definition
+                const layerDef = templateState.layerDefinitions.get(templateState.activeLayer);
+                if (layerDef) {
+                  templateGraph = applyLayerToGraph(currentGraph, layerDef);
+                }
+              }
+            }
+
+            console.log('✅ Graphs loaded, states computed, and layer filtering applied after template application');
 
             set({
-              graph: currentGraph,
+              graph: templateGraph,
               baseGraph,
               graphLoading: false,
               graphError: null
@@ -684,10 +708,27 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         console.log(`   ${node.id} (${node.title}): ${'state' in node ? 'has computed state' : 'no state field'}`);
       });
 
-      console.log('✅ Graphs loaded and states computed');
+      // Apply active layer filtering and positioning
+      const state = get();
+      let graph = currentGraph;
+      if (state.activeLayer) {
+        const c4Layers = ['system', 'container', 'component', 'code'];
+        if (c4Layers.includes(state.activeLayer)) {
+          // For C4 layers, filter by type directly
+          graph = applyLayerToGraph(currentGraph, state.activeLayer);
+        } else {
+          // For user layers, use the layer definition
+          const layerDef = state.layerDefinitions.get(state.activeLayer);
+          if (layerDef) {
+            graph = applyLayerToGraph(currentGraph, layerDef);
+          }
+        }
+      }
+
+      console.log('✅ Graphs loaded, states computed, and layer filtering applied');
 
       set({
-        graph: currentGraph,
+        graph,
         baseGraph,
         graphLoading: false,
         graphError: null
