@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { FileNode, Graph, GraphNode, GraphEdge } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { autoMarkUnbuiltFromBaseGraph } from './graph-diff';
+import { applyLayerToGraph, LayerDefinition } from './layers';
 
 // Utility function to update graph states without reloading
 const updateGraphStates = (graph: Graph, baseGraph: Graph | null): Graph => {
@@ -30,6 +31,7 @@ interface ProjectStore {
   // Graph state
   layers: string[];
   activeLayer: string | null;
+  layerDefinitions: Map<string, LayerDefinition>; // Cache of layer definitions
   layersSidebarOpen: boolean;
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
@@ -73,6 +75,7 @@ interface ProjectStore {
   setResetting: (resetting: boolean) => void;
   // Layer operations
   loadLayers: () => Promise<void>;
+  loadLayerDefinitions: () => Promise<void>;
   createLayer: (name?: string) => Promise<string | null>;
   cloneLayer: (from: string, name?: string) => Promise<string | null>;
   renameLayer: (from: string, to: string) => Promise<string | null>;
@@ -190,6 +193,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph state
   layers: [],
   activeLayer: null,
+  layerDefinitions: new Map(),
   layersSidebarOpen: true,
   selectedNodeId: null,
   selectedNode: null,
@@ -226,6 +230,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     refreshTrigger: 0,
     layers: [],
     activeLayer: null,
+    layerDefinitions: new Map(),
     layersSidebarOpen: true,
     selectedNodeId: null,
     selectedNode: null,
@@ -387,7 +392,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const res = await fetch('/api/layers', { method: 'GET' });
       if (!res.ok) return;
       const data = await res.json();
-      set({ layers: Array.isArray(data.layers) ? data.layers : [], activeLayer: data.activeLayer ?? null });
+      const userLayers = Array.isArray(data.layers) ? data.layers : [];
+      // Always include C4 layers
+      const c4Layers = ['system', 'container', 'component', 'code'];
+      const allLayers = [...c4Layers, ...userLayers.filter((layer: string) => !c4Layers.includes(layer as any))];
+      set({ layers: allLayers, activeLayer: data.activeLayer ?? null });
+      // Also load layer definitions
+      await get().loadLayerDefinitions();
     } catch (e) {
       console.warn('Failed to load layers:', e);
     }
@@ -436,12 +447,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
   setActiveLayer: async (name: string) => {
-    await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    // Update immediately for UI feedback; SSE will also refresh graph
-    set({ activeLayer: name });
-    // Refresh both current and base graphs after switch to ensure proper diff calculation
-    await get().loadGraph();
-    await get().loadBaseGraph();
+    // Check if this is a C4 layer
+    const c4Layers = ['system', 'container', 'component', 'code'];
+    const isC4Layer = c4Layers.includes(name);
+
+    if (isC4Layer) {
+      // For C4 layers, update active layer immediately and refresh graph
+      set({ activeLayer: name });
+      await get().loadGraph();
+    } else {
+      // For user layers, use the API
+      await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      // Update immediately for UI feedback; SSE will also refresh graph
+      set({ activeLayer: name });
+      // Refresh both current and base graphs after switch to ensure proper diff calculation
+      await get().loadGraph();
+      await get().loadBaseGraph();
+    }
   },
   deleteLayer: async (name: string) => {
     await fetch(`/api/layers?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
@@ -464,16 +486,56 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   
   // Graph operations
+  loadLayerDefinitions: async () => {
+    try {
+      const state = get();
+      const layerDefinitions = new Map<string, LayerDefinition>();
+
+      // Load definitions for all layers
+      for (const layerName of state.layers) {
+        try {
+          const res = await fetch(`/api/layers/${layerName}`, { method: 'GET' });
+          if (res.ok) {
+            const layerDef = await res.json();
+            layerDefinitions.set(layerName, layerDef);
+          }
+        } catch (error) {
+          console.warn(`Failed to load layer definition for ${layerName}:`, error);
+        }
+      }
+
+      set({ layerDefinitions });
+    } catch (error) {
+      console.warn('Failed to load layer definitions:', error);
+    }
+  },
+
   loadGraph: async () => {
     try {
       set({ graphLoading: true, graphError: null });
       const res = await fetch('/api/graph-api?graphType=current', { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
       const xml = await res.text();
-      let graph = xmlToGraph(xml);
+      let fullGraph = xmlToGraph(xml);
+
+      // Apply active layer filtering and positioning
+      const state = get();
+      let graph = fullGraph;
+      if (state.activeLayer) {
+        const c4Layers = ['system', 'container', 'component', 'code'];
+        if (c4Layers.includes(state.activeLayer)) {
+          // For C4 layers, filter by type directly
+          graph = applyLayerToGraph(fullGraph, state.activeLayer);
+        } else {
+          // For user layers, use the layer definition
+          const layerDef = state.layerDefinitions.get(state.activeLayer);
+          if (layerDef) {
+            graph = applyLayerToGraph(fullGraph, layerDef);
+          }
+        }
+      }
 
       // Automatically mark nodes as unbuilt based on differences from base graph
-      const state = get();
       graph = autoMarkUnbuiltFromBaseGraph(graph, state.baseGraph);
 
       set({ graph, graphLoading: false, graphError: null });
@@ -844,18 +906,43 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateNode: async (nodeId: string, updates: Partial<GraphNode>) => {
     const state = get();
     if (!state.graph) return;
+
+    // Handle position updates specially for layers
+    if (updates.position && state.activeLayer) {
+      // Save position to the active layer
+      try {
+        await fetch('/api/layers', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            layerName: state.activeLayer,
+            nodeId,
+            position: updates.position
+          })
+        });
+      } catch (error) {
+        console.warn('Failed to save position to layer:', error);
+      }
+    }
+
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
 
-    const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph);
-    await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+    // Only save non-position updates to the main graph XML
+    const updatesWithoutPosition = { ...updates };
+    delete updatesWithoutPosition.position;
+
+    if (Object.keys(updatesWithoutPosition).length > 0) {
+      const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updatesWithoutPosition } : n) } as Graph);
+      await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
+    }
   },
 
   updateEdge: async (edgeId: string, updates: Partial<GraphEdge>) => {
     const state = get();
     if (!state.graph) return;
 
-    const sanitizeShape = (shape: GraphEdge['shape']) => (shape === 'solid' || shape === 'dotted') ? shape : undefined;
+    const sanitizeShape = (shape: GraphEdge['shape']) => (shape === 'relates' || shape === 'refines') ? shape : undefined;
 
     const matchEdge = (edge: GraphEdge) => {
       if (edge.id === edgeId) return true;

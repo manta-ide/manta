@@ -61,11 +61,20 @@ export const MetadataInputSchema = z.union([
 ]);
 export type MetadataInput = z.infer<typeof MetadataInputSchema>;
 
+export const NodeTypeEnum = z.enum([
+  'system',
+  'container',
+  'component',
+  'code'
+]);
+export type NodeType = z.infer<typeof NodeTypeEnum>;
+
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
   prompt: z.string(),
   comment: z.string().optional(),
+  type: NodeTypeEnum,
   shape: z.enum(['rectangle', 'circle', 'comment', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
   properties: z.array(PropertySchema).optional(),
   position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
@@ -82,7 +91,7 @@ export const GraphEdgeSchema = z.object({
   role: z.string().optional(),
   sourceHandle: z.string().optional(),
   targetHandle: z.string().optional(),
-  shape: z.enum(['solid', 'dotted']).optional(),
+  shape: z.enum(['refines', 'relates']).optional(),
 });
 export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });

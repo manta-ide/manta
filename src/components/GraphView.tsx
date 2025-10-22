@@ -152,6 +152,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Calculate indicator dot size based on zoom level
   const indicatorSize = isZoomedOut ? '16px' : '12px';
 
+
   // Derive effective visual state based on base graph comparison
   const effectiveState = (() => {
     console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
@@ -183,10 +184,10 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       return 'unbuilt'; // New node, consider unbuilt
     }
 
-    // Use the same diff logic as analyzeGraphDiff - compares title, prompt, AND properties
+    // Use the same diff logic as analyzeGraphDiff - compares title, prompt, type, AND properties
     const isSame = !nodesAreDifferent(baseNode, node);
     const result = isSame ? 'built' : 'unbuilt';
-    console.log(`   ✅ Result: ${result} (using full diff comparison including properties)`);
+    console.log(`   ✅ Result: ${result} (using full diff comparison including properties and type)`);
 
     return result;
   })();
@@ -339,6 +340,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
           zIndex: 2,
         }} />
       )}
+
 
       {/* Resize handles - only for resizable nodes (e.g., comments) */}
       {shapeConfig?.resizable && (
@@ -605,12 +607,12 @@ function GraphCanvas() {
     strokeLinecap: 'round' as const,
   } as const;
 
-  type EdgeShape = 'solid' | 'dotted';
-  const DEFAULT_EDGE_SHAPE: EdgeShape = 'solid';
+  type EdgeShape = 'refines' | 'relates';
+  const DEFAULT_EDGE_SHAPE: EdgeShape = 'relates';
 
   const applyEdgeShapeToStyle = useCallback((style: any, shape: EdgeShape | undefined) => {
     const nextStyle = { ...style } as any;
-    if (shape === 'dotted') {
+    if (shape === 'relates') {
       nextStyle.strokeDasharray = '8,8';
     } else if ('strokeDasharray' in nextStyle) {
       delete nextStyle.strokeDasharray;
@@ -621,9 +623,9 @@ function GraphCanvas() {
   const resolveEdgeShape = useCallback((edgeLike: any): EdgeShape => {
     if (!edgeLike) return DEFAULT_EDGE_SHAPE;
     const directShape = (edgeLike as any)?.shape;
-    if (directShape === 'dotted' || directShape === 'solid') return directShape;
+    if (directShape === 'refines' || directShape === 'relates') return directShape;
     const dataShape = (edgeLike as any)?.data?.shape;
-    if (dataShape === 'dotted' || dataShape === 'solid') return dataShape;
+    if (dataShape === 'refines' || dataShape === 'relates') return dataShape;
 
     const id = (edgeLike as Edge)?.id || (edgeLike as any)?.id;
     const source = (edgeLike as Edge)?.source || (edgeLike as any)?.source;
@@ -634,7 +636,7 @@ function GraphCanvas() {
       return ge.source === source && ge.target === target;
     });
     const matchedShape = (matched as any)?.shape;
-    return matchedShape === 'dotted' || matchedShape === 'solid' ? matchedShape : DEFAULT_EDGE_SHAPE;
+    return matchedShape === 'refines' || matchedShape === 'relates' ? matchedShape : DEFAULT_EDGE_SHAPE;
   }, [graph]);
 
   // Helper to derive an arrow marker matching the current edge style
@@ -809,6 +811,7 @@ function GraphCanvas() {
       title: 'New Node',
       prompt: '',
       comment: '',
+      type: 'component',
       shape: 'round-rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
@@ -884,6 +887,8 @@ function GraphCanvas() {
       title: 'Comment',
       prompt: 'Add your comment here...',
       comment: '',
+      type: 'component',
+      shape: 'comment',
       position: { x: position.x, y: position.y, z: 0 },
       properties: [
         { id: 'width', value: dimensions.width },

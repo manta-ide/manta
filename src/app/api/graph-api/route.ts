@@ -232,7 +232,7 @@ async function getSessionFromRequest(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
     ensureLayersRoot();
     const info = getLayersInfo();
     if (info.layers.length === 0) {
@@ -853,6 +853,7 @@ export async function POST(req: NextRequest) {
           id: nodeId,
           title,
           prompt,
+          type: 'component',
           properties: properties || [],
           ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
         };
@@ -1716,7 +1717,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
     ensureLayersRoot();
     const info = getLayersInfo();
     if (info.layers.length === 0) {
@@ -1775,7 +1776,7 @@ export async function PUT(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
     ensureLayersRoot();
     const info = getLayersInfo();
     if (info.layers.length === 0) {
@@ -1856,7 +1857,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // Ensure default layer exists before any graph operations
-    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers');
+    const { ensureLayersRoot, getLayersInfo, createLayer, setActiveLayer } = await import('@/lib/layers-server');
     ensureLayersRoot();
     const info = getLayersInfo();
     if (info.layers.length === 0) {

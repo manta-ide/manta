@@ -1,4 +1,4 @@
-import type { Graph, GraphNode, Property, NodeMetadata } from '@/app/api/lib/schemas';
+import type { Graph, GraphNode, Property, NodeMetadata, NodeType } from '@/app/api/lib/schemas';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 
 // Configure XML parser for our use case
@@ -455,11 +455,13 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    // Include shape attribute if present
+    // Include shape and type attributes if present
     const shape = (n as any).shape;
     const shapeAttr = shape ? ` shape="${escapeXml(String(shape))}"` : '';
+    const type = (n as any).type;
+    const typeAttr = type ? ` type="${escapeXml(String(type))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}${typeAttr}>${desc}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }>;
@@ -469,7 +471,7 @@ ${optionsXml}
     const sh = (e as any).sourceHandle ? ` sourceHandle="${escapeXml(String((e as any).sourceHandle))}"` : '';
     const th = (e as any).targetHandle ? ` targetHandle="${escapeXml(String((e as any).targetHandle))}"` : '';
     const shape = (e as any).shape;
-    const validShape = shape === 'solid' || shape === 'dotted' ? shape : undefined;
+    const validShape = shape === 'relates' || shape === 'refines' ? shape : undefined;
     const shapeAttr = validShape ? ` shape="${escapeXml(String(validShape))}"` : '';
     return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"${sh}${th}${shapeAttr}/>`;
   }).join('\n');
@@ -782,9 +784,11 @@ export function xmlToGraph(xml: string): Graph {
 
       const metadataFiles = filesFromXml(nodeData.metadata?.files);
       const metadataBugs = bugsFromXml(nodeData.metadata?.bugs);
-      // Optional shape
+      // Optional shape and type
       const shapeRaw = (nodeData as any)['@_shape'];
       const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
+      const typeRaw = (nodeData as any)['@_type'];
+      const type = typeof typeRaw === 'string' && ['system', 'container', 'component', 'code'].includes(typeRaw) ? typeRaw as NodeType : 'component';
 
       // Build metadata object if we have files or bugs
       let metadata: NodeMetadata | undefined = undefined;
@@ -802,7 +806,8 @@ export function xmlToGraph(xml: string): Graph {
         properties,
         ...(position ? { position } : {}),
         ...(metadata ? { metadata } : {}),
-        ...(shape ? { shape: shape as any } : {})
+        ...(shape ? { shape: shape as any } : {}),
+        ...(type ? { type } : {})
       } as GraphNode;
     });
 
@@ -830,7 +835,7 @@ export function xmlToGraph(xml: string): Graph {
             role,
             sourceHandle,
             targetHandle,
-            ...(shape === 'solid' || shape === 'dotted' ? { shape } : {}),
+            ...(shape === 'relates' || shape === 'refines' ? { shape } : {}),
           });
         }
       });

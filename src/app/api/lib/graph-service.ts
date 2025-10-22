@@ -4,7 +4,7 @@ import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
-import { activeLayerDir, getActiveLayer, getActiveLayerGraphPaths, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo, createLayer } from '@/lib/layers';
+import { getActiveLayer, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo, createLayer, getMainGraphPaths } from '@/lib/layers-server';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
@@ -70,7 +70,7 @@ function getCurrentGraphPath(): string {
 
   // Prefer active layer if configured
   try {
-    const paths = getActiveLayerGraphPaths();
+    const paths = getMainGraphPaths();
     if (paths.current && fs.existsSync(path.dirname(paths.current))) {
       return paths.current;
     }
@@ -83,7 +83,7 @@ function getBaseGraphPath(): string {
 
   // Prefer active layer if configured
   try {
-    const paths = getActiveLayerGraphPaths();
+    const paths = getMainGraphPaths();
     if (paths.base && fs.existsSync(path.dirname(paths.base))) {
       return paths.base;
     }
