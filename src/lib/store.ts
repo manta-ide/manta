@@ -40,6 +40,7 @@ interface ProjectStore {
   selectedEdge: GraphEdge | null;
   selectedEdgeIds: string[];
   graph: Graph | null;
+  fullGraph: Graph | null; // Full unfiltered graph for outline calculations
   baseGraph: Graph | null; // Last built version of the graph
   graphLoading: boolean;
   graphError: string | null;
@@ -203,6 +204,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectedEdge: null,
   selectedEdgeIds: [],
   graph: null,
+  fullGraph: null,
   baseGraph: null,
   graphLoading: true,
   graphError: null,
@@ -241,6 +243,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     selectedEdge: null,
     selectedEdgeIds: [],
     graph: null,
+    fullGraph: null,
     baseGraph: null,
     graphLoading: true,
     graphError: null,
@@ -531,6 +534,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
       // First, mark nodes as unbuilt based on differences from base graph (on full graph)
       let fullGraphWithDiff = autoMarkUnbuiltFromBaseGraph(fullGraph, state.baseGraph);
+
+      // Store the full graph for outline calculations
+      set({ fullGraph: fullGraphWithDiff });
 
       // Then apply layer filtering to the diff-marked graph
       let graph = fullGraphWithDiff;

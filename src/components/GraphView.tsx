@@ -91,6 +91,76 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
   const baseGraph = data.baseGraph;
   const updateNode = data.updateNode;
+
+  // Special handling for outline nodes (upper level boundaries)
+  if (data.isOutline) {
+    console.log('🎨 Rendering outline node:', { id: node.id, title: node.title, outlineType: data.outlineType });
+
+    // Map outline type to color matching the layer icons
+    const getOutlineColor = (outlineType: string) => {
+      switch (outlineType) {
+        case 'system':
+          return { border: 'rgba(59, 130, 246, 0.8)', background: 'rgba(59, 130, 246, 0.1)', titleBg: 'rgba(59, 130, 246, 0.95)' };
+        case 'container':
+          return { border: 'rgba(34, 197, 94, 0.8)', background: 'rgba(34, 197, 94, 0.1)', titleBg: 'rgba(34, 197, 94, 0.95)' };
+        case 'component':
+          return { border: 'rgba(251, 191, 36, 0.8)', background: 'rgba(251, 191, 36, 0.1)', titleBg: 'rgba(251, 191, 36, 0.95)' };
+        case 'code':
+          return { border: 'rgba(147, 51, 234, 0.8)', background: 'rgba(147, 51, 234, 0.1)', titleBg: 'rgba(147, 51, 234, 0.95)' };
+        default:
+          return { border: 'rgba(59, 130, 246, 0.8)', background: 'rgba(59, 130, 246, 0.1)', titleBg: 'rgba(59, 130, 246, 0.95)' };
+      }
+    };
+
+    const colors = getOutlineColor(data.outlineType);
+
+    return (
+      <div
+        className="outline-node"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none', // Don't interfere with child node interactions
+        }}
+      >
+        {/* Dotted outline border */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: `4px dotted ${colors.border}`,
+            borderRadius: '8px',
+            background: colors.background,
+            zIndex: -1, // Behind child nodes
+          }}
+        />
+
+        {/* Title label */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-32px',
+            left: '8px',
+            background: colors.titleBg,
+            color: 'white',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '700',
+            whiteSpace: 'nowrap',
+            zIndex: 10,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}
+        >
+          {node.title}
+        </div>
+      </div>
+    );
+  }
   const { zoom } = useViewport();
   const {
     searchResults,
@@ -155,13 +225,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
 
   // Derive effective visual state based on base graph comparison
   const effectiveState = (() => {
-    console.log(`🎯 Computing state for node ${node.id} (${node.title})`);
 
     // Check if node has bugs - if so, it's always unbuilt
     const bugs = node.metadata?.bugs;
     const hasBugs = bugs && Array.isArray(bugs) && bugs.length > 0;
     if (hasBugs) {
-      console.log(`   🐛 Node has ${bugs.length} bug(s) - marking as unbuilt`);
       return 'unbuilt';
     }
 
@@ -187,7 +255,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     // Use the same diff logic as analyzeGraphDiff - compares title, prompt, type, AND properties
     const isSame = !nodesAreDifferent(baseNode, node);
     const result = isSame ? 'built' : 'unbuilt';
-    console.log(`   ✅ Result: ${result} (using full diff comparison including properties and type)`);
 
     return result;
   })();
@@ -572,6 +639,7 @@ function GraphCanvas() {
   // Use the store for graph data
   const {
     graph,
+    fullGraph,
     graphLoading: loading,
     graphError: error,
     refreshGraph,
@@ -1625,10 +1693,102 @@ function GraphCanvas() {
       const currentNodeIds = new Set(graph.nodes.map(n => n.id));
       const isLayerView = activeLayer && ['system', 'container', 'component', 'code'].includes(activeLayer);
       const baseOnlyNodes = !isLayerView && baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)).map(node => ({ ...node, state: 'ghosted' as const })) : [];
-      const allNodes = [...graph.nodes, ...baseOnlyNodes];
+
+      // Add upper level node outlines for C4 layers
+      let outlineNodes: any[] = [];
+      const c4Layers = ['system', 'container', 'component', 'code'];
+      const layerHierarchy = { system: 0, container: 1, component: 2, code: 3 };
+
+      console.log('🔍 Outline debug:', {
+        activeLayer,
+        hasFullGraph: !!fullGraph,
+        hasGraph: !!graph,
+        fullGraphNodes: fullGraph?.nodes?.length || 0,
+        graphNodes: graph?.nodes?.length || 0,
+        isC4Layer: c4Layers.includes(activeLayer || '')
+      });
+
+      if (c4Layers.includes(activeLayer || '') && fullGraph && graph) {
+        const currentLevelIndex = layerHierarchy[activeLayer as keyof typeof layerHierarchy];
+
+        // Get all upper level nodes that should be shown as outlines
+        const upperLevelNodes = fullGraph.nodes.filter(node =>
+          c4Layers.includes((node as any).type) &&
+          layerHierarchy[(node as any).type as keyof typeof layerHierarchy] < currentLevelIndex
+        );
+
+        console.log('📊 Upper level nodes found:', upperLevelNodes.map(n => ({ id: n.id, title: n.title, type: (n as any).type })));
+
+        // Create a map of current level nodes for quick lookup
+        const currentLevelNodeMap = new Map(graph.nodes.map(node => [node.id, node]));
+
+        // Find connections between upper level nodes and current level nodes
+        const upperLevelConnections = new Map<string, string[]>(); // upperLevelNodeId -> [currentLevelNodeIds]
+
+        console.log('🔗 Processing edges:', fullGraph.edges?.length || 0);
+        if (fullGraph.edges) {
+          fullGraph.edges.forEach(edge => {
+            const currentNode = currentLevelNodeMap.get(edge.source);
+            const upperNode = upperLevelNodes.find(n => n.id === edge.target);
+
+            if (upperNode && currentNode) {
+              if (!upperLevelConnections.has(upperNode.id)) {
+                upperLevelConnections.set(upperNode.id, []);
+              }
+              upperLevelConnections.get(upperNode.id)!.push(currentNode.id);
+              console.log('🔗 Found connection:', { upper: upperNode.title, current: currentNode.title });
+            }
+          });
+        }
+
+        console.log('📦 Upper level connections:', Array.from(upperLevelConnections.entries()).map(([upperId, childIds]) => ({
+          upperId,
+          childCount: childIds.length,
+          childIds
+        })));
+
+        // Create outline nodes for upper level nodes that have connections
+        upperLevelConnections.forEach((childNodeIds, upperNodeId) => {
+          const upperNode = upperLevelNodes.find(n => n.id === upperNodeId);
+          if (!upperNode) return;
+
+          // Create a mock node for the outline
+          const outlineNode = {
+            id: `outline-${upperNodeId}`,
+            title: upperNode.title,
+            type: 'outline',
+            shape: 'round-rectangle',
+            position: { x: 0, y: 0, z: 0 }, // Will be calculated later
+            properties: [],
+            outlineType: (upperNode as any).type,
+            childNodeIds,
+          };
+
+          console.log('🎨 Created outline node:', { id: outlineNode.id, title: outlineNode.title, childCount: childNodeIds.length });
+          outlineNodes.push(outlineNode);
+        });
+      }
+
+      console.log('📋 Node counts:', {
+        graphNodes: graph.nodes.length,
+        baseOnlyNodes: baseOnlyNodes.length,
+        outlineNodes: outlineNodes.length,
+        totalAllNodes: graph.nodes.length + baseOnlyNodes.length + outlineNodes.length
+      });
+
+      const allNodes = [...graph.nodes, ...baseOnlyNodes, ...outlineNodes];
 
       // Sort nodes by z-index (lower z-index renders first/behind)
+      // Put outline nodes first so they render behind regular nodes
       const sortedNodes = allNodes.sort((a, b) => {
+        const aIsOutline = (a as any).state === 'ghosted' || (a as any).type === 'outline';
+        const bIsOutline = (b as any).state === 'ghosted' || (b as any).type === 'outline';
+
+        // Outline nodes and ghosted nodes go first (behind)
+        if (aIsOutline && !bIsOutline) return -1;
+        if (!aIsOutline && bIsOutline) return 1;
+
+        // Then sort by shape z-index
         const aShape = (a as any).shape || 'round-rectangle';
         const bShape = (b as any).shape || 'round-rectangle';
         const aConfig = getShapeConfig(aShape);
@@ -1638,8 +1798,17 @@ function GraphCanvas() {
         return aZ - bZ; // Lower z-index first
       });
 
+      console.log('🎯 Final sorted nodes:', sortedNodes.map(n => ({
+        id: n.id,
+        title: n.title,
+        type: (n as any).type,
+        isOutline: (n as any).type === 'outline'
+      })));
+
       // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
-      const reactFlowNodes: Node[] = sortedNodes.map((node) => {
+      const reactFlowNodes: Node[] = [];
+
+      for (const node of sortedNodes) {
         const isDragging = draggingNodeIdsRef.current.has(node.id);
         let position = isDragging
           ? (currentPositions.get(node.id) || nodePositions.get(node.id) || node.position || { x: 0, y: 0 })
@@ -1648,10 +1817,73 @@ function GraphCanvas() {
         // For base-only nodes (ghosted), we still want to preserve any position data
         // Don't add offset to prevent jumping - let them use their stored position
 
-        const backgroundColor = node.properties?.find(p => p.id === 'background-color')?.value;
+        // Special handling for outline nodes
+        if ((node as any).type === 'outline') {
+          console.log('🎨 Processing outline node:', { id: node.id, title: node.title, childNodeIds: (node as any).childNodeIds });
+          // Find all child nodes for this outline from the sorted nodes
+          const childNodeIds = (node as any).childNodeIds || [];
+          const childNodes = sortedNodes.filter(n =>
+            childNodeIds.includes(n.id) && (n as any).type !== 'outline'
+          );
+
+          console.log('👶 Found child nodes for outline:', childNodes.map(c => ({ id: c.id, title: c.title, type: (c as any).type })));
+
+          if (childNodes.length > 0) {
+            // Calculate bounding box using the positions from sortedNodes
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            childNodes.forEach(childNode => {
+              // Use the position that would be calculated for this child node
+              const childPosition = nodePositions.get(childNode.id) || childNode.position || { x: 0, y: 0 };
+              const width = 260; // Default width for components
+              const height = 160; // Default height for components
+              minX = Math.min(minX, childPosition.x);
+              minY = Math.min(minY, childPosition.y);
+              maxX = Math.max(maxX, childPosition.x + width);
+              maxY = Math.max(maxY, childPosition.y + height);
+            });
+
+            // Add padding around the bounding box
+            const padding = 40;
+            const outlineWidth = maxX - minX + (padding * 2);
+            const outlineHeight = maxY - minY + (padding * 2);
+            position = { x: minX - padding, y: minY - padding };
+
+            console.log('📐 Outline bounds:', { minX, minY, maxX, maxY, width: outlineWidth, height: outlineHeight, position });
+
+            // Create outline node
+            const outlineNode: Node = {
+              id: node.id,
+              position,
+              width: outlineWidth,
+              height: outlineHeight,
+              data: {
+                label: node.title,
+                node: node,
+                properties: node.properties || [],
+                baseGraph: baseGraph,
+                graph: graph,
+                fullGraph: fullGraph,
+                updateNode: updateNode,
+                isOutline: true,
+                outlineType: (node as any).outlineType,
+              },
+              type: 'custom',
+              selected: false,
+              draggable: false,
+            };
+
+            console.log('✅ Created outline ReactFlow node:', { id: outlineNode.id, position: outlineNode.position, width: outlineNode.width, height: outlineNode.height });
+            reactFlowNodes.push(outlineNode);
+            continue;
+          } else {
+            console.log('❌ No child nodes found for outline, skipping');
+          }
+        }
+
+        const backgroundColor = node.properties?.find((p: any) => p.id === 'background-color')?.value;
         // Extract width and height from properties for ReactFlow node
-        const widthProp = node.properties?.find(p => p.id === 'width');
-        const heightProp = node.properties?.find(p => p.id === 'height');
+        const widthProp = node.properties?.find((p: any) => p.id === 'width');
+        const heightProp = node.properties?.find((p: any) => p.id === 'height');
         const nodeWidth = widthProp?.value;
         const nodeHeight = heightProp?.value;
 
@@ -1675,8 +1907,8 @@ function GraphCanvas() {
         if (nodeWidth) rfNode.width = nodeWidth;
         if (nodeHeight) rfNode.height = nodeHeight;
 
-        return rfNode;
-      });
+        reactFlowNodes.push(rfNode);
+      }
 
       // Create edges from both base and current graphs
       const reactFlowEdges: Edge[] = [];
@@ -1807,7 +2039,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, baseGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, reactFlow]);
+  }, [graphsLoaded, graph, fullGraph, baseGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, reactFlow]);
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
