@@ -833,7 +833,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, title, prompt, properties, position, syncToBase, metadata } = params;
+        const { nodeId, title, prompt, type, level, comment, properties, position, syncToBase, metadata } = params;
 
         console.log('🔍 TOOL: node_create checking if node already exists:', nodeId);
         const existingNode = validatedGraph.nodes.find((n: any) => n.id === nodeId);
@@ -848,8 +848,10 @@ export async function POST(req: NextRequest) {
           id: nodeId,
           title,
           prompt,
-          type: 'component',
+          type: type || 'component', // Use provided type or default to component
+          level: level, // C4 level for architectural elements
           properties: properties || [],
+          ...(comment ? { comment } : {}),
           ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
         };
         const normalizedMetadata = normalizeNodeMetadata(metadata);
@@ -910,7 +912,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_edit schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, mode = 'replace', title, prompt, properties, children, position, metadata } = params;
+        const { nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata } = params;
 
         console.log('🔍 TOOL: node_edit looking for node:', nodeId);
         const idx = validatedGraph.nodes.findIndex((n: any) => n.id === nodeId);
@@ -931,6 +933,18 @@ export async function POST(req: NextRequest) {
         if (prompt !== undefined) {
           console.log('📝 TOOL: node_edit updating prompt, length:', prompt.length);
           next.prompt = prompt;
+        }
+        if (type !== undefined) {
+          console.log('🏷️ TOOL: node_edit updating type:', type);
+          next.type = type;
+        }
+        if (level !== undefined) {
+          console.log('🏷️ TOOL: node_edit updating level:', level);
+          next.level = level;
+        }
+        if (comment !== undefined) {
+          console.log('💬 TOOL: node_edit updating comment, length:', comment.length);
+          next.comment = comment;
         }
         if (children !== undefined) {
           console.log('👶 TOOL: node_edit updating children, count:', children.length);

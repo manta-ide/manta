@@ -1,6 +1,6 @@
 import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import { PropertySchema, MetadataInputSchema } from './schemas';
+import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from './schemas';
 
 export const createGraphTools = (baseUrl: string) => {
   console.log('🔧 Creating graph tools (graph-service backed)', { baseUrl });
@@ -73,7 +73,7 @@ export const createGraphTools = (baseUrl: string) => {
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
       role: z.string().optional(),
-      shape: z.enum(['solid', 'dotted']).optional().describe('The visual shape/style of the edge line (solid or dotted)'),
+      shape: z.enum(['refines', 'relates']).optional().describe('The semantic relationship type: "refines" for hierarchical connections, "relates" for same-level connections'),
       syncToBase: z.boolean().optional().describe('If true, immediately sync this edge to base graph (used during indexing mode)'),
     },
     async ({ sourceId, targetId, role, shape, syncToBase }) => {
@@ -159,13 +159,16 @@ export const createGraphTools = (baseUrl: string) => {
       nodeId: z.string().min(1),
       title: z.string().min(1),
       prompt: z.string().min(1),
+      type: NodeTypeEnum.describe('The node type: system, container, component, code, or comment'),
+      level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+      comment: z.string().optional(),
       properties: z.array(PropertySchema).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       syncToBase: z.boolean().optional().describe('If true, immediately sync this node to base graph (used during indexing mode)'),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, title, prompt, properties, position, syncToBase, metadata }) => {
-      console.log('➕ TOOL: node_create called via API', { nodeId, title, position: !!position, metadata });
+    async ({ nodeId, title, prompt, type, level, comment, properties, position, syncToBase, metadata }) => {
+      console.log('➕ TOOL: node_create called via API', { nodeId, title, type, comment: !!comment, position: !!position, metadata });
 
       try {
         const response = await fetch(`${baseUrl}/api/graph-api`, {
@@ -174,8 +177,11 @@ export const createGraphTools = (baseUrl: string) => {
           body: JSON.stringify({
             action: 'node_create',
             nodeId,
-          title,
-          prompt,
+            title,
+            prompt,
+            type,
+            level,
+            comment,
             properties,
             position,
             syncToBase,
@@ -246,13 +252,16 @@ export const createGraphTools = (baseUrl: string) => {
       mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
       title: z.string().optional(),
       prompt: z.string().optional(),
+      type: NodeTypeEnum.optional().describe('The node type: system, container, component, code, or comment'),
+      level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+      comment: z.string().optional(),
       properties: z.array(PropertySchema).optional(),
       children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, mode = 'replace', title, prompt, properties, children, position, metadata }) => {
-      console.log('✏️ TOOL: node_edit called via API', { nodeId, mode, title: !!title, prompt: !!prompt, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
+    async ({ nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata }) => {
+      console.log('✏️ TOOL: node_edit called via API', { nodeId, mode, title: !!title, prompt: !!prompt, type: !!type, level: !!level, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
 
       try {
         const response = await fetch(`${baseUrl}/api/graph-api`, {
@@ -264,6 +273,9 @@ export const createGraphTools = (baseUrl: string) => {
             mode,
             title,
             prompt,
+            type,
+            level,
+            comment,
             properties,
             children,
             position,

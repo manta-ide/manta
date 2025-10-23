@@ -826,6 +826,7 @@ function GraphCanvas() {
       prompt: '',
       comment: '',
       type: 'component',
+      level: 'component',
       shape: 'round-rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
@@ -901,7 +902,7 @@ function GraphCanvas() {
       title: 'Comment',
       prompt: 'Add your comment here...',
       comment: '',
-      type: 'component',
+      type: 'comment',
       shape: 'comment',
       position: { x: position.x, y: position.y, z: 0 },
       properties: [
