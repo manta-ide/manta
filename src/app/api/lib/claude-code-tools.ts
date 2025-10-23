@@ -9,18 +9,24 @@ export const createGraphTools = (baseUrl: string) => {
   // read (rich read)
   tool(
     'read',
-    'Read from current graph or base graph, or a specific node with all its connections.',
+    'Read from current graph or base graph, or a specific node with all its connections. Can filter by C4 architectural layer.',
     {
       graphType: z.enum(['current', 'base']).default('current').describe('Which graph to read from: "current" (working graph) or "base" (completed implementations)'),
       nodeId: z.string().optional(),
+      layer: z.enum(['system', 'container', 'component', 'code']).optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code"'),
       includeProperties: z.boolean().optional(),
       includeChildren: z.boolean().optional(),
     },
-    async ({ graphType = 'current', nodeId }) => {
-      console.log('🔍 TOOL: read called via API', { graphType, nodeId });
+    async ({ graphType = 'current', nodeId, layer }) => {
+      console.log('🔍 TOOL: read called via API', { graphType, nodeId, layer });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api?type=${graphType}${nodeId ? `&nodeId=${nodeId}` : ''}`, {
+        const queryParams = new URLSearchParams();
+        queryParams.set('type', graphType);
+        if (nodeId) queryParams.set('nodeId', nodeId);
+        if (layer) queryParams.set('layer', layer);
+
+        const response = await fetch(`${baseUrl}/api/graph-api?${queryParams.toString()}`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' }
         });
@@ -51,8 +57,9 @@ export const createGraphTools = (baseUrl: string) => {
         if (result.success && result.graph) {
           console.log('📤 TOOL: read returning formatted graph summary');
           const nodes = result.graph.nodes?.map((n: any) => ({ id: n.id, title: n.title })) || [];
+          const layerInfo = layer ? ` (filtered by ${layer} layer)` : '';
           const formattedResult = JSON.stringify({ nodes }, null, 2);
-          return { content: [{ type: 'text', text: formattedResult }] };
+          return { content: [{ type: 'text', text: `Graph Summary${layerInfo}:\n${formattedResult}` }] };
         }
 
         // Fallback

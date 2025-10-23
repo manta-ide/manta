@@ -253,6 +253,7 @@ export async function GET(req: NextRequest) {
     const fresh = url.searchParams.get('fresh') === 'true'; // Force fresh read from filesystem
     const graphType = url.searchParams.get('type') || url.searchParams.get('graphType'); // 'current', 'base', 'diff', or undefined for default
     const nodeId = url.searchParams.get('nodeId'); // For reading specific nodes
+    const layer = url.searchParams.get('layer'); // For filtering by C4 layer
     const accept = (req.headers.get('accept') || '').toLowerCase();
     const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
     
@@ -438,15 +439,45 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      if (!graph) {
-        console.log('ℹ️ No graph found in file system');
+    if (!graph) {
+      console.log('ℹ️ No graph found in file system');
+      return NextResponse.json(
+        { error: 'Graph not found' },
+        { status: 404 }
+      );
+    }
+
+    // Apply layer filtering if specified
+    if (layer) {
+      console.log('🔍 Applying layer filter:', layer);
+      const validLayers = ['system', 'container', 'component', 'code'];
+      if (!validLayers.includes(layer)) {
         return NextResponse.json(
-          { error: 'Graph not found' },
-          { status: 404 }
+          { error: `Invalid layer: ${layer}. Valid layers are: ${validLayers.join(', ')}` },
+          { status: 400 }
         );
       }
 
-      // Check if requesting a specific node
+      // Filter nodes by layer (node type must match the layer)
+      const filteredNodes = graph.nodes?.filter((node: any) => node.type === layer) || [];
+      const filteredNodeIds = new Set(filteredNodes.map((node: any) => node.id));
+
+      // Filter edges to only include those connecting filtered nodes
+      const filteredEdges = graph.edges?.filter((edge: any) =>
+        filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
+      ) || [];
+
+      // Create filtered graph
+      graph = {
+        ...graph,
+        nodes: filteredNodes,
+        edges: filteredEdges.length > 0 ? filteredEdges : undefined
+      };
+
+      console.log(`✅ Layer filter applied: ${filteredNodes.length} nodes, ${filteredEdges.length} edges`);
+    }
+
+    // Check if requesting a specific node
       if (nodeId) {
         console.log('🎯 GET: looking for specific node:', nodeId);
         const node = graph.nodes?.find((n: any) => n.id === nodeId);
