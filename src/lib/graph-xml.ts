@@ -1,5 +1,6 @@
 import type { Graph, GraphNode, Property, NodeMetadata, NodeType } from '@/app/api/lib/schemas';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import path from 'path';
 
 // Configure XML parser for our use case
 const xmlParser = new XMLParser({
@@ -101,6 +102,7 @@ function filesFromXml(metadataNode: any): string[] {
   const entries = Array.isArray(rawFiles) ? rawFiles : (rawFiles !== undefined ? [rawFiles] : []);
   const result: string[] = [];
   const seen = new Set<string>();
+  const projectRoot = process.cwd();
 
   for (const entry of entries) {
     let value: string | undefined;
@@ -115,8 +117,19 @@ function filesFromXml(metadataNode: any): string[] {
     }
 
     if (!value) continue;
-    const cleaned = unescapeXml(repairTextEncoding(String(value))).trim();
+    let cleaned = unescapeXml(repairTextEncoding(String(value))).trim();
     if (!cleaned || seen.has(cleaned)) continue;
+
+    // Normalize path to handle any malformed paths with excessive ../ segments
+    if (!path.isAbsolute(cleaned)) {
+      // Normalize relative paths by resolving and making relative again
+      cleaned = path.relative(projectRoot, path.resolve(projectRoot, cleaned));
+      cleaned = cleaned.replace(/\\/g, '/');
+      if (cleaned.startsWith('./')) {
+        cleaned = cleaned.substring(2);
+      }
+    }
+
     seen.add(cleaned);
     result.push(cleaned);
   }

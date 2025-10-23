@@ -112,6 +112,10 @@ const sanitizeMetadataFileEntries = (entries: Array<string | null | undefined>):
     // Now make it relative to project root
     candidate = path.relative(projectRoot, absolutePath);
 
+    // Normalize by resolving the path again to eliminate any ../ segments that go outside project root
+    // This handles cases where paths like "../../../../../../dev/manta/..." get normalized to "src/..."
+    candidate = path.relative(projectRoot, path.resolve(projectRoot, candidate));
+
     // Normalize path separators and remove leading ./
     candidate = candidate.replace(/\\/g, '/');
     if (candidate.startsWith('./')) {
@@ -231,9 +235,11 @@ async function getSessionFromRequest(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Ensure layers directory exists (C4 layers are always available)
+    // Ensure layers directory exists and initialize graphs if needed
     const { ensureLayersRoot } = await import('@/lib/layers-server');
+    const { initializeGraphsFromFiles } = await import('../lib/graph-service');
     ensureLayersRoot();
+    await initializeGraphsFromFiles();
 
     // Get current user session for all GET requests
     const session = await getSessionFromRequest(req);

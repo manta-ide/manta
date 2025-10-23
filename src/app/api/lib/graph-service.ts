@@ -56,11 +56,14 @@ function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
 
 function ensureDefaultLayer(): void {
-  // Check if any layers exist, if not create a default one
+  // Check if any user-created layers exist, if not create a default one
   const info = getLayersInfo();
-  if (info.layers.length === 0) {
+  const userLayers = info.layers.filter(layer => !['system', 'container', 'component', 'code'].includes(layer));
+  if (userLayers.length === 0) {
+    console.log('📝 Creating default layer since no user layers exist');
     const name = createLayer('graph1');
     persistActiveLayer(name);
+    console.log(`✅ Created default layer: ${name}`);
   }
 }
 
@@ -470,6 +473,9 @@ export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Prom
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
+  // Ensure default layer exists before trying to load graphs
+  ensureDefaultLayer();
+
   // Load current graph from file
   const currentGraphFromFile = readCurrentGraphFromFs();
   if (currentGraphFromFile) {

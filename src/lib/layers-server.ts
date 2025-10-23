@@ -3,35 +3,6 @@ import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
 import type { LayerDefinition } from './layers';
 
-const WELCOME_GRAPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<graph xmlns="urn:app:graph" version="1.0" directed="true">
-  <nodes>
-    <node id="node-1760069205219845" title="Welcome to Manta!" x="-171.50757392668527" y="285.3244832323122" z="0" shape="comment">
-      <description>Use slash commands to direct the agent:
-
-**/index** - index the codebase
-
-**/build** - build graph changes into code
-
-**/beautify** - auto-align the graph
-
-Use tags to specify the nodes:
-
-@Node1
-
-Please reach out at **km@getmanta.ai** with any questions!</description>
-      <props>
-        <prop name="width" title="width" type="string">910</prop>
-        <prop name="height" title="height" type="string">584</prop>
-      </props>
-    </node>
-  </nodes>
-
-  <edges>
-
-  </edges>
-</graph>`;
-
 const EMPTY_GRAPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
@@ -166,6 +137,21 @@ export function createLayer(desiredName?: string): string {
   };
 
   saveLayerDefinition(layerDef);
+
+  // Initialize graph files for the new layer
+  const graphDir = layersRootDir();
+  fs.mkdirSync(graphDir, { recursive: true });
+
+  const currentGraphPath = path.join(graphDir, 'current-graph.xml');
+  const baseGraphPath = path.join(graphDir, 'base-graph.xml');
+
+  // Always use empty graph for new layers
+  const initialGraphXml = EMPTY_GRAPH_XML;
+
+  // Initialize both current and base graphs with the same content
+  fs.writeFileSync(currentGraphPath, initialGraphXml, 'utf8');
+  fs.writeFileSync(baseGraphPath, initialGraphXml, 'utf8');
+
   return name;
 }
 

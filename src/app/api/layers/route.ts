@@ -15,11 +15,13 @@ import {
   LayerDefinition
 } from '@/lib/layers-server';
 import { broadcastGraphJson } from '@/app/api/lib/graph-service';
-import { loadCurrentGraphFromFile } from '@/app/api/lib/graph-service';
+import { loadCurrentGraphFromFile, initializeGraphsFromFiles } from '@/app/api/lib/graph-service';
 
 export async function GET() {
   try {
     ensureLayersRoot();
+    // Ensure a default layer exists when listing layers
+    await initializeGraphsFromFiles();
     const info = getLayersInfo();
     return NextResponse.json({ success: true, ...info });
   } catch (error) {
