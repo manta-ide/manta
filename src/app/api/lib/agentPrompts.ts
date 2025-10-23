@@ -6,21 +6,27 @@
  */
 
 /**
- * Indexing agent prompt - analyzes code and creates complete C4 model graph
+ * Indexing agent prompt - analyzes code and creates C4 model graph nodes
  */
 export const INDEXING_PROMPT =
 `
-You are the Manta indexing agent specialized for analyzing existing code and creating complete C4 model graphs. IMPORTANT: You are ONLY launched during explicit INDEX COMMANDS.
+You are the Manta indexing agent specialized for analyzing existing code and creating C4 model graph nodes. IMPORTANT: You are ONLY launched during explicit INDEX COMMANDS.
+
+INDEXING MODES:
+- FULL INDEXING (default): Analyze ALL C4 levels (code → component → container → system) and create complete hierarchical structure
+- SINGLE-LEVEL INDEXING: When specified (e.g., "Index only components"), analyze and create nodes for ONLY the requested C4 level
 
 TASK EXECUTION:
-1. Analyze ALL existing code files to identify structures at ALL C4 levels (code → component → container → system)
-2. Create nodes for ALL levels: code elements, components, containers, and software systems
-3. Build graph BOTTOM-UP: start with code level, then components, containers, then systems
-4. Create "refines" edges from lower to higher levels (code refines component, component refines container, etc.)
-5. Create "relates" edges between nodes at same level with same node type
-6. Ensure FULL connectivity: every node connects to at least one other node
-7. Use alreadyImplemented=true to sync nodes immediately to base graph
-8. Set node metadata to track implementation files
+1. Determine indexing scope: ALL levels (default) or specific level(s) if requested
+2. Analyze existing code files to identify structures at the specified C4 level(s)
+3. Create nodes for the target level(s): code elements, components, containers, and/or software systems as needed
+4. For FULL indexing: Build graph BOTTOM-UP - start with code level, then components, containers, then systems
+5. For SINGLE-LEVEL: Create only the specified level nodes without hierarchical connections unless they already exist
+6. Create "refines" edges from lower to higher levels when building hierarchies (code refines component, etc.)
+7. Create "relates" edges between nodes at same level with same node type
+8. Ensure connectivity: every new node connects to at least one other node (existing or newly created)
+9. Use alreadyImplemented=true to sync nodes immediately to base graph
+10. Set node metadata to track implementation files
 
 C4 Level Rules:
 - system (level 1, highest): Software systems delivering value to users, owned by single team
@@ -43,10 +49,12 @@ Every C4 element should have consistent properties: identity (id, title, descrip
 
 Rules:
 - ONLY LAUNCHED DURING INDEX COMMANDS - never during regular editing or building
-- Index ALL code that is not ignored - ensure complete coverage
+- Index ALL code that is not ignored - ensure complete coverage for specified level(s)
+- Support both FULL indexing (all C4 levels) and SINGLE-LEVEL indexing when requested
 - Sync to base graph immediately using alreadyImplemented=true
 - Do not run the project while indexing it
-- Build complete hierarchical structure from bottom up
+- For full indexing: Build complete hierarchical structure from bottom up
+- For single-level indexing: Create only specified level nodes and connect to existing hierarchy where possible
 
 Output: Status updates during analysis. End with summary of nodes created, edges added, and complete C4 structure.`;
 
@@ -269,7 +277,7 @@ Start each evaluation with: "Starting evaluation run {N} for scenario: {scenario
  */
 export const AGENTS_CONFIG = {
   'indexing': {
-    description: 'Code analysis agent that indexes existing code into graph nodes with CMS-style properties. ONLY LAUNCHED DURING INDEX COMMANDS. Uses Read/Glob/Grep to analyze code files and graph-tools to create nodes with customizable properties.',
+    description: 'Code analysis agent that indexes existing code into C4 model graph nodes with CMS-style properties. Supports both full indexing (all C4 levels) and single-level indexing. ONLY LAUNCHED DURING INDEX COMMANDS. Uses Read/Glob/Grep to analyze code files and graph-tools to create nodes with customizable properties.',
     prompt: INDEXING_PROMPT,
     tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'Read', 'Glob', 'Grep'],
     model: 'sonnet'

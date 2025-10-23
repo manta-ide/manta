@@ -1,8 +1,330 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <graph xmlns="urn:app:graph" version="1.0" directed="true">
   <nodes>
+    <node id="system-manta-ide" title="Manta IDE" x="0" y="0" z="0" type="system">
+      <description>Manta IDE is a graph-based development environment that enables developers to code by creating natural-language nodes. It provides a visual, node-based interface where developers can create architecture diagrams, user flows, or feature graphs. Each node has customizable properties that direct an AI coding agent to implement concrete changes. The system supports indexing existing codebases into C4 model hierarchies and building code from graph specifications. It integrates with Claude Code by Anthropic for AI-powered development assistance.</description>
+      <metadata>
+        <files>
+          <file>../../../../../../dev/manta/package.json</file>
+          <file>../../../../../../dev/manta/README.md</file>
+          <file>../../../../../../dev/manta/AGENTS.md</file>
+        </files>
+      </metadata>
+      <props>
+        <prop name="language" title="Primary Language" type="select">
+          <value>TypeScript</value>
+          <options>
+          <option>TypeScript</option>
+          </options>
+        </prop>
+        <prop name="framework" title="Framework" type="select">
+          <value>Next.js</value>
+          <options>
+          <option>Next.js</option>
+          </options>
+        </prop>
+        <prop name="deployment-model" title="Deployment Model" type="select">
+          <value>Standalone</value>
+          <options>
+          <option>Standalone</option>
+          <option>npm Package</option>
+          <option>Local Development</option>
+          </options>
+        </prop>
+        <prop name="user-interaction" title="User Interaction Model" type="text">Web browser-based visual graph editor with AI chat interface</prop>
+        <prop name="core-capabilities" title="Core Capabilities" type="object-list">
+        <item index="0">
+          <field name="capability-name" title="Name" type="text">Visual Graph Editor</field>
+          <field name="capability-description" title="Description" type="text">Node-based canvas for creating and editing software architecture</field>
+        </item>
+        <item index="1">
+          <field name="capability-name" title="Name" type="text">AI-Powered Code Generation</field>
+          <field name="capability-description" title="Description" type="text">Generate code from graph nodes using Claude AI</field>
+        </item>
+        <item index="2">
+          <field name="capability-name" title="Name" type="text">Code Indexing</field>
+          <field name="capability-description" title="Description" type="text">Analyze existing codebases and create C4 model representations</field>
+        </item>
+        <item index="3">
+          <field name="capability-name" title="Name" type="text">Property-Based Configuration</field>
+          <field name="capability-description" title="Description" type="text">Customize nodes with structured properties for precise control</field>
+        </item>
+      </prop>
+        <prop name="version" title="Version" type="text">0.1.82</prop>
+      </props>
+    </node>
+
+    <node id="system-web-frontend" title="Web Frontend System" x="-400" y="200" z="0" type="system">
+      <description>The Web Frontend System is a Next.js-based web application that provides the visual interface for Manta IDE. It runs in the user&apos;s browser and delivers the interactive graph editor, sidebars for node editing, floating chat interface, and real-time graph visualization using React Flow. The frontend communicates with the backend via REST APIs and Server-Sent Events for real-time updates. It manages state using Zustand and renders graph nodes with customizable shapes and properties.</description>
+      <metadata>
+        <files>
+          <file>../../../../../../dev/manta/src/app/page.tsx</file>
+          <file>../../../../../../dev/manta/src/lib/store.ts</file>
+          <file>../../../../../../dev/manta/src/components/GraphView.tsx</file>
+        </files>
+      </metadata>
+      <props>
+        <prop name="runtime-platform" title="Runtime Platform" type="select">
+          <value>Browser</value>
+          <options>
+          <option>Browser</option>
+          </options>
+        </prop>
+        <prop name="ui-framework" title="UI Framework" type="select">
+          <value>React 19</value>
+          <options>
+          <option>React 19</option>
+          </options>
+        </prop>
+        <prop name="state-management" title="State Management" type="select">
+          <value>Zustand</value>
+          <options>
+          <option>Zustand</option>
+          </options>
+        </prop>
+        <prop name="graph-visualization" title="Graph Visualization Library" type="select">
+          <value>@xyflow/react</value>
+          <options>
+          <option>@xyflow/react</option>
+          </options>
+        </prop>
+        <prop name="styling" title="Styling Approach" type="select">
+          <value>Tailwind CSS v4</value>
+          <options>
+          <option>Tailwind CSS v4</option>
+          </options>
+        </prop>
+        <prop name="communication-protocols" title="Communication Protocols" type="object-list">
+        <item index="0">
+          <field name="protocol-name" title="Protocol" type="text">HTTP/REST</field>
+          <field name="protocol-purpose" title="Purpose" type="text">Graph CRUD operations and file management</field>
+        </item>
+        <item index="1">
+          <field name="protocol-name" title="Protocol" type="text">Server-Sent Events (SSE)</field>
+          <field name="protocol-purpose" title="Purpose" type="text">Real-time graph updates and build notifications</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="system-backend-api" title="Backend API System" x="400" y="200" z="0" type="system">
+      <description>The Backend API System is a Next.js API layer running on Node.js that manages the Manta IDE&apos;s server-side operations. It handles graph storage and retrieval (XML-based), file system operations, layer management, and orchestrates Claude Code agent execution. The system provides REST endpoints for graph operations, SSE endpoints for real-time updates, and manages the graph state both in-memory and persisted to the file system. It supports multiple graph types (current working graph and base built graph) and implements graph diffing for build operations.</description>
+      <metadata>
+        <files>
+          <file>../../../../../../dev/manta/src/app/api/lib/graph-service.ts</file>
+          <file>../../../../../../dev/manta/src/app/api/graph-api/route.ts</file>
+          <file>../../../../../../dev/manta/src/app/api/claude-code/execute/route.ts</file>
+        </files>
+      </metadata>
+      <props>
+        <prop name="runtime" title="Runtime" type="select">
+          <value>Node.js 20+</value>
+          <options>
+          <option>Node.js 20+</option>
+          </options>
+        </prop>
+        <prop name="system-backend-api-framework" title="Framework" type="select">
+          <value>Next.js 15 App Router</value>
+          <options>
+          <option>Next.js 15 App Router</option>
+          </options>
+        </prop>
+        <prop name="storage-format" title="Graph Storage Format" type="select">
+          <value>XML</value>
+          <options>
+          <option>XML</option>
+          </options>
+        </prop>
+        <prop name="storage-location" title="Storage Location" type="text">File system (manta/ directory)</prop>
+        <prop name="graph-types" title="Graph Types" type="object-list">
+        <item index="0">
+          <field name="graph-type-name" title="Type" type="text">Current Graph</field>
+          <field name="graph-type-purpose" title="Purpose" type="text">Working graph with all edits and new nodes</field>
+        </item>
+        <item index="1">
+          <field name="graph-type-name" title="Type" type="text">Base Graph</field>
+          <field name="graph-type-purpose" title="Purpose" type="text">Last successfully built version for diffing</field>
+        </item>
+      </prop>
+        <prop name="api-endpoints" title="Key API Routes" type="object-list">
+        <item index="0">
+          <field name="endpoint-path" title="Path" type="text">/api/graph-api</field>
+          <field name="endpoint-purpose" title="Purpose" type="text">Graph CRUD and SSE streaming</field>
+        </item>
+        <item index="1">
+          <field name="endpoint-path" title="Path" type="text">/api/claude-code/execute</field>
+          <field name="endpoint-purpose" title="Purpose" type="text">Agent execution and orchestration</field>
+        </item>
+        <item index="2">
+          <field name="endpoint-path" title="Path" type="text">/api/files</field>
+          <field name="endpoint-purpose" title="Purpose" type="text">File system operations</field>
+        </item>
+        <item index="3">
+          <field name="endpoint-path" title="Path" type="text">/api/layers</field>
+          <field name="endpoint-purpose" title="Purpose" type="text">Layer management and filtering</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="system-agent-orchestration" title="Agent Orchestration System" x="0" y="400" z="0" type="system">
+      <description>The Agent Orchestration System manages the execution and coordination of specialized AI agents powered by Claude Code SDK. It implements an orchestrator pattern that routes user requests to the appropriate specialized agent: Indexing Agent (analyzes code and creates C4 model nodes), Editing Agent (handles graph structure operations), Building Agent (implements code from graph specifications), and Evaluation Agent (tests agent performance). The system discovers and manages Claude Code installations, provides MCP server integration for graph tools, and streams agent execution results back to the frontend.</description>
+      <metadata>
+        <files>
+          <file>../../../../../../dev/manta/src/app/api/lib/agentPrompts.ts</file>
+          <file>../../../../../../dev/manta/src/app/api/claude-code/execute/route.ts</file>
+          <file>../../../../../../dev/manta/src/app/api/lib/claude-code-tools.ts</file>
+        </files>
+      </metadata>
+      <props>
+        <prop name="orchestration-strategy" title="Orchestration Strategy" type="select">
+          <value>Command-based routing</value>
+          <options>
+          <option>Command-based routing</option>
+          </options>
+        </prop>
+        <prop name="agent-types" title="Specialized Agents" type="object-list">
+        <item index="0">
+          <field name="agent-name" title="Agent Name" type="text">Indexing Agent</field>
+          <field name="agent-trigger" title="Trigger Command" type="text">Index Command:</field>
+          <field name="agent-purpose" title="Purpose" type="text">Analyze code and create C4 model graph nodes</field>
+        </item>
+        <item index="1">
+          <field name="agent-name" title="Agent Name" type="text">Editing Agent</field>
+          <field name="agent-trigger" title="Trigger Command" type="text">Default (no prefix)</field>
+          <field name="agent-purpose" title="Purpose" type="text">Handle graph structure editing operations</field>
+        </item>
+        <item index="2">
+          <field name="agent-name" title="Agent Name" type="text">Building Agent</field>
+          <field name="agent-trigger" title="Trigger Command" type="text">Build Command:</field>
+          <field name="agent-purpose" title="Purpose" type="text">Implement code from graph specifications</field>
+        </item>
+        <item index="3">
+          <field name="agent-name" title="Agent Name" type="text">Evaluation Agent</field>
+          <field name="agent-trigger" title="Trigger Command" type="text">Eval Command:</field>
+          <field name="agent-purpose" title="Purpose" type="text">Test and evaluate agent performance</field>
+        </item>
+      </prop>
+        <prop name="ai-provider" title="AI Provider" type="select">
+          <value>Anthropic Claude (via Claude Code SDK)</value>
+          <options>
+          <option>Anthropic Claude (via Claude Code SDK)</option>
+          </options>
+        </prop>
+        <prop name="model" title="AI Model" type="select">
+          <value>claude-sonnet-4-5</value>
+          <options>
+          <option>claude-sonnet-4-5</option>
+          </options>
+        </prop>
+        <prop name="tool-integration" title="Tool Integration Protocol" type="select">
+          <value>Model Context Protocol (MCP)</value>
+          <options>
+          <option>Model Context Protocol (MCP)</option>
+          </options>
+        </prop>
+      </props>
+    </node>
+
+    <node id="system-graph-storage" title="Graph Storage System" x="400" y="600" z="0" type="system">
+      <description>The Graph Storage System manages the persistence and retrieval of graph data structures in XML format. It maintains multiple graph versions (current working graph and base built graph) and supports layered views of the architecture through C4 model levels (system, container, component, code) and user-defined custom layers. The system handles graph normalization, deduplication, XML serialization/deserialization, and implements layer-based filtering and positioning. All graph data is stored in the project&apos;s manta/ directory with separate files for different graph types and layers.</description>
+      <metadata>
+        <files>
+          <file>../../../../../../dev/manta/src/lib/graph-xml.ts</file>
+          <file>../../../../../../dev/manta/src/lib/layers-server.ts</file>
+          <file>../../../../../../dev/manta/src/lib/graph-diff.ts</file>
+        </files>
+      </metadata>
+      <props>
+        <prop name="system-graph-storage-storage-format" title="Storage Format" type="select">
+          <value>XML</value>
+          <options>
+          <option>XML</option>
+          </options>
+        </prop>
+        <prop name="file-location" title="Storage Location" type="text">Project manta/ directory</prop>
+        <prop name="layer-support" title="Layer Types" type="object-list">
+        <item index="0">
+          <field name="layer-name" title="Layer" type="text">C4 Layers</field>
+          <field name="layer-description" title="Description" type="text">Built-in system, container, component, code views</field>
+        </item>
+        <item index="1">
+          <field name="layer-name" title="Layer" type="text">Custom Layers</field>
+          <field name="layer-description" title="Description" type="text">User-defined layer definitions with node filtering</field>
+        </item>
+      </prop>
+        <prop name="graph-operations" title="Core Operations" type="object-list">
+        <item index="0">
+          <field name="operation-name" title="Operation" type="text">XML serialization/deserialization</field>
+        </item>
+        <item index="1">
+          <field name="operation-name" title="Operation" type="text">Graph normalization and deduplication</field>
+        </item>
+        <item index="2">
+          <field name="operation-name" title="Operation" type="text">Layer filtering and positioning</field>
+        </item>
+        <item index="3">
+          <field name="operation-name" title="Operation" type="text">Graph diff calculation</field>
+        </item>
+        <item index="4">
+          <field name="operation-name" title="Operation" type="text">Node state tracking (built/unbuilt)</field>
+        </item>
+      </prop>
+      </props>
+    </node>
+
+    <node id="system-claude-code-sdk" title="Claude Code SDK (External)" x="-400" y="600" z="0" type="system">
+      <description>Claude Code SDK is an external system by Anthropic that provides AI-powered code development capabilities. It enables autonomous agent execution with access to development tools like reading, writing, and editing files, running bash commands, and custom MCP tools. The Manta IDE integrates with this SDK to power its agent orchestration, allowing specialized agents to analyze code, generate implementations, and interact with the graph structure through custom graph-tools MCP server. The SDK handles model interactions, streaming responses, and tool execution lifecycle.</description>
+      <metadata>
+        <files>
+          <file>../../../../../../dev/manta/package.json</file>
+        </files>
+      </metadata>
+      <props>
+        <prop name="provider" title="Provider" type="text">Anthropic</prop>
+        <prop name="integration-type" title="Integration Type" type="select">
+          <value>External Dependency</value>
+          <options>
+          <option>External Dependency</option>
+          </options>
+        </prop>
+        <prop name="package-name" title="npm Package" type="text">@anthropic-ai/claude-agent-sdk</prop>
+        <prop name="capabilities" title="Key Capabilities" type="object-list">
+        <item index="0">
+          <field name="capability-name" title="Capability" type="text">File system operations (read, write, edit)</field>
+        </item>
+        <item index="1">
+          <field name="capability-name" title="Capability" type="text">Bash command execution</field>
+        </item>
+        <item index="2">
+          <field name="capability-name" title="Capability" type="text">MCP tool integration</field>
+        </item>
+        <item index="3">
+          <field name="capability-name" title="Capability" type="text">Streaming responses</field>
+        </item>
+        <item index="4">
+          <field name="capability-name" title="Capability" type="text">Agent subagent delegation</field>
+        </item>
+      </prop>
+        <prop name="communication-model" title="Communication Model" type="select">
+          <value>Streaming async generator</value>
+          <options>
+          <option>Streaming async generator</option>
+          </options>
+        </prop>
+      </props>
+    </node>
   </nodes>
 
   <edges>
+    <edge id="system-web-frontend-system-manta-ide" source="system-web-frontend" target="system-manta-ide" role="provides user interface for"/>
+    <edge id="system-backend-api-system-manta-ide" source="system-backend-api" target="system-manta-ide" role="provides server capabilities for"/>
+    <edge id="system-agent-orchestration-system-manta-ide" source="system-agent-orchestration" target="system-manta-ide" role="provides AI agent capabilities for"/>
+    <edge id="system-graph-storage-system-manta-ide" source="system-graph-storage" target="system-manta-ide" role="provides persistence for"/>
+    <edge id="system-web-frontend-system-backend-api" source="system-web-frontend" target="system-backend-api" role="communicates with via HTTP/SSE"/>
+    <edge id="system-backend-api-system-agent-orchestration" source="system-backend-api" target="system-agent-orchestration" role="delegates agent requests to"/>
+    <edge id="system-backend-api-system-graph-storage" source="system-backend-api" target="system-graph-storage" role="reads and writes graph data via"/>
+    <edge id="system-agent-orchestration-system-claude-code-sdk" source="system-agent-orchestration" target="system-claude-code-sdk" role="executes agents through"/>
+    <edge id="system-agent-orchestration-system-graph-storage" source="system-agent-orchestration" target="system-graph-storage" role="accesses graph data via MCP tools from"/>
   </edges>
 </graph>
