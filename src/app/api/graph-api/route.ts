@@ -369,11 +369,11 @@ export async function GET(req: NextRequest) {
       }
 
     if (!graph) {
-      console.log('ℹ️ No graph found in file system');
-      return NextResponse.json(
-        { error: 'Graph not found' },
-        { status: 404 }
-      );
+      console.log('ℹ️ No graph found in file system, creating empty graph');
+      // Create an empty graph for new projects
+      graph = { nodes: [], edges: [] };
+      // Save it to file so future requests find it
+      await storeCurrentGraph(graph, user.id);
     }
 
     // Apply layer filtering if specified

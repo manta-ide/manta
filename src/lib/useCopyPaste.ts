@@ -242,7 +242,6 @@ export function useCopyPaste() {
             label: node.title,
             node: node,
             properties: node.properties || [],
-            baseGraph: useProjectStore.getState().baseGraph,
             graph: updatedGraph,
             updateNode: updateNode,
           },

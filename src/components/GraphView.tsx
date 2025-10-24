@@ -781,13 +781,21 @@ function GraphCanvas() {
     if (!graph) return;
 
     const newNodeId = generateNodeId();
+    // Use the active layer's C4 type, defaulting to 'component' if not a valid C4 layer
+    const nodeType = (activeLayer === 'system' || activeLayer === 'container' || activeLayer === 'component' || activeLayer === 'code')
+      ? activeLayer as 'system' | 'container' | 'component' | 'code'
+      : 'component';
+    const nodeLevel = (activeLayer === 'system' || activeLayer === 'container' || activeLayer === 'component' || activeLayer === 'code')
+      ? activeLayer as 'system' | 'container' | 'component' | 'code'
+      : 'component';
+
     const newNode: GraphNode = {
       id: newNodeId,
       title: 'New Node',
       prompt: '',
       comment: '',
-      type: 'component',
-      level: 'component',
+      type: nodeType,
+      level: nodeLevel,
       shape: 'round-rectangle',
       position: { x: position.x, y: position.y, z: 0 }
     };
@@ -1201,17 +1209,17 @@ function GraphCanvas() {
 
   useEffect(() => {
     // Only fit view on the very first time nodes are loaded in the application
-    // This preserves viewport position when switching between layers
-    if (nodes.length > 0 && !hasInitiallyFittedRef.current && graphsLoaded) {
+    // This preserves viewport position when switching between layers and during editing
+    if (nodes.length > 0 && !hasInitiallyFittedRef.current && graphsLoaded && !optimisticOperationsActive) {
       // Defer to next tick to ensure layout/DOM size is ready
       setTimeout(() => {
         try {
           reactFlow.fitView({ padding: 0.2, duration: 500, includeHiddenNodes: true });
+          hasInitiallyFittedRef.current = true;
         } catch {}
       }, 0);
-      hasInitiallyFittedRef.current = true;
     }
-  }, [nodes, reactFlow, graphsLoaded]);
+  }, [nodes, reactFlow, graphsLoaded, optimisticOperationsActive]);
 
   // Select active search result node (no auto-pan or zoom)
   useEffect(() => {
@@ -1921,7 +1929,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, fullGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, reactFlow]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [graphsLoaded, graph, fullGraph, activeLayer, setNodes, setEdges, optimisticOperationsActive, reactFlow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -2321,8 +2329,9 @@ function GraphCanvas() {
         elementsSelectable={true}
         deleteKeyCode={[]}
         onViewportChange={(viewport) => {
-          // Only update currentViewport if we're not preserving a viewport during layer switch
-          if (!currentViewport) {
+          // Only update currentViewport during layer switches when preserving viewport state
+          // Don't update currentViewport during normal editing to prevent zoom resets
+          if (pendingLayerSwitch && !currentViewport) {
             setCurrentViewport(viewport);
           }
         }}
