@@ -4,7 +4,7 @@ import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import fs from 'fs';
 import path from 'path';
 import { getDevProjectDir } from '@/lib/project-config';
-import { getActiveLayer, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo, createLayer, getMainGraphPaths } from '@/lib/layers-server';
+import { getActiveLayer, setActiveLayer as persistActiveLayer, getLayersInfo, getMainGraphPaths } from '@/lib/layers-server';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
@@ -13,7 +13,6 @@ type GraphServiceRuntimeState = {
   currentGraph: Graph | null;
   activeStreams: Set<ReadableStreamDefaultController<Uint8Array>>;
   broadcastTimeout: NodeJS.Timeout | null;
-  baseGraphBroadcastTimeout: NodeJS.Timeout | null;
 };
 
 const globalGraphState = (globalThis as typeof globalThis & {
@@ -22,7 +21,6 @@ const globalGraphState = (globalThis as typeof globalThis & {
   currentGraph: null,
   activeStreams: new Set<ReadableStreamDefaultController<Uint8Array>>(),
   broadcastTimeout: null,
-  baseGraphBroadcastTimeout: null,
 };
 
 const getCurrentGraph = () => globalGraphState.currentGraph;
@@ -55,21 +53,9 @@ function getProjectDir(): string {
 function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
 function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
 
-function ensureDefaultLayer(): void {
-  // Check if any user-created layers exist, if not create a default one
-  const info = getLayersInfo();
-  const userLayers = info.layers.filter(layer => !['system', 'container', 'component', 'code'].includes(layer));
-  if (userLayers.length === 0) {
-    console.log('📝 Creating default layer since no user layers exist');
-    const name = createLayer('graph1');
-    persistActiveLayer(name);
-    console.log(`✅ Created default layer: ${name}`);
-  }
-}
+// No longer need to ensure default layers - C4 layers are always available
 
 function getCurrentGraphPath(): string {
-  // Ensure a default layer exists
-  ensureDefaultLayer();
 
   // Prefer active layer if configured
   try {
@@ -80,19 +66,7 @@ function getCurrentGraphPath(): string {
   } catch {}
   return path.join(getGraphDir(), 'current-graph.xml');
 }
-function getBaseGraphPath(): string {
-  // Ensure a default layer exists
-  ensureDefaultLayer();
-
-  // Prefer active layer if configured
-  try {
-    const paths = getMainGraphPaths();
-    if (paths.base && fs.existsSync(path.dirname(paths.base))) {
-      return paths.base;
-    }
-  } catch {}
-  return path.join(getGraphDir(), 'base-graph.xml');
-}
+// Removed getBaseGraphPath - base graphs no longer exist
 function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
 function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
 function readGraphFromFs(): Graph | null {
@@ -149,26 +123,7 @@ function writeCurrentGraphToFs(graph: Graph) {
   fs.writeFileSync(getCurrentGraphPath(), xml, 'utf8');
 }
 
-function readBaseGraphFromFs(): Graph | null {
-  try {
-    const basePath = getBaseGraphPath();
-    if (fs.existsSync(basePath)) {
-      const raw = fs.readFileSync(basePath, 'utf8');
-      const graph = xmlToGraph(raw);
-      const parsed = GraphSchema.safeParse(graph);
-      return parsed.success ? parsed.data : (graph as Graph);
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function writeBaseGraphToFs(graph: Graph) {
-  ensureGraphDir();
-  const xml = graphToXml(graph);
-  fs.writeFileSync(getBaseGraphPath(), xml, 'utf8');
-}
+// Removed readBaseGraphFromFs and writeBaseGraphToFs - base graphs no longer exist
 
 // SSE broadcast system
 const activeStreams = globalGraphState.activeStreams;
@@ -320,20 +275,14 @@ async function saveCurrentGraphToFs(graph: Graph): Promise<void> {
   writeCurrentGraphToFs(normalized);
 }
 
-async function saveBaseGraphToFs(graph: Graph): Promise<void> {
-  const normalized = normalizeGraph(graph);
-  writeBaseGraphToFs(normalized);
-}
+// Removed saveBaseGraphToFs - base graphs no longer exist
 
 // --- Public API (in-memory + persistence) ---
 export function getGraphSession(): Graph | null { return getCurrentGraph(); }
 
 export function getCurrentGraphSession(): Graph | null { return getCurrentGraph(); }
 
-export function getBaseGraphSession(): Graph | null {
-  // For now, we'll store this in memory too, but we could load from file if needed
-  return null; // Will be managed by frontend store
-}
+// Removed getBaseGraphSession - base graphs no longer exist
 
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
@@ -362,57 +311,9 @@ export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: st
   await saveCurrentGraphToFs(normalized);
 }
 
-export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
-  const normalized = normalizeGraph(graph);
-  await saveBaseGraphToFs(normalized);
-  // Broadcast base graph update for UI awareness
-  broadcastBaseGraphUpdate(normalized);
-}
+// Removed storeBaseGraph - base graphs no longer exist
 
-function broadcastBaseGraphUpdate(graph: Graph): void {
-  if (activeStreams.size === 0) return;
-
-  try {
-    const message = {
-      type: 'base-graph-update',
-      baseGraph: graph,
-      source: 'agent', // Mark as agent-driven to bypass SSE suppression
-      timestamp: new Date().toISOString()
-    };
-    const payload = `data: ${JSON.stringify(message)}\n\n`;
-
-    // Also send build completion signal
-    const completionMessage = {
-      type: 'build-complete',
-      message: 'Graph build process completed successfully',
-      timestamp: new Date().toISOString()
-    };
-    const completionPayload = `data: ${JSON.stringify(completionMessage)}\n\n`;
-    console.log('📤 Broadcasting build-complete message to all SSE clients');
-
-    // Don't clear pending broadcasts - use separate timeout for base graph updates
-    // to avoid interfering with regular graph broadcasts
-
-    // Debounce broadcasts to avoid spam (max 10 per second)
-    if (!globalGraphState.baseGraphBroadcastTimeout) {
-      globalGraphState.baseGraphBroadcastTimeout = setTimeout(() => {
-        for (const controller of activeStreams) {
-          try {
-            controller.enqueue(new TextEncoder().encode(payload));
-            // Also send completion signal
-            controller.enqueue(new TextEncoder().encode(completionPayload));
-          } catch (error) {
-            // Remove broken connections
-            activeStreams.delete(controller);
-          }
-        }
-        globalGraphState.baseGraphBroadcastTimeout = null;
-      }, 100);
-    }
-  } catch (error) {
-    console.error('Error broadcasting base graph update:', error);
-  }
-}
+// Removed broadcastBaseGraphUpdate - base graphs no longer exist
 
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
@@ -428,9 +329,7 @@ export async function loadCurrentGraphFromFile(_userId: string): Promise<Graph |
   return graph;
 }
 
-export async function loadBaseGraphFromFile(_userId: string): Promise<Graph | null> {
-  return readBaseGraphFromFs();
-}
+// Removed loadBaseGraphFromFile - base graphs no longer exist
 
 export async function clearGraphSession(): Promise<void> { setCurrentGraph(null); }
 
@@ -442,17 +341,7 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
   return current.nodes.find(node => node.id === nodeId) || null;
 }
 
-export function getUnbuiltNodeIds(): string[] {
-  const current = getCurrentGraph();
-  if (!current) return [];
-  const baseGraph = readBaseGraphFromFs();
-  if (!baseGraph) {
-    // If no base graph exists, consider all nodes unbuilt
-    return current.nodes.map(n => n.id);
-  }
-  const diff = analyzeGraphDiff(baseGraph as any, current as any);
-  return [...diff.addedNodes, ...diff.modifiedNodes];
-}
+// Removed getUnbuiltNodeIds - unbuilt node concept no longer exists
 
 export async function markNodesBuilt(nodeIds: string[], _userId: string): Promise<void> {
   const current = getCurrentGraph();
@@ -473,9 +362,6 @@ export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Prom
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
-  // Ensure default layer exists before trying to load graphs
-  ensureDefaultLayer();
-
   // Load current graph from file
   const currentGraphFromFile = readCurrentGraphFromFs();
   if (currentGraphFromFile) {
@@ -489,5 +375,5 @@ export function getActiveLayerName(): string | null { return getActiveLayer(); }
 export function setActiveLayer(name: string | null): void {
   persistActiveLayer(name ?? null);
 }
-export function ensureLayersDir(): void { ensureLayersRoot(); }
+// Removed ensureLayersDir - no longer needed
 export function getLayersState(): { layers: string[]; activeLayer: string | null } { return getLayersInfo(); }

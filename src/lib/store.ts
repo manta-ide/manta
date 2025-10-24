@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { FileNode, Graph, GraphNode, GraphEdge } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
 import { autoMarkUnbuiltFromBaseGraph } from './graph-diff';
-import { applyLayerToGraph, LayerDefinition } from './layers';
+import { applyLayerToGraph } from './layers';
 
 // Utility function to update graph states without reloading
 const updateGraphStates = (graph: Graph, baseGraph: Graph | null): Graph => {
@@ -31,7 +31,6 @@ interface ProjectStore {
   // Graph state
   layers: string[];
   activeLayer: string | null;
-  layerDefinitions: Map<string, LayerDefinition>; // Cache of layer definitions
   layersSidebarOpen: boolean;
   selectedNodeId: string | null;
   selectedNode: GraphNode | null;
@@ -77,12 +76,7 @@ interface ProjectStore {
   setResetting: (resetting: boolean) => void;
   // Layer operations
   loadLayers: () => Promise<void>;
-  loadLayerDefinitions: () => Promise<void>;
-  createLayer: (name?: string) => Promise<string | null>;
-  cloneLayer: (from: string, name?: string) => Promise<string | null>;
-  renameLayer: (from: string, to: string) => Promise<string | null>;
   setActiveLayer: (name: string) => Promise<void>;
-  deleteLayer: (name: string) => Promise<void>;
   setLayersSidebarOpen: (open: boolean) => void;
   toggleLayersSidebar: () => void;
   
@@ -195,7 +189,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph state
   layers: [],
   activeLayer: null,
-  layerDefinitions: new Map(),
   layersSidebarOpen: true,
   selectedNodeId: null,
   selectedNode: null,
@@ -234,7 +227,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     refreshTrigger: 0,
     layers: [],
     activeLayer: null,
-    layerDefinitions: new Map(),
     layersSidebarOpen: true,
     selectedNodeId: null,
     selectedNode: null,
@@ -397,85 +389,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const res = await fetch('/api/layers', { method: 'GET' });
       if (!res.ok) return;
       const data = await res.json();
-      const userLayers = Array.isArray(data.layers) ? data.layers : [];
-      // Always include C4 layers
-      const c4Layers = ['system', 'container', 'component', 'code'];
-      const allLayers = [...c4Layers, ...userLayers.filter((layer: string) => !c4Layers.includes(layer as any))];
-      set({ layers: allLayers, activeLayer: data.activeLayer ?? null });
-      // Also load layer definitions
-      await get().loadLayerDefinitions();
+      set({ layers: data.layers ?? [], activeLayer: data.activeLayer ?? null });
     } catch (e) {
       console.warn('Failed to load layers:', e);
     }
   },
-  createLayer: async (name?: string) => {
-    try {
-      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-      if (!res.ok) return null;
-      const data = await res.json();
-      await get().loadLayers();
-      return data?.name ?? null;
-    } catch (e) {
-      console.warn('Failed to create layer:', e);
-      return null;
-    }
-  },
-  cloneLayer: async (from: string, name?: string) => {
-    try {
-      const res = await fetch('/api/layers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cloneFrom: from, name, setActive: true }) });
-      if (!res.ok) return null;
-      const data = await res.json();
-      await get().loadLayers();
-      if (data?.name) {
-        // Switch to the cloned layer
-        await get().setActiveLayer(data.name);
-      }
-      return data?.name ?? null;
-    } catch (e) {
-      console.warn('Failed to clone layer:', e);
-      return null;
-    }
-  },
-  renameLayer: async (from: string, to: string) => {
-    try {
-      const res = await fetch('/api/layers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to }) });
-      if (!res.ok) return null;
-      const data = await res.json();
-      await get().loadLayers();
-      // Refresh both graphs in case active layer changed
-      await get().loadGraph();
-      await get().loadBaseGraph();
-      return data?.name ?? null;
-    } catch (e) {
-      console.warn('Failed to rename layer:', e);
-      return null;
-    }
-  },
   setActiveLayer: async (name: string) => {
-    // Check if this is a C4 layer
+    // Only C4 layers are supported
     const c4Layers = ['system', 'container', 'component', 'code'];
-    const isC4Layer = c4Layers.includes(name);
-
-    if (isC4Layer) {
-      // For C4 layers, update active layer immediately and refresh graph
-      set({ activeLayer: name });
-      await get().loadGraph();
-    } else {
-      // For user layers, use the API
-      await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-      // Update immediately for UI feedback; SSE will also refresh graph
-      set({ activeLayer: name });
-      // Refresh both current and base graphs after switch to ensure proper diff calculation
-      await get().loadGraph();
-      await get().loadBaseGraph();
+    if (!c4Layers.includes(name)) {
+      console.warn(`Invalid layer: ${name}. Only C4 layers are supported.`);
+      return;
     }
-  },
-  deleteLayer: async (name: string) => {
-    await fetch(`/api/layers?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
-    await get().loadLayers();
-    // Reload both graphs in case active layer changed
+
+    // Update active layer via API
+    await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    // Update immediately for UI feedback
+    set({ activeLayer: name });
+    // Refresh graph after layer switch
     await get().loadGraph();
-    await get().loadBaseGraph();
   },
   setLayersSidebarOpen: (open: boolean) => set({ layersSidebarOpen: open }),
   toggleLayersSidebar: () => set((state) => ({ layersSidebarOpen: !state.layersSidebarOpen })),
@@ -492,34 +424,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   
   // Graph operations
-  loadLayerDefinitions: async () => {
-    try {
-      const state = get();
-      const layerDefinitions = new Map<string, LayerDefinition>();
-      const c4Layers = ['system', 'container', 'component', 'code'];
-
-      // Load definitions for user layers only (skip C4 layers as they don't have definitions)
-      for (const layerName of state.layers) {
-        if (c4Layers.includes(layerName)) {
-          continue; // Skip C4 layers
-        }
-
-        try {
-          const res = await fetch(`/api/layers/${layerName}`, { method: 'GET' });
-          if (res.ok) {
-            const layerDef = await res.json();
-            layerDefinitions.set(layerName, layerDef);
-          }
-        } catch (error) {
-          console.warn(`Failed to load layer definition for ${layerName}:`, error);
-        }
-      }
-
-      set({ layerDefinitions });
-    } catch (error) {
-      console.warn('Failed to load layer definitions:', error);
-    }
-  },
 
   loadGraph: async () => {
     try {
@@ -545,13 +449,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         if (c4Layers.includes(state.activeLayer)) {
           // For C4 layers, filter by type directly
           graph = applyLayerToGraph(fullGraphWithDiff, state.activeLayer);
-        } else {
-          // For user layers, use the layer definition
-          const layerDef = state.layerDefinitions.get(state.activeLayer);
-          if (layerDef) {
-            graph = applyLayerToGraph(fullGraphWithDiff, layerDef);
-          }
         }
+        // User layers are no longer supported
       }
 
       set({ graph, graphLoading: false, graphError: null });
@@ -663,13 +562,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               if (c4Layers.includes(templateState.activeLayer)) {
                 // For C4 layers, filter by type directly
                 templateGraph = applyLayerToGraph(currentGraph, templateState.activeLayer);
-              } else {
-                // For user layers, use the layer definition
-                const layerDef = templateState.layerDefinitions.get(templateState.activeLayer);
-                if (layerDef) {
-                  templateGraph = applyLayerToGraph(currentGraph, layerDef);
-                }
               }
+              // User layers are no longer supported
             }
 
             console.log('✅ Graphs loaded, states computed, and layer filtering applied after template application');
@@ -725,13 +619,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         if (c4Layers.includes(state.activeLayer)) {
           // For C4 layers, filter by type directly
           graph = applyLayerToGraph(currentGraph, state.activeLayer);
-        } else {
-          // For user layers, use the layer definition
-          const layerDef = state.layerDefinitions.get(state.activeLayer);
-          if (layerDef) {
-            graph = applyLayerToGraph(currentGraph, layerDef);
-          }
         }
+        // User layers are no longer supported
       }
 
       console.log('✅ Graphs loaded, states computed, and layer filtering applied');

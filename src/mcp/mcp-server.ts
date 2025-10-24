@@ -101,62 +101,6 @@ server.tool({
   }
 });
 
-// Analyze diff tool - Analyze differences between current graph and base graph
-server.tool({
-  name: 'analyze_diff',
-  description: 'Analyze differences between current graph and base graph to see what changes need to be made. Can analyze entire graph or focus on a specific node.',
-  inputs: [
-    {
-      name: 'nodeId',
-      type: 'string',
-      required: false,
-      description: 'Optional node ID to analyze differences for. If not provided, analyzes the entire graph.'
-    }
-  ],
-  cb: async (params) => {
-    console.log('🔍 MCP TOOL: analyze_diff called', params);
-
-    try {
-      const response = await fetch(`${baseUrl}/api/graph-api`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'analyze_diff',
-          nodeId: params.nodeId
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || result.error) {
-        console.error('❌ MCP TOOL: analyze_diff API error:', result.error);
-        return {
-          content: [{
-            type: 'text',
-            text: `Error: ${result.error}`
-          }]
-        };
-      }
-
-      console.log('📤 MCP TOOL: analyze_diff API success');
-      return {
-        content: [{
-          type: 'text',
-          text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
-        }]
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('💥 MCP TOOL: analyze_diff API call error:', errorMessage);
-      return {
-        content: [{
-          type: 'text',
-          text: `Error: Failed to analyze diff via API: ${errorMessage}`
-        }]
-      };
-    }
-  }
-});
 
 // Resource for graph configuration
 server.resource({
@@ -170,10 +114,9 @@ server.resource({
       mimeType: 'application/json',
       text: JSON.stringify({
         baseUrl,
-        availableOperations: ['read', 'analyze_diff'],
-        graphType: 'current',
+        availableOperations: ['read'],
         layers: ['system', 'container', 'component', 'code'],
-        description: 'Read-only MCP server for Manta current graph operations'
+        description: 'Read-only MCP server for Manta graph operations'
       }, null, 2)
     }]
   })

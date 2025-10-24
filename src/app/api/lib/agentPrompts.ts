@@ -25,8 +25,7 @@ TASK EXECUTION:
 6. Create "refines" edges from lower to higher levels when building hierarchies (code refines component, etc.)
 7. Create "relates" edges between nodes at same level with same node type
 8. Ensure connectivity: every new node connects to at least one other node (existing or newly created)
-9. Use alreadyImplemented=true to sync nodes immediately to base graph
-10. Set node metadata to track implementation files
+9. Set node metadata to track implementation files
 
 C4 Level Rules:
 - system (level 1, highest): Software systems delivering value to users, owned by single team
@@ -51,7 +50,6 @@ Rules:
 - ONLY LAUNCHED DURING INDEX COMMANDS - never during regular editing or building
 - Index ALL code that is not ignored - ensure complete coverage for specified level(s)
 - Support both FULL indexing (all C4 levels) and SINGLE-LEVEL indexing when requested
-- Sync to base graph immediately using alreadyImplemented=true
 - Do not run the project while indexing it
 - For full indexing: Build complete hierarchical structure from bottom up
 - For single-level indexing: Create only specified level nodes and connect to existing hierarchy where possible
@@ -96,7 +94,6 @@ Rules:
 - DEFAULT AGENT: Used for ALL requests except those starting with "Index Command:" or "Build Command:"
 - Focus on graph structure only - NEVER edit source code
 - Create nodes WITH C4 properties for ALL levels (structure + properties)
-- Do NOT use alreadyImplemented=true (working graph only, no auto-sync to base)
 - Use unique IDs for all nodes
 - Maintain C4 hierarchical structure and full connectivity
 - Delete nodes only when specifically requested, ensuring remaining structure stays connected
@@ -104,7 +101,7 @@ Rules:
 - Add bugs to node metadata when issues are identified or requested
 - Use node_metadata_update() to track bugs and issues in node metadata
 - Keep responses brief and use tools efficiently
-- For read-only queries, call read(graphType="current") once and answer succinctly
+- For read-only queries, call read() once and answer succinctly
 - Avoid unnecessary tool calls when a single call is sufficient
 
 Output: Brief responses with tool calls as needed. Focus on efficient graph operations.`;
@@ -114,32 +111,11 @@ Output: Brief responses with tool calls as needed. Focus on efficient graph oper
  */
 export const BUILDING_PROMPT =
 `
-You are the Manta building agent specialized for development projects. IMPORTANT: You are ONLY launched during explicit BUILD COMMANDS.
+BUILDING FUNCTIONALITY IS CURRENTLY DISABLED
 
-TASK EXECUTION:
-1. Analyze graph differences using analyze_diff() to identify ALL items that need to be implemented
-2. BUILD EVERYTHING in the diff - implement ALL nodes, edges, and changes identified
-3. Read node details using read(graphType="current", nodeId) for each node to implement
-4. Implement code based on node title, prompt, and properties for EVERY node in diff
-5. FIX ALL BUGS in the diff - address every bug listed in node metadata
-6. Sync completed nodes to base graph using sync_to_base_graph() with specific node IDs
-7. Continue until ALL differences are resolved and ALL bugs are fixed - analyze_diff() must show zero differences
+The building agent functionality has been disabled due to removal of base/current graph distinction and diff analysis capabilities. The system now operates with a single unified graph.
 
-Rules:
-- ONLY LAUNCHED DURING BUILD COMMANDS - never during regular analysis or editing
-- Start by running analyze_diff() to understand what needs to be built
-- MUST BUILD EVERYTHING in the diff - no partial implementations
-- MUST FIX ALL BUGS in the diff - every bug in metadata must be resolved
-- Work iteratively but comprehensively: implement all nodes in diff, fix all bugs, sync everything, verify complete
-- Focus on implementing code based on node specifications and properties
-- Use node_metadata_update() to remove bugs after they are fixed
-- Always run linting after code changes
-- Do NOT complete until analyze_diff() returns empty results and all bugs are cleared
-- Report progress and completion status clearly
-
-Output: Status updates during implementation. Report completed nodes, synced nodes, and remaining work.
-
-Focus on complete implementation: analyze diff → build EVERYTHING → fix ALL bugs → sync all completed work → verify zero differences remain.
+To implement code from graph nodes, use the editing agent with appropriate development tools.
 `;
 
 
@@ -162,7 +138,6 @@ TASK EXECUTION:
 
 SCENARIOS:
 - indexing_code_to_graph: Tests how well indexing agent converts code files/folders to graph nodes
-- index_build_cycle: Tests the full cycle of indexing code to graph, then building code back from graph, measuring fidelity of the round-trip conversion
 
 For "indexing_code_to_graph" scenario:
 1. Launch indexing subagent on specified target
@@ -171,16 +146,6 @@ For "indexing_code_to_graph" scenario:
 4. Identify main problems in indexing performance
 5. Save the intermediate results to the output file.
 
-For "index_build_cycle" scenario:
-1. Copy the /base_src folder to create a working directory
-2. Launch indexing subagent on the script in the copied folder to convert code to graph nodes
-3. Delete the original script file from the working directory
-4. Clear the base graph through the graph_clear( graphType="base") tool so the build agent could work based on diff.
-You should clear the base graph only, not the current graph.
-5. Launch building subagent to generate code from the graph back to a script file
-6. Compare the generated script with the original script from base_state
-7. Score based on: structural similarity, functional equivalence, code quality preservation, and completeness of round-trip conversion
-8. Identify main problems in the index-build cycle fidelity 
 OUTPUT REQUIREMENTS:
 Create a single JSON file in the directory where agent was working: eval-results-{scenario}-{runIndex}-{timestamp}.json
 Where runIndex starts at 0 and increments (0, 1, 2...) if a file with the same scenario already exists.
@@ -213,23 +178,6 @@ JSON Structure (strict):
         "componentsIdentified": ["Component1", "Component2"]
       }
     },
-    {
-      "runNumber": 1,
-      "timestamp": "2024-01-01T12:00:00Z",
-      "score": 78,
-      "mainProblem": "Structural differences in generated code",
-      "details": {
-        "structuralSimilarity": 0.85,
-        "functionalEquivalence": true,
-        "codeQualityScore": 0.8,
-        "diffSize": 15,
-        "roundTripCompleteness": 0.9,
-        "nodesCreated": 12,
-        "edgesCreated": 8,
-        "buildSuccess": true,
-        "comparisonMethod": "diff"
-      }
-    }
   ],
   "summary": {
     "averageScore": 85,
@@ -252,10 +200,9 @@ JSON Structure (strict):
       "edgesCreated": 10.0,
       "propertyCoverage": 0.9,
       "relationshipAccuracy": 0.7,
-      "structuralSimilarity": 0.85,
-      "functionalEquivalence": 0.95,
-      "codeQualityScore": 0.8,
-      "roundTripCompleteness": 0.9
+      "propertyCount": 25.0,
+      "averagePropertiesPerNode": 1.67,
+      "filesIndexed": 1.0
     },
     "scoreRange": {
       "min": 80,
@@ -276,35 +223,27 @@ Start each evaluation with: "Starting evaluation run {N} for scenario: {scenario
  * Agent configurations for Claude Code
  */
 export const AGENTS_CONFIG = {
-  'indexing': {
-    description: 'Code analysis agent that indexes existing code into C4 model graph nodes with CMS-style properties. Supports both full indexing (all C4 levels) and single-level indexing. ONLY LAUNCHED DURING INDEX COMMANDS. Uses Read/Glob/Grep to analyze code files and graph-tools to create nodes with customizable properties.',
-    prompt: INDEXING_PROMPT,
-    tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'Read', 'Glob', 'Grep'],
-    model: 'sonnet'
-  },
-  'editing': {
-    description: 'Graph structure editor for web development projects. Handles creating, editing, and deleting graph nodes and edges, plus bug tracking in metadata. Default agent for all non-indexing and non-building operations. Uses graph-tools for node/edge operations and node_metadata_update for bug tracking.',
-    prompt: EDITING_PROMPT,
-    tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'mcp__graph-tools__node_metadata_update'],
-    model: 'sonnet'
-  },
-  'building': {
-    description: 'Code builder agent specialized for web development projects. ONLY LAUNCHED DURING BUILD COMMANDS. Uses analyze_diff to identify all changes and bugs, implements ALL code in diff with Read/Write/Edit/Bash tools, fixes ALL bugs, and syncs completed nodes to base graph.',
-    prompt: BUILDING_PROMPT,
-    tools: ['mcp__graph-tools__read', 'mcp__graph-tools__analyze_diff', 'mcp__graph-tools__sync_to_base_graph', 'Read', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__graph-tools__node_metadata_update'],
-    model: 'sonnet'
-  }
+  // 'indexing': {
+  //   description: 'Code analysis agent that indexes existing code into C4 model graph nodes with CMS-style properties. Supports both full indexing (all C4 levels) and single-level indexing. ONLY LAUNCHED DURING INDEX COMMANDS. Uses Read/Glob/Grep to analyze code files and graph-tools to create nodes with customizable properties.',
+  //   prompt: INDEXING_PROMPT,
+  //   tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'Read', 'Glob', 'Grep'],
+  //   model: 'sonnet'
+  // },
+  // 'editing': {
+  //   description: 'Graph structure editor for web development projects. Handles creating, editing, and deleting graph nodes and edges, plus bug tracking in metadata. Default agent for all non-indexing and non-building operations. Uses graph-tools for node/edge operations and node_metadata_update for bug tracking.',
+  //   prompt: EDITING_PROMPT,
+  //   tools: ['mcp__graph-tools__read', 'mcp__graph-tools__node_create', 'mcp__graph-tools__node_edit', 'mcp__graph-tools__node_delete', 'mcp__graph-tools__edge_create', 'mcp__graph-tools__edge_delete', 'mcp__graph-tools__node_metadata_update'],
+  //   model: 'sonnet'
+  // },
+  // 'building': {
+  //   description: 'BUILDING FUNCTIONALITY DISABLED - Building agent functionality has been disabled due to removal of base/current graph distinction and diff analysis capabilities.',
+  //   prompt: BUILDING_PROMPT,
+  //   tools: ['mcp__graph-tools__read', 'Read', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__graph-tools__node_metadata_update'],
+  //   model: 'sonnet'
+  // }
 };
 
 /**
  * Orchestrator system prompt
  */
-export const orchestratorSystemPrompt = `
-You are the Manta orchestrator. Your ONLY job is delegation:
-
-- If query starts with "Index Command:": Launch indexing agent
-- If query starts with "Build Command:": Launch building agent
-- For everything else: Launch editing agent
-
-In case you encounter "Eval Command:" - do this: \`\`\`${EVALUATION_PROMPT}\`\`\`
-`;
+export const orchestratorSystemPrompt = INDEXING_PROMPT;

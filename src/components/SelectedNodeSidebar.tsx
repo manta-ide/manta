@@ -440,7 +440,7 @@ export default function SelectedNodeSidebar() {
 								)}
 								{rebuildSuccess && (
 									<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-1.5">
-										Node rebuilt successfully!
+										Node saved successfully!
 									</div>
 								)}
 							</div>

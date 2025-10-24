@@ -38,9 +38,8 @@ import remarkBreaks from 'remark-breaks';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
-import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Hand, SquareDashed, Loader2, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
+import { Hand, SquareDashed, Loader2, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 import Shape from './shapes';
 import { getShapeConfig } from './shapes/types';
@@ -89,8 +88,15 @@ const commentMarkdownComponents = {
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
-  const baseGraph = data.baseGraph;
   const updateNode = data.updateNode;
+  const { zoom } = useViewport();
+  const {
+    searchResults,
+    searchActiveIndex,
+    searchQuery,
+    searchCaseSensitive,
+    searchOpen,
+  } = useProjectStore();
 
   // Special handling for outline nodes (upper level boundaries)
   if (data.isOutline) {
@@ -161,14 +167,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
       </div>
     );
   }
-  const { zoom } = useViewport();
-  const {
-    searchResults,
-    searchActiveIndex,
-    searchQuery,
-    searchCaseSensitive,
-    searchOpen,
-  } = useProjectStore();
 
   const activeResult = (Array.isArray(searchResults) && searchActiveIndex >= 0)
     ? searchResults[searchActiveIndex]
@@ -223,80 +221,21 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const indicatorSize = isZoomedOut ? '16px' : '12px';
 
 
-  // Derive effective visual state based on base graph comparison
-  const effectiveState = (() => {
+  // All nodes are considered built since we removed the base/current graph distinction
+  const effectiveState = 'built';
 
-    // Check if node has bugs - if so, it's always unbuilt
-    const bugs = node.metadata?.bugs;
-    const hasBugs = bugs && Array.isArray(bugs) && bugs.length > 0;
-    if (hasBugs) {
-      return 'unbuilt';
-    }
-
-    if (!baseGraph) {
-      console.log(`   ❌ No base graph available`);
-      return 'unbuilt'; // No base graph, consider unbuilt
-    }
-
-    const baseNode = baseGraph.nodes.find((n: any) => n.id === node.id);
-    const isInCurrentGraph = data.graph?.nodes.some((n: any) => n.id === node.id) ?? false;
-
-    // Check if node exists in base graph but not in current graph (inverted diff for "to be deleted")
-    if (baseNode && !isInCurrentGraph) {
-      console.log('   👻 Node exists in base but not in current - marking as ghosted');
-      return 'ghosted';
-    }
-
-    if (!baseNode) {
-      console.log(`   ❌ No matching base node found`);
-      return 'unbuilt'; // New node, consider unbuilt
-    }
-
-    // Use the same diff logic as analyzeGraphDiff - compares title, prompt, type, AND properties
-    const isSame = !nodesAreDifferent(baseNode, node);
-    const result = isSame ? 'built' : 'unbuilt';
-
-    return result;
-  })();
-
-  // Determine styling based on node state (built/unbuilt)
+  // Determine styling based on node state
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '3px' : '0px';
 
-    switch (effectiveState) {
-      case 'built':
-      case 'unbuilt': // Unbuilt nodes look the same as built nodes visually
-        return {
-          background: selected ? '#f8fafc' : '#ffffff',
-          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
-          boxShadow: selected
-            ? '0 0 0 2px #2563eb'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
-        };
-
-      case 'ghosted': {
-        const borderColor = selected ? '#2563eb' : '#d1d5db';
-        return {
-          background: 'rgba(243, 244, 246, 0.85)',
-          border: `1px dashed ${borderColor}`,
-          boxShadow: selected ? '0 0 0 2px rgba(37, 99, 235, 0.25)' : 'none',
-          borderRadius: '8px',
-          opacity: selected ? 0.75 : 0.55,
-          filter: 'saturate(0.3)',
-        };
-      }
-
-      default: // Any other state - treat as unbuilt
-        return {
-          background: selected ? '#f8fafc' : '#ffffff',
-          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
-          boxShadow: selected
-            ? '0 0 0 2px #2563eb'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
-        };
-    }
+    return {
+      background: selected ? '#f8fafc' : '#ffffff',
+      border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+      boxShadow: selected
+        ? '0 0 0 2px #2563eb'
+        : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+      borderRadius: '8px',
+    };
   };
   
   // Always show detailed view at all zoom levels
@@ -370,43 +309,6 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         }}
       />
 
-      {effectiveState === 'ghosted' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '12px',
-            zIndex: 3,
-            background: '#ef4444',
-            color: '#ffffff',
-            padding: '4px 8px',
-            borderRadius: '9999px',
-            fontSize: '11px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            pointerEvents: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          To be deleted
-        </div>
-      )}
-      {/* State indicators - only show for shapes that support it */}
-      {effectiveState === 'unbuilt' && shapeConfig.showStateIndicators && (
-        <div style={{
-          position: 'absolute',
-          top: shapeConfig.indicatorPosition.top,
-          right: shapeConfig.indicatorPosition.right,
-          width: indicatorSize,
-          height: indicatorSize,
-          borderRadius: '50%',
-          background: '#ef4444',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
-          zIndex: 2,
-        }} />
-      )}
 
 
       {/* Resize handles - only for resizable nodes (e.g., comments) */}
@@ -623,10 +525,7 @@ function GraphCanvas() {
     selectedEdgeIds,
     setSelectedEdgeIds,
     buildEntireGraph,
-    isBuildingGraph,
-    baseGraph,
-    setBaseGraph,
-    loadBaseGraph
+    isBuildingGraph
   } = useProjectStore();
   // Tool modes: 'select', 'pan', 'add-node', 'comment'
   const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node' | 'comment'>('select');
@@ -662,22 +561,16 @@ function GraphCanvas() {
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
 
   // Edge visual styles
-  const defaultEdgeStyle = {
+  const defaultEdgeStyle = useMemo(() => ({
     stroke: '#9ca3af',
     strokeWidth: 2,
     opacity: 0.8,
-  } as const;
-  const selectedEdgeStyle = {
+  } as const), []);
+  const selectedEdgeStyle = useMemo(() => ({
     stroke: '#3b82f6',
     strokeWidth: 4,
     opacity: 1,
-  } as const;
-  const unbuiltEdgeStyle = {
-    stroke: '#ef4444',  // Highlight updated edges
-    strokeWidth: 3,
-    opacity: 0.9,
-    strokeLinecap: 'round' as const,
-  } as const;
+  } as const), []);
 
   type EdgeShape = 'refines' | 'relates';
   const DEFAULT_EDGE_SHAPE: EdgeShape = 'relates';
@@ -922,7 +815,6 @@ function GraphCanvas() {
           label: newNode.title,
           node: newNode,
           properties: newNode.properties,
-          baseGraph: baseGraph,
           graph: graph
         },
         type: 'custom',
@@ -958,7 +850,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive]);
+  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, suppressSSE]);
 
   // Create a new comment node at the specified position with custom dimensions
   const createCommentNode = useCallback(async (position: { x: number; y: number }, dimensions: { width: number; height: number }) => {
@@ -1004,7 +896,6 @@ function GraphCanvas() {
           label: newNode.title,
           node: newNode,
           properties: newNode.properties,
-          baseGraph: baseGraph,
           graph: graph
         },
         type: 'custom',
@@ -1040,7 +931,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool]);
+  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, suppressSSE]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -1194,7 +1085,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [nodes, edges, selectedNodeIds, baseGraph, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive, suppressSSE]);
+  }, [nodes, edges, selectedNodeIds, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive, suppressSSE]);
 
   // Listen for delete-selected events from copy-paste operations
   useEffect(() => {
@@ -1524,8 +1415,7 @@ function GraphCanvas() {
       const updated = applyEdgeChanges(changes, eds);
       return updated.map((e) => {
         const shape = resolveEdgeShape(e);
-        const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-        const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+        const baseStyle = e.selected ? selectedEdgeStyle : defaultEdgeStyle;
         const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
         return {
           ...e,
@@ -1535,12 +1425,12 @@ function GraphCanvas() {
         };
       });
     });
-  }, [setEdges, baseGraph, resolveEdgeShape, applyEdgeShapeToStyle]);
+  }, [setEdges, resolveEdgeShape, applyEdgeShapeToStyle, defaultEdgeStyle, selectedEdgeStyle]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
-      console.log('🔄 Graph rebuild triggered:', { hasGraph: !!graph, hasBaseGraph: !!baseGraph, loading });
+      console.log('🔄 Graph rebuild triggered:', { hasGraph: !!graph, loading });
 
       // Skip rebuild if optimistic operations are in progress to prevent overriding local changes
       if (optimisticOperationsActive) {
@@ -1557,7 +1447,7 @@ function GraphCanvas() {
       }
 
       // Both graphs are loaded together synchronously
-      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, baseGraph: !!baseGraph, activeLayer });
+      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, activeLayer });
 
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
@@ -1568,10 +1458,10 @@ function GraphCanvas() {
       const isPropertyOnlyChange = prevGraphStructureRef.current === currentStructure && latestNodesRef.current.length > 0;
 
       if (isPropertyOnlyChange) {
-        // Only properties or baseGraph changed - update existing nodes/edges without full rebuild
+        // Only properties changed - update existing nodes/edges without full rebuild
         console.log('🔄 Updating node data and edge styles without full rebuild');
 
-        // Update node payloads to reflect latest graph node data AND new baseGraph reference
+        // Update node payloads to reflect latest graph node data
         setNodes(currentNodes =>
           currentNodes.map(node => {
             const graphNode = graph.nodes.find(n => n.id === node.id);
@@ -1587,7 +1477,7 @@ function GraphCanvas() {
                   ...node.data,
                   node: graphNode,
                   properties: graphNode.properties || [],
-                  baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
+ // ensure CustomNode computes state against latest base graph
                   graph: graph
                 }
               };
@@ -1596,13 +1486,12 @@ function GraphCanvas() {
           })
         );
 
-        // Also refresh edge styling (built/unbuilt) against latest baseGraph
+        // Also refresh edge styling
         setEdges(currentEdges =>
           currentEdges.map(e => {
             const graphEdge = (graph?.edges || []).find((edge: any) => edge.id === e.id || (`${edge.source}-${edge.target}` === e.id));
             const shape = resolveEdgeShape(graphEdge || e);
-            const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-            const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            const baseStyle = e.selected ? selectedEdgeStyle : defaultEdgeStyle;
             const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
             return {
               ...e,
@@ -1689,10 +1578,9 @@ function GraphCanvas() {
       const currentPositions = new Map<string, { x: number; y: number }>();
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
-      // Include nodes from base graph that are not in current graph (for ghosted display in full view only)
+      // Only use nodes from the current graph
       const currentNodeIds = new Set(graph.nodes.map(n => n.id));
       const isLayerView = activeLayer && ['system', 'container', 'component', 'code'].includes(activeLayer);
-      const baseOnlyNodes = !isLayerView && baseGraph ? baseGraph.nodes.filter(n => !currentNodeIds.has(n.id)).map(node => ({ ...node, state: 'ghosted' as const })) : [];
 
       // Add upper level node outlines for C4 layers
       let outlineNodes: any[] = [];
@@ -1771,20 +1659,19 @@ function GraphCanvas() {
 
       console.log('📋 Node counts:', {
         graphNodes: graph.nodes.length,
-        baseOnlyNodes: baseOnlyNodes.length,
         outlineNodes: outlineNodes.length,
-        totalAllNodes: graph.nodes.length + baseOnlyNodes.length + outlineNodes.length
+        totalAllNodes: graph.nodes.length + outlineNodes.length
       });
 
-      const allNodes = [...graph.nodes, ...baseOnlyNodes, ...outlineNodes];
+      const allNodes = [...graph.nodes, ...outlineNodes];
 
       // Sort nodes by z-index (lower z-index renders first/behind)
       // Put outline nodes first so they render behind regular nodes
       const sortedNodes = allNodes.sort((a, b) => {
-        const aIsOutline = (a as any).state === 'ghosted' || (a as any).type === 'outline';
-        const bIsOutline = (b as any).state === 'ghosted' || (b as any).type === 'outline';
+        const aIsOutline = (a as any).type === 'outline';
+        const bIsOutline = (b as any).type === 'outline';
 
-        // Outline nodes and ghosted nodes go first (behind)
+        // Outline nodes go first (behind)
         if (aIsOutline && !bIsOutline) return -1;
         if (!aIsOutline && bIsOutline) return 1;
 
@@ -1860,7 +1747,6 @@ function GraphCanvas() {
                 label: node.title,
                 node: node,
                 properties: node.properties || [],
-                baseGraph: baseGraph,
                 graph: graph,
                 fullGraph: fullGraph,
                 updateNode: updateNode,
@@ -1895,7 +1781,6 @@ function GraphCanvas() {
             label: node.title,
             node: node,
             properties: node.properties || [],
-            baseGraph: baseGraph,
             graph: graph,
             updateNode: updateNode
           },
@@ -1916,9 +1801,8 @@ function GraphCanvas() {
       // but keep the original orientation and handle anchors of the first occurrence.
       const addedSymmetric = new Set<string>();
 
-      // Collect edges from both base and current graphs
+      // Collect edges from the current graph
       const allEdges = [
-        ...(baseGraph?.edges || []),
         ...(graph as any).edges || []
       ];
 
@@ -1962,9 +1846,7 @@ function GraphCanvas() {
                 }
               }
             }
-              
-          // Check if edge is unbuilt
-          const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
+  
           const shape = resolveEdgeShape(edge);
 
           // Check if either connected node has negative z-index (like comments)
@@ -1978,7 +1860,7 @@ function GraphCanvas() {
 
           const baseStyle = previouslySelectedEdges.has(edge.id)
             ? selectedEdgeStyle
-            : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            : defaultEdgeStyle;
           const style = applyEdgeShapeToStyle(baseStyle, shape);
 
           reactFlowEdges.push({
@@ -2039,7 +1921,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, graph, fullGraph, baseGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, reactFlow]);
+  }, [graphsLoaded, graph, fullGraph, activeLayer, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive, reactFlow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -2089,7 +1971,7 @@ function GraphCanvas() {
 
     // Store the new edge for potential rollback
     const shape: EdgeShape = DEFAULT_EDGE_SHAPE;
-    const styledUnbuilt = applyEdgeShapeToStyle(unbuiltEdgeStyle, shape);
+    const styledEdge = applyEdgeShapeToStyle(defaultEdgeStyle, shape);
 
     const newEdge = {
       id: `${params.source}-${params.target}`,
@@ -2098,8 +1980,8 @@ function GraphCanvas() {
       sourceHandle: params.sourceHandle || inferredSourceHandle,
       targetHandle: params.targetHandle || inferredTargetHandle,
       type: 'default' as const,
-      style: styledUnbuilt,
-      markerEnd: makeArrowForStyle(styledUnbuilt),
+      style: styledEdge,
+      markerEnd: makeArrowForStyle(styledEdge),
       interactionWidth: 24,
       selected: false,
       data: { shape },
@@ -2223,7 +2105,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [setEdges, setOptimisticOperationsActive, nodes, suppressSSE, unbuiltEdgeStyle]);
+  }, [setEdges, setOptimisticOperationsActive, nodes, suppressSSE, applyEdgeShapeToStyle, defaultEdgeStyle]);
 
   // Throttle position broadcasts to prevent spam
   const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
@@ -2425,7 +2307,7 @@ function GraphCanvas() {
         /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
         panOnScroll={true}
         panOnScrollMode={PanOnScrollMode.Free}
-        zoomOnScroll={false}
+        zoomOnScroll={true}
         zoomOnPinch={true}
         /* Dynamic pan behavior based on tool mode */
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
@@ -2604,29 +2486,6 @@ function GraphCanvas() {
             <>
               <Wand2 className="w-4 h-4 mr-2" />
               Auto Layout
-            </>
-          )}
-        </Button>
-        {/* Build Entire Graph Button */}
-        <Button
-          onClick={buildEntireGraph}
-          disabled={isBuildingGraph || !graph}
-          variant="outline"
-          size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
-            isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
-          }`}
-          title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
-        >
-          {isBuildingGraph ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Building Graph...
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 mr-2" />
-              Build Graph
             </>
           )}
         </Button>

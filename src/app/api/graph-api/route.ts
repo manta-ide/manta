@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph, registerStreamController, unregisterStreamController, storeCurrentGraph, storeBaseGraph, loadCurrentGraphFromFile, loadBaseGraphFromFile, storeCurrentGraphWithoutBroadcast, storeCurrentGraphFromAgent } from '../lib/graph-service';
+import { getGraphSession, loadGraphFromFile, storeGraph, registerStreamController, unregisterStreamController, storeCurrentGraph, loadCurrentGraphFromFile, storeCurrentGraphWithoutBroadcast, storeCurrentGraphFromAgent } from '../lib/graph-service';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
-import { analyzeGraphDiff } from '@/lib/graph-diff';
 import { GraphSchema, PropertySchema, NodeMetadataSchema } from '../lib/schemas';
 import type { NodeMetadata } from '../lib/schemas';
 import path from 'path';
@@ -206,6 +205,30 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
   return { files, bugs: [] };
 };
 
+// Helper function to read current graph
+async function readLocalGraph(): Promise<any | null> {
+  try {
+    console.log('🔍 TOOL: readLocalGraph via graph-service helpers');
+    const currentGraph = await loadCurrentGraphFromFile(DEFAULT_USER_ID);
+
+    if (!currentGraph) {
+      console.log('🔍 TOOL: No graph files found');
+      return null;
+    }
+
+    const parsed = GraphSchema.safeParse(currentGraph);
+    if (!parsed.success) {
+      console.error('🔍 TOOL: Graph schema validation failed:', parsed.error);
+      return null;
+    }
+
+    return { graph: cloneGraph(parsed.data) };
+  } catch (error) {
+    console.error('🔍 TOOL: Error reading local graph:', error);
+    return null;
+  }
+}
+
 // Helper function to save graph
 async function saveGraph(graph: any): Promise<{ success: boolean; error?: string }> {
   console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0);
@@ -236,10 +259,7 @@ async function getSessionFromRequest(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // Ensure layers directory exists and initialize graphs if needed
-    const { ensureLayersRoot } = await import('@/lib/layers-server');
-    const { initializeGraphsFromFiles } = await import('../lib/graph-service');
-    ensureLayersRoot();
-    await initializeGraphsFromFiles();
+    // No longer need to initialize layers - C4 layers are always available
 
     // Get current user session for all GET requests
     const session = await getSessionFromRequest(req);
@@ -251,7 +271,6 @@ export async function GET(req: NextRequest) {
     const isSSE = url.searchParams.get('sse') === 'true';
     const getUnbuiltNodes = url.searchParams.get('unbuilt') === 'true';
     const fresh = url.searchParams.get('fresh') === 'true'; // Force fresh read from filesystem
-    const graphType = url.searchParams.get('type') || url.searchParams.get('graphType'); // 'current', 'base', 'diff', or undefined for default
     const nodeId = url.searchParams.get('nodeId'); // For reading specific nodes
     const layer = url.searchParams.get('layer'); // For filtering by C4 layer
     const accept = (req.headers.get('accept') || '').toLowerCase();
@@ -327,114 +346,24 @@ export async function GET(req: NextRequest) {
       return new Response(stream, { headers });
     }
 
-    // Check if requesting unbuilt nodes only
-    if (getUnbuiltNodes) {
-      // Load both current and base graphs to compare
-      const currentGraph = await loadCurrentGraphFromFile(user.id);
-      const baseGraph = await loadBaseGraphFromFile(user.id);
 
-      if (!currentGraph) {
-        console.log('ℹ️ No current graph found in file system');
-        return NextResponse.json(
-          { error: 'Current graph not found' },
-          { status: 404 }
-        );
-      }
-
-      if (!baseGraph) {
-        console.log('ℹ️ No base graph found - all nodes considered unbuilt');
-        // If no base graph exists, all nodes are unbuilt
-        const unbuiltNodeIds = currentGraph.nodes.map(node => node.id);
-        return NextResponse.json({
-          success: true,
-          unbuiltNodeIds: unbuiltNodeIds,
-          count: unbuiltNodeIds.length
-        });
-      }
-
-      // Use graph diff to find unbuilt nodes (added or modified)
-      const diff = analyzeGraphDiff(baseGraph, currentGraph);
-      const unbuiltNodeIds = [...diff.addedNodes, ...diff.modifiedNodes];
-
-      console.log(`✅ Returning ${unbuiltNodeIds.length} unbuilt node IDs (${diff.addedNodes.length} added, ${diff.modifiedNodes.length} modified)`);
-
-      return NextResponse.json({
-        success: true,
-        unbuiltNodeIds: unbuiltNodeIds,
-        count: unbuiltNodeIds.length
-      });
-    }
-
-    // Handle diff request
-    if (graphType === 'diff') {
-      console.log('📊 Getting graph diff...');
-
-      // Load both current and base graphs to compare
-      const currentGraph = await loadCurrentGraphFromFile(user.id);
-      const baseGraph = await loadBaseGraphFromFile(user.id);
-
-      if (!currentGraph) {
-        console.log('ℹ️ No current graph found');
-        return NextResponse.json(
-          { error: 'Current graph not found' },
-          { status: 404 }
-        );
-      }
-
-      if (!baseGraph) {
-        console.log('ℹ️ No base graph found - all current nodes are new');
-        // If no base graph exists, all current nodes are considered "added"
-        const diff = {
-          addedNodes: currentGraph.nodes.map(n => n.id),
-          modifiedNodes: [],
-          deletedNodes: [],
-          addedEdges: [],
-          deletedEdges: []
-        };
-        return NextResponse.json({
-          success: true,
-          diff,
-          summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted, ${diff.addedEdges.length} edges added, ${diff.deletedEdges.length} edges deleted`
-        });
-      }
-
-      // Use graph diff to find differences
-      const diff = analyzeGraphDiff(baseGraph, currentGraph);
-
-      console.log(`✅ Diff calculated: ${diff.addedNodes.length} added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted`);
-
-      return NextResponse.json({
-        success: true,
-        diff,
-        summary: `${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted, ${diff.addedEdges.length} edges added, ${diff.deletedEdges.length} edges deleted`
-      });
-    }
 
     // Regular GET request
     // Always try to load from file first to ensure we have the latest data
     let graph = null;
       if (fresh) {
         // Force fresh read from filesystem, bypass session cache
-        if (graphType === 'base') {
-          graph = await loadBaseGraphFromFile(user.id);
-        } else {
-          graph = await loadCurrentGraphFromFile(user.id);
-        }
+        graph = await loadCurrentGraphFromFile(user.id);
       } else {
-        // For base graphs, always load from file (don't use session cache)
-        if (graphType === 'base') {
-          graph = await loadBaseGraphFromFile(user.id);
+        // In development mode, always reload from file to pick up directory changes
+        // In production, use session cache for performance
+        if (LOCAL_MODE) {
+          graph = await loadCurrentGraphFromFile(user.id);
         } else {
-          // In development mode, always reload from file to pick up directory changes
-          // In production, use session cache for performance
-          if (LOCAL_MODE) {
-            graph = await loadCurrentGraphFromFile(user.id);
-          } else {
+          graph = getGraphSession();
+          if (!graph) {
+            await loadGraphFromFile(user.id);
             graph = getGraphSession();
-            if (!graph) {
-              await loadGraphFromFile(user.id);
-              graph = getGraphSession();
-            }
           }
         }
       }
@@ -552,274 +481,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function readBaseGraph(): Promise<any | null> {
-  try {
-    console.log('🔍 TOOL: readBaseGraph via graph-service helpers');
-    const baseGraph = await loadBaseGraphFromFile(DEFAULT_USER_ID);
-    if (!baseGraph) {
-      console.log('🔍 TOOL: Base graph file not found');
-      return null;
-    }
 
-    const parsed = GraphSchema.safeParse(baseGraph);
-    if (!parsed.success) {
-      console.error('🔍 TOOL: Base graph schema validation failed:', parsed.error);
-      return null;
-    }
 
-    return { graph: cloneGraph(parsed.data) };
-  } catch (error) {
-    console.error('🔍 TOOL: Error reading base graph:', error);
-    return null;
-  }
-}
 
-// Filesystem helpers
-async function readLocalGraph(): Promise<any | null> {
-  try {
-    console.log('🔍 TOOL: readLocalGraph via graph-service helpers');
-    const currentGraph = await loadCurrentGraphFromFile(DEFAULT_USER_ID);
-    const fallbackGraph = currentGraph ?? (await loadGraphFromFile(DEFAULT_USER_ID));
-
-    if (!fallbackGraph) {
-      console.log('🔍 TOOL: No graph files found');
-      return null;
-    }
-
-    const parsed = GraphSchema.safeParse(fallbackGraph);
-    if (!parsed.success) {
-      console.error('🔍 TOOL: Graph schema validation failed:', parsed.error);
-      return null;
-    }
-
-    return { graph: cloneGraph(parsed.data) };
-  } catch (error) {
-    console.error('🔍 TOOL: Error reading local graph:', error);
-    return null;
-  }
-}
-
-// Helper function to sync specific nodes/edges to base graph
-async function syncToBaseGraph(nodeIds: string[], edgeIds: string[]): Promise<{ success: boolean; error?: string }> {
-  console.log('🔄 TOOL: syncToBaseGraph called', { nodeIds, edgeIds });
-
-  try {
-    // Read both current and base graphs
-    const currentGraphResult = await readLocalGraph();
-    const baseGraphResult = await readBaseGraph();
-
-    if (!currentGraphResult) {
-      throw new Error('No current graph available to sync from');
-    }
-
-    let baseGraph = baseGraphResult?.graph;
-    if (!baseGraph) {
-      console.log('📝 TOOL: syncToBaseGraph creating new base graph');
-      baseGraph = { nodes: [], edges: [] };
-    }
-
-    const currentGraph = currentGraphResult.graph;
-    console.log('📊 TOOL: syncToBaseGraph - current:', currentGraph.nodes?.length || 0, 'nodes,', currentGraph.edges?.length || 0, 'edges');
-    console.log('📊 TOOL: syncToBaseGraph - base:', baseGraph.nodes?.length || 0, 'nodes,', baseGraph.edges?.length || 0, 'edges');
-
-    // Sync nodes
-    if (nodeIds && nodeIds.length > 0) {
-      for (const nodeId of nodeIds) {
-        const currentNode = currentGraph.nodes?.find((n: any) => n.id === nodeId);
-        const baseNodeIdx = baseGraph.nodes?.findIndex((n: any) => n.id === nodeId) ?? -1;
-
-        if (currentNode) {
-          // Node exists in current graph
-          if (baseNodeIdx >= 0) {
-            // Update existing node in base graph
-            console.log('🔄 TOOL: syncToBaseGraph updating node:', nodeId);
-            baseGraph.nodes[baseNodeIdx] = { ...currentNode };
-          } else {
-            // Add new node to base graph
-            console.log('➕ TOOL: syncToBaseGraph adding node:', nodeId);
-            baseGraph.nodes = baseGraph.nodes || [];
-            baseGraph.nodes.push({ ...currentNode });
-          }
-        } else if (baseNodeIdx >= 0) {
-          // Node doesn't exist in current but exists in base - remove from base
-          console.log('🗑️ TOOL: syncToBaseGraph removing node from base:', nodeId);
-          baseGraph.nodes.splice(baseNodeIdx, 1);
-        }
-      }
-    }
-
-    // Sync edges
-    if (edgeIds && edgeIds.length > 0) {
-      for (const edgeId of edgeIds) {
-        // Parse edgeId to extract source and target (format: sourceId-targetId)
-        const [sourceId, targetId] = edgeId.includes('-') ? edgeId.split('-', 2) : [edgeId, ''];
-        
-        // Find edge in current graph by id, or by source/target if id is in format sourceId-targetId
-        const currentEdge = currentGraph.edges?.find((e: any) => {
-          if (e.id === edgeId) return true;
-          if (sourceId && targetId && e.source === sourceId && e.target === targetId) return true;
-          return false;
-        });
-        
-        // Find edge in base graph by id, or by source/target
-        const baseEdgeIdx = baseGraph.edges?.findIndex((e: any) => {
-          if (e.id === edgeId) return true;
-          if (sourceId && targetId && e.source === sourceId && e.target === targetId) return true;
-          return false;
-        }) ?? -1;
-
-        if (currentEdge) {
-          // Edge exists in current graph
-          if (baseEdgeIdx >= 0) {
-            // Update existing edge in base graph
-            console.log('🔄 TOOL: syncToBaseGraph updating edge:', edgeId);
-            baseGraph.edges[baseEdgeIdx] = { ...currentEdge };
-          } else {
-            // Add new edge to base graph
-            console.log('➕ TOOL: syncToBaseGraph adding edge:', edgeId);
-            baseGraph.edges = baseGraph.edges || [];
-            baseGraph.edges.push({ ...currentEdge });
-          }
-        } else if (baseEdgeIdx >= 0) {
-          // Edge doesn't exist in current but exists in base - remove from base
-          console.log('🗑️ TOOL: syncToBaseGraph removing edge from base:', edgeId);
-          baseGraph.edges.splice(baseEdgeIdx, 1);
-        }
-      }
-    }
-
-    console.log('💾 TOOL: syncToBaseGraph saving synced base graph with', baseGraph.nodes?.length || 0, 'nodes,', baseGraph.edges?.length || 0, 'edges');
-    await storeBaseGraph(baseGraph, DEFAULT_USER_ID);
-    console.log('✅ TOOL: syncToBaseGraph base graph synced successfully');
-    return { success: true };
-  } catch (error) {
-    console.error('💥 TOOL: syncToBaseGraph error:', error);
-    const errorMsg = `Failed to sync to base graph: ${error instanceof Error ? error.message : String(error)}`;
-    return { success: false, error: errorMsg };
-  }
-}
-
-/**
- * Compares two nodes in detail and returns an array of difference descriptions
- */
-function compareNodesDetailed(baseNode: any, currentNode: any): string[] {
-  const differences: string[] = [];
-
-  // Compare basic fields
-  if (baseNode.title !== currentNode.title) {
-    differences.push(`**Title changed:** "${baseNode.title}" → "${currentNode.title}"`);
-  }
-
-  if (baseNode.prompt !== currentNode.prompt) {
-    differences.push(`**Prompt changed:**`);
-    differences.push(`  From: "${baseNode.prompt}"`);
-    differences.push(`  To: "${currentNode.prompt}"`);
-  }
-
-  // Compare properties
-  const baseProps = Array.isArray(baseNode.properties) ? baseNode.properties : [];
-  const currentProps = Array.isArray(currentNode.properties) ? currentNode.properties : [];
-
-  const basePropMap = new Map(baseProps.map((p: any) => [p.id, p]));
-  const currentPropMap = new Map(currentProps.map((p: any) => [p.id, p]));
-
-  // Check for added properties
-  for (const [propId, currentProp] of currentPropMap.entries()) {
-    if (!basePropMap.has(propId)) {
-      differences.push(`**Property added:** ${propId} = ${JSON.stringify((currentProp as any).value)} (${(currentProp as any).type})`);
-    }
-  }
-
-  // Check for removed properties
-  for (const [propId, baseProp] of basePropMap.entries()) {
-    if (!currentPropMap.has(propId)) {
-      differences.push(`**Property removed:** ${propId} (was: ${JSON.stringify((baseProp as any).value)})`);
-    }
-  }
-
-  // Check for modified properties
-  for (const [propId, currentProp] of currentPropMap.entries()) {
-    const baseProp = basePropMap.get(propId);
-    if (baseProp) {
-      const propDifferences = comparePropertyDetailed(propId as string, baseProp as any, currentProp as any);
-      differences.push(...propDifferences);
-    }
-  }
-
-  return differences;
-}
-
-/**
- * Compares two properties in detail and returns difference descriptions
- */
-function comparePropertyDetailed(propId: string, baseProp: any, currentProp: any): string[] {
-  const differences: string[] = [];
-
-  // Check if values are different
-  const baseValue = baseProp.value;
-  const currentValue = currentProp.value;
-
-  const valuesEqual = (() => {
-    if (baseValue === currentValue) return true;
-    if (typeof baseValue === 'object' && baseValue !== null &&
-        typeof currentValue === 'object' && currentValue !== null) {
-      return JSON.stringify(baseValue) === JSON.stringify(currentValue);
-    }
-    return false;
-  })();
-
-  if (!valuesEqual) {
-    differences.push(`**Property modified:** ${propId}`);
-    differences.push(`  From: ${JSON.stringify(baseValue)}`);
-    differences.push(`  To: ${JSON.stringify(currentValue)}`);
-  }
-
-  // Check other property fields
-  if (baseProp.type !== currentProp.type) {
-    differences.push(`**Property type changed:** ${propId} (${baseProp.type} → ${currentProp.type})`);
-  }
-
-  if (baseProp.title !== currentProp.title) {
-    differences.push(`**Property title changed:** ${propId} ("${baseProp.title}" → "${currentProp.title}")`);
-  }
-
-  // Check fields for object properties
-  if (baseProp.type === 'object' || currentProp.type === 'object') {
-    const baseFields = Array.isArray(baseProp.fields) ? baseProp.fields : [];
-    const currentFields = Array.isArray(currentProp.fields) ? currentProp.fields : [];
-
-    const baseFieldMap = new Map(baseFields.map((f: any) => [f.id || f.name, f]));
-    const currentFieldMap = new Map(currentFields.map((f: any) => [f.id || f.name, f]));
-
-    // Added fields
-    for (const [fieldId, currentField] of currentFieldMap.entries()) {
-      if (!baseFieldMap.has(fieldId)) {
-        differences.push(`**Object field added:** ${propId}.${fieldId} = ${JSON.stringify((currentField as any).value)}`);
-      }
-    }
-
-    // Removed fields
-    for (const [fieldId, baseField] of baseFieldMap.entries()) {
-      if (!currentFieldMap.has(fieldId)) {
-        differences.push(`**Object field removed:** ${propId}.${fieldId} (was: ${JSON.stringify((baseField as any).value)})`);
-      }
-    }
-
-    // Modified fields
-    for (const [fieldId, currentField] of currentFieldMap.entries()) {
-      const baseField = baseFieldMap.get(fieldId);
-      if (baseField) {
-        if (JSON.stringify((baseField as any).value) !== JSON.stringify((currentField as any).value)) {
-          differences.push(`**Object field modified:** ${propId}.${fieldId}`);
-          differences.push(`  From: ${JSON.stringify((baseField as any).value)}`);
-          differences.push(`  To: ${JSON.stringify((currentField as any).value)}`);
-        }
-      }
-    }
-  }
-
-  return differences;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -870,7 +534,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, title, prompt, type, level, comment, properties, position, syncToBase, metadata } = params;
+        const { nodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
 
         console.log('🔍 TOOL: node_create checking if node already exists:', nodeId);
         const existingNode = validatedGraph.nodes.find((n: any) => n.id === nodeId);
@@ -907,23 +571,7 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: node_create graph saved successfully');
 
-        // If syncToBase is true, sync this node to base graph immediately
-        if (syncToBase) {
-          console.log('🔄 TOOL: node_create syncing to base graph due to syncToBase=true');
-          try {
-            const syncResult = await syncToBaseGraph([nodeId], []);
-            if (!syncResult.success) {
-              console.log('⚠️ TOOL: node_create sync to base failed:', syncResult.error);
-              return NextResponse.json({ error: `Warning: Node created but failed to sync to base: ${syncResult.error}` }, { status: 500 });
-            }
-            console.log('✅ TOOL: node_create successfully synced to base graph');
-          } catch (syncError: unknown) {
-            console.error('💥 TOOL: node_create sync error:', syncError);
-            return NextResponse.json({ error: `Warning: Node created but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }, { status: 500 });
-          }
-        }
-
-        const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.${syncToBase ? ' (synced to base graph)' : ''}`;
+        const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.`;
         console.log('📤 TOOL: node_create returning success:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1137,7 +785,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, recursive, syncToBase } = params;
+        const { nodeId, recursive } = params;
 
         console.log('🔍 TOOL: node_delete checking if node exists:', nodeId);
         const byId = new Map<string, any>(validatedGraph.nodes.map((n: any) => [n.id, n]));
@@ -1187,25 +835,7 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: node_delete graph saved successfully');
 
-        // If syncToBase is true, sync this deletion to base graph immediately
-        if (syncToBase) {
-          console.log('🔄 TOOL: node_delete syncing to base graph due to syncToBase=true');
-          try {
-            // Get the IDs of all nodes that were deleted
-            const deletedNodeIds = Array.from(toDelete);
-            const syncResult = await syncToBaseGraph(deletedNodeIds, []);
-            if (!syncResult.success) {
-              console.log('⚠️ TOOL: node_delete sync to base failed:', syncResult.error);
-              return NextResponse.json({ error: `Warning: Node deleted but failed to sync to base: ${syncResult.error}` }, { status: 500 });
-            }
-            console.log('✅ TOOL: node_delete successfully synced to base graph');
-          } catch (syncError: unknown) {
-            console.error('💥 TOOL: node_delete sync error:', syncError);
-            return NextResponse.json({ error: `Warning: Node deleted but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }, { status: 500 });
-          }
-        }
-
-        const result = `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}${syncToBase ? ' (synced to base graph)' : ''}`;
+        const result = `Deleted node ${nodeId}${recursive ? ' (recursive)' : ''}`;
         console.log('📤 TOOL: node_delete returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1229,7 +859,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, role, shape, syncToBase } = params;
+        const { sourceId, targetId, role, shape } = params;
 
         // Validate that both nodes exist
         console.log('🔍 TOOL: edge_create validating source node:', sourceId);
@@ -1281,24 +911,7 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: edge_create graph saved successfully');
 
-        // If syncToBase is true, sync this edge to base graph immediately
-        if (syncToBase) {
-          console.log('🔄 TOOL: edge_create syncing to base graph due to syncToBase=true');
-          try {
-            const edgeId = newEdge.id;
-            const syncResult = await syncToBaseGraph([], [edgeId]);
-            if (!syncResult.success) {
-              console.log('⚠️ TOOL: edge_create sync to base failed:', syncResult.error);
-              return NextResponse.json({ error: `Warning: Edge created but failed to sync to base: ${syncResult.error}` }, { status: 500 });
-            }
-            console.log('✅ TOOL: edge_create successfully synced to base graph');
-          } catch (syncError: unknown) {
-            console.error('💥 TOOL: edge_create sync error:', syncError);
-            return NextResponse.json({ error: `Warning: Edge created but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }, { status: 500 });
-          }
-        }
-
-        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${shape ? ` [${shape}]` : ''}${syncToBase ? ' (synced to base graph)' : ''}`;
+        const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${shape ? ` [${shape}]` : ''}`;
         console.log('📤 TOOL: edge_create returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1322,7 +935,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: edge_delete schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { sourceId, targetId, syncToBase } = params;
+        const { sourceId, targetId } = params;
 
         // Check if edge exists
         console.log('🔍 TOOL: edge_delete checking for existing edge');
@@ -1345,24 +958,7 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: edge_delete graph saved successfully');
 
-        // If syncToBase is true, sync this deletion to base graph immediately
-        if (syncToBase) {
-          console.log('🔄 TOOL: edge_delete syncing to base graph due to syncToBase=true');
-          try {
-            const edgeId = `${sourceId}-${targetId}`;
-            const syncResult = await syncToBaseGraph([], [edgeId]);
-            if (!syncResult.success) {
-              console.log('⚠️ TOOL: edge_delete sync to base failed:', syncResult.error);
-              return NextResponse.json({ error: `Warning: Edge deleted but failed to sync to base: ${syncResult.error}` }, { status: 500 });
-            }
-            console.log('✅ TOOL: edge_delete successfully synced to base graph');
-          } catch (syncError: unknown) {
-            console.error('💥 TOOL: edge_delete sync error:', syncError);
-            return NextResponse.json({ error: `Warning: Edge deleted but failed to sync to base: ${syncError instanceof Error ? syncError.message : String(syncError)}` }, { status: 500 });
-          }
-        }
-
-        const result = `Deleted edge from ${sourceId} to ${targetId}${syncToBase ? ' (synced to base graph)' : ''}`;
+        const result = `Deleted edge from ${sourceId} to ${targetId}`;
         console.log('📤 TOOL: edge_delete returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error) {
@@ -1471,61 +1067,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (action === 'sync_to_base_graph') {
-      console.log('🔄 TOOL: sync_to_base_graph called', params);
-
-      try {
-        const { nodeIds, edgeIds } = params;
-
-        const syncResult = await syncToBaseGraph(nodeIds || [], edgeIds || []);
-        if (!syncResult.success) {
-          return NextResponse.json({ error: syncResult.error }, { status: 500 });
-        }
-
-        const result = `Synced ${nodeIds?.length || 0} node(s) and ${edgeIds?.length || 0} edge(s) to base graph`;
-        console.log('📤 TOOL: sync_to_base_graph returning result:', result);
-        return NextResponse.json({ content: [{ type: 'text', text: result }] });
-      } catch (error: unknown) {
-        console.error('💥 TOOL: sync_to_base_graph error:', error);
-        const errorMsg = `Failed to sync to base graph: ${error instanceof Error ? error.message : String(error)}`;
-        return NextResponse.json({ error: errorMsg }, { status: 500 });
-      }
-    }
 
     if (action === 'graph_clear') {
       console.log('🧹 TOOL: graph_clear called', params);
 
       try {
-        const { graphType = 'current' } = params;
-
         // Create empty graph structure
         const emptyGraph = {
           nodes: [],
           edges: []
         };
 
-        console.log(`💾 TOOL: graph_clear clearing ${graphType} graph`);
+        console.log('💾 TOOL: graph_clear clearing graph');
 
-        // Clear the specified graph(s)
-        if (graphType === 'both') {
-          // Clear both current and base graphs
-          await storeBaseGraph(emptyGraph, user.id);
-          await storeCurrentGraphFromAgent(emptyGraph, user.id);
-          console.log('✅ TOOL: graph_clear cleared both current and base graphs');
-        } else if (graphType === 'base') {
-          // Clear only base graph
-          await storeBaseGraph(emptyGraph, user.id);
-          console.log('✅ TOOL: graph_clear cleared base graph');
-        } else {
-          // Clear current graph (default)
-          const saveResult = await saveGraph(emptyGraph);
-          if (!saveResult.success) {
-            return NextResponse.json({ error: saveResult.error }, { status: 500 });
-          }
-          console.log('✅ TOOL: graph_clear cleared current graph');
+        // Clear the graph
+        const saveResult = await saveGraph(emptyGraph);
+        if (!saveResult.success) {
+          return NextResponse.json({ error: saveResult.error }, { status: 500 });
         }
+        console.log('✅ TOOL: graph_clear cleared graph');
 
-        const result = `Successfully cleared ${graphType} graph (left empty nodes and edges tags, and outer structure)`;
+        const result = `Successfully cleared graph (left empty nodes and edges tags, and outer structure)`;
         console.log('📤 TOOL: graph_clear returning result:', result);
         return NextResponse.json({ content: [{ type: 'text', text: result }] });
       } catch (error: unknown) {
@@ -1602,186 +1164,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (action === 'analyze_diff') {
-      console.log('🔍 TOOL: analyze_diff called', params);
-
-      try {
-        const { nodeId } = params;
-
-        // Read the diff from the graph API
-        const currentGraphResult = await readLocalGraph();
-        const baseGraphResult = await readBaseGraph();
-
-        if (!currentGraphResult) {
-          return NextResponse.json({ error: 'No current graph available' }, { status: 400 });
-        }
-
-        if (!baseGraphResult) {
-          return NextResponse.json({ error: 'No base graph available' }, { status: 400 });
-        }
-
-        const currentGraph = currentGraphResult.graph;
-        const baseGraph = baseGraphResult.graph;
-
-        const diff = analyzeGraphDiff(baseGraph, currentGraph);
-
-        // If nodeId is specified, show detailed differences for that specific node
-        if (nodeId) {
-          console.log('🎯 TOOL: analyze_diff showing detailed differences for node:', nodeId);
-
-          const currentNode = currentGraph.nodes?.find((n: any) => n.id === nodeId);
-          const baseNode = baseGraph.nodes?.find((n: any) => n.id === nodeId);
-
-          // Check if node exists in either graph
-          if (!currentNode && !baseNode) {
-            const result = `Node Analysis: **${nodeId}**\n\n❌ **Node not found** in either current or base graph.\n`;
-            console.log('📤 TOOL: analyze_diff node not found in either graph:', nodeId);
-            return NextResponse.json({ content: [{ type: 'text', text: result }] });
-          }
-
-          // Format detailed node differences
-          let result = `Node Analysis: **${nodeId}**\n\n`;
-
-          // Handle different scenarios
-          if (!baseNode && currentNode) {
-            // Node was added
-            result += `📍 **Node Added:**\n`;
-            result += `**Title:** ${currentNode.title}\n`;
-            result += `**Prompt:** ${currentNode.prompt}\n`;
-
-            if (currentNode.properties && currentNode.properties.length > 0) {
-              result += `**Properties:**\n`;
-              currentNode.properties.forEach((prop: any) => {
-                result += `  - ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type})\n`;
-              });
-            }
-            result += '\n';
-
-          } else if (baseNode && !currentNode) {
-            // Node was deleted
-            result += `🗑️ **Node Deleted:**\n`;
-            result += `**Previous Title:** ${baseNode.title}\n`;
-            result += `**Previous Prompt:** ${baseNode.prompt}\n\n`;
-
-          } else if (baseNode && currentNode) {
-            // Node exists in both - compare in detail
-            const differences = compareNodesDetailed(baseNode, currentNode);
-
-            if (differences.length === 0) {
-              result += `🎉 **No differences found!** This node matches perfectly between current and base graphs.\n`;
-            } else {
-              result += `✏️ **Node Modified:**\n\n`;
-
-              differences.forEach(diff => {
-                result += `${diff}\n`;
-              });
-              result += '\n';
-            }
-          }
-
-          // Add edge differences for this node
-          const nodeEdges = (diff.addedEdges || []).filter((edgeId: string) =>
-            edgeId.startsWith(`${nodeId}-`) || edgeId.endsWith(`-${nodeId}`)
-          );
-          const deletedNodeEdges = (diff.deletedEdges || []).filter((edgeId: string) =>
-            edgeId.startsWith(`${nodeId}-`) || edgeId.endsWith(`-${nodeId}`)
-          );
-
-          if (nodeEdges.length > 0) {
-            result += `🔗 **Added Edges (${nodeEdges.length}):**\n`;
-            nodeEdges.forEach((edgeId: string) => {
-              result += `- ${edgeId}\n`;
-            });
-            result += '\n';
-          }
-
-          if (deletedNodeEdges.length > 0) {
-            result += `🔌 **Deleted Edges (${deletedNodeEdges.length}):**\n`;
-            deletedNodeEdges.forEach((edgeId: string) => {
-              result += `- ${edgeId}\n`;
-            });
-            result += '\n';
-          }
-
-          result += '💡 **Next Steps:**\n';
-          result += '1. Review the changes above for this node\n';
-          result += '2. Use node_create, node_edit, or other tools to make necessary changes\n';
-          result += '3. Use sync_to_base_graph to save completed changes\n';
-          result += '4. Run analyze_diff again to verify all changes are complete\n';
-
-          console.log('📤 TOOL: analyze_diff returning detailed node analysis:', nodeId);
-          return NextResponse.json({ content: [{ type: 'text', text: result }] });
-        }
-
-        // Original full graph analysis
-        // Format the diff information for the agent
-        let result = `Graph Analysis Complete:\n${diff.addedNodes.length} nodes added, ${diff.modifiedNodes.length} modified, ${diff.deletedNodes.length} deleted, ${diff.addedEdges.length} edges added, ${diff.deletedEdges.length} edges deleted\n\n`;
-
-        if (diff.addedNodes.length > 0) {
-          result += `📍 **Added Nodes (${diff.addedNodes.length}):**\n`;
-          diff.addedNodes.forEach((nodeId: string) => {
-            const node = currentGraph.nodes.find((n: any) => n.id === nodeId);
-            if (node) {
-              result += `- **${node.title}** (${nodeId}): "${node.prompt}"\n`;
-            }
-          });
-          result += '\n';
-        }
-
-        if (diff.modifiedNodes.length > 0) {
-          result += `✏️ **Modified Nodes (${diff.modifiedNodes.length}):**\n`;
-          diff.modifiedNodes.forEach((nodeId: string) => {
-            result += `- ${nodeId}\n`;
-          });
-          result += '\n';
-        }
-
-        if (diff.deletedNodes.length > 0) {
-          result += `🗑️ **Deleted Nodes (${diff.deletedNodes.length}):**\n`;
-          diff.deletedNodes.forEach((nodeId: string) => {
-            result += `- ${nodeId}\n`;
-          });
-          result += '\n';
-        }
-
-        if (diff.addedEdges.length > 0) {
-          result += `🔗 **Added Edges (${diff.addedEdges.length}):**\n`;
-          diff.addedEdges.forEach((edgeId: string) => {
-            result += `- ${edgeId}\n`;
-          });
-          result += '\n';
-        }
-
-        if (diff.deletedEdges.length > 0) {
-          result += `🔌 **Deleted Edges (${diff.deletedEdges.length}):**\n`;
-          diff.deletedEdges.forEach((edgeId: string) => {
-            result += `- ${edgeId}\n`;
-          });
-          result += '\n';
-        }
-
-        const hasDifferences = diff.addedNodes.length > 0 || diff.modifiedNodes.length > 0 || diff.deletedNodes.length > 0 ||
-                              diff.addedEdges.length > 0 || diff.deletedEdges.length > 0;
-
-        if (!hasDifferences) {
-          result += '🎉 **No differences found!** The current graph matches the base graph perfectly.\n';
-        } else {
-          result += '💡 **Next Steps:**\n';
-          result += '1. Review the changes above\n';
-          result += '2. Use node_create, node_edit, or other tools to make necessary changes\n';
-          result += '3. Use sync_to_base_graph to save completed changes\n';
-          result += '4. Run analyze_diff again to verify all changes are complete\n';
-        }
-
-        console.log('📤 TOOL: analyze_diff returning result:', result);
-        return NextResponse.json({ content: [{ type: 'text', text: result }] });
-
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: analyze_diff unexpected error:', errorMessage);
-        return NextResponse.json({ error: `Error analyzing differences: ${errorMessage}` }, { status: 500 });
-      }
-    }
 
     // Default action: get specific node
     if (!params.nodeId) {
@@ -1830,8 +1212,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     // Ensure layers directory exists (C4 layers are always available)
-    const { ensureLayersRoot } = await import('@/lib/layers-server');
-    ensureLayersRoot();
+    // No longer need to ensure layers root
 
     // Get current user session
     const session = await getSessionFromRequest(req);
@@ -1839,8 +1220,6 @@ export async function PUT(req: NextRequest) {
     const user = session?.user || { id: 'default-user' };
     
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
-    const url = new URL(req.url);
-    const graphType = url.searchParams.get('type'); // 'current', 'base', or undefined for default
     const isAgentInitiated = req.headers.get('x-agent-initiated') === 'true';
     let graph: any;
     if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
@@ -1852,23 +1231,18 @@ export async function PUT(req: NextRequest) {
     }
     if (!graph) return NextResponse.json({ error: 'Graph data is required' }, { status: 400 });
 
-    console.log(`💾 Saving ${graphType || 'current'} graph for user ${user.id}${isAgentInitiated ? ' (agent-initiated)' : ''}...`);
+    console.log(`💾 Saving graph for user ${user.id}${isAgentInitiated ? ' (agent-initiated)' : ''}...`);
 
-    // Store the graph using the appropriate storage function
-    if (graphType === 'base') {
-      await storeBaseGraph(graph, user.id);
-      console.log(`✅ Base graph saved successfully with ${graph.nodes?.length || 0} nodes`);
+    // Store the graph
+    // Only broadcast if this is agent-initiated
+    if (isAgentInitiated) {
+      await storeCurrentGraph(graph, user.id);
+      console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes (broadcasted)`);
     } else {
-      // Only broadcast if this is agent-initiated
-      if (isAgentInitiated) {
-        await storeCurrentGraph(graph, user.id);
-        console.log(`✅ Current graph saved successfully with ${graph.nodes?.length || 0} nodes (broadcasted)`);
-      } else {
-        // For user-initiated changes, save without broadcasting
-        const { storeCurrentGraphWithoutBroadcast } = await import('../lib/graph-service');
-        await storeCurrentGraphWithoutBroadcast(graph, user.id);
-        console.log(`✅ Current graph saved successfully with ${graph.nodes?.length || 0} nodes (no broadcast)`);
-      }
+      // For user-initiated changes, save without broadcasting
+      const { storeCurrentGraphWithoutBroadcast } = await import('../lib/graph-service');
+      await storeCurrentGraphWithoutBroadcast(graph, user.id);
+      console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes (no broadcast)`);
     }
 
     return NextResponse.json({ success: true, message: 'Graph saved successfully' });
@@ -1884,8 +1258,7 @@ export async function PUT(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     // Ensure layers directory exists (C4 layers are always available)
-    const { ensureLayersRoot } = await import('@/lib/layers-server');
-    ensureLayersRoot();
+    // No longer need to ensure layers root
 
     // Get current user session
     const session = await getSessionFromRequest(req);
@@ -1960,8 +1333,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // Ensure layers directory exists (C4 layers are always available)
-    const { ensureLayersRoot } = await import('@/lib/layers-server');
-    ensureLayersRoot();
+    // No longer need to ensure layers root
 
     console.log('🗑️ Deleting graph...', req.body);
 
