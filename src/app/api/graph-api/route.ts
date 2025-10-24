@@ -1535,6 +1535,73 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (action === 'read') {
+      console.log('🔍 TOOL: read called', params);
+
+      try {
+        const { nodeId, layer, includeProperties, includeChildren } = params;
+
+        // Get graph data
+        const graphResult = await readLocalGraph();
+        if (!graphResult) {
+          return NextResponse.json({ error: 'No graph available' }, { status: 400 });
+        }
+
+        const graph = graphResult.graph;
+
+        // If nodeId is specified, return the specific node
+        if (nodeId) {
+          const node = graph.nodes?.find((n: any) => n.id === nodeId);
+          if (!node) {
+            return NextResponse.json({ error: `Node ${nodeId} not found` }, { status: 404 });
+          }
+
+          // Return full node details
+          return NextResponse.json({
+            node: node
+          });
+        }
+
+        // Determine which layer to use (default to 'system')
+        const targetLayer = layer || 'system';
+        const validLayers = ['system', 'container', 'component', 'code'];
+
+        if (!validLayers.includes(targetLayer)) {
+          return NextResponse.json({
+            error: `Invalid layer: ${targetLayer}. Valid layers are: ${validLayers.join(', ')}`
+          }, { status: 400 });
+        }
+
+        // Filter nodes by the target layer and group by type
+        const filteredNodes = graph.nodes?.filter((node: any) => node.type === targetLayer) || [];
+
+        // Group nodes by their type (which should all be the same for filtered nodes, but let's be safe)
+        const groupedByType: Record<string, any[]> = {};
+        filteredNodes.forEach((node: any) => {
+          const type = node.type || 'unknown';
+          if (!groupedByType[type]) {
+            groupedByType[type] = [];
+          }
+          groupedByType[type].push(node);
+        });
+
+        // Convert to array format: [{type: "system", nodes: [...]}]
+        const result = Object.entries(groupedByType).map(([type, nodes]) => ({
+          type,
+          nodes
+        }));
+
+        return NextResponse.json({
+          layers: result
+        });
+
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('💥 TOOL: read error:', errorMessage);
+        return NextResponse.json({ error: `Error reading graph: ${errorMessage}` }, { status: 500 });
+      }
+    }
+
     if (action === 'analyze_diff') {
       console.log('🔍 TOOL: analyze_diff called', params);
 
