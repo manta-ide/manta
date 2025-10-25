@@ -433,7 +433,7 @@ export async function GET(req: NextRequest) {
 
         // Format the response with node data and connections
         let result = `**Node: ${node.title} (${nodeId})**\n\n`;
-        result += `**Prompt:** ${node.prompt}\n\n`;
+        result += `**Description:** ${node.description}\n\n`;
 
         // Add properties if they exist
         if (node.properties && node.properties.length > 0) {
@@ -593,7 +593,7 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_edit schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata } = params;
+        const { nodeId, mode = 'replace', title, prompt: description, type, level, comment, properties, children, position, metadata } = params;
 
         console.log('🔍 TOOL: node_edit looking for node:', nodeId);
         const idx = validatedGraph.nodes.findIndex((n: any) => n.id === nodeId);
@@ -611,9 +611,9 @@ export async function POST(req: NextRequest) {
           console.log('📝 TOOL: node_edit updating title:', title);
           next.title = title;
         }
-        if (prompt !== undefined) {
-          console.log('📝 TOOL: node_edit updating prompt, length:', prompt.length);
-          next.prompt = prompt;
+        if (description !== undefined) {
+          console.log('📝 TOOL: node_edit updating description, length:', description.length);
+          next.description = description;
         }
         if (type !== undefined) {
           console.log('🏷️ TOOL: node_edit updating type:', type);

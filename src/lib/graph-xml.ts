@@ -405,7 +405,7 @@ export function graphToXml(graph: Graph): string {
   // No longer tracking children since we use edges exclusively
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
-    const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const desc = n.description ? `\n      <description>${escapeXml(n.description)}</description>` : '';
     const metadataFiles = normalizeMetadataFiles((n as any).metadata);
     const metadataBugs = normalizeMetadataBugs((n as any).metadata);
 
@@ -815,9 +815,8 @@ export function xmlToGraph(xml: string): Graph {
       return {
         id,
         title,
-        prompt: description,
+        description: description,
         properties,
-        ...(position ? { position } : {}),
         ...(metadata ? { metadata } : {}),
         ...(shape ? { shape: shape as any } : {}),
         ...(type ? { type } : {})

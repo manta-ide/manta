@@ -106,7 +106,7 @@ export default function SelectedNodeSidebar() {
 
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change
-		setPromptDraft(selectedNode?.prompt ?? '');
+		setPromptDraft(selectedNode?.description ?? '');
 		setTitleDraft(selectedNode?.title ?? '');
 		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
 		setTypeDraft(((selectedNode as any)?.type as NodeType) || 'component');
@@ -121,7 +121,7 @@ export default function SelectedNodeSidebar() {
 			}
 			setPropertyValues(initialValues);
 		}
-	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties, selectedNode?.shape]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.description, selectedNode?.properties, selectedNode?.shape]);
 
   useEffect(() => {
     if (!Array.isArray(selectedEdgeIds) || selectedEdgeIds.length === 0) {
@@ -262,13 +262,13 @@ export default function SelectedNodeSidebar() {
 
 		// Set new timeout to save after delay
 		descriptionDebounceTimeoutRef.current = setTimeout(() => {
-			if (selectedNode && newDescription !== selectedNode.prompt) {
+			if (selectedNode && newDescription !== selectedNode.description) {
 				console.log('💾 Debounced update: saving description for node:', selectedNodeId);
-				const updatedNode = { ...selectedNode, prompt: newDescription };
+				const updatedNode = { ...selectedNode, description: newDescription };
 				setSelectedNode(selectedNodeId, updatedNode);
 
 				if (selectedNodeId) {
-					updateNode(selectedNodeId!, { prompt: newDescription }).catch((error) => {
+					updateNode(selectedNodeId!, { description: newDescription }).catch((error) => {
 						console.error('Failed to save description:', error);
 						setRebuildError('Failed to save description');
 						setTimeout(() => setRebuildError(null), 3000);

@@ -115,7 +115,7 @@ export default function FloatingChat() {
     if (!mentionActive || !graph?.nodes) return [] as Array<{ id: string; title: string; prompt?: string }>;
     const q = mentionQuery.trim().toLowerCase();
     const list = graph.nodes
-      .map(n => ({ id: n.id, title: String(n.title ?? n.id), prompt: (n as any).prompt }))
+      .map(n => ({ id: n.id, title: String(n.title ?? n.id), description: (n as any).description }))
       .filter(n => !q || n.title.toLowerCase().includes(q) || n.id.toLowerCase().includes(q));
     // Prioritize startsWith matches, then title length
     const starts = list.filter(n => n.title.toLowerCase().startsWith(q));

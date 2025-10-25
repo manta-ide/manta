@@ -84,8 +84,8 @@ export function hasBugs(node: any): boolean {
  * Compares two nodes to determine if they are different
  */
 export function nodesAreDifferent(node1: any, node2: any): boolean {
-  // Compare title, prompt, and type
-  if (node1.title !== node2.title || node1.prompt !== node2.prompt || node1.type !== node2.type) {
+  // Compare title, description, and type
+  if (node1.title !== node2.title || node1.description !== node2.description || node1.type !== node2.type) {
     return true;
   }
 

@@ -387,7 +387,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
           </div>
           
-          {/* Prompt preview - always show at all zoom levels */}
+          {/* Description preview - always show at all zoom levels */}
           <div
             style={{
               fontSize: `${shapeConfig.fontSize?.content || 13}px`,
@@ -404,7 +404,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
               wordBreak: 'break-word',
               flex: shapeConfig.contentLayout?.flexContent ? 1 : 'none',
             }}
-            title={node.prompt}
+            title={node.description}
           >
             {shapeConfig.supportsMarkdown ? (
               <div style={{ whiteSpace: 'pre-wrap' }}>
@@ -412,11 +412,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   components={commentMarkdownComponents}
                 >
-                  {typeof node.prompt === 'string' ? node.prompt : String(node.prompt || '')}
+                  {typeof node.description === 'string' ? node.description : String(node.description || '')}
                 </ReactMarkdown>
               </div>
             ) : (
-              typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt
+              typeof node.description === 'string' ? (searchQuery && searchOpen ? highlightText(node.description) : node.description) : node.description
             )}
           </div>
         </div>
@@ -693,12 +693,11 @@ function GraphCanvas() {
     const newNode: GraphNode = {
       id: newNodeId,
       title: 'New Node',
-      prompt: '',
+      description: '',
       comment: '',
       type: nodeType,
       level: nodeLevel,
-      shape: 'round-rectangle',
-      position: { x: position.x, y: position.y, z: 0 }
+      shape: 'round-rectangle'
     };
 
     try {
@@ -769,11 +768,10 @@ function GraphCanvas() {
     const newNode: GraphNode = {
       id: newNodeId,
       title: 'Comment',
-      prompt: 'Add your comment here...',
+      description: 'Add your comment here...',
       comment: '',
       type: 'comment',
       shape: 'comment',
-      position: { x: position.x, y: position.y, z: 0 },
       properties: [
         { id: 'width', value: dimensions.width },
         { id: 'height', value: dimensions.height }
@@ -1360,7 +1358,7 @@ function GraphCanvas() {
 
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
-        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position })),
+        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, description: n.description })),
         edges: graph.edges || []
       });
 
@@ -1417,17 +1415,9 @@ function GraphCanvas() {
       // Full structure changed - proceed with full rebuild
       prevGraphStructureRef.current = currentStructure;
 
-      // Collect positions from database if present
+      // All nodes need positions calculated (positions are no longer stored in DB)
       let nodePositions = new Map<string, { x: number; y: number }>();
-      const nodesMissingPos: string[] = [];
-
-      graph.nodes.forEach(node => {
-        if (node.position) {
-          nodePositions.set(node.id, { x: node.position.x, y: node.position.y });
-        } else {
-          nodesMissingPos.push(node.id);
-        }
-      });
+      const nodesMissingPos: string[] = graph.nodes.map(n => n.id);
 
       // If some nodes are missing positions, compute layout for them using layered algorithm
       if (nodesMissingPos.length > 0) {
@@ -1620,8 +1610,8 @@ function GraphCanvas() {
       for (const node of sortedNodes) {
         const isDragging = draggingNodeIdsRef.current.has(node.id);
         let position = isDragging
-          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || node.position || { x: 0, y: 0 })
-          : (nodePositions.get(node.id) || node.position || { x: 0, y: 0 });
+          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
+          : (nodePositions.get(node.id) || { x: 0, y: 0 });
 
         // For base-only nodes (ghosted), we still want to preserve any position data
         // Don't add offset to prevent jumping - let them use their stored position
@@ -2450,43 +2440,25 @@ function GraphCanvas() {
     } catch {}
   }, []);
 
-  // Handle final node position changes (drag stop) - ensure final persistence
+  // Handle final node position changes (drag stop) - positions are local only, no DB persistence
   const onNodeDragStop = useCallback(async (event: any, node: Node) => {
     try {
       const graphNode = node.data?.node as GraphNode;
       if (!graphNode) return;
 
-      // Determine which nodes to persist: all currently selected, or the dragged node as a fallback
+      // Release drag locks for all selected nodes (or the primary as fallback)
       const selectedIds = (latestNodesRef.current || [])
         .filter((n) => n.selected)
         .map((n) => n.id);
-      const idsToPersist = selectedIds.length > 0 ? selectedIds : [graphNode.id];
+      const idsToClear = selectedIds.length > 0 ? selectedIds : [node.id];
+      for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
 
-      // Persist positions for all affected nodes based on their current ReactFlow positions
-      for (const id of idsToPersist) {
-        const rfNode = latestNodesRef.current.find((n) => n.id === id);
-        if (!rfNode) continue;
-        try {
-          await updateNode(id, {
-            position: { x: rfNode.position.x, y: rfNode.position.y, z: 0 },
-          });
-        } catch (e) {
-          console.warn(`⚠️ Final position update failed for ${id}:`, e);
-        }
-      }
+      // Rebuild helper lines spatial index after drag
+      rebuildIndex(nodes);
     } catch (error) {
-      console.error('Error saving final node position(s):', error);
+      console.error('Error finalizing node drag:', error);
     }
-    // Release drag locks for all selected nodes (or the primary as fallback)
-    const selectedIds = (latestNodesRef.current || [])
-      .filter((n) => n.selected)
-      .map((n) => n.id);
-    const idsToClear = selectedIds.length > 0 ? selectedIds : [node.id];
-    for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
-
-    // Rebuild helper lines spatial index after drag
-    rebuildIndex(nodes);
-  }, [updateNode, rebuildIndex, nodes]);
+  }, [rebuildIndex, nodes]);
 
   // Handle background mouse down for node creation
   const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {

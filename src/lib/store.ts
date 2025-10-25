@@ -116,7 +116,7 @@ interface ProjectStore {
   searchQuery: string;
   searchCaseSensitive: boolean;
   searchIncludeProperties: boolean;
-  searchResults: Array<{ nodeId: string; field: 'title' | 'prompt' | 'property'; propertyId?: string; index: number; matchLength: number; value: string }>;
+  searchResults: Array<{ nodeId: string; field: 'title' | 'description' | 'property'; propertyId?: string; index: number; matchLength: number; value: string }>;
   searchActiveIndex: number;
   setSearchOpen: (open: boolean) => void;
   setSearchQuery: (q: string) => void;
@@ -145,12 +145,8 @@ function reconcileGraph(current: Graph | null, incoming: Graph | null): Graph | 
     if (!existing) {
       nextNodes.push({ ...inNode });
     } else {
-      // Prefer keeping the current visual position to avoid viewport jumps
-      const merged = {
-        ...inNode,
-        position: existing.position || inNode.position,
-      } as any;
-      nextNodes.push(merged);
+      // Keep the incoming node as-is (positions are managed locally in GraphView now)
+      nextNodes.push(inNode);
     }
   }
 
@@ -602,33 +598,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const state = get();
     if (!state.graph) return;
 
-    // Handle position updates specially for layers
-    if (updates.position && state.activeLayer) {
-      // Save position to the active layer
-      try {
-        await fetch('/api/layers', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            layerName: state.activeLayer,
-            nodeId,
-            position: updates.position
-          })
-        });
-      } catch (error) {
-        console.warn('Failed to save position to layer:', error);
-      }
-    }
-
+    // Update the node in the graph (positions are managed locally in GraphView)
     const next = { ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph;
     set({ graph: next });
 
-    // Only save non-position updates to the main graph XML
-    const updatesWithoutPosition = { ...updates };
-    delete updatesWithoutPosition.position;
-
-    if (Object.keys(updatesWithoutPosition).length > 0) {
-      const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updatesWithoutPosition } : n) } as Graph);
+    // Save updates to the graph API
+    if (Object.keys(updates).length > 0) {
+      const xml = graphToXml({ ...state.graph, nodes: state.graph.nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n) } as Graph);
       await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
     }
   },
@@ -891,7 +867,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
 
     const query = state.searchCaseSensitive ? queryRaw : queryRaw.toLowerCase();
-    const results: Array<{ nodeId: string; field: 'title' | 'prompt' | 'property'; propertyId?: string; index: number; matchLength: number; value: string }> = [];
+    const results: Array<{ nodeId: string; field: 'title' | 'description' | 'property'; propertyId?: string; index: number; matchLength: number; value: string }> = [];
 
     const findAll = (haystack: string, needle: string) => {
       const out: number[] = [];
@@ -921,11 +897,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         results.push({ nodeId: n.id, field: 'title', index: idx, matchLength: queryRaw.length, value: title });
       }
 
-      // Prompt
-      const prompt = n.prompt ?? '';
-      const promptNorm = norm(prompt);
-      for (const idx of findAll(promptNorm, query)) {
-        results.push({ nodeId: n.id, field: 'prompt', index: idx, matchLength: queryRaw.length, value: prompt });
+      // Description
+      const description = n.description ?? '';
+      const descriptionNorm = norm(description);
+      for (const idx of findAll(descriptionNorm, query)) {
+        results.push({ nodeId: n.id, field: 'description', index: idx, matchLength: queryRaw.length, value: description });
       }
 
       // Properties (optional)
@@ -953,7 +929,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     // Keep stable ordering by node order then field order then index
     results.sort((a, b) => {
       if (a.nodeId !== b.nodeId) return String(a.nodeId).localeCompare(String(b.nodeId));
-      const order = { title: 0, prompt: 1, property: 2 } as const;
+      const order = { title: 0, description: 1, property: 2 } as const;
       if (order[a.field] !== order[b.field]) return order[a.field] - order[b.field];
       return a.index - b.index;
     });

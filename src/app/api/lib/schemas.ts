@@ -81,13 +81,12 @@ export type NodeType = z.infer<typeof NodeTypeEnum>;
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
-  prompt: z.string(),
+  description: z.string(),
   comment: z.string().optional(),
   type: NodeTypeEnum,
   level: C4LevelEnum.optional(),
   shape: z.enum(['rectangle', 'circle', 'comment', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
   properties: z.array(PropertySchema).optional(),
-  position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
   metadata: NodeMetadataSchema.optional()
@@ -665,7 +664,7 @@ export function graphToXml(graph: Graph): string {
   // No longer tracking children since we use edges exclusively
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
-    const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const desc = n.description ? `\n      <description>${escapeXml(n.description)}</description>` : '';
     const props = Array.isArray((n as any).properties) && (n as any).properties.length > 0
       ? `\n      <props>\n${((n as any).properties as Property[]).map((p) => {
           const propType = (p as any)?.type;
@@ -690,13 +689,7 @@ ${optionsXml}
           }
         }).join("\n")}\n      </props>`
       : '';
-    // Include position attributes if available (z defaults to 0)
-    const hasPos = (n as any)?.position && typeof (n as any).position.x === 'number' && typeof (n as any).position.y === 'number';
-    const xAttr = hasPos ? ` x="${escapeXml(String((n as any).position.x))}"` : '';
-    const yAttr = hasPos ? ` y="${escapeXml(String((n as any).position.y))}"` : '';
-    const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
-    const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}">${desc}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -973,26 +966,11 @@ export function xmlToGraph(xml: string): Graph {
         properties = Array.from(propertyMap.values());
       }
 
-      // Parse position attributes if present
-      let position: { x: number; y: number; z?: number } | undefined = undefined;
-      try {
-        const xRaw = (nodeData as any)['@_x'];
-        const yRaw = (nodeData as any)['@_y'];
-        const zRaw = (nodeData as any)['@_z'];
-        const x = typeof xRaw === 'number' ? xRaw : (xRaw !== undefined ? Number(xRaw) : NaN);
-        const y = typeof yRaw === 'number' ? yRaw : (yRaw !== undefined ? Number(yRaw) : NaN);
-        const z = typeof zRaw === 'number' ? zRaw : (zRaw !== undefined ? Number(zRaw) : NaN);
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          position = { x, y, z: Number.isFinite(z) ? z : 0 };
-        }
-      } catch {}
-
       return {
         id,
         title,
-        prompt: unescapeXml(description),
-        properties,
-        ...(position ? { position } : {})
+        description: unescapeXml(description),
+        properties
       } as GraphNode;
     });
 
