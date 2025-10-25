@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-
-// Base URL for the local API (can be configured via environment)
-const baseUrl = process.env.MANTA_BASE_URL || 'http://localhost:3002';
+import { graphOperations } from '../lib/graph-service';
 
 
 const handler = createMcpHandler(
@@ -13,29 +11,16 @@ const handler = createMcpHandler(
       {
         nodeId: z.string().optional().describe('Optional node ID to read specific node details'),
         layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
-        includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
-        includeChildren: z.boolean().optional().describe('Whether to include child nodes in the response')
+        includeProperties: z.boolean().optional().describe('Whether to include node properties in the response')
       },
       async (params) => {
         console.log('🔍 MCP TOOL: read called', params);
 
         try {
-          const response = await fetch(`${baseUrl}/api/graph-api`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'read',
-              nodeId: params.nodeId,
-              layer: params.layer, // Will default to 'system' in the API if not provided
-              includeProperties: params.includeProperties,
-              includeChildren: params.includeChildren
-            })
-          });
+          const result = await graphOperations.read(params);
 
-          const result = await response.json();
-
-          if (!response.ok || result.error) {
-            console.error('❌ MCP TOOL: read API error:', result.error);
+          if (!result.success) {
+            console.error('❌ MCP TOOL: read error:', result.error);
             return {
               content: [{
                 type: 'text',
@@ -44,7 +29,7 @@ const handler = createMcpHandler(
             };
           }
 
-          console.log('📤 MCP TOOL: read API success');
+          console.log('📤 MCP TOOL: read success');
 
           if (params.nodeId) {
             // When nodeId is specified, return the full node details
@@ -66,11 +51,11 @@ const handler = createMcpHandler(
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error('💥 MCP TOOL: read API call error:', errorMessage);
+          console.error('💥 MCP TOOL: read operation error:', errorMessage);
           return {
             content: [{
               type: 'text',
-              text: `Error: Failed to read graph via API: ${errorMessage}`
+              text: `Error: Failed to read graph: ${errorMessage}`
             }]
           };
         }
