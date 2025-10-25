@@ -99,7 +99,7 @@ useEffect(() => {
           ...userMessage.variables,
           SELECTED_NODE_ID: selectedNodeId,
           SELECTED_NODE_TITLE: selectedNode.title,
-          SELECTED_NODE_PROMPT: selectedNode.prompt
+          SELECTED_NODE_PROMPT: selectedNode.description
         };
       }
     }

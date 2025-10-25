@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
-import { Folder, FolderOpen, File, ChevronRight } from 'lucide-react';
+import { Globe, Box, Puzzle, Code } from 'lucide-react';
 import ResizeHandle from './ResizeHandle';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -10,320 +10,21 @@ import type { GraphNode, Graph } from '@/app/api/lib/schemas';
 
 type Props = { open?: boolean };
 
-// Tree node for displaying graph nodes recursively
-interface GraphNodeTreeNode {
-  node: GraphNode;
-  level: number;
-  isLast: boolean;
-  parentPath: boolean[];
-  navigationPath: string[]; // Full path from root to this node
-}
-
-function buildGraphTree(graph: Graph | null): GraphNodeTreeNode[] {
-  if (!graph || !graph.nodes) return [];
-
-  const nodes = graph.nodes || [];
-
-  // Create tree nodes for each graph node
-  const treeNodes: GraphNodeTreeNode[] = nodes.map((node, index) => ({
-    node,
-    level: 0,
-    isLast: index === nodes.length - 1,
-    parentPath: [],
-    navigationPath: [node.id] // Root nodes have path [nodeId]
-  }));
-
-  // Sort by node title
-  treeNodes.sort((a, b) => a.node.title.localeCompare(b.node.title));
-
-  // Update isLast after sorting
-  treeNodes.forEach((node, index) => {
-    node.isLast = index === treeNodes.length - 1;
-  });
-
-  return treeNodes;
-}
+// Fixed C4 layers that are always present
+const C4_LAYERS = [
+  { name: 'system', icon: Globe, label: 'System', color: 'text-blue-400' },
+  { name: 'container', icon: Box, label: 'Container', color: 'text-green-400' },
+  { name: 'component', icon: Puzzle, label: 'Component', color: 'text-yellow-400' },
+  { name: 'code', icon: Code, label: 'Code', color: 'text-purple-400' },
+] as const;
 
 export default function LayersSidebar({ open = true }: Props) {
-  const { graph, rightSidebarWidth, setRightSidebarWidth, navigationPath, setNavigationPath } = useProjectStore();
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const indent = 20;
+  const { activeLayer, loadLayers, setActiveLayer, graphLoading, rightSidebarWidth, setRightSidebarWidth } = useProjectStore();
 
   // Always use root graph to build the tree
   const graphTree = useMemo(() => {
     return buildGraphTree(graph);
   }, [graph]);
-
-  const toggleExpanded = (nodeId: string) => {
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  };
-
-  // Check if a node is currently selected (highlighted) based on navigationPath
-  const isNodeSelected = (nodeNavigationPath: string[]): boolean => {
-    // Check if this node's navigation path matches the current navigation path
-    return navigationPath.length === nodeNavigationPath.length &&
-           navigationPath.every((id, index) => id === nodeNavigationPath[index]);
-  };
-
-  // Check if root is selected
-  const isRootSelected = navigationPath.length === 0;
-
-  // Auto-expand selected nodes when navigationPath changes
-  useEffect(() => {
-    if (navigationPath.length > 0) {
-      setExpandedNodes(prev => {
-        const newSet = new Set(prev);
-        // Expand all nodes in the navigation path (ancestors of selected node)
-        navigationPath.forEach(nodeId => {
-          newSet.add(nodeId);
-        });
-        return newSet;
-      });
-    }
-  }, [navigationPath]);
-
-  // Auto-expand root when at root level
-  useEffect(() => {
-    if (navigationPath.length === 0) {
-      setExpandedNodes(new Set(['__root__']));
-    }
-  }, [navigationPath]);
-
-  // Render a graph node and its children recursively
-  const renderNodeItem = (item: GraphNodeTreeNode): React.ReactNode => {
-    const hasNestedGraph = !!(item.node.graph && item.node.graph.nodes && item.node.graph.nodes.length > 0);
-    const isExpanded = expandedNodes.has(item.node.id);
-    const isSelected = isNodeSelected(item.navigationPath);
-
-    const getDefaultIcon = () =>
-      hasNestedGraph ? (
-        isExpanded ? (
-          <FolderOpen className="h-4 w-4" />
-        ) : (
-          <Folder className="h-4 w-4" />
-        )
-      ) : (
-        <File className="h-4 w-4" />
-      );
-
-    return (
-      <div key={item.node.id} className="select-none">
-        <motion.div
-          className={cn(
-            "flex items-center py-2 px-3 cursor-pointer transition-all duration-200 relative group rounded",
-            isSelected ? "bg-blue-500/20 border border-blue-500/50" : "bg-zinc-800/40 border border-zinc-700 hover:bg-zinc-700"
-          )}
-          style={{ paddingLeft: item.level * indent + 12 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            // Click to navigate to this node using the correct navigation path
-            setNavigationPath(item.navigationPath);
-            // Collapse siblings at same level when selecting this node
-            setExpandedNodes(prev => {
-              const newSet = new Set(prev);
-              // Only keep the root and the selected node's ancestors expanded
-              // Remove any expanded siblings at the same level
-              const nodesToRemove = graphTree
-                .filter(n => n.node.id !== item.node.id && n.level === item.level)
-                .map(n => n.node.id);
-              nodesToRemove.forEach(id => newSet.delete(id));
-              return newSet;
-            });
-          }}
-          whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
-        >
-          {/* Tree Lines */}
-          {item.level > 0 && (
-            <div className="absolute left-0 top-0 bottom-0 pointer-events-none">
-              {item.parentPath.map((isLastInPath, pathIndex) => (
-                <div
-                  key={pathIndex}
-                  className="absolute top-0 bottom-0 border-l border-zinc-600/40"
-                  style={{
-                    left: pathIndex * indent + 12,
-                    display:
-                      pathIndex === item.parentPath.length - 1 && item.isLast
-                        ? "none"
-                        : "block",
-                  }}
-                />
-              ))}
-              <div
-                className="absolute top-1/2 border-t border-zinc-600/40"
-                style={{
-                  left: (item.level - 1) * indent + 12,
-                  width: indent - 4,
-                  transform: "translateY(-1px)",
-                }}
-              />
-              {item.isLast && (
-                <div
-                  className="absolute top-0 border-l border-zinc-600/40"
-                  style={{
-                    left: (item.level - 1) * indent + 12,
-                    height: "50%",
-                  }}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Expand Icon */}
-          <motion.div
-            className="flex items-center justify-center w-4 h-4 mr-1"
-            animate={{ rotate: hasNestedGraph && isExpanded ? 90 : 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (hasNestedGraph) {
-                toggleExpanded(item.node.id);
-              }
-            }}
-          >
-            {hasNestedGraph && (
-              <ChevronRight className="h-3 w-3 text-zinc-400" />
-            )}
-          </motion.div>
-
-          {/* Node Icon */}
-          <motion.div
-            className="flex items-center justify-center w-4 h-4 mr-2 text-zinc-400"
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.15 }}
-          >
-            {getDefaultIcon()}
-          </motion.div>
-
-          {/* Node Title */}
-          <span className="text-sm truncate flex-1 text-zinc-300">
-            {item.node.title}
-          </span>
-        </motion.div>
-
-        {/* Children (nested graph nodes) */}
-        <AnimatePresence>
-          {hasNestedGraph && isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className="overflow-hidden"
-            >
-              <motion.div
-                initial={{ y: -10 }}
-                animate={{ y: 0 }}
-                exit={{ y: -10 }}
-                transition={{
-                  duration: 0.2,
-                  delay: 0.1,
-                }}
-              >
-                {item.node.graph?.nodes?.map((childNode: GraphNode, childIndex: number) => {
-                  const childItem: GraphNodeTreeNode = {
-                    node: childNode,
-                    level: item.level + 1,
-                    isLast: childIndex === item.node.graph!.nodes!.length - 1,
-                    parentPath: item.parentPath.concat(item.isLast),
-                    navigationPath: [...item.navigationPath, childNode.id] // Extend parent path
-                  };
-                  return renderNodeItem(childItem);
-                })}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
-
-  // Render Root item with expand/collapse
-  const renderRoot = () => {
-    const isExpanded = expandedNodes.has('__root__');
-    
-    return (
-      <div key="__root__" className="select-none">
-        <motion.div
-          className={cn(
-            "flex items-center py-2 px-3 cursor-pointer transition-all duration-200 relative group rounded font-semibold",
-            isRootSelected ? "bg-blue-500/20 border border-blue-500/50" : "bg-zinc-800/40 border border-zinc-700 hover:bg-zinc-700"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            // Click to navigate to root
-            setNavigationPath([]);
-          }}
-          whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
-        >
-          {/* Expand Icon */}
-          <motion.div
-            className="flex items-center justify-center w-4 h-4 mr-1"
-            animate={{ rotate: isExpanded ? 90 : 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpanded('__root__');
-            }}
-          >
-            <ChevronRight className="h-3 w-3 text-zinc-400" />
-          </motion.div>
-
-          {/* Node Icon */}
-          <motion.div
-            className="flex items-center justify-center w-4 h-4 mr-2 text-zinc-400"
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.15 }}
-          >
-            <Folder className="h-4 w-4" />
-          </motion.div>
-
-          {/* Node Title */}
-          <span className="text-sm truncate flex-1 text-zinc-300">
-            Root
-          </span>
-        </motion.div>
-
-        {/* Root Children */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className="overflow-hidden"
-            >
-              <motion.div
-                initial={{ y: -10 }}
-                animate={{ y: 0 }}
-                exit={{ y: -10 }}
-                transition={{
-                  duration: 0.2,
-                  delay: 0.1,
-                }}
-              >
-                {graphTree.map((item) => renderNodeItem(item))}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
 
   if (!open) return null;
 
@@ -332,28 +33,39 @@ export default function LayersSidebar({ open = true }: Props) {
       className="flex-none border-l border-zinc-700 bg-zinc-900 text-white flex flex-col relative"
       style={{ width: `${rightSidebarWidth}px` }}
     >
-      <div className="px-3 py-2 border-b border-zinc-700 flex items-center justify-between">
+      <div className="px-3 py-2 border-b border-zinc-700">
         <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
-          Graph Nodes
+          C4 Layers
         </div>
       </div>
 
-      <motion.div
-        className="p-2 flex-1 overflow-y-auto"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-      >
-        {graphTree.length === 0 ? (
-          <div className="text-xs text-zinc-400 text-center py-8">
-            No nodes in graph yet
+      <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+        {/* C4 Layers */}
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-zinc-400 mb-2">
+            Architecture Layers
           </div>
-        ) : (
-          <div className="space-y-1">
-            {renderRoot()}
-          </div>
-        )}
-      </motion.div>
+          {C4_LAYERS.map((c4Layer) => {
+            const isActive = c4Layer.name === activeLayer;
+            const Icon = c4Layer.icon;
+            return (
+              <div key={c4Layer.name} className={`flex items-center justify-between rounded border px-2 py-1 ${isActive ? 'bg-zinc-800 border-blue-600' : 'bg-zinc-800/40 border-zinc-700'} gap-2`}>
+                <button
+                  className={`text-left text-xs flex-1 truncate flex items-center gap-2 ${isActive ? 'text-white' : 'text-zinc-300'}`}
+                  onClick={() => {
+                    // Dispatch event to save viewport before switching layers
+                    window.dispatchEvent(new CustomEvent('manta:switch-layer', { detail: { layerName: c4Layer.name } }));
+                  }}
+                  title={isActive ? 'Active layer' : 'Set active'}
+                >
+                  <Icon className={`w-3 h-3 ${c4Layer.color}`} />
+                  <span>{c4Layer.label}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <ResizeHandle
         direction="left"

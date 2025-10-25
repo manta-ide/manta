@@ -8,9 +8,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface SliderPropertyEditorProps {
   property: Property & { type: 'slider' };
   onChange: (value: number[]) => void;
+  disabled?: boolean;
 }
 
-export default function SliderPropertyEditor({ property, onChange }: SliderPropertyEditorProps) {
+export default function SliderPropertyEditor({ property, onChange, disabled = false }: SliderPropertyEditorProps) {
   const min = typeof property.min === 'number' ? property.min : 0;
   const max = typeof property.max === 'number' ? property.max : 100;
   const step = typeof property.step === 'number' ? property.step : 1;
@@ -92,6 +93,7 @@ export default function SliderPropertyEditor({ property, onChange }: SliderPrope
           tooltipContent={(v) => fmt(v)}
           aria-label={property.title}
           className="[&_[data-slot=slider-track]]:bg-zinc-700 [&_[data-slot=slider-range]]:bg-white [&_[data-slot=slider-thumb]]:h-3 [&_[data-slot=slider-thumb]]:w-3"
+          disabled={disabled}
         />
         <div className="flex items-center justify-between mt-1">
           <span className="text-[10px] text-zinc-500 tabular-nums select-none">{fmt(min)}</span>

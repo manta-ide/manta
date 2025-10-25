@@ -19,9 +19,10 @@ interface PropertyEditorProps {
   onChange: (propertyId: string, value: any) => void;
   onPreview?: (propertyId: string, value: any) => void;
   onBackendUpdate?: (propertyId: string, value: any) => Promise<void>;
+  disabled?: boolean;
 }
 
-export default function PropertyEditor({ property, onChange, onPreview, onBackendUpdate }: PropertyEditorProps) {
+export default function PropertyEditor({ property, onChange, onPreview, onBackendUpdate, disabled = false }: PropertyEditorProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastUpdate = useRef<number>(0);
@@ -85,6 +86,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
             property={property as Property & { type: 'font' }}
             onChange={handleChange}
             onPreview={handlePreview}
+            disabled={disabled}
           />
         );
       case 'text':
@@ -92,6 +94,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <TextAreaPropertyEditor
             property={property as Property & { type: 'text' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'object':
@@ -99,6 +102,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <ObjectPropertyEditor
             property={property as Property & { type: 'object' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'object-list':
@@ -106,6 +110,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <ObjectListPropertyEditor
             property={property as Property & { type: 'object-list' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'color':
@@ -113,6 +118,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <ColorPropertyEditor
             property={property as Property & { type: 'color' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'select': {
@@ -123,6 +129,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
             property={p}
             onChange={handleChange}
             onPreview={handlePreview}
+            disabled={disabled}
           />
         );
       }
@@ -131,6 +138,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <NumberPropertyEditor
             property={property as Property & { type: 'number' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'boolean':
@@ -138,6 +146,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <BooleanPropertyEditor
             property={property as Property & { type: 'boolean' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'checkbox':
@@ -145,6 +154,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <CheckboxPropertyEditor
             property={property as Property & { type: 'checkbox'; options?: string[] }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'radio':
@@ -152,6 +162,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <RadioPropertyEditor
             property={property as Property & { type: 'radio'; options: string[] }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       case 'slider':
@@ -159,6 +170,7 @@ export default function PropertyEditor({ property, onChange, onPreview, onBacken
           <SliderPropertyEditor
             property={property as Property & { type: 'slider' }}
             onChange={handleChange}
+            disabled={disabled}
           />
         );
       default:

@@ -61,14 +61,32 @@ export const MetadataInputSchema = z.union([
 ]);
 export type MetadataInput = z.infer<typeof MetadataInputSchema>;
 
+export const C4LevelEnum = z.enum([
+  'system',
+  'container',
+  'component',
+  'code'
+]);
+export type C4Level = z.infer<typeof C4LevelEnum>;
+
+export const NodeTypeEnum = z.enum([
+  'system',
+  'container',
+  'component',
+  'code',
+  'comment'
+]);
+export type NodeType = z.infer<typeof NodeTypeEnum>;
+
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
-  prompt: z.string(),
+  description: z.string(),
   comment: z.string().optional(),
+  type: NodeTypeEnum,
+  level: C4LevelEnum.optional(),
   shape: z.enum(['rectangle', 'circle', 'comment', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
   properties: z.array(PropertySchema).optional(),
-  position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
   metadata: NodeMetadataSchema.optional(),
@@ -83,7 +101,7 @@ export const GraphEdgeSchema = z.object({
   role: z.string().optional(),
   sourceHandle: z.string().optional(),
   targetHandle: z.string().optional(),
-  shape: z.enum(['solid', 'dotted']).optional(),
+  shape: z.enum(['refines', 'relates']).optional(),
 });
 export type GraphEdge = z.infer<typeof GraphEdgeSchema>;
 export const GraphSchema = z.object({ nodes: z.array(GraphNodeSchema), edges: z.array(GraphEdgeSchema).optional() });
@@ -647,7 +665,7 @@ export function graphToXml(graph: Graph): string {
   // No longer tracking children since we use edges exclusively
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
-    const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const desc = n.description ? `\n      <description>${escapeXml(n.description)}</description>` : '';
     const props = Array.isArray((n as any).properties) && (n as any).properties.length > 0
       ? `\n      <props>\n${((n as any).properties as Property[]).map((p) => {
           const propType = (p as any)?.type;
@@ -672,35 +690,7 @@ ${optionsXml}
           }
         }).join("\n")}\n      </props>`
       : '';
-    // Include position attributes if available (z defaults to 0)
-    const hasPos = (n as any)?.position && typeof (n as any).position.x === 'number' && typeof (n as any).position.y === 'number';
-    const xAttr = hasPos ? ` x="${escapeXml(String((n as any).position.x))}"` : '';
-    const yAttr = hasPos ? ` y="${escapeXml(String((n as any).position.y))}"` : '';
-    const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
-    const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
-
-    // Include nested graph (always add, even if empty)
-    let nestedGraph = '';
-    try {
-      const nestedGraphContent = n.graph || { nodes: [], edges: [] };
-      const nestedXml = graphToXml(nestedGraphContent);
-      // Extract just the nodes and edges content from the nested graph XML
-      const lines = nestedXml.split('\n');
-      const nodeStartIdx = lines.findIndex(l => l.includes('<nodes>'));
-      const edgeEndIdx = lines.findIndex(l => l.includes('</edges>'));
-      if (nodeStartIdx !== -1 && edgeEndIdx !== -1) {
-        const graphContent = lines
-          .slice(nodeStartIdx, edgeEndIdx + 1)
-          .join('\n')
-          .replace(/^/gm, '  ');
-        nestedGraph = `\n      <graph>\n${graphContent}\n      </graph>`;
-      }
-    } catch (e) {
-      console.error('[graphToXml] Error serializing nested graph:', e);
-      nestedGraph = `\n      <graph>\n        <nodes></nodes>\n        <edges></edges>\n      </graph>`;
-    }
-
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}>${desc}${props}${nestedGraph}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}">${desc}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string }>;
@@ -977,37 +967,11 @@ export function xmlToGraph(xml: string): Graph {
         properties = Array.from(propertyMap.values());
       }
 
-      // Parse position attributes if present
-      let position: { x: number; y: number; z?: number } | undefined = undefined;
-      try {
-        const xRaw = (nodeData as any)['@_x'];
-        const yRaw = (nodeData as any)['@_y'];
-        const zRaw = (nodeData as any)['@_z'];
-        const x = typeof xRaw === 'number' ? xRaw : (xRaw !== undefined ? Number(xRaw) : NaN);
-        const y = typeof yRaw === 'number' ? yRaw : (yRaw !== undefined ? Number(yRaw) : NaN);
-        const z = typeof zRaw === 'number' ? zRaw : (zRaw !== undefined ? Number(zRaw) : NaN);
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          position = { x, y, z: Number.isFinite(z) ? z : 0 };
-        }
-      } catch {}
-
-      // Parse nested graph if present
-      let nestedGraph: Graph | undefined = undefined;
-      if (nodeData.graph) {
-        try {
-          nestedGraph = xmlToGraph(`<?xml version="1.0" encoding="UTF-8"?>\n${xmlBuilder.build(nodeData.graph)}`);
-        } catch (e) {
-          console.warn(`Failed to parse nested graph for node ${id}:`, e);
-        }
-      }
-
       return {
         id,
         title,
-        prompt: unescapeXml(description),
-        properties,
-        ...(position ? { position } : {}),
-        ...(nestedGraph ? { graph: nestedGraph } : {})
+        description: unescapeXml(description),
+        properties
       } as GraphNode;
     });
 

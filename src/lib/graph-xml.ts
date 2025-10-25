@@ -1,5 +1,6 @@
-import type { Graph, GraphNode, Property, NodeMetadata } from '@/app/api/lib/schemas';
+import type { Graph, GraphNode, Property, NodeMetadata, NodeType } from '@/app/api/lib/schemas';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import path from 'path';
 
 // Configure XML parser for our use case
 const xmlParser = new XMLParser({
@@ -101,6 +102,7 @@ function filesFromXml(metadataNode: any): string[] {
   const entries = Array.isArray(rawFiles) ? rawFiles : (rawFiles !== undefined ? [rawFiles] : []);
   const result: string[] = [];
   const seen = new Set<string>();
+  const projectRoot = process.cwd();
 
   for (const entry of entries) {
     let value: string | undefined;
@@ -115,8 +117,19 @@ function filesFromXml(metadataNode: any): string[] {
     }
 
     if (!value) continue;
-    const cleaned = unescapeXml(repairTextEncoding(String(value))).trim();
+    let cleaned = unescapeXml(repairTextEncoding(String(value))).trim();
     if (!cleaned || seen.has(cleaned)) continue;
+
+    // Normalize path to handle any malformed paths with excessive ../ segments
+    if (!path.isAbsolute(cleaned)) {
+      // Normalize relative paths by resolving and making relative again
+      cleaned = path.relative(projectRoot, path.resolve(projectRoot, cleaned));
+      cleaned = cleaned.replace(/\\/g, '/');
+      if (cleaned.startsWith('./')) {
+        cleaned = cleaned.substring(2);
+      }
+    }
+
     seen.add(cleaned);
     result.push(cleaned);
   }
@@ -392,7 +405,7 @@ export function graphToXml(graph: Graph): string {
   // No longer tracking children since we use edges exclusively
 
   const nodes = (graph.nodes || []).map((n: GraphNode) => {
-    const desc = n.prompt ? `\n      <description>${escapeXml(n.prompt)}</description>` : '';
+    const desc = n.description ? `\n      <description>${escapeXml(n.description)}</description>` : '';
     const metadataFiles = normalizeMetadataFiles((n as any).metadata);
     const metadataBugs = normalizeMetadataBugs((n as any).metadata);
 
@@ -455,75 +468,13 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    // Include shape attribute if present
+    // Include shape and type attributes if present
     const shape = (n as any).shape;
     const shapeAttr = shape ? ` shape="${escapeXml(String(shape))}"` : '';
+    const type = (n as any).type;
+    const typeAttr = type ? ` type="${escapeXml(String(type))}"` : '';
 
-    // Include nested graph (always add, even if empty)
-    let nestedGraph = '';
-    try {
-      const nestedGraphContent = n.graph || { nodes: [], edges: [] };
-      const nestedXml = graphToXml(nestedGraphContent);
-      // Extract just the nodes and edges content from the nested graph XML
-      const lines = nestedXml.split('\n');
-      
-      // Find the root-level <nodes> and <edges> sections
-      let nodeStartIdx = -1;
-      let nodeEndIdx = -1;
-      let edgeStartIdx = -1;
-      let edgeEndIdx = -1;
-      let nodesDepth = 0;
-      let edgesDepth = 0;
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Track <nodes> sections with depth
-        if (line.includes('<nodes>') || line.includes('<nodes ')) {
-          if (nodesDepth === 0 && nodeStartIdx === -1) {
-            nodeStartIdx = i;
-          }
-          nodesDepth++;
-        }
-        if (line.includes('</nodes>')) {
-          nodesDepth--;
-          if (nodesDepth === 0 && nodeStartIdx !== -1 && nodeEndIdx === -1) {
-            nodeEndIdx = i;
-          }
-        }
-        
-        // Track <edges> sections with depth (only after nodes section is complete)
-        if (nodeEndIdx !== -1) {
-          if (line.includes('<edges>') || line.includes('<edges ')) {
-            if (edgesDepth === 0 && edgeStartIdx === -1) {
-              edgeStartIdx = i;
-            }
-            edgesDepth++;
-          }
-          if (line.includes('</edges>')) {
-            edgesDepth--;
-            if (edgesDepth === 0 && edgeStartIdx !== -1 && edgeEndIdx === -1) {
-              edgeEndIdx = i;
-              break; // We're done
-            }
-          }
-        }
-      }
-      
-      if (nodeStartIdx !== -1 && edgeEndIdx !== -1) {
-        const graphContent = lines
-          .slice(nodeStartIdx, edgeEndIdx + 1)
-          .join('\n')
-          .replace(/^/gm, '  ');
-        nestedGraph = `\n      <graph>\n${graphContent}\n      </graph>`;
-      }
-    } catch (e) {
-      console.error('Error serializing nested graph:', e);
-      // Fallback: include empty graph
-      nestedGraph = `\n      <graph>\n        <nodes></nodes>\n        <edges></edges>\n      </graph>`;
-    }
-
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}>${desc}${metadataXml}${props}${nestedGraph}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}${typeAttr}>${desc}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }>;
@@ -533,7 +484,7 @@ ${optionsXml}
     const sh = (e as any).sourceHandle ? ` sourceHandle="${escapeXml(String((e as any).sourceHandle))}"` : '';
     const th = (e as any).targetHandle ? ` targetHandle="${escapeXml(String((e as any).targetHandle))}"` : '';
     const shape = (e as any).shape;
-    const validShape = shape === 'solid' || shape === 'dotted' ? shape : undefined;
+    const validShape = shape === 'relates' || shape === 'refines' ? shape : undefined;
     const shapeAttr = validShape ? ` shape="${escapeXml(String(validShape))}"` : '';
     return `    <edge id="${escapeXml(id)}" source="${escapeXml(e.source)}" target="${escapeXml(e.target)}" role="${escapeXml(role)}"${sh}${th}${shapeAttr}/>`;
   }).join('\n');
@@ -846,9 +797,11 @@ export function xmlToGraph(xml: string): Graph {
 
       const metadataFiles = filesFromXml(nodeData.metadata?.files);
       const metadataBugs = bugsFromXml(nodeData.metadata?.bugs);
-      // Optional shape
+      // Optional shape and type
       const shapeRaw = (nodeData as any)['@_shape'];
       const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
+      const typeRaw = (nodeData as any)['@_type'];
+      const type = typeof typeRaw === 'string' && ['system', 'container', 'component', 'code'].includes(typeRaw) ? typeRaw as NodeType : 'component';
 
       // Build metadata object if we have files or bugs
       let metadata: NodeMetadata | undefined = undefined;
@@ -873,12 +826,11 @@ export function xmlToGraph(xml: string): Graph {
       return {
         id,
         title,
-        prompt: description,
+        description: description,
         properties,
-        ...(position ? { position } : {}),
         ...(metadata ? { metadata } : {}),
         ...(shape ? { shape: shape as any } : {}),
-        ...(nestedGraph ? { graph: nestedGraph } : {})
+        ...(type ? { type } : {})
       } as GraphNode;
     });
 
@@ -906,7 +858,7 @@ export function xmlToGraph(xml: string): Graph {
             role,
             sourceHandle,
             targetHandle,
-            ...(shape === 'solid' || shape === 'dotted' ? { shape } : {}),
+            ...(shape === 'relates' || shape === 'refines' ? { shape } : {}),
           });
         }
       });

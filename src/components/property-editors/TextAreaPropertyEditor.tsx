@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface TextAreaPropertyEditorProps {
   property: Property & { type: 'text' };
   onChange: (value: string) => void;
+  disabled?: boolean;
 }
 
-export default function TextAreaPropertyEditor({ property, onChange }: TextAreaPropertyEditorProps) {
+export default function TextAreaPropertyEditor({ property, onChange, disabled = false }: TextAreaPropertyEditorProps) {
   const value = (property.value as string) || '';
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const [wasMultiline, setWasMultiline] = useState<boolean | null>(null);
@@ -60,6 +61,7 @@ export default function TextAreaPropertyEditor({ property, onChange }: TextAreaP
           placeholder="Enter text..."
           maxLength={property.maxLength}
           className="w-full h-24 !text-xs bg-zinc-800 border-zinc-700 text-white leading-relaxed focus:border-blue-500/50 focus:ring-blue-500/50"
+          readOnly={disabled}
         />
       ) : (
         <Input
@@ -69,6 +71,7 @@ export default function TextAreaPropertyEditor({ property, onChange }: TextAreaP
           placeholder="Enter text..."
           maxLength={property.maxLength}
           className="w-full !text-xs bg-zinc-800 border-zinc-700 text-white focus:border-blue-500/50 focus:ring-blue-500/50 font-medium leading-tight"
+          readOnly={disabled}
         />
       )}
     </BasePropertyEditor>

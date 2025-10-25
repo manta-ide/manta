@@ -38,9 +38,8 @@ import remarkBreaks from 'remark-breaks';
 import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
-import { isEdgeUnbuilt, nodesAreDifferent } from '@/lib/graph-diff';
 import { Button } from '@/components/ui/button';
-import { Play, Hand, SquareDashed, Loader2, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
+import { Hand, SquareDashed, Layers as LayersIcon } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 import Shape from './shapes';
 import { getShapeConfig } from './shapes/types';
@@ -89,7 +88,6 @@ const commentMarkdownComponents = {
 // Custom node component
 function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const node = data.node as GraphNode;
-  const baseGraph = data.baseGraph;
   const updateNode = data.updateNode;
   const { zoom } = useViewport();
   const {
@@ -99,6 +97,76 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
     searchCaseSensitive,
     searchOpen,
   } = useProjectStore();
+
+  // Special handling for outline nodes (upper level boundaries)
+  if (data.isOutline) {
+    console.log('🎨 Rendering outline node:', { id: node.id, title: node.title, outlineType: data.outlineType });
+
+    // Map outline type to color matching the layer icons
+    const getOutlineColor = (outlineType: string) => {
+      switch (outlineType) {
+        case 'system':
+          return { border: 'rgba(59, 130, 246, 0.8)', background: 'rgba(59, 130, 246, 0.1)', titleBg: 'rgba(59, 130, 246, 0.95)' };
+        case 'container':
+          return { border: 'rgba(34, 197, 94, 0.8)', background: 'rgba(34, 197, 94, 0.1)', titleBg: 'rgba(34, 197, 94, 0.95)' };
+        case 'component':
+          return { border: 'rgba(251, 191, 36, 0.8)', background: 'rgba(251, 191, 36, 0.1)', titleBg: 'rgba(251, 191, 36, 0.95)' };
+        case 'code':
+          return { border: 'rgba(147, 51, 234, 0.8)', background: 'rgba(147, 51, 234, 0.1)', titleBg: 'rgba(147, 51, 234, 0.95)' };
+        default:
+          return { border: 'rgba(59, 130, 246, 0.8)', background: 'rgba(59, 130, 246, 0.1)', titleBg: 'rgba(59, 130, 246, 0.95)' };
+      }
+    };
+
+    const colors = getOutlineColor(data.outlineType);
+
+    return (
+      <div
+        className="outline-node"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none', // Don't interfere with child node interactions
+        }}
+      >
+        {/* Dotted outline border */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: `4px dotted ${colors.border}`,
+            borderRadius: '8px',
+            background: colors.background,
+            zIndex: -1, // Behind child nodes
+          }}
+        />
+
+        {/* Title label */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-32px',
+            left: '8px',
+            background: colors.titleBg,
+            color: 'white',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '700',
+            whiteSpace: 'nowrap',
+            zIndex: 10,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}
+        >
+          {node.title}
+        </div>
+      </div>
+    );
+  }
 
   const activeResult = (Array.isArray(searchResults) && searchActiveIndex >= 0)
     ? searchResults[searchActiveIndex]
@@ -152,100 +220,22 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   // Calculate indicator dot size based on zoom level
   const indicatorSize = isZoomedOut ? '16px' : '12px';
 
-  // Helper function to find a node recursively in a graph (including nested graphs)
-  const findNodeRecursively = (graph: any, nodeId: string): any => {
-    // Check root level first
-    const rootNode = graph.nodes?.find((n: any) => n.id === nodeId);
-    if (rootNode) return rootNode;
 
-    // Recursively search in nested graphs
-    for (const node of graph.nodes || []) {
-      if (node.graph) {
-        const found = findNodeRecursively(node.graph, nodeId);
-        if (found) return found;
-      }
-    }
+  // All nodes are considered built since we removed the base/current graph distinction
+  const effectiveState = 'built';
 
-    return null;
-  };
-
-  // Derive effective visual state based on base graph comparison
-  const effectiveState = (() => {
-
-    // Check if node has bugs - if so, it's always unbuilt
-    const bugs = node.metadata?.bugs;
-    const hasBugs = bugs && Array.isArray(bugs) && bugs.length > 0;
-    if (hasBugs) {
-      console.log(`   🐛 Node has ${bugs.length} bug(s) - marking as unbuilt`);
-      return 'unbuilt';
-    }
-
-    if (!baseGraph) {
-      console.log(`   ❌ No base graph available`);
-      return 'unbuilt'; // No base graph, consider unbuilt
-    }
-
-    // Find the base node recursively (including in nested graphs)
-    const baseNode = findNodeRecursively(baseGraph, node.id);
-    // Check if node exists anywhere in the current full graph (including nested graphs)
-    const isInCurrentGraph = !!findNodeRecursively(data.graph, node.id);
-
-    // Check if node exists in base graph but not in current graph (inverted diff for "to be deleted")
-    if (baseNode && !isInCurrentGraph) {
-      console.log('   👻 Node exists in base but not in current - marking as ghosted');
-      return 'ghosted';
-    }
-
-    if (!baseNode) {
-      return 'unbuilt'; // New node, consider unbuilt
-    }
-
-    // Use the same diff logic as analyzeGraphDiff - compares title, prompt, AND properties
-    const isSame = !nodesAreDifferent(baseNode, node);
-    const result = isSame ? 'built' : 'unbuilt';
-    console.log(`   ✅ Result: ${result} (using full diff comparison including properties and nested graphs)`);
-
-    return result;
-  })();
-
-  // Determine styling based on node state (built/unbuilt)
+  // Determine styling based on node state
   const getNodeStyles = () => {
     const borderWidth = isZoomedOut ? '3px' : '0px';
 
-    switch (effectiveState) {
-      case 'built':
-      case 'unbuilt': // Unbuilt nodes look the same as built nodes visually
-        return {
-          background: selected ? '#f8fafc' : '#ffffff',
-          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
-          boxShadow: selected
-            ? '0 0 0 2px #2563eb'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
-        };
-
-      case 'ghosted': {
-        const borderColor = selected ? '#2563eb' : '#d1d5db';
-        return {
-          background: 'rgba(243, 244, 246, 0.85)',
-          border: `1px dashed ${borderColor}`,
-          boxShadow: selected ? '0 0 0 2px rgba(37, 99, 235, 0.25)' : 'none',
-          borderRadius: '8px',
-          opacity: selected ? 0.75 : 0.55,
-          filter: 'saturate(0.3)',
-        };
-      }
-
-      default: // Any other state - treat as unbuilt
-        return {
-          background: selected ? '#f8fafc' : '#ffffff',
-          border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
-          boxShadow: selected
-            ? '0 0 0 2px #2563eb'
-            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-          borderRadius: '8px',
-        };
-    }
+    return {
+      background: selected ? '#f8fafc' : '#ffffff',
+      border: selected ? `${borderWidth} solid #2563eb` : '1px solid #e5e7eb',
+      boxShadow: selected
+        ? '0 0 0 2px #2563eb'
+        : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+      borderRadius: '8px',
+    };
   };
   
   // Always show detailed view at all zoom levels
@@ -319,43 +309,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
         }}
       />
 
-      {effectiveState === 'ghosted' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '12px',
-            zIndex: 3,
-            background: '#ef4444',
-            color: '#ffffff',
-            padding: '4px 8px',
-            borderRadius: '9999px',
-            fontSize: '11px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            pointerEvents: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          To be deleted
-        </div>
-      )}
-      {/* State indicators - only show for shapes that support it */}
-      {effectiveState === 'unbuilt' && shapeConfig.showStateIndicators && (
-        <div style={{
-          position: 'absolute',
-          top: shapeConfig.indicatorPosition.top,
-          right: shapeConfig.indicatorPosition.right,
-          width: indicatorSize,
-          height: indicatorSize,
-          borderRadius: '50%',
-          background: '#ef4444',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
-          zIndex: 2,
-        }} />
-      )}
+
 
       {/* Resize handles - only for resizable nodes (e.g., comments) */}
       {shapeConfig?.resizable && (
@@ -433,7 +387,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
             {typeof node.title === 'string' ? (searchQuery && searchOpen ? highlightText(node.title) : node.title) : node.title}
           </div>
           
-          {/* Prompt preview - always show at all zoom levels */}
+          {/* Description preview - always show at all zoom levels */}
           <div
             style={{
               fontSize: `${shapeConfig.fontSize?.content || 13}px`,
@@ -450,7 +404,7 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
               wordBreak: 'break-word',
               flex: shapeConfig.contentLayout?.flexContent ? 1 : 'none',
             }}
-            title={node.prompt}
+            title={node.description}
           >
             {shapeConfig.supportsMarkdown ? (
               <div style={{ whiteSpace: 'pre-wrap' }}>
@@ -458,11 +412,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
                   remarkPlugins={[remarkGfm, remarkBreaks]}
                   components={commentMarkdownComponents}
                 >
-                  {typeof node.prompt === 'string' ? node.prompt : String(node.prompt || '')}
+                  {typeof node.description === 'string' ? node.description : String(node.description || '')}
                 </ReactMarkdown>
               </div>
             ) : (
-              typeof node.prompt === 'string' ? (searchQuery && searchOpen ? highlightText(node.prompt) : node.prompt) : node.prompt
+              typeof node.description === 'string' ? (searchQuery && searchOpen ? highlightText(node.description) : node.description) : node.description
             )}
           </div>
         </div>
@@ -534,7 +488,9 @@ function GraphCanvas() {
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
-  const [isAutoLayouting, setIsAutoLayouting] = useState(false);
+  // Track viewport state for layer switching
+  const [currentViewport, setCurrentViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  const [pendingLayerSwitch, setPendingLayerSwitch] = useState<string | null>(null);
 
   // Double-click detection
   const lastClickRef = useRef<{ nodeId: string; timestamp: number } | null>(null);
@@ -572,12 +528,7 @@ function GraphCanvas() {
     selectedEdgeIds,
     setSelectedEdgeIds,
     buildEntireGraph,
-    isBuildingGraph,
-    baseGraph,
-    setBaseGraph,
-    loadBaseGraph,
-    navigationPath,
-    setNavigationPath,
+    isBuildingGraph
   } = useProjectStore();
   // Tool modes: 'select', 'pan', 'add-node', 'comment'
   const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node' | 'comment'>('select');
@@ -592,6 +543,7 @@ function GraphCanvas() {
   // Use the store for graph data
   const {
     graph,
+    fullGraph,
     graphLoading: loading,
     graphError: error,
     refreshGraph,
@@ -601,6 +553,7 @@ function GraphCanvas() {
     disconnectFromGraphEvents,
     deleteNode,
     loadGraphs,
+    activeLayer,
     // search state
     searchResults,
     searchActiveIndex,
@@ -628,29 +581,23 @@ function GraphCanvas() {
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
 
   // Edge visual styles
-  const defaultEdgeStyle = {
+  const defaultEdgeStyle = useMemo(() => ({
     stroke: '#9ca3af',
     strokeWidth: 2,
     opacity: 0.8,
-  } as const;
-  const selectedEdgeStyle = {
+  } as const), []);
+  const selectedEdgeStyle = useMemo(() => ({
     stroke: '#3b82f6',
     strokeWidth: 4,
     opacity: 1,
-  } as const;
-  const unbuiltEdgeStyle = {
-    stroke: '#ef4444',  // Highlight updated edges
-    strokeWidth: 3,
-    opacity: 0.9,
-    strokeLinecap: 'round' as const,
-  } as const;
+  } as const), []);
 
-  type EdgeShape = 'solid' | 'dotted';
-  const DEFAULT_EDGE_SHAPE: EdgeShape = 'solid';
+  type EdgeShape = 'refines' | 'relates';
+  const DEFAULT_EDGE_SHAPE: EdgeShape = 'relates';
 
   const applyEdgeShapeToStyle = useCallback((style: any, shape: EdgeShape | undefined) => {
     const nextStyle = { ...style } as any;
-    if (shape === 'dotted') {
+    if (shape === 'relates') {
       nextStyle.strokeDasharray = '8,8';
     } else if ('strokeDasharray' in nextStyle) {
       delete nextStyle.strokeDasharray;
@@ -661,9 +608,9 @@ function GraphCanvas() {
   const resolveEdgeShape = useCallback((edgeLike: any): EdgeShape => {
     if (!edgeLike) return DEFAULT_EDGE_SHAPE;
     const directShape = (edgeLike as any)?.shape;
-    if (directShape === 'dotted' || directShape === 'solid') return directShape;
+    if (directShape === 'refines' || directShape === 'relates') return directShape;
     const dataShape = (edgeLike as any)?.data?.shape;
-    if (dataShape === 'dotted' || dataShape === 'solid') return dataShape;
+    if (dataShape === 'refines' || dataShape === 'relates') return dataShape;
 
     const id = (edgeLike as Edge)?.id || (edgeLike as any)?.id;
     const source = (edgeLike as Edge)?.source || (edgeLike as any)?.source;
@@ -674,7 +621,7 @@ function GraphCanvas() {
       return ge.source === source && ge.target === target;
     });
     const matchedShape = (matched as any)?.shape;
-    return matchedShape === 'dotted' || matchedShape === 'solid' ? matchedShape : DEFAULT_EDGE_SHAPE;
+    return matchedShape === 'refines' || matchedShape === 'relates' ? matchedShape : DEFAULT_EDGE_SHAPE;
   }, [graph]);
 
   // Helper to derive an arrow marker matching the current edge style
@@ -707,155 +654,31 @@ function GraphCanvas() {
     return rects;
   }, [nodes, searchResults, searchOpen]);
 
-  // Helper function to recursively layout a graph and all its nested graphs
-  const layoutGraphRecursively = useCallback(async (g: Graph, elk: any, nodeMarginX: number, nodeMarginY: number): Promise<Graph> => {
-    // Layout current level
-    const elkNodes = g.nodes.map(n => {
-      const width = 260 + nodeMarginX * 2;
-      const height = 160 + nodeMarginY * 2;
-      return { id: n.id, width, height } as any;
-    });
-
-    // Create set of node IDs at current level for validation
-    const currentLevelNodeIds = new Set(g.nodes.map(n => n.id));
-
-    const seen = new Set<string>();
-    const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
-    if (Array.isArray((g as any).edges)) {
-      (g as any).edges.forEach((e: any, i: number) => {
-        // Only include edges where both source and target exist at the current level
-        if (currentLevelNodeIds.has(e.source) && currentLevelNodeIds.has(e.target)) {
-          const id = `${e.source}-${e.target}`;
-          if (!seen.has(id)) {
-            elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
-            seen.add(id);
-          }
-        }
-      });
-    }
-
-    const elkGraph = {
-      id: 'root',
-      layoutOptions: {
-        'elk.algorithm': 'layered',
-        'elk.direction': 'RIGHT',
-        'elk.layered.layering.strategy': 'LONGEST_PATH',
-        'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-        'elk.layered.thoroughness': '7',
-        'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-        'elk.edgeRouting': 'ORTHOGONAL',
-        'elk.layered.spacing.nodeNodeBetweenLayers': '120',
-        'elk.layered.spacing.edgeEdgeBetweenLayers': '36',
-        'elk.spacing.nodeNode': '72',
-        'elk.spacing.edgeNode': '48',
-        'elk.spacing.edgeEdge': '36',
-        'elk.spacing.componentComponent': '96',
-        'elk.spacing.portPort': '12',
-        'elk.spacing.portNode': '12',
-        'elk.spacing.labelNode': '12',
-        'elk.layered.mergeEdges': 'true',
-      },
-      children: elkNodes,
-      edges: elkEdges,
-    } as any;
-
-    const res = await elk.layout(elkGraph);
-    const posMap = new Map<string, { x: number; y: number }>();
-    (res.children || []).forEach((c: any) => {
-      posMap.set(c.id, { x: Math.round(c.x || 0), y: Math.round(c.y || 0) });
-    });
-
-    // Update positions and recursively layout nested graphs
-    const updatedNodes = await Promise.all(g.nodes.map(async (n) => {
-      const p = posMap.get(n.id);
-      const updatedNode = {
-        ...n,
-        ...(p ? { position: { x: p.x, y: p.y, z: 0 } } : {}),
-      };
-
-      // Recursively layout nested graph if it exists and has nodes
-      if (updatedNode.graph && updatedNode.graph.nodes && updatedNode.graph.nodes.length > 0) {
-        updatedNode.graph = await layoutGraphRecursively(updatedNode.graph, elk, nodeMarginX, nodeMarginY);
-      }
-
-      return updatedNode;
-    }));
-
-    return { ...g, nodes: updatedNodes };
-  }, []);
-
-  // Auto layout all nodes using ELK and persist positions (recursive through all nested graphs)
-  const autoLayout = useCallback(async () => {
-    if (!graph) return;
-    setIsAutoLayouting(true);
-    setOptimisticOperationsActive(true);
-    try {
-      const elk = new ELK();
-      const nodeMarginX = 48;
-      const nodeMarginY = 48;
-
-      console.log('🎨 Starting recursive auto layout for entire graph hierarchy...');
-      
-      // Recursively layout the entire graph hierarchy
-      const updatedGraph = await layoutGraphRecursively(graph, elk, nodeMarginX, nodeMarginY);
-
-      console.log('✅ Recursive auto layout complete, saving graph...');
-
-      // Update RF nodes immediately for feedback (only for current visible level)
-      const currentLevelNodes = navigationPath.length === 0 
-        ? updatedGraph.nodes 
-        : (() => {
-            let current: any = updatedGraph;
-            for (const nodeId of navigationPath) {
-              const node = current.nodes?.find((n: any) => n.id === nodeId);
-              if (node?.graph) current = node.graph;
-            }
-            return current.nodes || [];
-          })();
-
-      setNodes(prev => prev.map(n => {
-        const updatedNode = currentLevelNodes.find((un: any) => un.id === n.id);
-        if (updatedNode?.position) {
-          return { ...n, position: { x: updatedNode.position.x, y: updatedNode.position.y } };
-        }
-        return n;
-      }));
-
-      await useProjectStore.getState().syncGraph(updatedGraph);
-      useProjectStore.setState({ graph: updatedGraph });
-      suppressSSE?.(1000);
-      
-      console.log('🎉 Auto layout saved successfully!');
-    } catch (e) {
-      console.error('Auto layout failed:', e);
-    } finally {
-      setOptimisticOperationsActive(false);
-      setIsAutoLayouting(false);
-    }
-  }, [graph, nodes, setNodes, setOptimisticOperationsActive, suppressSSE, navigationPath, layoutGraphRecursively]);
 
   // Listen for global commands (from chat slash commands or elsewhere)
   useEffect(() => {
-    const onAutoLayout = () => {
-      // Avoid double-press while already running
-      if (!isAutoLayouting) {
-        void autoLayout();
-      }
-    };
     const onBuildGraph = () => {
       // Trigger the same action as the Build Graph button
       if (!isBuildingGraph && graph) {
         void buildEntireGraph();
       }
     };
-
-    window.addEventListener('manta:auto-layout', onAutoLayout as EventListener);
-    window.addEventListener('manta:build-graph', onBuildGraph as EventListener);
-    return () => {
-      window.removeEventListener('manta:auto-layout', onAutoLayout as EventListener);
-      window.removeEventListener('manta:build-graph', onBuildGraph as EventListener);
+    const onSwitchLayer = (event: CustomEvent) => {
+      const { layerName } = event.detail;
+      // Save current viewport locally and mark layer switch as pending
+      setCurrentViewport(viewport);
+      setPendingLayerSwitch(layerName);
+      void useProjectStore.getState().setActiveLayer(layerName);
     };
-  }, [autoLayout, buildEntireGraph, isAutoLayouting, isBuildingGraph, graph]);
+
+    window.addEventListener('manta:build-graph', onBuildGraph as EventListener);
+    window.addEventListener('manta:switch-layer', onSwitchLayer as EventListener);
+    return () => {
+      window.removeEventListener('manta:build-graph', onBuildGraph as EventListener);
+      window.removeEventListener('manta:switch-layer', onSwitchLayer as EventListener);
+    };
+  }, [buildEntireGraph, isBuildingGraph, graph, viewport]);
+
 
   // Generate unique node ID
   const generateNodeId = useCallback(() => {
@@ -880,14 +703,22 @@ function GraphCanvas() {
     if (!graph) return;
 
     const newNodeId = generateNodeId();
+    // Use the active layer's C4 type, defaulting to 'component' if not a valid C4 layer
+    const nodeType = (activeLayer === 'system' || activeLayer === 'container' || activeLayer === 'component' || activeLayer === 'code')
+      ? activeLayer as 'system' | 'container' | 'component' | 'code'
+      : 'component';
+    const nodeLevel = (activeLayer === 'system' || activeLayer === 'container' || activeLayer === 'component' || activeLayer === 'code')
+      ? activeLayer as 'system' | 'container' | 'component' | 'code'
+      : 'component';
+
     const newNode: GraphNode = {
       id: newNodeId,
       title: 'New Node',
-      prompt: '',
+      description: '',
       comment: '',
-      shape: 'round-rectangle',
-      position: { x: position.x, y: position.y, z: 0 },
-      graph: { nodes: [], edges: [] } // Empty nested graph
+      type: nodeType,
+      level: nodeLevel,
+      shape: 'round-rectangle'
     };
 
     try {
@@ -964,8 +795,7 @@ function GraphCanvas() {
           label: newNode.title,
           node: newNode,
           properties: newNode.properties,
-          baseGraph: baseGraph,
-          graph: currentGraph
+          graph: graph
         },
         type: 'custom',
         selected: true, // Node is already selected
@@ -1040,7 +870,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, navigationPath, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setCurrentTool, setOptimisticOperationsActive, baseGraph, currentGraph, suppressSSE]);
+  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, suppressSSE]);
 
   // Create a new comment node at the specified position with custom dimensions
   const createCommentNode = useCallback(async (position: { x: number; y: number }, dimensions: { width: number; height: number }) => {
@@ -1050,9 +880,10 @@ function GraphCanvas() {
     const newNode: GraphNode = {
       id: newNodeId,
       title: 'Comment',
-      prompt: 'Add your comment here...',
+      description: 'Add your comment here...',
       comment: '',
-      position: { x: position.x, y: position.y, z: 0 },
+      type: 'comment',
+      shape: 'comment',
       properties: [
         { id: 'width', value: dimensions.width },
         { id: 'height', value: dimensions.height }
@@ -1120,7 +951,6 @@ function GraphCanvas() {
           label: newNode.title,
           node: newNode,
           properties: newNode.properties,
-          baseGraph: baseGraph,
           graph: graph
         },
         type: 'custom',
@@ -1185,7 +1015,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [graph, navigationPath, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, baseGraph, suppressSSE]);
+  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, suppressSSE]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -1339,7 +1169,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [nodes, edges, selectedNodeIds, baseGraph, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive, suppressSSE]);
+  }, [nodes, edges, selectedNodeIds, setNodes, setEdges, setSelectedNode, setSelectedNodeIds, graph, setOptimisticOperationsActive, suppressSSE]);
 
   // Listen for delete-selected events from copy-paste operations
   useEffect(() => {
@@ -1369,15 +1199,31 @@ function GraphCanvas() {
   // Track when graphs are loaded
   const [graphsLoaded, setGraphsLoaded] = useState(false);
 
-  // Initialize graphs when component mounts
+  // Initialize layers and graphs when component mounts
   useEffect(() => {
-    console.log('🏁 GraphView component mounted, calling loadGraphs...');
-    loadGraphs().then(() => {
-      console.log('🏁 loadGraphs completed, setting graphsLoaded to true');
-      setGraphsLoaded(true);
+    console.log('🏁 GraphView component mounted, loading layers and graphs...');
+
+    // Load layers first to ensure activeLayer is set before graph loading
+    const { loadLayers } = useProjectStore.getState();
+    loadLayers().then(() => {
+      console.log('✅ Layers loaded, now loading graphs...');
+      // Now load graphs after layers are loaded
+      loadGraphs().then(() => {
+        console.log('✅ Graphs loaded, setting graphsLoaded to true');
+        setGraphsLoaded(true);
+      }).catch(error => {
+        console.error('❌ loadGraphs failed:', error);
+        setGraphsLoaded(true); // Still set to true to avoid infinite loading
+      });
     }).catch(error => {
-      console.error('❌ loadGraphs failed:', error);
-      setGraphsLoaded(true); // Still set to true to avoid infinite loading
+      console.error('❌ loadLayers failed:', error);
+      // Still try to load graphs even if layers fail
+      loadGraphs().then(() => {
+        setGraphsLoaded(true);
+      }).catch(graphError => {
+        console.error('❌ loadGraphs also failed:', graphError);
+        setGraphsLoaded(true);
+      });
     });
   }, [loadGraphs]);
 
@@ -1434,6 +1280,22 @@ function GraphCanvas() {
     latestEdgesRef.current = edges;
   }, [edges]);
 
+  // Fit view to center the graph on initial application load only
+  const hasInitiallyFittedRef = useRef(false);
+
+  useEffect(() => {
+    // Only fit view on the very first time nodes are loaded in the application
+    // This preserves viewport position when switching between layers and during editing
+    if (nodes.length > 0 && !hasInitiallyFittedRef.current && graphsLoaded && !optimisticOperationsActive) {
+      // Defer to next tick to ensure layout/DOM size is ready
+      setTimeout(() => {
+        try {
+          reactFlow.fitView({ padding: 0.2, duration: 500, includeHiddenNodes: true });
+          hasInitiallyFittedRef.current = true;
+        } catch {}
+      }, 0);
+    }
+  }, [nodes, reactFlow, graphsLoaded, optimisticOperationsActive]);
 
   // Select active search result node (no auto-pan or zoom)
   useEffect(() => {
@@ -1659,8 +1521,7 @@ function GraphCanvas() {
       const updated = applyEdgeChanges(changes, eds);
       return updated.map((e) => {
         const shape = resolveEdgeShape(e);
-        const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-        const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+        const baseStyle = e.selected ? selectedEdgeStyle : defaultEdgeStyle;
         const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
         return {
           ...e,
@@ -1670,12 +1531,12 @@ function GraphCanvas() {
         };
       });
     });
-  }, [setEdges, baseGraph, resolveEdgeShape, applyEdgeShapeToStyle]);
+  }, [setEdges, resolveEdgeShape, applyEdgeShapeToStyle, defaultEdgeStyle, selectedEdgeStyle]);
 
   // Process graph data and create ReactFlow nodes/edges (with auto tree layout for missing positions)
   useEffect(() => {
     const rebuild = async () => {
-      console.log('🔄 Graph rebuild triggered:', { hasGraph: !!graph, hasBaseGraph: !!baseGraph, loading });
+      console.log('🔄 Graph rebuild triggered:', { hasGraph: !!graph, loading });
 
       // Skip rebuild if optimistic operations are in progress to prevent overriding local changes
       if (optimisticOperationsActive) {
@@ -1683,30 +1544,30 @@ function GraphCanvas() {
         return;
       }
 
-      // Wait for both graphs to be loaded and not loading
-      if (!graphsLoaded || !graph || !graph.nodes || loading) {
-        console.log('⏳ Waiting for graphs to load...', { graphsLoaded, graph: !!graph, loading });
+      // Wait for both graphs and layers to be loaded and not loading
+      if (!graphsLoaded || !graph || !graph.nodes || loading || activeLayer === null) {
+        console.log('⏳ Waiting for graphs and layers to load...', { graphsLoaded, graph: !!graph, loading, activeLayer });
         setNodes([]);
         setEdges([]);
         return;
       }
 
       // Both graphs are loaded together synchronously
-      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, baseGraph: !!baseGraph });
+      console.log('✅ Rebuilding graph with data:', { nodes: graph.nodes.length, activeLayer });
 
       // Check if only properties changed (more efficient update)
       const currentStructure = JSON.stringify({
-        nodes: currentGraph.nodes.map(n => ({ id: n.id, title: n.title, prompt: n.prompt, position: n.position })),
-        edges: currentGraph.edges || []
+        nodes: graph.nodes.map(n => ({ id: n.id, title: n.title, description: n.description })),
+        edges: graph.edges || []
       });
 
       const isPropertyOnlyChange = prevGraphStructureRef.current === currentStructure && latestNodesRef.current.length > 0;
 
       if (isPropertyOnlyChange) {
-        // Only properties or baseGraph changed - update existing nodes/edges without full rebuild
+        // Only properties changed - update existing nodes/edges without full rebuild
         console.log('🔄 Updating node data and edge styles without full rebuild');
 
-        // Update node payloads to reflect latest graph node data AND new baseGraph reference
+        // Update node payloads to reflect latest graph node data
         setNodes(currentNodes =>
           currentNodes.map(node => {
             const graphNode = currentGraph.nodes.find(n => n.id === node.id);
@@ -1722,8 +1583,8 @@ function GraphCanvas() {
                   ...node.data,
                   node: graphNode,
                   properties: graphNode.properties || [],
-                  baseGraph: baseGraph, // ensure CustomNode computes state against latest base graph
-                  graph: currentGraph
+ // ensure CustomNode computes state against latest base graph
+                  graph: graph
                 }
               };
             }
@@ -1731,13 +1592,12 @@ function GraphCanvas() {
           })
         );
 
-        // Also refresh edge styling (built/unbuilt) against latest baseGraph
+        // Also refresh edge styling
         setEdges(currentEdges =>
           currentEdges.map(e => {
             const graphEdge = (currentGraph?.edges || []).find((edge: any) => edge.id === e.id || (`${edge.source}-${edge.target}` === e.id));
             const shape = resolveEdgeShape(graphEdge || e);
-            const isUnbuilt = isEdgeUnbuilt({ source: e.source, target: e.target }, baseGraph);
-            const baseStyle = e.selected ? selectedEdgeStyle : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            const baseStyle = e.selected ? selectedEdgeStyle : defaultEdgeStyle;
             const nextStyle = applyEdgeShapeToStyle(baseStyle, shape);
             return {
               ...e,
@@ -1754,68 +1614,66 @@ function GraphCanvas() {
       // Full structure changed - proceed with full rebuild
       prevGraphStructureRef.current = currentStructure;
 
-      // Collect positions from database if present
+      // All nodes need positions calculated (positions are no longer stored in DB)
       let nodePositions = new Map<string, { x: number; y: number }>();
-      const nodesMissingPos: string[] = [];
+      const nodesMissingPos: string[] = graph.nodes.map(n => n.id);
 
-      currentGraph.nodes.forEach(node => {
-        if (node.position) {
-          nodePositions.set(node.id, { x: node.position.x, y: node.position.y });
-        } else {
-          nodesMissingPos.push(node.id);
-        }
-      });
-
-      // If some nodes are missing positions, compute a tree layout for them using ELK
+      // If some nodes are missing positions, compute layout for them using layered algorithm
       if (nodesMissingPos.length > 0) {
         try {
+          // Use ELK layered layout for missing positions
           const elk = new ELK();
-          const elkNodes = currentGraph.nodes.map(n => ({ id: n.id, width: 260, height: 160 }));
+          const missingElkNodes = nodesMissingPos.map(id => ({
+            id: id,
+            width: 260,
+            height: 160,
+          }));
 
-          // Create set of node IDs at current level for validation
-          const currentLevelNodeIds = new Set(currentGraph.nodes.map(n => n.id));
-
+          const missingElkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
           const seen = new Set<string>();
-          const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
-          // From explicit edges - only include edges where both source and target exist at current level
-          if (Array.isArray((currentGraph as any).edges)) {
-            (currentGraph as any).edges.forEach((e: any, i: number) => {
-              // Only include edges where both nodes exist at the current level
-              if (currentLevelNodeIds.has(e.source) && currentLevelNodeIds.has(e.target)) {
+          if (Array.isArray((graph as any).edges)) {
+            (graph as any).edges.forEach((e: any, i: number) => {
+              if (nodesMissingPos.includes(e.source) || nodesMissingPos.includes(e.target)) {
                 const id = `${e.source}-${e.target}`;
                 if (!seen.has(id)) {
-                  elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
+                  missingElkEdges.push({
+                    id: `e-${i}-${id}`,
+                    sources: [e.source],
+                    targets: [e.target]
+                  });
                   seen.add(id);
                 }
               }
             });
           }
 
-          const elkGraph = {
-            id: 'root',
+          const missingElkGraph = {
+            id: 'missing-nodes',
             layoutOptions: {
-              'elk.algorithm': 'layered',
+              'elk.algorithm': 'org.eclipse.elk.layered',
               'elk.direction': 'DOWN',
               'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-              'elk.spacing.nodeNode': '80',
+              'elk.spacing.nodeNode': '60',
+              'elk.spacing.edgeNode': '20',
             },
-            children: elkNodes,
-            edges: elkEdges,
+            children: missingElkNodes,
+            edges: missingElkEdges,
           } as any;
 
-          const layout = await elk.layout(elkGraph);
-          if (Array.isArray(layout.children)) {
-            layout.children.forEach((c: any) => {
-              if (typeof c.x === 'number' && typeof c.y === 'number') {
-                // Only assign auto-layout positions for nodes that lacked one
-                if (!nodePositions.has(c.id)) {
-                  nodePositions.set(c.id, { x: Math.round(c.x), y: Math.round(c.y) });
-                }
+          const missingLayoutResult = await elk.layout(missingElkGraph);
+
+          if (Array.isArray(missingLayoutResult.children)) {
+            missingLayoutResult.children.forEach((child: any) => {
+              if (!nodePositions.has(child.id) && typeof child.x === 'number' && typeof child.y === 'number') {
+                nodePositions.set(child.id, {
+                  x: Math.round(child.x),
+                  y: Math.round(child.y)
+                });
               }
             });
           }
         } catch (e) {
-          console.warn('⚠️ ELK layout failed, falling back to simple grid:', e);
+          console.warn('⚠️ ELK layered layout failed, falling back to simple grid:', e);
           // Simple fallback: place missing nodes in a grid below existing ones
           let col = 0, row = 0;
           const gapX = 320, gapY = 220;
@@ -1831,26 +1689,104 @@ function GraphCanvas() {
       const currentPositions = new Map<string, { x: number; y: number }>();
       for (const n of latestNodesRef.current) currentPositions.set(n.id, n.position as any);
 
-      // Include nodes from base graph that are not in current graph (for ghosted display)
-      // Navigate to the same nested level in base graph for proper ghosted display
-      const baseGraphAtLevel = baseGraph && navigationPath.length > 0
-        ? (() => {
-            let current: any = baseGraph;
-            for (const nodeId of navigationPath) {
-              const node = current.nodes?.find((n: any) => n.id === nodeId);
-              if (!node?.graph) return null;
-              current = node.graph;
-            }
-            return current;
-          })()
-        : baseGraph;
+      // Only use nodes from the current graph
+      const currentNodeIds = new Set(graph.nodes.map(n => n.id));
+      const isLayerView = activeLayer && ['system', 'container', 'component', 'code'].includes(activeLayer);
 
-      const currentNodeIds = new Set(currentGraph.nodes.map((n: any) => n.id));
-      const baseOnlyNodes = baseGraphAtLevel ? baseGraphAtLevel.nodes.filter((n: any) => !currentNodeIds.has(n.id)) : [];
-      const allNodes = [...currentGraph.nodes, ...baseOnlyNodes];
+      // Add upper level node outlines for C4 layers
+      let outlineNodes: any[] = [];
+      const c4Layers = ['system', 'container', 'component', 'code'];
+      const layerHierarchy = { system: 0, container: 1, component: 2, code: 3 };
+
+      console.log('🔍 Outline debug:', {
+        activeLayer,
+        hasFullGraph: !!fullGraph,
+        hasGraph: !!graph,
+        fullGraphNodes: fullGraph?.nodes?.length || 0,
+        graphNodes: graph?.nodes?.length || 0,
+        isC4Layer: c4Layers.includes(activeLayer || '')
+      });
+
+      if (c4Layers.includes(activeLayer || '') && fullGraph && graph) {
+        const currentLevelIndex = layerHierarchy[activeLayer as keyof typeof layerHierarchy];
+
+        // Get all upper level nodes that should be shown as outlines
+        const upperLevelNodes = fullGraph.nodes.filter(node =>
+          c4Layers.includes((node as any).type) &&
+          layerHierarchy[(node as any).type as keyof typeof layerHierarchy] < currentLevelIndex
+        );
+
+        console.log('📊 Upper level nodes found:', upperLevelNodes.map(n => ({ id: n.id, title: n.title, type: (n as any).type })));
+
+        // Create a map of current level nodes for quick lookup
+        const currentLevelNodeMap = new Map(graph.nodes.map(node => [node.id, node]));
+
+        // Find connections between upper level nodes and current level nodes
+        const upperLevelConnections = new Map<string, string[]>(); // upperLevelNodeId -> [currentLevelNodeIds]
+
+        console.log('🔗 Processing edges:', fullGraph.edges?.length || 0);
+        if (fullGraph.edges) {
+          fullGraph.edges.forEach(edge => {
+            const currentNode = currentLevelNodeMap.get(edge.source);
+            const upperNode = upperLevelNodes.find(n => n.id === edge.target);
+
+            if (upperNode && currentNode) {
+              if (!upperLevelConnections.has(upperNode.id)) {
+                upperLevelConnections.set(upperNode.id, []);
+              }
+              upperLevelConnections.get(upperNode.id)!.push(currentNode.id);
+              console.log('🔗 Found connection:', { upper: upperNode.title, current: currentNode.title });
+            }
+          });
+        }
+
+        console.log('📦 Upper level connections:', Array.from(upperLevelConnections.entries()).map(([upperId, childIds]) => ({
+          upperId,
+          childCount: childIds.length,
+          childIds
+        })));
+
+        // Create outline nodes for upper level nodes that have connections
+        upperLevelConnections.forEach((childNodeIds, upperNodeId) => {
+          const upperNode = upperLevelNodes.find(n => n.id === upperNodeId);
+          if (!upperNode) return;
+
+          // Create a mock node for the outline
+          const outlineNode = {
+            id: `outline-${upperNodeId}`,
+            title: upperNode.title,
+            type: 'outline',
+            shape: 'round-rectangle',
+            position: { x: 0, y: 0, z: 0 }, // Will be calculated later
+            properties: [],
+            outlineType: (upperNode as any).type,
+            childNodeIds,
+          };
+
+          console.log('🎨 Created outline node:', { id: outlineNode.id, title: outlineNode.title, childCount: childNodeIds.length });
+          outlineNodes.push(outlineNode);
+        });
+      }
+
+      console.log('📋 Node counts:', {
+        graphNodes: graph.nodes.length,
+        outlineNodes: outlineNodes.length,
+        totalAllNodes: graph.nodes.length + outlineNodes.length
+      });
+
+      const allNodes = [...graph.nodes, ...outlineNodes];
 
       // Sort nodes by z-index (lower z-index renders first/behind)
+      // Put outline nodes first so they render behind regular nodes
       const sortedNodes = allNodes.sort((a, b) => {
+        const aIsOutline = (a as any).type === 'outline';
+        const bIsOutline = (b as any).type === 'outline';
+
+        // Outline nodes go first (behind)
+        if (aIsOutline && !bIsOutline) return -1;
+        if (!aIsOutline && bIsOutline) return 1;
+
+        // Then sort by shape z-index
         const aShape = (a as any).shape || 'round-rectangle';
         const bShape = (b as any).shape || 'round-rectangle';
         const aConfig = getShapeConfig(aShape);
@@ -1860,15 +1796,66 @@ function GraphCanvas() {
         return aZ - bZ; // Lower z-index first
       });
 
+      console.log('🎯 Final sorted nodes:', sortedNodes.map(n => ({
+        id: n.id,
+        title: n.title,
+        type: (n as any).type,
+        isOutline: (n as any).type === 'outline'
+      })));
+
       // Convert graph nodes to ReactFlow nodes (preserve position if dragging)
-      const reactFlowNodes: Node[] = sortedNodes.map((node) => {
+      const reactFlowNodes: Node[] = [];
+
+      for (const node of sortedNodes) {
         const isDragging = draggingNodeIdsRef.current.has(node.id);
         let position = isDragging
-          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || node.position || { x: 0, y: 0 })
-          : (nodePositions.get(node.id) || node.position || { x: 0, y: 0 });
+          ? (currentPositions.get(node.id) || nodePositions.get(node.id) || { x: 0, y: 0 })
+          : (nodePositions.get(node.id) || { x: 0, y: 0 });
 
         // For base-only nodes (ghosted), we still want to preserve any position data
         // Don't add offset to prevent jumping - let them use their stored position
+
+        // Special handling for outline nodes
+        if ((node as any).type === 'outline') {
+          console.log('🎨 Processing outline node:', { id: node.id, title: node.title, childNodeIds: (node as any).childNodeIds });
+          // Find all child nodes for this outline from the sorted nodes
+          const childNodeIds = (node as any).childNodeIds || [];
+          const childNodes = sortedNodes.filter(n =>
+            childNodeIds.includes(n.id) && (n as any).type !== 'outline'
+          );
+
+          console.log('👶 Found child nodes for outline:', childNodes.map(c => ({ id: c.id, title: c.title, type: (c as any).type })));
+
+          if (childNodes.length > 0) {
+            // Create outline node with temporary position - will be repositioned after layout
+            const outlineNode: Node = {
+              id: node.id,
+              position: { x: 0, y: 0 }, // Temporary position
+              width: 400, // Temporary dimensions
+              height: 300,
+              data: {
+                label: node.title,
+                node: node,
+                properties: node.properties || [],
+                graph: graph,
+                fullGraph: fullGraph,
+                updateNode: updateNode,
+                isOutline: true,
+                outlineType: (node as any).outlineType,
+                childNodeIds: childNodeIds, // Store for repositioning after layout
+              },
+              type: 'custom',
+              selected: false,
+              draggable: false,
+            };
+
+            console.log('✅ Created outline ReactFlow node (temp position):', { id: outlineNode.id });
+            reactFlowNodes.push(outlineNode);
+            continue;
+          } else {
+            console.log('❌ No child nodes found for outline, skipping');
+          }
+        }
 
         const backgroundColor = node.properties?.find((p: any) => p.id === 'background-color')?.value;
         // Extract width and height from properties for ReactFlow node
@@ -1885,7 +1872,6 @@ function GraphCanvas() {
             label: node.title,
             node: node,
             properties: node.properties || [],
-            baseGraph: baseGraph,
             graph: graph,
             updateNode: updateNode
           },
@@ -1897,8 +1883,8 @@ function GraphCanvas() {
         if (nodeWidth) rfNode.width = nodeWidth;
         if (nodeHeight) rfNode.height = nodeHeight;
 
-        return rfNode;
-      });
+        reactFlowNodes.push(rfNode);
+      }
 
       // Create edges from both base and current graphs (at the appropriate level)
       const reactFlowEdges: Edge[] = [];
@@ -1906,10 +1892,9 @@ function GraphCanvas() {
       // but keep the original orientation and handle anchors of the first occurrence.
       const addedSymmetric = new Set<string>();
 
-      // Collect edges from both base and current graphs at the same level
+      // Collect edges from the current graph
       const allEdges = [
-        ...(baseGraphAtLevel?.edges || []),
-        ...(currentGraph as any).edges || []
+        ...(graph as any).edges || []
       ];
 
       if (allEdges.length > 0) {
@@ -1927,35 +1912,8 @@ function GraphCanvas() {
           const tgt = String(edge.target);
           const symKey = [src, tgt].sort().join('~');
           if (!addedSymmetric.has(symKey)) {
-            // Infer handle anchors if missing, based on node relative positions (one-time for legacy edges)
-            let sourceHandle = (edge as any).sourceHandle as string | undefined;
-            let targetHandle = (edge as any).targetHandle as string | undefined;
-            if (!sourceHandle || !targetHandle) {
-              const sp = posMap.get(src);
-              const tp = posMap.get(tgt);
-              if (sp && tp) {
-                const dx = tp.x - sp.x;
-                const dy = tp.y - sp.y;
-                if (!sourceHandle) {
-                  if (Math.abs(dx) >= Math.abs(dy)) {
-                    sourceHandle = dx >= 0 ? 'right' : 'left';
-                  } else {
-                    sourceHandle = dy >= 0 ? 'bottom' : 'top';
-                  }
-                }
-                if (!targetHandle) {
-                  if (Math.abs(dx) >= Math.abs(dy)) {
-                    targetHandle = dx >= 0 ? 'left' : 'right';
-                  } else {
-                    targetHandle = dy >= 0 ? 'top' : 'bottom';
-                  }
-                }
-              }
-            }
-              
-          // Check if edge is unbuilt
-          const isUnbuilt = isEdgeUnbuilt({ source: edge.source, target: edge.target }, baseGraph);
-          const shape = resolveEdgeShape(edge);
+            // Create edge without handles first - will be calculated after layout
+            const shape = resolveEdgeShape(edge);
 
           // Check if either connected node has negative z-index (like comments)
           const sourceNode = sortedNodes.find(n => n.id === edge.source);
@@ -1968,15 +1926,15 @@ function GraphCanvas() {
 
           const baseStyle = previouslySelectedEdges.has(edge.id)
             ? selectedEdgeStyle
-            : (isUnbuilt ? unbuiltEdgeStyle : defaultEdgeStyle);
+            : defaultEdgeStyle;
           const style = applyEdgeShapeToStyle(baseStyle, shape);
 
           reactFlowEdges.push({
             id: edge.id,
             source: src,
             target: tgt,
-            sourceHandle,
-            targetHandle,
+            sourceHandle: undefined, // Will be calculated after layout
+            targetHandle: undefined, // Will be calculated after layout
             type: 'default',
             style,
             markerEnd: makeArrowForStyle(style),
@@ -1992,10 +1950,411 @@ function GraphCanvas() {
 
       // All edges are now handled by the graph.edges array above
 
+      // Apply automatic layered layout to all nodes
+      try {
+        console.log('🔄 Applying automatic layered layout...');
+
+        const elk = new ELK();
+
+        // Prepare nodes for ELK layout (exclude outline nodes as they position themselves based on children)
+        const elkNodes = reactFlowNodes
+          .filter(rfNode => !rfNode.data?.isOutline)
+          .map(rfNode => ({
+            id: rfNode.id,
+            width: rfNode.width ?? 260,
+            height: rfNode.height ?? 160,
+          }));
+
+        // Prepare edges for ELK layout
+        const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
+        const seen = new Set<string>();
+        if (Array.isArray(reactFlowEdges)) {
+          reactFlowEdges.forEach((edge: any, i: number) => {
+            const id = `${edge.source}-${edge.target}`;
+            if (!seen.has(id)) {
+              elkEdges.push({
+                id: `e-${i}-${id}`,
+                sources: [edge.source],
+                targets: [edge.target]
+              });
+              seen.add(id);
+            }
+          });
+        }
+
+        const elkGraph = {
+          id: 'root',
+          layoutOptions: {
+            'elk.algorithm': 'org.eclipse.elk.layered',
+            'elk.direction': 'DOWN',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '120',
+            'elk.spacing.nodeNode': '80',
+            'elk.spacing.edgeNode': '20',
+            'elk.spacing.edgeEdge': '20',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.layered.thoroughness': '7',
+            'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+          },
+          children: elkNodes,
+          edges: elkEdges,
+        } as any;
+
+        const layoutResult = await elk.layout(elkGraph);
+
+        // Update ReactFlow node positions from ELK layout results (only for non-outline nodes)
+        if (Array.isArray(layoutResult.children)) {
+          layoutResult.children.forEach((child: any) => {
+            const rfNode = reactFlowNodes.find(n => n.id === child.id);
+            if (rfNode && !rfNode.data?.isOutline && typeof child.x === 'number' && typeof child.y === 'number') {
+              rfNode.position = {
+                x: Math.round(child.x),
+                y: Math.round(child.y)
+              };
+            }
+          });
+        }
+
+        console.log('✅ Automatic layered layout applied');
+      } catch (e) {
+        console.warn('⚠️ Automatic layered layout failed, using existing positions:', e);
+      }
+
+      // Reposition outline nodes based on their child node positions after layout
+      try {
+        console.log('🔄 Repositioning outline nodes based on child positions...');
+
+        reactFlowNodes.forEach(rfNode => {
+          if (rfNode.data?.isOutline && rfNode.data?.childNodeIds && Array.isArray(rfNode.data.childNodeIds)) {
+            const childNodeIds: string[] = rfNode.data.childNodeIds;
+            const childRfNodes = reactFlowNodes.filter(n =>
+              childNodeIds.includes(n.id) && !n.data?.isOutline
+            );
+
+            if (childRfNodes.length > 0) {
+              // Calculate bounding box using the new positions after layout
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              childRfNodes.forEach(childNode => {
+                const width = childNode.width ?? 260;
+                const height = childNode.height ?? 160;
+                minX = Math.min(minX, childNode.position.x);
+                minY = Math.min(minY, childNode.position.y);
+                maxX = Math.max(maxX, childNode.position.x + width);
+                maxY = Math.max(maxY, childNode.position.y + height);
+              });
+
+              // Add padding around the bounding box
+              const padding = 40;
+              const outlineWidth = maxX - minX + (padding * 2);
+              const outlineHeight = maxY - minY + (padding * 2);
+              const newPosition = { x: minX - padding, y: minY - padding };
+
+              // Update the outline node position and dimensions
+              rfNode.position = newPosition;
+              rfNode.width = outlineWidth;
+              rfNode.height = outlineHeight;
+
+              console.log('📐 Repositioned outline:', {
+                id: rfNode.id,
+                position: newPosition,
+                width: outlineWidth,
+                height: outlineHeight,
+                childCount: childRfNodes.length
+              });
+            }
+          }
+        });
+
+        // Resolve outline overlaps by rearranging child nodes using a more robust algorithm
+        try {
+          console.log('🔄 Resolving outline overlaps by rearranging child nodes...');
+
+          // Group outlines by their layer type
+          const outlinesByType: Record<string, typeof reactFlowNodes> = {};
+          reactFlowNodes.forEach(rfNode => {
+            if (rfNode.data?.isOutline) {
+              const outlineType = String(rfNode.data.outlineType || 'unknown');
+              if (!outlinesByType[outlineType]) {
+                outlinesByType[outlineType] = [];
+              }
+              outlinesByType[outlineType].push(rfNode);
+            }
+          });
+
+          // Helper function to recalculate a single outline's bounds
+          const recalculateOutline = (outline: any) => {
+            const childNodeIds = outline.data?.childNodeIds as string[] || [];
+            const childNodes = reactFlowNodes.filter(n =>
+              childNodeIds.includes(n.id) && !n.data?.isOutline
+            );
+
+            if (childNodes.length > 0) {
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              childNodes.forEach(childNode => {
+                const width = childNode.width ?? 260;
+                const height = childNode.height ?? 160;
+                minX = Math.min(minX, childNode.position.x);
+                minY = Math.min(minY, childNode.position.y);
+                maxX = Math.max(maxX, childNode.position.x + width);
+                maxY = Math.max(maxY, childNode.position.y + height);
+              });
+
+              const padding = 40;
+              outline.position = { x: minX - padding, y: minY - padding };
+              outline.width = maxX - minX + (padding * 2);
+              outline.height = maxY - minY + (padding * 2);
+            }
+          };
+
+          // Helper function to check if two outlines overlap
+          const checkOverlap = (a: any, b: any) => {
+            const aLeft = a.position.x;
+            const aRight = a.position.x + (a.width || 400);
+            const aTop = a.position.y;
+            const aBottom = a.position.y + (a.height || 300);
+
+            const bLeft = b.position.x;
+            const bRight = b.position.x + (b.width || 400);
+            const bTop = b.position.y;
+            const bBottom = b.position.y + (b.height || 300);
+
+            return aLeft < bRight && aRight > bLeft && aTop < bBottom && aBottom > bTop;
+          };
+
+          // Process each layer type separately
+          Object.entries(outlinesByType).forEach(([outlineType, outlines]) => {
+            if (outlines.length <= 1) return; // No overlaps possible with single outline
+
+            console.log(`🔧 Resolving overlaps for ${outlines.length} ${outlineType} outlines by rearranging children`);
+
+            const minSpacing = 40; // Minimum space between outline edges
+            let iterations = 0;
+            const maxIterations = 20; // Allow more iterations for convergence
+
+            // Use a force-based approach: repeatedly push overlapping outlines apart
+            while (iterations < maxIterations) {
+              iterations++;
+              let anyOverlaps = false;
+
+              // For each outline, calculate forces from all overlapping outlines
+              const forces = new Map<string, { x: number; y: number }>();
+              outlines.forEach(outline => forces.set(outline.id, { x: 0, y: 0 }));
+
+              // Calculate repulsion forces between all overlapping pairs
+              for (let i = 0; i < outlines.length; i++) {
+                for (let j = i + 1; j < outlines.length; j++) {
+                  const outlineA = outlines[i];
+                  const outlineB = outlines[j];
+
+                  if (checkOverlap(outlineA, outlineB)) {
+                    anyOverlaps = true;
+
+                    // Calculate centers
+                    const aCenterX = outlineA.position.x + (outlineA.width || 400) / 2;
+                    const aCenterY = outlineA.position.y + (outlineA.height || 300) / 2;
+                    const bCenterX = outlineB.position.x + (outlineB.width || 400) / 2;
+                    const bCenterY = outlineB.position.y + (outlineB.height || 300) / 2;
+
+                    // Calculate direction vector from A to B
+                    const dx = bCenterX - aCenterX;
+                    const dy = bCenterY - aCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                    // Calculate overlap amounts
+                    const overlapX = Math.min(
+                      outlineA.position.x + (outlineA.width || 400) - outlineB.position.x,
+                      outlineB.position.x + (outlineB.width || 400) - outlineA.position.x
+                    );
+                    const overlapY = Math.min(
+                      outlineA.position.y + (outlineA.height || 300) - outlineB.position.y,
+                      outlineB.position.y + (outlineB.height || 300) - outlineA.position.y
+                    );
+
+                    // Force strength based on overlap
+                    const forceStrength = Math.max(overlapX, overlapY) + minSpacing;
+
+                    // Normalize direction and apply force
+                    const fx = (dx / distance) * forceStrength;
+                    const fy = (dy / distance) * forceStrength;
+
+                    // Apply repulsion force (A pushes left/up, B pushes right/down)
+                    // Use a smaller multiplier for more subtle spacing adjustments
+                    const forceA = forces.get(outlineA.id)!;
+                    const forceB = forces.get(outlineB.id)!;
+                    forceA.x -= fx * 0.3;
+                    forceA.y -= fy * 0.3;
+                    forceB.x += fx * 0.3;
+                    forceB.y += fy * 0.3;
+                  }
+                }
+              }
+
+              if (!anyOverlaps) {
+                console.log(`✅ No overlaps found after ${iterations} iterations`);
+                break;
+              }
+
+              // Apply forces by moving child nodes
+              outlines.forEach(outline => {
+                const force = forces.get(outline.id)!;
+                if (force.x !== 0 || force.y !== 0) {
+                  const childNodeIds = outline.data?.childNodeIds as string[] || [];
+                  const childNodes = reactFlowNodes.filter(n =>
+                    childNodeIds.includes(n.id) && !n.data?.isOutline
+                  );
+
+                  childNodes.forEach(childNode => {
+                    childNode.position.x += force.x;
+                    childNode.position.y += force.y;
+                  });
+
+                  // Recalculate outline bounds after moving children
+                  recalculateOutline(outline);
+                }
+              });
+
+              if (iterations % 5 === 0) {
+                console.log(`📐 Iteration ${iterations}: Continuing to resolve overlaps...`);
+              }
+            }
+
+            if (iterations >= maxIterations) {
+              console.warn(`⚠️ Reached maximum iterations (${maxIterations}) for ${outlineType} outlines`);
+            }
+          });
+
+        console.log('✅ Outline overlaps resolved by rearranging children');
+      } catch (e) {
+        console.warn('⚠️ Outline overlap resolution failed:', e);
+      }
+
+      console.log('✅ Outline nodes repositioned');
+    } catch (e) {
+      console.warn('⚠️ Outline repositioning failed:', e);
+    }
+
+      // Calculate optimal edge handles AFTER all layout adjustments are complete
+      try {
+        console.log('🔄 Calculating optimal edge connection points...');
+        reactFlowEdges.forEach((edge: any) => {
+          const sourceNode = reactFlowNodes.find(n => n.id === edge.source);
+          const targetNode = reactFlowNodes.find(n => n.id === edge.target);
+          
+          if (sourceNode && targetNode) {
+            const sp = sourceNode.position;
+            const tp = targetNode.position;
+            const sourceWidth = sourceNode.width ?? 260;
+            const sourceHeight = sourceNode.height ?? 160;
+            const targetWidth = targetNode.width ?? 260;
+            const targetHeight = targetNode.height ?? 160;
+
+            // Calculate center points
+            const sourceCenterX = sp.x + sourceWidth / 2;
+            const sourceCenterY = sp.y + sourceHeight / 2;
+            const targetCenterX = tp.x + targetWidth / 2;
+            const targetCenterY = tp.y + targetHeight / 2;
+
+            // Calculate handle positions for all four sides of each node
+            const sourceHandles = {
+              top: { x: sourceCenterX, y: sp.y },
+              right: { x: sp.x + sourceWidth, y: sourceCenterY },
+              bottom: { x: sourceCenterX, y: sp.y + sourceHeight },
+              left: { x: sp.x, y: sourceCenterY }
+            };
+            const targetHandles = {
+              top: { x: targetCenterX, y: tp.y },
+              right: { x: tp.x + targetWidth, y: targetCenterY },
+              bottom: { x: targetCenterX, y: tp.y + targetHeight },
+              left: { x: tp.x, y: targetCenterY }
+            };
+
+            // Find the best pair of handles based on distance and directional alignment
+            let minScore = Infinity;
+            let sourceHandle = 'right';
+            let targetHandle = 'left';
+            let bestDistance = Infinity;
+
+            for (const [sHandle, sPos] of Object.entries(sourceHandles)) {
+              for (const [tHandle, tPos] of Object.entries(targetHandles)) {
+                const dx = tPos.x - sPos.x;
+                const dy = tPos.y - sPos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Calculate directional penalty for non-sensible connections
+                let penalty = 0;
+                
+                // Massive penalty for handles pointing away from the target direction
+                if (sHandle === 'right' && dx < 0) penalty += 5000; // Source points right but target is left
+                if (sHandle === 'left' && dx > 0) penalty += 5000;  // Source points left but target is right
+                if (sHandle === 'bottom' && dy < 0) penalty += 5000; // Source points down but target is up
+                if (sHandle === 'top' && dy > 0) penalty += 5000;    // Source points up but target is down
+                
+                if (tHandle === 'right' && dx > 0) penalty += 5000; // Target points right but source is right
+                if (tHandle === 'left' && dx < 0) penalty += 5000;  // Target points left but source is left
+                if (tHandle === 'bottom' && dy > 0) penalty += 5000; // Target points down but source is down
+                if (tHandle === 'top' && dy < 0) penalty += 5000;    // Target points up but source is up
+                
+                // Strong preference for handles that face each other directly
+                const facingEachOther = 
+                  (sHandle === 'right' && tHandle === 'left' && dx > 0) ||
+                  (sHandle === 'left' && tHandle === 'right' && dx < 0) ||
+                  (sHandle === 'bottom' && tHandle === 'top' && dy > 0) ||
+                  (sHandle === 'top' && tHandle === 'bottom' && dy < 0);
+                
+                if (facingEachOther) {
+                  penalty -= 2000; // Large bonus for facing each other
+                }
+                
+                const score = distance + penalty;
+                if (score < minScore) {
+                  minScore = score;
+                  sourceHandle = sHandle;
+                  targetHandle = tHandle;
+                  bestDistance = distance;
+                }
+              }
+            }
+
+            edge.sourceHandle = sourceHandle;
+            edge.targetHandle = targetHandle;
+            
+            // Log problematic connections for debugging
+            if (bestDistance > 200) {
+              console.log(`📏 Edge ${edge.source} -> ${edge.target}: ${sourceHandle} -> ${targetHandle} (distance: ${Math.round(bestDistance)}px)`);
+            }
+          }
+        });
+        console.log('✅ Edge connection points calculated');
+      } catch (e) {
+        console.warn('⚠️ Edge handle calculation failed:', e);
+      }
+
       // Create visual edges from graph data
 
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
+
+      // Restore saved viewport after layer switch to prevent flickering
+      if (currentViewport) {
+        // Use multiple strategies to ensure viewport is restored after rendering
+        const restoreViewport = () => {
+          try {
+            reactFlow.setViewport(currentViewport, { duration: 0 });
+            // Clear the preserved viewport after successful restoration
+            setCurrentViewport(null);
+            setPendingLayerSwitch(null);
+          } catch (error) {
+            console.warn('Failed to restore viewport:', error);
+          }
+        };
+
+        // Try multiple timing strategies to ensure DOM is ready
+        requestAnimationFrame(() => {
+          // First attempt immediately after DOM update
+          restoreViewport();
+          // Backup attempt after a short delay
+          setTimeout(restoreViewport, 50);
+        });
+      }
 
       // Select root node by default only once on initial load if nothing is selected
       // Avoid auto-selecting again after user clears the selection
@@ -2006,7 +2365,7 @@ function GraphCanvas() {
       // }
     };
     rebuild();
-  }, [graphsLoaded, currentGraph, baseGraph, setNodes, setEdges, selectedNodeId, selectedNodeIds, optimisticOperationsActive]);
+  }, [graphsLoaded, graph, fullGraph, activeLayer, setNodes, setEdges, optimisticOperationsActive, reactFlow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node selection without re-rendering the whole graph
   // const hasAutoSelectedRef = useRef(false);
@@ -2021,7 +2380,7 @@ function GraphCanvas() {
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
-  // Helper function to infer handle positions based on node positions
+  // Helper function to calculate optimal handle positions based on closest connection points
   const inferHandles = (sourceId: string, targetId: string, nodes: Node[]) => {
     const sourceNode = nodes.find(n => n.id === sourceId);
     const targetNode = nodes.find(n => n.id === targetId);
@@ -2029,18 +2388,74 @@ function GraphCanvas() {
 
     const sp = sourceNode.position;
     const tp = targetNode.position;
-    const dx = tp.x - sp.x;
-    const dy = tp.y - sp.y;
+    const sourceWidth = sourceNode.width ?? 260;
+    const sourceHeight = sourceNode.height ?? 160;
+    const targetWidth = targetNode.width ?? 260;
+    const targetHeight = targetNode.height ?? 160;
 
-    let sourceHandle: string;
-    let targetHandle: string;
+    // Calculate center points
+    const sourceCenterX = sp.x + sourceWidth / 2;
+    const sourceCenterY = sp.y + sourceHeight / 2;
+    const targetCenterX = tp.x + targetWidth / 2;
+    const targetCenterY = tp.y + targetHeight / 2;
 
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      sourceHandle = dx >= 0 ? 'right' : 'left';
-      targetHandle = dx >= 0 ? 'left' : 'right';
-    } else {
-      sourceHandle = dy >= 0 ? 'bottom' : 'top';
-      targetHandle = dy >= 0 ? 'top' : 'bottom';
+    // Calculate handle positions for all four sides of each node
+    const sourceHandles = {
+      top: { x: sourceCenterX, y: sp.y },
+      right: { x: sp.x + sourceWidth, y: sourceCenterY },
+      bottom: { x: sourceCenterX, y: sp.y + sourceHeight },
+      left: { x: sp.x, y: sourceCenterY }
+    };
+    const targetHandles = {
+      top: { x: targetCenterX, y: tp.y },
+      right: { x: tp.x + targetWidth, y: targetCenterY },
+      bottom: { x: targetCenterX, y: tp.y + targetHeight },
+      left: { x: tp.x, y: targetCenterY }
+    };
+
+    // Find the best pair of handles based on distance and directional alignment
+    let minScore = Infinity;
+    let sourceHandle = 'right';
+    let targetHandle = 'left';
+
+    for (const [sHandle, sPos] of Object.entries(sourceHandles)) {
+      for (const [tHandle, tPos] of Object.entries(targetHandles)) {
+        const dx = tPos.x - sPos.x;
+        const dy = tPos.y - sPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate directional penalty for non-sensible connections
+        let penalty = 0;
+        
+        // Massive penalty for handles pointing away from the target direction
+        if (sHandle === 'right' && dx < 0) penalty += 5000; // Source points right but target is left
+        if (sHandle === 'left' && dx > 0) penalty += 5000;  // Source points left but target is right
+        if (sHandle === 'bottom' && dy < 0) penalty += 5000; // Source points down but target is up
+        if (sHandle === 'top' && dy > 0) penalty += 5000;    // Source points up but target is down
+        
+        if (tHandle === 'right' && dx > 0) penalty += 5000; // Target points right but source is right
+        if (tHandle === 'left' && dx < 0) penalty += 5000;  // Target points left but source is left
+        if (tHandle === 'bottom' && dy > 0) penalty += 5000; // Target points down but source is down
+        if (tHandle === 'top' && dy < 0) penalty += 5000;    // Target points up but source is up
+        
+        // Strong preference for handles that face each other directly
+        const facingEachOther = 
+          (sHandle === 'right' && tHandle === 'left' && dx > 0) ||
+          (sHandle === 'left' && tHandle === 'right' && dx < 0) ||
+          (sHandle === 'bottom' && tHandle === 'top' && dy > 0) ||
+          (sHandle === 'top' && tHandle === 'bottom' && dy < 0);
+        
+        if (facingEachOther) {
+          penalty -= 2000; // Large bonus for facing each other
+        }
+        
+        const score = distance + penalty;
+        if (score < minScore) {
+          minScore = score;
+          sourceHandle = sHandle;
+          targetHandle = tHandle;
+        }
+      }
     }
 
     return { sourceHandle, targetHandle };
@@ -2056,7 +2471,7 @@ function GraphCanvas() {
 
     // Store the new edge for potential rollback
     const shape: EdgeShape = DEFAULT_EDGE_SHAPE;
-    const styledUnbuilt = applyEdgeShapeToStyle(unbuiltEdgeStyle, shape);
+    const styledEdge = applyEdgeShapeToStyle(defaultEdgeStyle, shape);
 
     const newEdge = {
       id: `${params.source}-${params.target}`,
@@ -2065,8 +2480,8 @@ function GraphCanvas() {
       sourceHandle: params.sourceHandle || inferredSourceHandle,
       targetHandle: params.targetHandle || inferredTargetHandle,
       type: 'default' as const,
-      style: styledUnbuilt,
-      markerEnd: makeArrowForStyle(styledUnbuilt),
+      style: styledEdge,
+      markerEnd: makeArrowForStyle(styledEdge),
       interactionWidth: 24,
       selected: false,
       data: { shape },
@@ -2190,7 +2605,7 @@ function GraphCanvas() {
       // Clear optimistic operation flag on error (after rollback)
       setOptimisticOperationsActive(false);
     }
-  }, [setEdges, setOptimisticOperationsActive, nodes, suppressSSE, unbuiltEdgeStyle]);
+  }, [setEdges, setOptimisticOperationsActive, nodes, suppressSSE, applyEdgeShapeToStyle, defaultEdgeStyle]);
 
   // Throttle position broadcasts to prevent spam
   const lastPositionBroadcast = useRef<{ [nodeId: string]: number }>({});
@@ -2224,43 +2639,25 @@ function GraphCanvas() {
     } catch {}
   }, []);
 
-  // Handle final node position changes (drag stop) - ensure final persistence
+  // Handle final node position changes (drag stop) - positions are local only, no DB persistence
   const onNodeDragStop = useCallback(async (event: any, node: Node) => {
     try {
       const graphNode = node.data?.node as GraphNode;
       if (!graphNode) return;
 
-      // Determine which nodes to persist: all currently selected, or the dragged node as a fallback
+      // Release drag locks for all selected nodes (or the primary as fallback)
       const selectedIds = (latestNodesRef.current || [])
         .filter((n) => n.selected)
         .map((n) => n.id);
-      const idsToPersist = selectedIds.length > 0 ? selectedIds : [graphNode.id];
+      const idsToClear = selectedIds.length > 0 ? selectedIds : [node.id];
+      for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
 
-      // Persist positions for all affected nodes based on their current ReactFlow positions
-      for (const id of idsToPersist) {
-        const rfNode = latestNodesRef.current.find((n) => n.id === id);
-        if (!rfNode) continue;
-        try {
-          await updateNode(id, {
-            position: { x: rfNode.position.x, y: rfNode.position.y, z: 0 },
-          });
-        } catch (e) {
-          console.warn(`⚠️ Final position update failed for ${id}:`, e);
-        }
-      }
+      // Rebuild helper lines spatial index after drag
+      rebuildIndex(nodes);
     } catch (error) {
-      console.error('Error saving final node position(s):', error);
+      console.error('Error finalizing node drag:', error);
     }
-    // Release drag locks for all selected nodes (or the primary as fallback)
-    const selectedIds = (latestNodesRef.current || [])
-      .filter((n) => n.selected)
-      .map((n) => n.id);
-    const idsToClear = selectedIds.length > 0 ? selectedIds : [node.id];
-    for (const id of idsToClear) draggingNodeIdsRef.current.delete(id);
-
-    // Rebuild helper lines spatial index after drag
-    rebuildIndex(nodes);
-  }, [updateNode, rebuildIndex, nodes]);
+  }, [rebuildIndex, nodes]);
 
   // Handle background mouse down for node creation
   const onPaneMouseDown = useCallback((event: ReactMouseEvent) => {
@@ -2392,7 +2789,7 @@ function GraphCanvas() {
         /* Miro-like trackpad behavior: two-finger pan, pinch to zoom */
         panOnScroll={true}
         panOnScrollMode={PanOnScrollMode.Free}
-        zoomOnScroll={false}
+        zoomOnScroll={true}
         zoomOnPinch={true}
         /* Dynamic pan behavior based on tool mode */
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
@@ -2401,10 +2798,17 @@ function GraphCanvas() {
         onMouseMove={onPaneMouseMove}
         onMouseUp={onPaneMouseUp}
         colorMode="dark"
-        nodesDraggable={true}
-        nodesConnectable={currentTool === 'select'}
+        nodesDraggable={false}
+        nodesConnectable={false}
         elementsSelectable={true}
         deleteKeyCode={[]}
+        onViewportChange={(viewport) => {
+          // Only update currentViewport during layer switches when preserving viewport state
+          // Don't update currentViewport during normal editing to prevent zoom resets
+          if (pendingLayerSwitch && !currentViewport) {
+            setCurrentViewport(viewport);
+          }
+        }}
       >
         <MiniMap nodeComponent={MinimapNode} />
         <Controls />
@@ -2526,7 +2930,7 @@ function GraphCanvas() {
             : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
+          title="Select Tool - Click to select nodes/edges, drag to select multiple"
         >
           <SquareDashed className="w-4 h-4" />
         </Button>
@@ -2545,36 +2949,6 @@ function GraphCanvas() {
         >
           <Hand className="w-4 h-4" />
         </Button>
-
-        {/* Add Node Tool */}
-        <Button
-          onClick={() => setCurrentTool('add-node')}
-          variant={currentTool === 'add-node' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'add-node'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Add Node Tool - Click anywhere on the canvas to create a new node"
-        >
-          <File className="w-4 h-4" />
-        </Button>
-
-        {/* Comment Tool */}
-        <Button
-          onClick={() => setCurrentTool('comment')}
-          variant={currentTool === 'comment' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'comment'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Comment Tool - Click and drag to create a comment box that can group nodes"
-        >
-          <MessageSquare className="w-4 h-4" />
-        </Button>
       </div>
 
       {/* Action Buttons - Right Side */}
@@ -2587,52 +2961,6 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
-        {/* Auto Layout Button */}
-        <Button
-          onClick={autoLayout}
-          disabled={isAutoLayouting || !graph}
-          variant="outline"
-          size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
-            isAutoLayouting ? 'cursor-not-allowed opacity-75' : ''
-          }`}
-          title={isAutoLayouting ? 'Laying out graph...' : 'Auto-arrange nodes for a clean layout'}
-        >
-          {isAutoLayouting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Auto Layout...
-            </>
-          ) : (
-            <>
-              <Wand2 className="w-4 h-4 mr-2" />
-              Auto Layout
-            </>
-          )}
-        </Button>
-        {/* Build Entire Graph Button */}
-        <Button
-          onClick={buildEntireGraph}
-          disabled={isBuildingGraph || !graph}
-          variant="outline"
-          size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
-            isBuildingGraph ? 'cursor-not-allowed opacity-75' : ''
-          }`}
-          title={isBuildingGraph ? "Building graph..." : "Build entire graph with current changes"}
-        >
-          {isBuildingGraph ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Building Graph...
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 mr-2" />
-              Build Graph
-            </>
-          )}
-        </Button>
         {/* Open Layers Sidebar button (shown only when sidebar is closed) */}
         {!layersSidebarOpen && (
           <Button

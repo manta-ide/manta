@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface RadioPropertyEditorProps {
   property: Property & { type: 'radio'; options: string[] };
   onChange: (value: string) => void;
+  disabled?: boolean;
 }
 
-export default function RadioPropertyEditor({ property, onChange }: RadioPropertyEditorProps) {
+export default function RadioPropertyEditor({ property, onChange, disabled = false }: RadioPropertyEditorProps) {
   const id = useId();
   const value = property.value as string || '';
 
@@ -21,6 +22,7 @@ export default function RadioPropertyEditor({ property, onChange }: RadioPropert
         value={value}
         onValueChange={onChange}
         className="w-full space-y-1"
+        disabled={disabled}
       >
         {property.options.map((option: string, index: number) => (
           <div key={option} className="flex items-center gap-2">

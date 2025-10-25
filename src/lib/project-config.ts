@@ -47,9 +47,8 @@ export function projectExists(projectDir: string = getDevProjectDir()): boolean 
   try {
     const graphDir = path.join(projectDir, 'manta');
     const currentGraphPath = path.join(graphDir, 'current-graph.xml');
-    const baseGraphPath = path.join(graphDir, 'base-graph.xml');
 
-    return fs.existsSync(currentGraphPath) || fs.existsSync(baseGraphPath);
+    return fs.existsSync(currentGraphPath);
   } catch (error) {
     console.warn('Error checking if project exists:', error);
     return false;
