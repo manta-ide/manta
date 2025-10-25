@@ -33,6 +33,7 @@
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-slot": "^1.2.3",
     "@remixicon/react": "^4.6.0",
+    "@supabase/supabase-js": "^2.76.1",
     "@swc/helpers": "^0.5.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.17",

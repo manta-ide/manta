@@ -39,7 +39,7 @@ import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { Button } from '@/components/ui/button';
-import { Hand, SquareDashed, Loader2, Layers as LayersIcon, Wand2, File, MessageSquare } from 'lucide-react';
+import { Hand, SquareDashed, Layers as LayersIcon, File, MessageSquare } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 import Shape from './shapes';
 import { getShapeConfig } from './shapes/types';
@@ -488,7 +488,6 @@ function GraphCanvas() {
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
   const draggingNodeIdsRef = useRef<Set<string>>(new Set());
   const [isRebuilding, setIsRebuilding] = useState(false);
-  const [isAutoLayouting, setIsAutoLayouting] = useState(false);
   // Track viewport state for layer switching
   const [currentViewport, setCurrentViewport] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [pendingLayerSwitch, setPendingLayerSwitch] = useState<string | null>(null);
@@ -634,105 +633,9 @@ function GraphCanvas() {
     return rects;
   }, [nodes, searchResults, searchOpen]);
 
-  // Auto layout all nodes using ELK and persist positions
-  const autoLayout = useCallback(async () => {
-    if (!graph) return;
-    setIsAutoLayouting(true);
-    setOptimisticOperationsActive(true);
-    try {
-      const elk = new ELK();
-      // Add buffer space around each node to avoid tight packing
-      const nodeMarginX = 48; // horizontal padding on each side (increased)
-      const nodeMarginY = 48; // vertical padding on each side (increased)
-      // Build ELK nodes with measured or default sizes
-      const rfNodeMap = new Map(nodes.map(n => [n.id, n]));
-      const elkNodes = graph.nodes.map(n => {
-        const rf = rfNodeMap.get(n.id);
-        const width = (rf?.width ?? 260) + nodeMarginX * 2;
-        const height = (rf?.height ?? 160) + nodeMarginY * 2;
-        return { id: n.id, width, height } as any;
-      });
-      const seen = new Set<string>();
-      const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
-      if (Array.isArray((graph as any).edges)) {
-        (graph as any).edges.forEach((e: any, i: number) => {
-          const id = `${e.source}-${e.target}`;
-          if (!seen.has(id)) {
-            elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
-            seen.add(id);
-          }
-        });
-      }
-
-      const elkGraph = {
-        id: 'root',
-        layoutOptions: {
-          'elk.algorithm': 'layered',
-          'elk.direction': 'RIGHT',
-          // Consider node sizes and reduce crossings
-          'elk.layered.layering.strategy': 'LONGEST_PATH',
-          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-          'elk.layered.thoroughness': '7',
-          'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-          'elk.edgeRouting': 'ORTHOGONAL',
-          // Spacing for less overlap and clearer edges (increased)
-          'elk.layered.spacing.nodeNodeBetweenLayers': '120',
-          'elk.layered.spacing.edgeEdgeBetweenLayers': '36',
-          'elk.spacing.nodeNode': '72',
-          'elk.spacing.edgeNode': '48',
-          'elk.spacing.edgeEdge': '36',
-          'elk.spacing.componentComponent': '96',
-          'elk.spacing.portPort': '12',
-          'elk.spacing.portNode': '12',
-          'elk.spacing.labelNode': '12',
-          'elk.layered.mergeEdges': 'true',
-        },
-        children: elkNodes,
-        edges: elkEdges,
-      } as any;
-
-      const res = await elk.layout(elkGraph);
-      const posMap = new Map<string, { x: number; y: number }>();
-      (res.children || []).forEach((c: any) => {
-        posMap.set(c.id, { x: Math.round(c.x || 0), y: Math.round(c.y || 0) });
-      });
-
-      // Update RF nodes immediately for feedback
-      setNodes(prev => prev.map(n => {
-        const p = posMap.get(n.id);
-        return p ? { ...n, position: { x: p.x, y: p.y } } : n;
-      }));
-
-      // Persist to graph (single PUT)
-      const updatedGraph: Graph = {
-        ...graph,
-        nodes: graph.nodes.map(n => {
-          const p = posMap.get(n.id);
-          return p ? { ...n, position: { x: p.x, y: p.y, z: 0 } } : n;
-        }),
-      } as Graph;
-
-      await useProjectStore.getState().syncGraph(updatedGraph);
-
-      // Also update local store explicitly to avoid races
-      useProjectStore.setState({ graph: updatedGraph });
-      suppressSSE?.(1000);
-    } catch (e) {
-      console.error('Auto layout failed:', e);
-    } finally {
-      setOptimisticOperationsActive(false);
-      setIsAutoLayouting(false);
-    }
-  }, [graph, nodes, setNodes, setOptimisticOperationsActive, suppressSSE]);
 
   // Listen for global commands (from chat slash commands or elsewhere)
   useEffect(() => {
-    const onAutoLayout = () => {
-      // Avoid double-press while already running
-      if (!isAutoLayouting) {
-        void autoLayout();
-      }
-    };
     const onBuildGraph = () => {
       // Trigger the same action as the Build Graph button
       if (!isBuildingGraph && graph) {
@@ -747,15 +650,13 @@ function GraphCanvas() {
       void useProjectStore.getState().setActiveLayer(layerName);
     };
 
-    window.addEventListener('manta:auto-layout', onAutoLayout as EventListener);
     window.addEventListener('manta:build-graph', onBuildGraph as EventListener);
     window.addEventListener('manta:switch-layer', onSwitchLayer as EventListener);
     return () => {
-      window.removeEventListener('manta:auto-layout', onAutoLayout as EventListener);
       window.removeEventListener('manta:build-graph', onBuildGraph as EventListener);
       window.removeEventListener('manta:switch-layer', onSwitchLayer as EventListener);
     };
-  }, [autoLayout, buildEntireGraph, isAutoLayouting, isBuildingGraph, graph, viewport]);
+  }, [buildEntireGraph, isBuildingGraph, graph, viewport]);
 
 
   // Generate unique node ID
@@ -1528,49 +1429,62 @@ function GraphCanvas() {
         }
       });
 
-      // If some nodes are missing positions, compute a tree layout for them using ELK
+      // If some nodes are missing positions, compute layout for them using layered algorithm
       if (nodesMissingPos.length > 0) {
         try {
+          // Use ELK layered layout for missing positions
           const elk = new ELK();
-          const elkNodes = graph.nodes.map(n => ({ id: n.id, width: 260, height: 160 }));
+          const missingElkNodes = nodesMissingPos.map(id => ({
+            id: id,
+            width: 260,
+            height: 160,
+          }));
+
+          const missingElkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
           const seen = new Set<string>();
-          const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
-          // From explicit edges
           if (Array.isArray((graph as any).edges)) {
             (graph as any).edges.forEach((e: any, i: number) => {
-              const id = `${e.source}-${e.target}`;
-              if (!seen.has(id)) {
-                elkEdges.push({ id: `e-${i}-${id}`, sources: [e.source], targets: [e.target] });
-                seen.add(id);
-              }
-            });
-          }
-
-          const elkGraph = {
-            id: 'root',
-            layoutOptions: {
-              'elk.algorithm': 'layered',
-              'elk.direction': 'DOWN',
-              'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-              'elk.spacing.nodeNode': '80',
-            },
-            children: elkNodes,
-            edges: elkEdges,
-          } as any;
-
-          const layout = await elk.layout(elkGraph);
-          if (Array.isArray(layout.children)) {
-            layout.children.forEach((c: any) => {
-              if (typeof c.x === 'number' && typeof c.y === 'number') {
-                // Only assign auto-layout positions for nodes that lacked one
-                if (!nodePositions.has(c.id)) {
-                  nodePositions.set(c.id, { x: Math.round(c.x), y: Math.round(c.y) });
+              if (nodesMissingPos.includes(e.source) || nodesMissingPos.includes(e.target)) {
+                const id = `${e.source}-${e.target}`;
+                if (!seen.has(id)) {
+                  missingElkEdges.push({
+                    id: `e-${i}-${id}`,
+                    sources: [e.source],
+                    targets: [e.target]
+                  });
+                  seen.add(id);
                 }
               }
             });
           }
+
+          const missingElkGraph = {
+            id: 'missing-nodes',
+            layoutOptions: {
+              'elk.algorithm': 'org.eclipse.elk.layered',
+              'elk.direction': 'DOWN',
+              'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+              'elk.spacing.nodeNode': '60',
+              'elk.spacing.edgeNode': '20',
+            },
+            children: missingElkNodes,
+            edges: missingElkEdges,
+          } as any;
+
+          const missingLayoutResult = await elk.layout(missingElkGraph);
+
+          if (Array.isArray(missingLayoutResult.children)) {
+            missingLayoutResult.children.forEach((child: any) => {
+              if (!nodePositions.has(child.id) && typeof child.x === 'number' && typeof child.y === 'number') {
+                nodePositions.set(child.id, {
+                  x: Math.round(child.x),
+                  y: Math.round(child.y)
+                });
+              }
+            });
+          }
         } catch (e) {
-          console.warn('⚠️ ELK layout failed, falling back to simple grid:', e);
+          console.warn('⚠️ ELK layered layout failed, falling back to simple grid:', e);
           // Simple fallback: place missing nodes in a grid below existing ones
           let col = 0, row = 0;
           const gapX = 320, gapY = 220;
@@ -1724,33 +1638,12 @@ function GraphCanvas() {
           console.log('👶 Found child nodes for outline:', childNodes.map(c => ({ id: c.id, title: c.title, type: (c as any).type })));
 
           if (childNodes.length > 0) {
-            // Calculate bounding box using the positions from sortedNodes
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            childNodes.forEach(childNode => {
-              // Use the position that would be calculated for this child node
-              const childPosition = nodePositions.get(childNode.id) || childNode.position || { x: 0, y: 0 };
-              const width = 260; // Default width for components
-              const height = 160; // Default height for components
-              minX = Math.min(minX, childPosition.x);
-              minY = Math.min(minY, childPosition.y);
-              maxX = Math.max(maxX, childPosition.x + width);
-              maxY = Math.max(maxY, childPosition.y + height);
-            });
-
-            // Add padding around the bounding box
-            const padding = 40;
-            const outlineWidth = maxX - minX + (padding * 2);
-            const outlineHeight = maxY - minY + (padding * 2);
-            position = { x: minX - padding, y: minY - padding };
-
-            console.log('📐 Outline bounds:', { minX, minY, maxX, maxY, width: outlineWidth, height: outlineHeight, position });
-
-            // Create outline node
+            // Create outline node with temporary position - will be repositioned after layout
             const outlineNode: Node = {
               id: node.id,
-              position,
-              width: outlineWidth,
-              height: outlineHeight,
+              position: { x: 0, y: 0 }, // Temporary position
+              width: 400, // Temporary dimensions
+              height: 300,
               data: {
                 label: node.title,
                 node: node,
@@ -1760,13 +1653,14 @@ function GraphCanvas() {
                 updateNode: updateNode,
                 isOutline: true,
                 outlineType: (node as any).outlineType,
+                childNodeIds: childNodeIds, // Store for repositioning after layout
               },
               type: 'custom',
               selected: false,
               draggable: false,
             };
 
-            console.log('✅ Created outline ReactFlow node:', { id: outlineNode.id, position: outlineNode.position, width: outlineNode.width, height: outlineNode.height });
+            console.log('✅ Created outline ReactFlow node (temp position):', { id: outlineNode.id });
             reactFlowNodes.push(outlineNode);
             continue;
           } else {
@@ -1829,33 +1723,8 @@ function GraphCanvas() {
           const tgt = String(edge.target);
           const symKey = [src, tgt].sort().join('~');
           if (!addedSymmetric.has(symKey)) {
-            // Infer handle anchors if missing, based on node relative positions (one-time for legacy edges)
-            let sourceHandle = (edge as any).sourceHandle as string | undefined;
-            let targetHandle = (edge as any).targetHandle as string | undefined;
-            if (!sourceHandle || !targetHandle) {
-              const sp = posMap.get(src);
-              const tp = posMap.get(tgt);
-              if (sp && tp) {
-                const dx = tp.x - sp.x;
-                const dy = tp.y - sp.y;
-                if (!sourceHandle) {
-                  if (Math.abs(dx) >= Math.abs(dy)) {
-                    sourceHandle = dx >= 0 ? 'right' : 'left';
-                  } else {
-                    sourceHandle = dy >= 0 ? 'bottom' : 'top';
-                  }
-                }
-                if (!targetHandle) {
-                  if (Math.abs(dx) >= Math.abs(dy)) {
-                    targetHandle = dx >= 0 ? 'left' : 'right';
-                  } else {
-                    targetHandle = dy >= 0 ? 'top' : 'bottom';
-                  }
-                }
-              }
-            }
-  
-          const shape = resolveEdgeShape(edge);
+            // Create edge without handles first - will be calculated after layout
+            const shape = resolveEdgeShape(edge);
 
           // Check if either connected node has negative z-index (like comments)
           const sourceNode = sortedNodes.find(n => n.id === edge.source);
@@ -1875,8 +1744,8 @@ function GraphCanvas() {
             id: edge.id,
             source: src,
             target: tgt,
-            sourceHandle,
-            targetHandle,
+            sourceHandle: undefined, // Will be calculated after layout
+            targetHandle: undefined, // Will be calculated after layout
             type: 'default',
             style,
             markerEnd: makeArrowForStyle(style),
@@ -1891,6 +1760,384 @@ function GraphCanvas() {
       }
 
       // All edges are now handled by the graph.edges array above
+
+      // Apply automatic layered layout to all nodes
+      try {
+        console.log('🔄 Applying automatic layered layout...');
+
+        const elk = new ELK();
+
+        // Prepare nodes for ELK layout (exclude outline nodes as they position themselves based on children)
+        const elkNodes = reactFlowNodes
+          .filter(rfNode => !rfNode.data?.isOutline)
+          .map(rfNode => ({
+            id: rfNode.id,
+            width: rfNode.width ?? 260,
+            height: rfNode.height ?? 160,
+          }));
+
+        // Prepare edges for ELK layout
+        const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
+        const seen = new Set<string>();
+        if (Array.isArray(reactFlowEdges)) {
+          reactFlowEdges.forEach((edge: any, i: number) => {
+            const id = `${edge.source}-${edge.target}`;
+            if (!seen.has(id)) {
+              elkEdges.push({
+                id: `e-${i}-${id}`,
+                sources: [edge.source],
+                targets: [edge.target]
+              });
+              seen.add(id);
+            }
+          });
+        }
+
+        const elkGraph = {
+          id: 'root',
+          layoutOptions: {
+            'elk.algorithm': 'org.eclipse.elk.layered',
+            'elk.direction': 'DOWN',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '120',
+            'elk.spacing.nodeNode': '80',
+            'elk.spacing.edgeNode': '20',
+            'elk.spacing.edgeEdge': '20',
+            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+            'elk.layered.thoroughness': '7',
+            'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+          },
+          children: elkNodes,
+          edges: elkEdges,
+        } as any;
+
+        const layoutResult = await elk.layout(elkGraph);
+
+        // Update ReactFlow node positions from ELK layout results (only for non-outline nodes)
+        if (Array.isArray(layoutResult.children)) {
+          layoutResult.children.forEach((child: any) => {
+            const rfNode = reactFlowNodes.find(n => n.id === child.id);
+            if (rfNode && !rfNode.data?.isOutline && typeof child.x === 'number' && typeof child.y === 'number') {
+              rfNode.position = {
+                x: Math.round(child.x),
+                y: Math.round(child.y)
+              };
+            }
+          });
+        }
+
+        console.log('✅ Automatic layered layout applied');
+      } catch (e) {
+        console.warn('⚠️ Automatic layered layout failed, using existing positions:', e);
+      }
+
+      // Reposition outline nodes based on their child node positions after layout
+      try {
+        console.log('🔄 Repositioning outline nodes based on child positions...');
+
+        reactFlowNodes.forEach(rfNode => {
+          if (rfNode.data?.isOutline && rfNode.data?.childNodeIds && Array.isArray(rfNode.data.childNodeIds)) {
+            const childNodeIds: string[] = rfNode.data.childNodeIds;
+            const childRfNodes = reactFlowNodes.filter(n =>
+              childNodeIds.includes(n.id) && !n.data?.isOutline
+            );
+
+            if (childRfNodes.length > 0) {
+              // Calculate bounding box using the new positions after layout
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              childRfNodes.forEach(childNode => {
+                const width = childNode.width ?? 260;
+                const height = childNode.height ?? 160;
+                minX = Math.min(minX, childNode.position.x);
+                minY = Math.min(minY, childNode.position.y);
+                maxX = Math.max(maxX, childNode.position.x + width);
+                maxY = Math.max(maxY, childNode.position.y + height);
+              });
+
+              // Add padding around the bounding box
+              const padding = 40;
+              const outlineWidth = maxX - minX + (padding * 2);
+              const outlineHeight = maxY - minY + (padding * 2);
+              const newPosition = { x: minX - padding, y: minY - padding };
+
+              // Update the outline node position and dimensions
+              rfNode.position = newPosition;
+              rfNode.width = outlineWidth;
+              rfNode.height = outlineHeight;
+
+              console.log('📐 Repositioned outline:', {
+                id: rfNode.id,
+                position: newPosition,
+                width: outlineWidth,
+                height: outlineHeight,
+                childCount: childRfNodes.length
+              });
+            }
+          }
+        });
+
+        // Resolve outline overlaps by rearranging child nodes using a more robust algorithm
+        try {
+          console.log('🔄 Resolving outline overlaps by rearranging child nodes...');
+
+          // Group outlines by their layer type
+          const outlinesByType: Record<string, typeof reactFlowNodes> = {};
+          reactFlowNodes.forEach(rfNode => {
+            if (rfNode.data?.isOutline) {
+              const outlineType = String(rfNode.data.outlineType || 'unknown');
+              if (!outlinesByType[outlineType]) {
+                outlinesByType[outlineType] = [];
+              }
+              outlinesByType[outlineType].push(rfNode);
+            }
+          });
+
+          // Helper function to recalculate a single outline's bounds
+          const recalculateOutline = (outline: any) => {
+            const childNodeIds = outline.data?.childNodeIds as string[] || [];
+            const childNodes = reactFlowNodes.filter(n =>
+              childNodeIds.includes(n.id) && !n.data?.isOutline
+            );
+
+            if (childNodes.length > 0) {
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              childNodes.forEach(childNode => {
+                const width = childNode.width ?? 260;
+                const height = childNode.height ?? 160;
+                minX = Math.min(minX, childNode.position.x);
+                minY = Math.min(minY, childNode.position.y);
+                maxX = Math.max(maxX, childNode.position.x + width);
+                maxY = Math.max(maxY, childNode.position.y + height);
+              });
+
+              const padding = 40;
+              outline.position = { x: minX - padding, y: minY - padding };
+              outline.width = maxX - minX + (padding * 2);
+              outline.height = maxY - minY + (padding * 2);
+            }
+          };
+
+          // Helper function to check if two outlines overlap
+          const checkOverlap = (a: any, b: any) => {
+            const aLeft = a.position.x;
+            const aRight = a.position.x + (a.width || 400);
+            const aTop = a.position.y;
+            const aBottom = a.position.y + (a.height || 300);
+
+            const bLeft = b.position.x;
+            const bRight = b.position.x + (b.width || 400);
+            const bTop = b.position.y;
+            const bBottom = b.position.y + (b.height || 300);
+
+            return aLeft < bRight && aRight > bLeft && aTop < bBottom && aBottom > bTop;
+          };
+
+          // Process each layer type separately
+          Object.entries(outlinesByType).forEach(([outlineType, outlines]) => {
+            if (outlines.length <= 1) return; // No overlaps possible with single outline
+
+            console.log(`🔧 Resolving overlaps for ${outlines.length} ${outlineType} outlines by rearranging children`);
+
+            const minSpacing = 40; // Minimum space between outline edges
+            let iterations = 0;
+            const maxIterations = 20; // Allow more iterations for convergence
+
+            // Use a force-based approach: repeatedly push overlapping outlines apart
+            while (iterations < maxIterations) {
+              iterations++;
+              let anyOverlaps = false;
+
+              // For each outline, calculate forces from all overlapping outlines
+              const forces = new Map<string, { x: number; y: number }>();
+              outlines.forEach(outline => forces.set(outline.id, { x: 0, y: 0 }));
+
+              // Calculate repulsion forces between all overlapping pairs
+              for (let i = 0; i < outlines.length; i++) {
+                for (let j = i + 1; j < outlines.length; j++) {
+                  const outlineA = outlines[i];
+                  const outlineB = outlines[j];
+
+                  if (checkOverlap(outlineA, outlineB)) {
+                    anyOverlaps = true;
+
+                    // Calculate centers
+                    const aCenterX = outlineA.position.x + (outlineA.width || 400) / 2;
+                    const aCenterY = outlineA.position.y + (outlineA.height || 300) / 2;
+                    const bCenterX = outlineB.position.x + (outlineB.width || 400) / 2;
+                    const bCenterY = outlineB.position.y + (outlineB.height || 300) / 2;
+
+                    // Calculate direction vector from A to B
+                    const dx = bCenterX - aCenterX;
+                    const dy = bCenterY - aCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                    // Calculate overlap amounts
+                    const overlapX = Math.min(
+                      outlineA.position.x + (outlineA.width || 400) - outlineB.position.x,
+                      outlineB.position.x + (outlineB.width || 400) - outlineA.position.x
+                    );
+                    const overlapY = Math.min(
+                      outlineA.position.y + (outlineA.height || 300) - outlineB.position.y,
+                      outlineB.position.y + (outlineB.height || 300) - outlineA.position.y
+                    );
+
+                    // Force strength based on overlap
+                    const forceStrength = Math.max(overlapX, overlapY) + minSpacing;
+
+                    // Normalize direction and apply force
+                    const fx = (dx / distance) * forceStrength;
+                    const fy = (dy / distance) * forceStrength;
+
+                    // Apply repulsion force (A pushes left/up, B pushes right/down)
+                    // Use a smaller multiplier for more subtle spacing adjustments
+                    const forceA = forces.get(outlineA.id)!;
+                    const forceB = forces.get(outlineB.id)!;
+                    forceA.x -= fx * 0.3;
+                    forceA.y -= fy * 0.3;
+                    forceB.x += fx * 0.3;
+                    forceB.y += fy * 0.3;
+                  }
+                }
+              }
+
+              if (!anyOverlaps) {
+                console.log(`✅ No overlaps found after ${iterations} iterations`);
+                break;
+              }
+
+              // Apply forces by moving child nodes
+              outlines.forEach(outline => {
+                const force = forces.get(outline.id)!;
+                if (force.x !== 0 || force.y !== 0) {
+                  const childNodeIds = outline.data?.childNodeIds as string[] || [];
+                  const childNodes = reactFlowNodes.filter(n =>
+                    childNodeIds.includes(n.id) && !n.data?.isOutline
+                  );
+
+                  childNodes.forEach(childNode => {
+                    childNode.position.x += force.x;
+                    childNode.position.y += force.y;
+                  });
+
+                  // Recalculate outline bounds after moving children
+                  recalculateOutline(outline);
+                }
+              });
+
+              if (iterations % 5 === 0) {
+                console.log(`📐 Iteration ${iterations}: Continuing to resolve overlaps...`);
+              }
+            }
+
+            if (iterations >= maxIterations) {
+              console.warn(`⚠️ Reached maximum iterations (${maxIterations}) for ${outlineType} outlines`);
+            }
+          });
+
+        console.log('✅ Outline overlaps resolved by rearranging children');
+      } catch (e) {
+        console.warn('⚠️ Outline overlap resolution failed:', e);
+      }
+
+      console.log('✅ Outline nodes repositioned');
+    } catch (e) {
+      console.warn('⚠️ Outline repositioning failed:', e);
+    }
+
+      // Calculate optimal edge handles AFTER all layout adjustments are complete
+      try {
+        console.log('🔄 Calculating optimal edge connection points...');
+        reactFlowEdges.forEach((edge: any) => {
+          const sourceNode = reactFlowNodes.find(n => n.id === edge.source);
+          const targetNode = reactFlowNodes.find(n => n.id === edge.target);
+          
+          if (sourceNode && targetNode) {
+            const sp = sourceNode.position;
+            const tp = targetNode.position;
+            const sourceWidth = sourceNode.width ?? 260;
+            const sourceHeight = sourceNode.height ?? 160;
+            const targetWidth = targetNode.width ?? 260;
+            const targetHeight = targetNode.height ?? 160;
+
+            // Calculate center points
+            const sourceCenterX = sp.x + sourceWidth / 2;
+            const sourceCenterY = sp.y + sourceHeight / 2;
+            const targetCenterX = tp.x + targetWidth / 2;
+            const targetCenterY = tp.y + targetHeight / 2;
+
+            // Calculate handle positions for all four sides of each node
+            const sourceHandles = {
+              top: { x: sourceCenterX, y: sp.y },
+              right: { x: sp.x + sourceWidth, y: sourceCenterY },
+              bottom: { x: sourceCenterX, y: sp.y + sourceHeight },
+              left: { x: sp.x, y: sourceCenterY }
+            };
+            const targetHandles = {
+              top: { x: targetCenterX, y: tp.y },
+              right: { x: tp.x + targetWidth, y: targetCenterY },
+              bottom: { x: targetCenterX, y: tp.y + targetHeight },
+              left: { x: tp.x, y: targetCenterY }
+            };
+
+            // Find the best pair of handles based on distance and directional alignment
+            let minScore = Infinity;
+            let sourceHandle = 'right';
+            let targetHandle = 'left';
+            let bestDistance = Infinity;
+
+            for (const [sHandle, sPos] of Object.entries(sourceHandles)) {
+              for (const [tHandle, tPos] of Object.entries(targetHandles)) {
+                const dx = tPos.x - sPos.x;
+                const dy = tPos.y - sPos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Calculate directional penalty for non-sensible connections
+                let penalty = 0;
+                
+                // Massive penalty for handles pointing away from the target direction
+                if (sHandle === 'right' && dx < 0) penalty += 5000; // Source points right but target is left
+                if (sHandle === 'left' && dx > 0) penalty += 5000;  // Source points left but target is right
+                if (sHandle === 'bottom' && dy < 0) penalty += 5000; // Source points down but target is up
+                if (sHandle === 'top' && dy > 0) penalty += 5000;    // Source points up but target is down
+                
+                if (tHandle === 'right' && dx > 0) penalty += 5000; // Target points right but source is right
+                if (tHandle === 'left' && dx < 0) penalty += 5000;  // Target points left but source is left
+                if (tHandle === 'bottom' && dy > 0) penalty += 5000; // Target points down but source is down
+                if (tHandle === 'top' && dy < 0) penalty += 5000;    // Target points up but source is up
+                
+                // Strong preference for handles that face each other directly
+                const facingEachOther = 
+                  (sHandle === 'right' && tHandle === 'left' && dx > 0) ||
+                  (sHandle === 'left' && tHandle === 'right' && dx < 0) ||
+                  (sHandle === 'bottom' && tHandle === 'top' && dy > 0) ||
+                  (sHandle === 'top' && tHandle === 'bottom' && dy < 0);
+                
+                if (facingEachOther) {
+                  penalty -= 2000; // Large bonus for facing each other
+                }
+                
+                const score = distance + penalty;
+                if (score < minScore) {
+                  minScore = score;
+                  sourceHandle = sHandle;
+                  targetHandle = tHandle;
+                  bestDistance = distance;
+                }
+              }
+            }
+
+            edge.sourceHandle = sourceHandle;
+            edge.targetHandle = targetHandle;
+            
+            // Log problematic connections for debugging
+            if (bestDistance > 200) {
+              console.log(`📏 Edge ${edge.source} -> ${edge.target}: ${sourceHandle} -> ${targetHandle} (distance: ${Math.round(bestDistance)}px)`);
+            }
+          }
+        });
+        console.log('✅ Edge connection points calculated');
+      } catch (e) {
+        console.warn('⚠️ Edge handle calculation failed:', e);
+      }
 
       // Create visual edges from graph data
 
@@ -1944,7 +2191,7 @@ function GraphCanvas() {
 
   // No realtime broadcast integration; positions update via API/SSE refresh
 
-  // Helper function to infer handle positions based on node positions
+  // Helper function to calculate optimal handle positions based on closest connection points
   const inferHandles = (sourceId: string, targetId: string, nodes: Node[]) => {
     const sourceNode = nodes.find(n => n.id === sourceId);
     const targetNode = nodes.find(n => n.id === targetId);
@@ -1952,18 +2199,74 @@ function GraphCanvas() {
 
     const sp = sourceNode.position;
     const tp = targetNode.position;
-    const dx = tp.x - sp.x;
-    const dy = tp.y - sp.y;
+    const sourceWidth = sourceNode.width ?? 260;
+    const sourceHeight = sourceNode.height ?? 160;
+    const targetWidth = targetNode.width ?? 260;
+    const targetHeight = targetNode.height ?? 160;
 
-    let sourceHandle: string;
-    let targetHandle: string;
+    // Calculate center points
+    const sourceCenterX = sp.x + sourceWidth / 2;
+    const sourceCenterY = sp.y + sourceHeight / 2;
+    const targetCenterX = tp.x + targetWidth / 2;
+    const targetCenterY = tp.y + targetHeight / 2;
 
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      sourceHandle = dx >= 0 ? 'right' : 'left';
-      targetHandle = dx >= 0 ? 'left' : 'right';
-    } else {
-      sourceHandle = dy >= 0 ? 'bottom' : 'top';
-      targetHandle = dy >= 0 ? 'top' : 'bottom';
+    // Calculate handle positions for all four sides of each node
+    const sourceHandles = {
+      top: { x: sourceCenterX, y: sp.y },
+      right: { x: sp.x + sourceWidth, y: sourceCenterY },
+      bottom: { x: sourceCenterX, y: sp.y + sourceHeight },
+      left: { x: sp.x, y: sourceCenterY }
+    };
+    const targetHandles = {
+      top: { x: targetCenterX, y: tp.y },
+      right: { x: tp.x + targetWidth, y: targetCenterY },
+      bottom: { x: targetCenterX, y: tp.y + targetHeight },
+      left: { x: tp.x, y: targetCenterY }
+    };
+
+    // Find the best pair of handles based on distance and directional alignment
+    let minScore = Infinity;
+    let sourceHandle = 'right';
+    let targetHandle = 'left';
+
+    for (const [sHandle, sPos] of Object.entries(sourceHandles)) {
+      for (const [tHandle, tPos] of Object.entries(targetHandles)) {
+        const dx = tPos.x - sPos.x;
+        const dy = tPos.y - sPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate directional penalty for non-sensible connections
+        let penalty = 0;
+        
+        // Massive penalty for handles pointing away from the target direction
+        if (sHandle === 'right' && dx < 0) penalty += 5000; // Source points right but target is left
+        if (sHandle === 'left' && dx > 0) penalty += 5000;  // Source points left but target is right
+        if (sHandle === 'bottom' && dy < 0) penalty += 5000; // Source points down but target is up
+        if (sHandle === 'top' && dy > 0) penalty += 5000;    // Source points up but target is down
+        
+        if (tHandle === 'right' && dx > 0) penalty += 5000; // Target points right but source is right
+        if (tHandle === 'left' && dx < 0) penalty += 5000;  // Target points left but source is left
+        if (tHandle === 'bottom' && dy > 0) penalty += 5000; // Target points down but source is down
+        if (tHandle === 'top' && dy < 0) penalty += 5000;    // Target points up but source is up
+        
+        // Strong preference for handles that face each other directly
+        const facingEachOther = 
+          (sHandle === 'right' && tHandle === 'left' && dx > 0) ||
+          (sHandle === 'left' && tHandle === 'right' && dx < 0) ||
+          (sHandle === 'bottom' && tHandle === 'top' && dy > 0) ||
+          (sHandle === 'top' && tHandle === 'bottom' && dy < 0);
+        
+        if (facingEachOther) {
+          penalty -= 2000; // Large bonus for facing each other
+        }
+        
+        const score = distance + penalty;
+        if (score < minScore) {
+          minScore = score;
+          sourceHandle = sHandle;
+          targetHandle = tHandle;
+        }
+      }
     }
 
     return { sourceHandle, targetHandle };
@@ -2475,29 +2778,6 @@ function GraphCanvas() {
         gap: '8px',
         zIndex: 1000,
       }}>
-        {/* Auto Layout Button */}
-        <Button
-          onClick={autoLayout}
-          disabled={isAutoLayouting || !graph}
-          variant="outline"
-          size="sm"
-          className={`bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300 ${
-            isAutoLayouting ? 'cursor-not-allowed opacity-75' : ''
-          }`}
-          title={isAutoLayouting ? 'Laying out graph...' : 'Auto-arrange nodes for a clean layout'}
-        >
-          {isAutoLayouting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Auto Layout...
-            </>
-          ) : (
-            <>
-              <Wand2 className="w-4 h-4 mr-2" />
-              Auto Layout
-            </>
-          )}
-        </Button>
         {/* Open Layers Sidebar button (shown only when sidebar is closed) */}
         {!layersSidebarOpen && (
           <Button

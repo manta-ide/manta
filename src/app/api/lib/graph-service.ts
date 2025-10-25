@@ -1,11 +1,8 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
-import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
-import fs from 'fs';
-import path from 'path';
-import { getDevProjectDir } from '@/lib/project-config';
-import { getActiveLayer, setActiveLayer as persistActiveLayer, getLayersInfo, getMainGraphPaths } from '@/lib/layers-server';
-import { analyzeGraphDiff } from '@/lib/graph-diff';
+import { graphToXml } from '@/lib/graph-xml';
+import { supabase, getOrCreateDefaultUser, getOrCreateDefaultProject } from '@/lib/supabase';
+import { randomUUID } from 'crypto';
 
 export type Graph = z.infer<typeof GraphSchema>;
 
@@ -13,6 +10,7 @@ type GraphServiceRuntimeState = {
   currentGraph: Graph | null;
   activeStreams: Set<ReadableStreamDefaultController<Uint8Array>>;
   broadcastTimeout: NodeJS.Timeout | null;
+  projectId: string | null;
 };
 
 const globalGraphState = (globalThis as typeof globalThis & {
@@ -21,6 +19,7 @@ const globalGraphState = (globalThis as typeof globalThis & {
   currentGraph: null,
   activeStreams: new Set<ReadableStreamDefaultController<Uint8Array>>(),
   broadcastTimeout: null,
+  projectId: null,
 };
 
 const getCurrentGraph = () => globalGraphState.currentGraph;
@@ -28,102 +27,18 @@ const setCurrentGraph = (graph: Graph | null) => {
   globalGraphState.currentGraph = graph;
 };
 
-// Local mode toggle and helpers
-const LOCAL_MODE = process.env.NODE_ENV !== 'production';
-function getProjectDir(): string {
-  // Use the configured development project directory
-  try {
-    const devProjectDir = getDevProjectDir();
-    if (fs.existsSync(devProjectDir)) {
-      return devProjectDir;
-    }
-  } catch (error) {
-    console.warn('Failed to get dev project directory, falling back to current directory:', error);
+// Get or initialize project ID
+async function getProjectId(): Promise<string> {
+  if (globalGraphState.projectId) {
+    return globalGraphState.projectId;
   }
 
-  // Fallback to current directory if dev project directory doesn't exist
-  try {
-    const cwd = process.cwd();
-    if (fs.existsSync(path.join(cwd, 'manta'))) return cwd;
-    return cwd;
-  } catch {
-    return process.cwd();
-  }
+  // Initialize default user and project
+  const user = await getOrCreateDefaultUser();
+  const project = await getOrCreateDefaultProject(user.id);
+  globalGraphState.projectId = project.id;
+  return project.id;
 }
-function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
-function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
-
-// No longer need to ensure default layers - C4 layers are always available
-
-function getCurrentGraphPath(): string {
-
-  // Prefer active layer if configured
-  try {
-    const paths = getMainGraphPaths();
-    if (paths.current && fs.existsSync(path.dirname(paths.current))) {
-      return paths.current;
-    }
-  } catch {}
-  return path.join(getGraphDir(), 'current-graph.xml');
-}
-// Removed getBaseGraphPath - base graphs no longer exist
-function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
-function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
-function readGraphFromFs(): Graph | null {
-  try {
-    const pXml = getGraphPath();
-    const pJson = getLegacyGraphJsonPath();
-    if (fs.existsSync(pXml)) {
-      const raw = fs.readFileSync(pXml, 'utf8');
-      const graph = xmlToGraph(raw);
-      const parsed = GraphSchema.safeParse(graph);
-      return parsed.success ? parsed.data : (graph as Graph);
-    }
-    if (fs.existsSync(pJson)) {
-      const raw = fs.readFileSync(pJson, 'utf8');
-      let data: any;
-      try { data = JSON.parse(raw); } catch { data = null; }
-      if (data) {
-        const parsed = GraphSchema.safeParse(data);
-        const graph = parsed.success ? parsed.data : (data as Graph);
-        try { writeGraphToFs(graph); } catch {}
-        return graph;
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-function writeGraphToFs(graph: Graph) {
-  ensureGraphDir();
-  const xml = graphToXml(graph);
-  fs.writeFileSync(getGraphPath(), xml, 'utf8');
-}
-
-function readCurrentGraphFromFs(): Graph | null {
-  try {
-    const currentPath = getCurrentGraphPath();
-    if (fs.existsSync(currentPath)) {
-      const raw = fs.readFileSync(currentPath, 'utf8');
-      const graph = xmlToGraph(raw);
-      const parsed = GraphSchema.safeParse(graph);
-      return parsed.success ? parsed.data : (graph as Graph);
-    }
-    // Fallback to main graph file if current doesn't exist
-    return readGraphFromFs();
-  } catch {
-    return null;
-  }
-}
-
-function writeCurrentGraphToFs(graph: Graph) {
-  ensureGraphDir();
-  const xml = graphToXml(graph);
-  fs.writeFileSync(getCurrentGraphPath(), xml, 'utf8');
-}
-
-// Removed readBaseGraphFromFs and writeBaseGraphToFs - base graphs no longer exist
 
 // SSE broadcast system
 const activeStreams = globalGraphState.activeStreams;
@@ -202,7 +117,6 @@ async function broadcastGraphReload(_userId: string, metadata?: { source?: strin
   }
 }
 
-
 function normalizeGraph(original: Graph): Graph {
   const seenNodeIds = new Set<string>();
   const normalizedNodes = [] as any[];
@@ -241,7 +155,8 @@ function normalizeGraph(original: Graph): Graph {
     for (const child of children) {
       if (!child?.id) continue;
       if (!existingNodeIds.has(child.id)) continue;
-      computedEdges.push({ id: `${parent.id}-${child.id}`, source: parent.id, target: child.id });
+      // Generate UUID for computed edges
+      computedEdges.push({ id: randomUUID(), source: parent.id, target: child.id });
     }
   }
 
@@ -255,7 +170,8 @@ function normalizeGraph(original: Graph): Graph {
     const pair = `${source}→${target}`;
     if (byPair.has(pair)) continue;
     byPair.add(pair);
-    const id = e.id || `${source}-${target}`;
+    // Generate UUID if edge doesn't have an ID
+    const id = e.id || randomUUID();
     nextEdges.push({ id, source, target, role: e.role });
   }
 
@@ -264,74 +180,164 @@ function normalizeGraph(original: Graph): Graph {
   return normalized as Graph;
 }
 
-// Persist graph to local filesystem
-async function saveGraphToFs(graph: Graph): Promise<void> {
-  const normalized = normalizeGraph(graph);
-  writeCurrentGraphToFs(normalized);
+// Read graph from Supabase
+async function readGraphFromSupabase(): Promise<Graph | null> {
+  try {
+    const projectId = await getProjectId();
+
+    // Fetch all nodes for this project
+    const { data: nodesData, error: nodesError } = await supabase
+      .from('nodes')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (nodesError) {
+      console.error('Error fetching nodes from Supabase:', nodesError);
+      return null;
+    }
+
+    // Fetch all edges for this project
+    const { data: edgesData, error: edgesError } = await supabase
+      .from('edges')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (edgesError) {
+      console.error('Error fetching edges from Supabase:', edgesError);
+      return null;
+    }
+
+    // Convert to graph format
+    const nodes = (nodesData || []).map(node => ({
+      ...node.data,
+      id: node.id,
+    }));
+
+    const edges = (edgesData || []).map(edge => ({
+      ...edge.data,
+      id: edge.id,
+      source: edge.source_id,
+      target: edge.target_id,
+    }));
+
+    const graph: Graph = {
+      nodes,
+      ...(edges.length > 0 ? { edges } : {}),
+    };
+
+    const parsed = GraphSchema.safeParse(graph);
+    return parsed.success ? parsed.data : (graph as Graph);
+  } catch (error) {
+    console.error('Error reading graph from Supabase:', error);
+    return null;
+  }
 }
 
-async function saveCurrentGraphToFs(graph: Graph): Promise<void> {
-  const normalized = normalizeGraph(graph);
-  writeCurrentGraphToFs(normalized);
-}
+// Write graph to Supabase
+async function writeGraphToSupabase(graph: Graph): Promise<void> {
+  try {
+    const projectId = await getProjectId();
 
-// Removed saveBaseGraphToFs - base graphs no longer exist
+    // Delete all existing nodes and edges for this project (cascade will handle edges)
+    await supabase.from('nodes').delete().eq('project_id', projectId);
+
+    // Insert nodes
+    if (graph.nodes && graph.nodes.length > 0) {
+      const nodesToInsert = graph.nodes.map(node => ({
+        id: node.id,
+        project_id: projectId,
+        data: node,
+      }));
+
+      const { error: nodesError } = await supabase
+        .from('nodes')
+        .insert(nodesToInsert);
+
+      if (nodesError) {
+        console.error('Error inserting nodes to Supabase:', nodesError);
+        throw nodesError;
+      }
+    }
+
+    // Insert edges
+    if (graph.edges && graph.edges.length > 0) {
+      const edgesToInsert = graph.edges.map(edge => ({
+        id: edge.id,
+        project_id: projectId,
+        source_id: edge.source,
+        target_id: edge.target,
+        data: edge,
+      }));
+
+      const { error: edgesError } = await supabase
+        .from('edges')
+        .insert(edgesToInsert);
+
+      if (edgesError) {
+        console.error('Error inserting edges to Supabase:', edgesError);
+        throw edgesError;
+      }
+    }
+  } catch (error) {
+    console.error('Error writing graph to Supabase:', error);
+    throw error;
+  }
+}
 
 // --- Public API (in-memory + persistence) ---
 export function getGraphSession(): Graph | null { return getCurrentGraph(); }
 
 export function getCurrentGraphSession(): Graph | null { return getCurrentGraph(); }
 
-// Removed getBaseGraphSession - base graphs no longer exist
-
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await writeGraphToSupabase(normalized);
   await broadcastGraphReload(userId);
 }
 
 export async function storeCurrentGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await writeGraphToSupabase(normalized);
   await broadcastGraphReload(userId);
 }
 
 export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await writeGraphToSupabase(normalized);
   await broadcastGraphReload(userId, { source: 'agent' });
 }
 
 export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await writeGraphToSupabase(normalized);
 }
 
-// Removed storeBaseGraph - base graphs no longer exist
-
-// Removed broadcastBaseGraphUpdate - base graphs no longer exist
-
-
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
-  // Prioritize current graph file, fallback to main graph file
-  const graph = readCurrentGraphFromFs();
+  const graph = await readGraphFromSupabase();
   setCurrentGraph(graph);
   return graph;
 }
 
 export async function loadCurrentGraphFromFile(_userId: string): Promise<Graph | null> {
-  const graph = readCurrentGraphFromFs();
+  const graph = await readGraphFromSupabase();
   setCurrentGraph(graph);
   return graph;
 }
 
-// Removed loadBaseGraphFromFile - base graphs no longer exist
-
-export async function clearGraphSession(): Promise<void> { setCurrentGraph(null); }
+export async function clearGraphSession(): Promise<void> {
+  try {
+    const projectId = await getProjectId();
+    // Delete all nodes (cascade will handle edges)
+    await supabase.from('nodes').delete().eq('project_id', projectId);
+    setCurrentGraph(null);
+  } catch (error) {
+    console.error('Error clearing graph session:', error);
+  }
+}
 
 export function getGraphStats(): { hasGraph: boolean } { return { hasGraph: getCurrentGraph() !== null }; }
 
@@ -341,15 +347,13 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
   return current.nodes.find(node => node.id === nodeId) || null;
 }
 
-// Removed getUnbuiltNodeIds - unbuilt node concept no longer exists
-
 export async function markNodesBuilt(nodeIds: string[], _userId: string): Promise<void> {
   const current = getCurrentGraph();
   if (!current) return;
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
   setCurrentGraph(updated);
-  writeCurrentGraphToFs(updated);
+  await writeGraphToSupabase(updated);
 }
 
 export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Promise<void> {
@@ -358,22 +362,21 @@ export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Prom
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
   setCurrentGraph(updated);
-  writeCurrentGraphToFs(updated);
+  await writeGraphToSupabase(updated);
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
-  // Load current graph from file
-  const currentGraphFromFile = readCurrentGraphFromFs();
-  if (currentGraphFromFile) {
-    setCurrentGraph(currentGraphFromFile);
+  // Load current graph from Supabase
+  const currentGraphFromSupabase = await readGraphFromSupabase();
+  if (currentGraphFromSupabase) {
+    setCurrentGraph(currentGraphFromSupabase);
   }
-  // Note: base graph is loaded on-demand, not pre-loaded here
 }
 
 // ---- Layer management helpers (exposed for API routes) ----
-export function getActiveLayerName(): string | null { return getActiveLayer(); }
-export function setActiveLayer(name: string | null): void {
-  persistActiveLayer(name ?? null);
+// These are kept for compatibility but may not be used with Supabase
+export function getActiveLayerName(): string | null { return null; }
+export function setActiveLayer(name: string | null): void { }
+export function getLayersState(): { layers: string[]; activeLayer: string | null } {
+  return { layers: [], activeLayer: null };
 }
-// Removed ensureLayersDir - no longer needed
-export function getLayersState(): { layers: string[]; activeLayer: string | null } { return getLayersInfo(); }

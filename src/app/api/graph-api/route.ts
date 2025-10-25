@@ -5,6 +5,7 @@ import { GraphSchema, PropertySchema, NodeMetadataSchema } from '../lib/schemas'
 import type { NodeMetadata } from '../lib/schemas';
 import path from 'path';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 const LOCAL_MODE = process.env.NODE_ENV !== 'production';
 const DEFAULT_USER_ID = 'default-user';
@@ -534,16 +535,11 @@ export async function POST(req: NextRequest) {
         const validatedGraph = graph;
         console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-        const { nodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
+        const { title, prompt, type, level, comment, properties, position, metadata } = params;
 
-        console.log('🔍 TOOL: node_create checking if node already exists:', nodeId);
-        const existingNode = validatedGraph.nodes.find((n: any) => n.id === nodeId);
-        if (existingNode) {
-          console.error('❌ TOOL: node_create node already exists:', nodeId);
-          const errorMsg = `Node with ID '${nodeId}' already exists. Please use a different node ID or use node_edit to modify the existing node.`;
-          return NextResponse.json({ error: errorMsg }, { status: 400 });
-        }
-        console.log('✅ TOOL: node_create node ID is available');
+        // Always generate UUID for new nodes
+        const nodeId = randomUUID();
+        console.log('🆔 TOOL: node_create generated UUID:', nodeId);
 
         const node: any = {
           id: nodeId,
@@ -890,15 +886,16 @@ export async function POST(req: NextRequest) {
         }
         console.log('✅ TOOL: edge_create no existing edge found');
 
-        // Create the edge
+        // Create the edge with UUID
+        const edgeId = randomUUID();
         const newEdge = {
-          id: `${sourceId}-${targetId}`,
+          id: edgeId,
           source: sourceId,
           target: targetId,
           role: role || 'links-to',
           ...(shape ? { shape } : {})
         };
-        console.log('🆕 TOOL: edge_create creating new edge:', newEdge);
+        console.log('🆕 TOOL: edge_create creating new edge with UUID:', edgeId);
 
         validatedGraph.edges = validatedGraph.edges || [];
         validatedGraph.edges.push(newEdge);
