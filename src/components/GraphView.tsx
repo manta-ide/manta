@@ -39,7 +39,7 @@ import ELK from 'elkjs';
 import { GraphNode, Graph } from '@/app/api/lib/schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { Button } from '@/components/ui/button';
-import { Hand, SquareDashed, Layers as LayersIcon, File, MessageSquare } from 'lucide-react';
+import { Hand, SquareDashed, Layers as LayersIcon } from 'lucide-react';
 import { useHelperLines } from './helper-lines/useHelperLines';
 import Shape from './shapes';
 import { getShapeConfig } from './shapes/types';
@@ -2627,8 +2627,8 @@ function GraphCanvas() {
         onMouseMove={onPaneMouseMove}
         onMouseUp={onPaneMouseUp}
         colorMode="dark"
-        nodesDraggable={true}
-        nodesConnectable={currentTool === 'select'}
+        nodesDraggable={false}
+        nodesConnectable={false}
         elementsSelectable={true}
         deleteKeyCode={[]}
         onViewportChange={(viewport) => {
@@ -2717,7 +2717,7 @@ function GraphCanvas() {
             : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
           }`}
           style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Select Tool - Click to select nodes/edges, drag to select multiple, drag from node handles to create connections, press Delete to remove selected items"
+          title="Select Tool - Click to select nodes/edges, drag to select multiple"
         >
           <SquareDashed className="w-4 h-4" />
         </Button>
@@ -2735,36 +2735,6 @@ function GraphCanvas() {
           title="Pan Tool - Click and drag to pan the view, right-click always pans"
         >
           <Hand className="w-4 h-4" />
-        </Button>
-
-        {/* Add Node Tool */}
-        <Button
-          onClick={() => setCurrentTool('add-node')}
-          variant={currentTool === 'add-node' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'add-node'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Add Node Tool - Click anywhere on the canvas to create a new node"
-        >
-          <File className="w-4 h-4" />
-        </Button>
-
-        {/* Comment Tool */}
-        <Button
-          onClick={() => setCurrentTool('comment')}
-          variant={currentTool === 'comment' ? 'default' : 'outline'}
-          size="sm"
-          className={`${currentTool === 'comment'
-            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-            : 'bg-zinc-800 text-zinc-400 border-0 hover:bg-zinc-700 hover:text-zinc-300'
-          }`}
-          style={{ width: '32px', height: '32px', padding: '0' }}
-          title="Comment Tool - Click and drag to create a comment box that can group nodes"
-        >
-          <MessageSquare className="w-4 h-4" />
         </Button>
       </div>
 

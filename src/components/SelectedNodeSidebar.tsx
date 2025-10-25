@@ -305,6 +305,7 @@ export default function SelectedNodeSidebar() {
 							debouncedUpdateTitle(newValue);
 						}}
 						placeholder="Enter node title..."
+						readOnly
 					/>
 					{/* Only show shape selector for non-comment nodes */}
 					{(() => {
@@ -318,6 +319,7 @@ export default function SelectedNodeSidebar() {
 								  value={shapeDraft}
 								  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
 								  className="bg-zinc-800 border-zinc-700 text-white"
+								  disabled
 								>
 								  <option value="rectangle">Rectangle</option>
 								  <option value="circle">Circle</option>
@@ -333,6 +335,7 @@ export default function SelectedNodeSidebar() {
 								  value={typeDraft}
 								  onChange={(e) => handleTypeChange(e.target.value as NodeType)}
 								  className="bg-zinc-800 border-zinc-700 text-white"
+								  disabled
 								>
 								  <option value="system">System</option>
 								  <option value="container">Container</option>
@@ -364,6 +367,7 @@ export default function SelectedNodeSidebar() {
 								value={edgeShapeDraft}
 								onChange={(e) => handleEdgeShapeChange(e.target.value as EdgeShape)}
 								className="bg-zinc-800 border-zinc-700 text-white"
+								disabled
 							>
 								<option value="relates">Relates</option>
 								<option value="refines">Refines</option>
@@ -432,6 +436,7 @@ export default function SelectedNodeSidebar() {
 										debouncedUpdateDescription(newValue);
 									}}
 									placeholder="Enter description..."
+									readOnly
 								/>
 								{rebuildError && (
 									<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
@@ -472,6 +477,7 @@ export default function SelectedNodeSidebar() {
 												onChange={handlePropertyChange}
 												onPreview={handlePropertyPreview}
 												onBackendUpdate={handleBackendUpdate}
+												disabled={true}
 											/>
 										</div>
 									))}

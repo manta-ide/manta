@@ -9,9 +9,10 @@ import BasePropertyEditor from './BasePropertyEditor';
 interface BooleanPropertyEditorProps {
   property: Property & { type: 'boolean' };
   onChange: (value: boolean) => void;
+  disabled?: boolean;
 }
 
-export default function BooleanPropertyEditor({ property, onChange }: BooleanPropertyEditorProps) {
+export default function BooleanPropertyEditor({ property, onChange, disabled = false }: BooleanPropertyEditorProps) {
   const id = useId();
   const value = Boolean(property.value) || false;
 
@@ -25,7 +26,7 @@ export default function BooleanPropertyEditor({ property, onChange }: BooleanPro
           id={`${id}-off`}
           className="group-data-[state=checked]:text-zinc-500 cursor-pointer text-right text-xs font-medium text-white min-w-[20px]"
           aria-controls={id}
-          onClick={() => onChange(false)}
+          onClick={() => !disabled && onChange(false)}
         >
           Off
         </span>
@@ -35,12 +36,13 @@ export default function BooleanPropertyEditor({ property, onChange }: BooleanPro
           onCheckedChange={onChange}
           aria-labelledby={`${id}-off ${id}-on`}
           className="data-[state=unchecked]:bg-zinc-700 data-[state=checked]:bg-blue-600 scale-75"
+          disabled={disabled}
         />
         <span
           id={`${id}-on`}
           className="group-data-[state=unchecked]:text-zinc-500 cursor-pointer text-left text-xs font-medium text-white min-w-[20px]"
           aria-controls={id}
-          onClick={() => onChange(true)}
+          onClick={() => !disabled && onChange(true)}
         >
           On
         </span>

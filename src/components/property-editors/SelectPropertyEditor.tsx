@@ -9,13 +9,14 @@ interface SelectPropertyEditorProps {
   property: Property & { type: 'select'; options: string[] };
   onChange: (value: string) => void;
   onPreview?: (value: string) => void;
+  disabled?: boolean;
 }
 
-export default function SelectPropertyEditor({ property, onChange, onPreview }: SelectPropertyEditorProps) {
+export default function SelectPropertyEditor({ property, onChange, onPreview, disabled = false }: SelectPropertyEditorProps) {
   return (
     <BasePropertyEditor title={property.title}>
       <div className="flex items-center border border-zinc-700 rounded bg-zinc-800">
-        <Select value={property.value as string || ''} onValueChange={onChange} disabled={!Array.isArray(property.options) || property.options.length === 0}>
+        <Select value={property.value as string || ''} onValueChange={onChange} disabled={disabled || !Array.isArray(property.options) || property.options.length === 0}>
           <SelectTrigger className="flex-1 bg-zinc-800 border-none text-white hover:bg-zinc-700 focus:ring-1 focus:ring-blue-500 focus:border-transparent rounded text-xs h-7">
             <SelectValue placeholder={Array.isArray(property.options) && property.options.length > 0 ? "Select option..." : "Loading options..."} />
           </SelectTrigger>

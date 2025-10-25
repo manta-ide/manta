@@ -9,9 +9,10 @@ import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 interface ObjectPropertyEditorProps {
   property: Property & { type: 'object'; fields?: Property[] };
   onChange: (value: Record<string, any>) => void;
+  disabled?: boolean;
 }
 
-export default function ObjectPropertyEditor({ property, onChange }: ObjectPropertyEditorProps) {
+export default function ObjectPropertyEditor({ property, onChange, disabled = false }: ObjectPropertyEditorProps) {
   const [open, setOpen] = useState(false); // collapsed by default
   const value = (property.value && typeof property.value === 'object' && !Array.isArray(property.value))
     ? (property.value as Record<string, any>)
@@ -63,6 +64,7 @@ export default function ObjectPropertyEditor({ property, onChange }: ObjectPrope
                   value: value[field.id] ?? field.value,
                 } as Property}
                 onChange={handleChildChange}
+                disabled={disabled}
               />
             </div>
           ))}
