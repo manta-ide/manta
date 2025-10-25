@@ -18,8 +18,6 @@ export interface GraphDiff {
  * Analyzes differences between base and current graphs
  */
 export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDiff {
-  console.log(`🔍 Analyzing graph diff: {baseNodes: ${baseGraph.nodes.length}, currentNodes: ${currentGraph.nodes.length}}`);
-
   const diff: GraphDiff = {
     addedNodes: [],
     modifiedNodes: [],
@@ -37,21 +35,16 @@ export function analyzeGraphDiff(baseGraph: Graph, currentGraph: Graph): GraphDi
   for (const [nodeId, currentNode] of Array.from(currentNodeMap.entries())) {
     const baseNode = baseNodeMap.get(nodeId);
     if (!baseNode) {
-      console.log(`   ➕ Added node: ${nodeId} (${currentNode.title})`);
       diff.addedNodes.push(nodeId);
     } else if (nodesAreDifferent(baseNode, currentNode) || hasBugs(currentNode)) {
-      console.log(`   ✏️ Modified node: ${nodeId} (${currentNode.title})${hasBugs(currentNode) ? ' (has bugs)' : ''}`);
       diff.modifiedNodes.push(nodeId);
-    } else {
-      console.log(`   ✅ Unchanged node: ${nodeId} (${currentNode.title})`);
-    }
+    } 
   }
 
   // Find deleted nodes
   for (const [nodeId] of Array.from(baseNodeMap.entries())) {
     if (!currentNodeMap.has(nodeId)) {
       const baseNode = baseNodeMap.get(nodeId);
-      console.log(`   ➖ Deleted node: ${nodeId} (${baseNode?.title})`);
       diff.deletedNodes.push(nodeId);
     }
   }
@@ -91,8 +84,8 @@ export function hasBugs(node: any): boolean {
  * Compares two nodes to determine if they are different
  */
 export function nodesAreDifferent(node1: any, node2: any): boolean {
-  // Compare title and prompt
-  if (node1.title !== node2.title || node1.prompt !== node2.prompt) {
+  // Compare title, description, and type
+  if (node1.title !== node2.title || node1.description !== node2.description || node1.type !== node2.type) {
     return true;
   }
 
@@ -149,16 +142,13 @@ export function nodesAreDifferent(node1: any, node2: any): boolean {
  * Marks nodes as unbuilt if they differ from the base graph
  */
 export function markUnbuiltNodesFromDiff(graph: Graph, diff: GraphDiff): Graph {
-  console.log('🏷️ Marking node states based on diff...');
 
   const updatedNodes = graph.nodes.map(node => {
     // Mark as unbuilt if added or modified
     if (diff.addedNodes.includes(node.id) || diff.modifiedNodes.includes(node.id)) {
-      console.log(`   🔴 ${node.id} (${node.title}): unbuilt (${diff.addedNodes.includes(node.id) ? 'added' : 'modified'})`);
       return { ...node, state: 'unbuilt' as const };
     }
     // Mark as built if exists in both graphs and not modified (identical to base)
-    console.log(`   🟢 ${node.id} (${node.title}): built (unchanged)`);
     return { ...node, state: 'built' as const };
   });
 
@@ -169,7 +159,6 @@ export function markUnbuiltNodesFromDiff(graph: Graph, diff: GraphDiff): Graph {
 
   const builtCount = updatedNodes.filter(n => n.state === 'built').length;
   const unbuiltCount = updatedNodes.filter(n => n.state === 'unbuilt').length;
-  console.log(`📊 Final state summary: ${builtCount} built, ${unbuiltCount} unbuilt`);
 
   return result;
 }

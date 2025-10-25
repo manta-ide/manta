@@ -19,7 +19,8 @@
     "dev:test": "npm --prefix test-project run dev",
     "postbuild": "node scripts/postbuild-copy-static.js",
     "prepublishOnly": "NODE_ENV=production npm run build",
-    "reinstall-global": "node scripts/reinstall-global.js"
+    "reinstall-global": "node scripts/reinstall-global.js",
+    "mcp": "tsx src/mcp/mcp-server.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.22",
@@ -32,6 +33,7 @@
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-slot": "^1.2.3",
     "@remixicon/react": "^4.6.0",
+    "@supabase/supabase-js": "^2.76.1",
     "@swc/helpers": "^0.5.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.17",
@@ -50,6 +52,7 @@
     "json-schema-to-zod": "^2.6.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.525.0",
+    "mcp-handler": "^1.0.3",
     "motion": "^12.23.12",
     "next": "^15.5.3",
     "next-themes": "^0.4.6",
@@ -89,6 +92,7 @@
     "cross-env": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "tsx": "^4.20.6",
     "tw-animate-css": "^1.3.8"
   },
   "files": [

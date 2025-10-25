@@ -5,13 +5,13 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import ResizeHandle from './ResizeHandle';
-import { Property } from '@/app/api/lib/schemas';
+import { Property, NodeType } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SelectNative } from "@/components/ui/select-native";
 
-type EdgeShape = 'solid' | 'dotted';
+type EdgeShape = 'relates' | 'refines';
 
 export default function SelectedNodeSidebar() {
 	
@@ -40,7 +40,8 @@ export default function SelectedNodeSidebar() {
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
   const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('round-rectangle');
-  const [edgeShapeDraft, setEdgeShapeDraft] = useState<EdgeShape>('solid');
+  const [typeDraft, setTypeDraft] = useState<NodeType>('component');
+  const [edgeShapeDraft, setEdgeShapeDraft] = useState<EdgeShape>('relates');
   const [edgeShapeError, setEdgeShapeError] = useState<string | null>(null);
 	// Building state is tracked locally since node.state was removed
 	const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
@@ -105,9 +106,10 @@ export default function SelectedNodeSidebar() {
 
 	useEffect(() => {
 		// Only reset drafts when switching to a different node, not when the values change
-		setPromptDraft(selectedNode?.prompt ?? '');
+		setPromptDraft(selectedNode?.description ?? '');
 		setTitleDraft(selectedNode?.title ?? '');
 		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
+		setTypeDraft(((selectedNode as any)?.type as NodeType) || 'component');
 		setRebuildError(null);
 		setRebuildSuccess(false);
 
@@ -119,18 +121,18 @@ export default function SelectedNodeSidebar() {
 			}
 			setPropertyValues(initialValues);
 		}
-	}, [selectedNodeId, selectedNode?.title, selectedNode?.prompt, selectedNode?.properties, selectedNode?.shape]);
+	}, [selectedNodeId, selectedNode?.title, selectedNode?.description, selectedNode?.properties, selectedNode?.shape]);
 
   useEffect(() => {
     if (!Array.isArray(selectedEdgeIds) || selectedEdgeIds.length === 0) {
-      setEdgeShapeDraft('solid');
+      setEdgeShapeDraft('relates');
       setEdgeShapeError(null);
       return;
     }
 
     const edgeId = selectedEdgeId ?? selectedEdgeIds[0];
     const graphEdge = graph?.edges?.find((edge) => edge.id === edgeId || `${edge.source}-${edge.target}` === edgeId);
-    const shapeValue = ((graphEdge as any)?.shape === 'dotted') ? 'dotted' : 'solid';
+    const shapeValue = ((graphEdge as any)?.shape === 'refines') ? 'refines' : 'relates';
     setEdgeShapeDraft(shapeValue);
     setEdgeShapeError(null);
   }, [selectedEdgeId, selectedEdgeIds, graph?.edges]);
@@ -145,6 +147,21 @@ export default function SelectedNodeSidebar() {
       updateNode(selectedNodeId, { shape: newShape }).catch((error) => {
         console.error('Failed to save shape:', error);
         setRebuildError('Failed to save shape');
+        setTimeout(() => setRebuildError(null), 3000);
+      });
+    }
+  }, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
+
+  const handleTypeChange = useCallback((newType: NodeType) => {
+    setTypeDraft(newType);
+    if (selectedNode) {
+      const updatedNode = { ...selectedNode, type: newType } as any;
+      setSelectedNode(selectedNodeId, updatedNode);
+    }
+    if (selectedNodeId) {
+      updateNode(selectedNodeId, { type: newType }).catch((error) => {
+        console.error('Failed to save type:', error);
+        setRebuildError('Failed to save type');
         setTimeout(() => setRebuildError(null), 3000);
       });
     }
@@ -245,13 +262,13 @@ export default function SelectedNodeSidebar() {
 
 		// Set new timeout to save after delay
 		descriptionDebounceTimeoutRef.current = setTimeout(() => {
-			if (selectedNode && newDescription !== selectedNode.prompt) {
+			if (selectedNode && newDescription !== selectedNode.description) {
 				console.log('💾 Debounced update: saving description for node:', selectedNodeId);
-				const updatedNode = { ...selectedNode, prompt: newDescription };
+				const updatedNode = { ...selectedNode, description: newDescription };
 				setSelectedNode(selectedNodeId, updatedNode);
 
 				if (selectedNodeId) {
-					updateNode(selectedNodeId!, { prompt: newDescription }).catch((error) => {
+					updateNode(selectedNodeId!, { description: newDescription }).catch((error) => {
 						console.error('Failed to save description:', error);
 						setRebuildError('Failed to save description');
 						setTimeout(() => setRebuildError(null), 3000);
@@ -288,6 +305,7 @@ export default function SelectedNodeSidebar() {
 							debouncedUpdateTitle(newValue);
 						}}
 						placeholder="Enter node title..."
+						readOnly
 					/>
 					{/* Only show shape selector for non-comment nodes */}
 					{(() => {
@@ -301,6 +319,7 @@ export default function SelectedNodeSidebar() {
 								  value={shapeDraft}
 								  onChange={(e) => handleShapeChange(e.target.value as 'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle')}
 								  className="bg-zinc-800 border-zinc-700 text-white"
+								  disabled
 								>
 								  <option value="rectangle">Rectangle</option>
 								  <option value="circle">Circle</option>
@@ -310,6 +329,18 @@ export default function SelectedNodeSidebar() {
 								  <option value="cylinder">Cylinder</option>
 								  <option value="parallelogram">Parallelogram</option>
 								  <option value="round-rectangle">Round Rectangle</option>
+								</SelectNative>
+								<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">C4 Type</div>
+								<SelectNative
+								  value={typeDraft}
+								  onChange={(e) => handleTypeChange(e.target.value as NodeType)}
+								  className="bg-zinc-800 border-zinc-700 text-white"
+								  disabled
+								>
+								  <option value="system">System</option>
+								  <option value="container">Container</option>
+								  <option value="component">Component</option>
+								  <option value="code">Code</option>
 								</SelectNative>
 							</>
 						);
@@ -336,9 +367,10 @@ export default function SelectedNodeSidebar() {
 								value={edgeShapeDraft}
 								onChange={(e) => handleEdgeShapeChange(e.target.value as EdgeShape)}
 								className="bg-zinc-800 border-zinc-700 text-white"
+								disabled
 							>
-								<option value="solid">Solid line</option>
-								<option value="dotted">Dotted line</option>
+								<option value="relates">Relates</option>
+								<option value="refines">Refines</option>
 							</SelectNative>
 							{edgeShapeError && (
 								<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5 mt-2">
@@ -404,6 +436,7 @@ export default function SelectedNodeSidebar() {
 										debouncedUpdateDescription(newValue);
 									}}
 									placeholder="Enter description..."
+									readOnly
 								/>
 								{rebuildError && (
 									<div className="text-xs text-red-300 bg-red-900/20 border border-red-700/30 rounded p-1.5">
@@ -412,7 +445,7 @@ export default function SelectedNodeSidebar() {
 								)}
 								{rebuildSuccess && (
 									<div className="text-xs text-green-300 bg-green-900/20 border border-green-700/30 rounded p-1.5">
-										Node rebuilt successfully!
+										Node saved successfully!
 									</div>
 								)}
 							</div>
@@ -444,6 +477,7 @@ export default function SelectedNodeSidebar() {
 												onChange={handlePropertyChange}
 												onPreview={handlePropertyPreview}
 												onBackendUpdate={handleBackendUpdate}
+												disabled={true}
 											/>
 										</div>
 									))}

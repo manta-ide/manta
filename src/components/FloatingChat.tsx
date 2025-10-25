@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
-import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch, Play, Wand2 } from 'lucide-react';
+import { Send, Trash2, Move, Minimize2, MessageCircle, GitBranch, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProjectStore } from '@/lib/store';
@@ -29,11 +29,9 @@ const formatSlashUserRequest = (userText: string) => {
 };
 
 const SLASH_AGENT_MESSAGES: Record<string, (userText: string) => string> = {
-  build: (userText) => `Build Command: Build or refresh the solution graph based on the user request, updating nodes and connections as needed. Here is the user request: ${formatSlashUserRequest(userText)}`,
   join: (userText) => `Join Command: Join several nodes based on user request, choose relevant properties and description, remove previous nodes, maintain connections and whether it is synced to base. Make sure that positions are in the middle of the previous nodes. Here is the user request: ${formatSlashUserRequest(userText)}`,
   split: (userText) => `Split Command: Split nodes based on user request, create focused nodes with the right properties and descriptions, preserve relevant connections, and reflect whether each node stays synced to base. Make sure that positions are around the position of the split node. Here is the user request: ${formatSlashUserRequest(userText)}`,
   index: (userText) => `Index Command: Index the solution. Here is the user request: ${formatSlashUserRequest(userText)}`,
-  sync: (userText) => `Sync Command: Synchronize the project/graph with the source of truth using the existing sync tooling. Apply incoming changes, resolve conflicts safely, and ensure nodes/edges and properties reflect the latest state. Here is the user request or additional context: ${formatSlashUserRequest(userText)}`,
   eval: (userText) => `Eval Command: Run evaluation scenario with parameters. Here is the user request: ${formatSlashUserRequest(userText)}`
 };
 
@@ -117,7 +115,7 @@ export default function FloatingChat() {
     if (!mentionActive || !graph?.nodes) return [] as Array<{ id: string; title: string; prompt?: string }>;
     const q = mentionQuery.trim().toLowerCase();
     const list = graph.nodes
-      .map(n => ({ id: n.id, title: String(n.title ?? n.id), prompt: (n as any).prompt }))
+      .map(n => ({ id: n.id, title: String(n.title ?? n.id), description: (n as any).description }))
       .filter(n => !q || n.title.toLowerCase().includes(q) || n.id.toLowerCase().includes(q));
     // Prioritize startsWith matches, then title length
     const starts = list.filter(n => n.title.toLowerCase().startsWith(q));
@@ -395,11 +393,9 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
 
   // Supported slash commands
   const SLASH_COMMANDS = useMemo(() => ([
-    { id: 'build', label: '/build', description: 'Build or refresh the graph' },
     { id: 'join', label: '/join', description: 'Merge nodes into one' },
     { id: 'split', label: '/split', description: 'Split a node into parts' },
     { id: 'index', label: '/index', description: 'Index the current solution' },
-    { id: 'sync', label: '/sync', description: 'Synchronize with source of truth' },
     { id: 'eval', label: '/eval', description: 'Run evaluation scenario' },
     { id: 'beautify', label: '/beautify', description: 'Auto layout nodes' },
   ]), []);
@@ -1180,11 +1176,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
                     onClick={() => handleSelectSlashCommand(c.id)}
                     className={`w-full text-left px-2.5 py-1.5 flex items-center gap-2 ${i === slashIndex ? 'bg-zinc-800' : ''}`}
                   >
-                    {c.id === 'build' ? (
-                      <Play className="w-3.5 h-3.5 text-zinc-300" />
-                    ) : (
-                      <Wand2 className="w-3.5 h-3.5 text-zinc-300" />
-                    )}
+                    <Wand2 className="w-3.5 h-3.5 text-zinc-300" />
                     <div className="flex flex-col">
                       <span className="text-xs text-white leading-tight">{c.label}</span>
                       <span className="text-[10px] text-zinc-400 leading-tight">{c.description}</span>
