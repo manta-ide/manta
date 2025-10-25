@@ -56,8 +56,13 @@ You can also see how your app works from different angles, or check if there are
    npm i
    npm run build
 
-4. Run the solution:
+4. Configure environment variables (optional, for MCP OAuth):
+   ```bash
+   cp ENVIRONMENT_VARIABLES.md .env.local
+   # Edit .env.local with your OAuth settings
+
+5. Run the solution:
    ```bash
    npm run dev
 
-5. Open [http://localhost:3000](http://localhost:3000)
+6. Open [http://localhost:3000](http://localhost:3000)

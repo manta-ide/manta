@@ -1,7 +1,32 @@
 import { z } from 'zod';
-import { createMcpHandler } from 'mcp-handler';
+import { createMcpHandler, withMcpAuth } from 'mcp-handler';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { graphOperations } from '../lib/graph-service';
 
+const verifyToken = async (
+  req: Request,
+  bearerToken?: string,
+): Promise<AuthInfo | undefined> => {
+  if (!bearerToken) return undefined;
+
+  // TODO: Replace with proper token verification logic
+  // This is a placeholder implementation - in production, you should:
+  // 1. Verify the JWT token against your authorization server
+  // 2. Check token expiration
+  // 3. Validate scopes and permissions
+  const isValid = bearerToken === process.env.MCP_ACCESS_TOKEN;
+
+  if (!isValid) return undefined;
+
+  return {
+    token: bearerToken,
+    scopes: ['read:graph', 'write:graph'],
+    clientId: 'manta-client',
+    extra: {
+      userId: 'system-user',
+    },
+  };
+};
 
 const handler = createMcpHandler(
   (server) => {
@@ -66,4 +91,10 @@ const handler = createMcpHandler(
   { basePath: '/api' },
 );
 
-export { handler as GET, handler as POST, handler as DELETE };
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ['read:graph'],
+  resourceMetadataPath: '/.well-known/oauth-protected-resource',
+});
+
+export { authHandler as GET, authHandler as POST, authHandler as DELETE };
