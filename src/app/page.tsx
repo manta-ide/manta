@@ -2,9 +2,9 @@
 
 import GraphView from '@/components/GraphView';
 import SelectedNodeSidebar from '@/components/SelectedNodeSidebar';
+import LayersSidebar from '@/components/LayersSidebar';
 import FloatingChat from '@/components/FloatingChat';
 import SearchOverlay from '@/components/SearchOverlay';
-import LayersSidebar from '@/components/LayersSidebar';
 import { useProjectStore } from '@/lib/store';
 import { useEffect } from 'react';
 

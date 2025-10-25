@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
@@ -33,6 +33,7 @@ export default function SelectedNodeSidebar() {
 		updatePropertyLocal,
 		connectToGraphEvents,
 		graph,
+		navigationPath,
 		leftSidebarWidth,
 		setLeftSidebarWidth
 	} = useProjectStore();
@@ -58,27 +59,43 @@ export default function SelectedNodeSidebar() {
 			.filter((bug) => bug.length > 0)
 	));
 
+	// Get the current graph being viewed (root or nested)
+	const currentGraph = useMemo(() => {
+		if (!graph || navigationPath.length === 0) {
+			return graph || { nodes: [], edges: [] };
+		}
+
+		// Navigate to nested graph
+		let current: Graph | undefined = graph;
+		for (const nodeId of navigationPath) {
+			if (!current) break;
+			const node: GraphNode | undefined = current.nodes?.find(n => n.id === nodeId);
+			current = node?.graph;
+		}
+		return current || graph || { nodes: [], edges: [] };
+	}, [graph, navigationPath]);
+
 	// Helper function to get all connections (both incoming and outgoing)
 	const getNodeConnections = (nodeId: string) => {
-		if (!graph?.edges) return [];
+		if (!currentGraph?.edges) return [];
 
 		const connections: Array<{ node: any; direction: 'outgoing' | 'incoming' }> = [];
 
 		// Get outgoing connections (this node -> other nodes)
-		graph.edges
+		currentGraph.edges
 			.filter(edge => edge.source === nodeId)
 			.forEach(edge => {
-				const targetNode = graph.nodes.find(n => n.id === edge.target);
+				const targetNode = currentGraph.nodes.find(n => n.id === edge.target);
 				if (targetNode) {
 					connections.push({ node: targetNode, direction: 'outgoing' });
 				}
 			});
 
 		// Get incoming connections (other nodes -> this node)
-		graph.edges
+		currentGraph.edges
 			.filter(edge => edge.target === nodeId)
 			.forEach(edge => {
-				const sourceNode = graph.nodes.find(n => n.id === edge.source);
+				const sourceNode = currentGraph.nodes.find(n => n.id === edge.source);
 				if (sourceNode) {
 					connections.push({ node: sourceNode, direction: 'incoming' });
 				}
@@ -135,7 +152,7 @@ export default function SelectedNodeSidebar() {
     const shapeValue = ((graphEdge as any)?.shape === 'refines') ? 'refines' : 'relates';
     setEdgeShapeDraft(shapeValue);
     setEdgeShapeError(null);
-  }, [selectedEdgeId, selectedEdgeIds, graph?.edges]);
+  }, [selectedEdgeId, selectedEdgeIds, currentGraph?.edges]);
 
   const handleShapeChange = useCallback((newShape: 'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle') => {
     setShapeDraft(newShape);
@@ -281,9 +298,9 @@ export default function SelectedNodeSidebar() {
 
 	const hasEdgeSelection = Array.isArray(selectedEdgeIds) && selectedEdgeIds.length > 0;
 	const singleEdgeId = hasEdgeSelection && selectedEdgeIds.length === 1 ? (selectedEdgeId ?? selectedEdgeIds[0]) : null;
-	const singleGraphEdge = singleEdgeId ? graph?.edges?.find((edge) => edge.id === singleEdgeId || `${edge.source}-${edge.target}` === singleEdgeId) : null;
-	const singleEdgeSource = singleGraphEdge ? graph?.nodes?.find((n) => n.id === singleGraphEdge.source) : null;
-	const singleEdgeTarget = singleGraphEdge ? graph?.nodes?.find((n) => n.id === singleGraphEdge.target) : null;
+	const singleGraphEdge = singleEdgeId ? currentGraph?.edges?.find((edge) => edge.id === singleEdgeId || `${edge.source}-${edge.target}` === singleEdgeId) : null;
+	const singleEdgeSource = singleGraphEdge ? currentGraph?.nodes?.find((n) => n.id === singleGraphEdge.source) : null;
+	const singleEdgeTarget = singleGraphEdge ? currentGraph?.nodes?.find((n) => n.id === singleGraphEdge.target) : null;
 
 	return (
 		<div
@@ -389,7 +406,9 @@ export default function SelectedNodeSidebar() {
 					<div className="text-xs font-medium text-zinc-300 mb-2">Multiple selection ({selectedNodeIds.length})</div>
 						<ul className="space-y-1">
 							{selectedNodeIds.map((id) => {
-								const n = graph?.nodes?.find(n => n.id === id);
+								const n = currentGraph?.nodes?.find(n => n.id === id);
+								// Only show nodes that exist in currentGraph
+								if (!n) return null;
 								return (
 									<li key={id}>
 										<button
@@ -405,6 +424,9 @@ export default function SelectedNodeSidebar() {
 								);
 							})}
 						</ul>
+						{selectedNodeIds.filter(id => currentGraph?.nodes?.find(n => n.id === id)).length === 0 && (
+							<div className="text-[11px] text-zinc-400 mt-2">Selected nodes not in current graph.</div>
+						)}
 						<div className="text-[11px] text-zinc-400 mt-2">Select a single node to edit its properties.</div>
 					</div>
 				)}

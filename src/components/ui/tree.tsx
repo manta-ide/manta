@@ -1,195 +1,396 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { ItemInstance } from "@headless-tree/core"
-import { ChevronDownIcon } from "lucide-react"
-import { Slot } from "radix-ui"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { ChevronRight, Folder, File, FolderOpen } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
-
-interface TreeContextValue<T = any> {
-  indent: number
-  currentItem?: ItemInstance<T>
-  tree?: any
+// Tree Context
+interface TreeContextType {
+  expandedIds: Set<string>;
+  selectedIds: string[];
+  toggleExpanded: (nodeId: string) => void;
+  handleSelection: (nodeId: string, ctrlKey?: boolean) => void;
+  showLines: boolean;
+  showIcons: boolean;
+  selectable: boolean;
+  multiSelect: boolean;
+  animateExpand: boolean;
+  indent: number;
+  onNodeClick?: (nodeId: string, data?: any) => void;
+  onNodeExpand?: (nodeId: string, expanded: boolean) => void;
 }
 
-const TreeContext = React.createContext<TreeContextValue>({
-  indent: 20,
-  currentItem: undefined,
-  tree: undefined,
-})
+const TreeContext = React.createContext<TreeContextType | null>(null);
 
-function useTreeContext<T = any>() {
-  return React.useContext(TreeContext) as TreeContextValue<T>
+const useTree = () => {
+  const context = React.useContext(TreeContext);
+  if (!context) {
+    throw new Error("Tree components must be used within a TreeProvider");
+  }
+  return context;
+};
+
+// Tree variants
+const treeVariants = cva(
+  "w-full bg-background border border-border rounded-ele shadow-sm/2",
+  {
+    variants: {
+      variant: {
+        default: "",
+        outline: "border-2",
+        ghost: "border-transparent bg-transparent",
+      },
+      size: {
+        sm: "text-sm",
+        default: "",
+        lg: "text-lg",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+const treeItemVariants = cva(
+  "flex items-center py-2 px-3 cursor-pointer transition-all duration-200 relative group rounded-[calc(var(--card-radius)-8px)]",
+  {
+    variants: {
+      variant: {
+        default: "hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        ghost: "hover:bg-accent/50",
+        subtle: "hover:bg-muted/50",
+      },
+      selected: {
+        true: "bg-accent text-accent-foreground",
+        false: "",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      selected: false,
+    },
+  }
+);
+
+// Provider Props
+export interface TreeProviderProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof treeVariants> {
+  defaultExpandedIds?: string[];
+  selectedIds?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
+  onNodeClick?: (nodeId: string, data?: any) => void;
+  onNodeExpand?: (nodeId: string, expanded: boolean) => void;
+  showLines?: boolean;
+  showIcons?: boolean;
+  selectable?: boolean;
+  multiSelect?: boolean;
+  animateExpand?: boolean;
+  indent?: number;
 }
 
-interface TreeProps extends React.HTMLAttributes<HTMLDivElement> {
-  indent?: number
-  tree?: any
+// Tree Provider
+const TreeProvider = React.forwardRef<HTMLDivElement, TreeProviderProps>(
+  (
+    {
+      className,
+      variant,
+      size,
+      children,
+      defaultExpandedIds = [],
+      selectedIds = [],
+      onSelectionChange,
+      onNodeClick,
+      onNodeExpand,
+      showLines = true,
+      showIcons = true,
+      selectable = true,
+      multiSelect = false,
+      animateExpand = true,
+      indent = 20,
+      ...props
+    },
+    ref
+  ) => {
+    const [expandedIds, setExpandedIds] = React.useState<Set<string>>(
+      new Set(defaultExpandedIds)
+    );
+    const [internalSelectedIds, setInternalSelectedIds] =
+      React.useState<string[]>(selectedIds);
+
+    const isControlled = onSelectionChange !== undefined;
+    const currentSelectedIds = isControlled ? selectedIds : internalSelectedIds;
+
+    const toggleExpanded = React.useCallback(
+      (nodeId: string) => {
+        setExpandedIds((prev) => {
+          const newSet = new Set(prev);
+          const isExpanded = newSet.has(nodeId);
+          isExpanded ? newSet.delete(nodeId) : newSet.add(nodeId);
+          onNodeExpand?.(nodeId, !isExpanded);
+          return newSet;
+        });
+      },
+      [onNodeExpand]
+    );
+
+    const handleSelection = React.useCallback(
+      (nodeId: string, ctrlKey = false) => {
+        if (!selectable) return;
+
+        let newSelection: string[];
+
+        if (multiSelect && ctrlKey) {
+          newSelection = currentSelectedIds.includes(nodeId)
+            ? currentSelectedIds.filter((id) => id !== nodeId)
+            : [...currentSelectedIds, nodeId];
+        } else {
+          newSelection = currentSelectedIds.includes(nodeId) ? [] : [nodeId];
+        }
+
+        isControlled
+          ? onSelectionChange?.(newSelection)
+          : setInternalSelectedIds(newSelection);
+      },
+      [selectable, multiSelect, currentSelectedIds, isControlled, onSelectionChange]
+    );
+
+    const contextValue: TreeContextType = {
+      expandedIds,
+      selectedIds: currentSelectedIds,
+      toggleExpanded,
+      handleSelection,
+      showLines,
+      showIcons,
+      selectable,
+      multiSelect,
+      animateExpand,
+      indent,
+      onNodeClick,
+      onNodeExpand,
+    };
+
+    return (
+      <TreeContext.Provider value={contextValue}>
+        <motion.div
+          className={cn(treeVariants({ variant, size, className }))}
+          ref={ref}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <div className="p-2" {...props}>{children}</div>
+        </motion.div>
+      </TreeContext.Provider>
+    );
+  }
+);
+
+TreeProvider.displayName = "TreeProvider";
+
+// Tree Props
+export interface TreeProps extends React.HTMLAttributes<HTMLDivElement> {
+  asChild?: boolean;
 }
 
-function Tree({ indent = 20, tree, className, ...props }: TreeProps) {
-  const containerProps =
-    tree && typeof tree.getContainerProps === "function"
-      ? tree.getContainerProps()
-      : {}
-  const mergedProps = { ...props, ...containerProps }
+// Tree
+const Tree = React.forwardRef<HTMLDivElement, TreeProps>(
+  ({ className, asChild = false, children, ...props }, ref) => {
+    const Comp = asChild ? Slot : "div";
 
-  // Extract style from mergedProps to merge with our custom styles
-  const { style: propStyle, ...otherProps } = mergedProps
-
-  // Merge styles
-  const mergedStyle = {
-    ...propStyle,
-    "--tree-indent": `${indent}px`,
-  } as React.CSSProperties
-
-  return (
-    <TreeContext.Provider value={{ indent, tree }}>
-      <div
-        data-slot="tree"
-        style={mergedStyle}
-        className={cn("flex flex-col", className)}
-        {...otherProps}
-      />
-    </TreeContext.Provider>
-  )
-}
-
-interface TreeItemProps<T = any>
-  extends React.HTMLAttributes<HTMLButtonElement> {
-  item: ItemInstance<T>
-  indent?: number
-  asChild?: boolean
-}
-
-function TreeItem<T = any>({
-  item,
-  className,
-  asChild,
-  children,
-  ...props
-}: Omit<TreeItemProps<T>, "indent">) {
-  const { indent } = useTreeContext<T>()
-
-  const itemProps = typeof item.getProps === "function" ? item.getProps() : {}
-  const mergedProps = { ...props, ...itemProps }
-
-  // Extract style from mergedProps to merge with our custom styles
-  const { style: propStyle, ...otherProps } = mergedProps
-
-  // Merge styles
-  const mergedStyle = {
-    ...propStyle,
-    "--tree-padding": `${item.getItemMeta().level * indent}px`,
-  } as React.CSSProperties
-
-  const Comp = asChild ? Slot.Root : "button"
-
-  return (
-    <TreeContext.Provider value={{ indent, currentItem: item }}>
-      <Comp
-        data-slot="tree-item"
-        style={mergedStyle}
-        className={cn(
-          "z-10 ps-(--tree-padding) outline-hidden select-none not-last:pb-0.5 focus:z-20 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-          className
-        )}
-        data-focus={
-          typeof item.isFocused === "function"
-            ? item.isFocused() || false
-            : undefined
-        }
-        data-folder={
-          typeof item.isFolder === "function"
-            ? item.isFolder() || false
-            : undefined
-        }
-        data-selected={
-          typeof item.isSelected === "function"
-            ? item.isSelected() || false
-            : undefined
-        }
-        data-drag-target={
-          typeof item.isDragTarget === "function"
-            ? item.isDragTarget() || false
-            : undefined
-        }
-        data-search-match={
-          typeof item.isMatchingSearch === "function"
-            ? item.isMatchingSearch() || false
-            : undefined
-        }
-        aria-expanded={item.isExpanded()}
-        {...otherProps}
-      >
+    return (
+      <Comp className={cn("space-y-1", className)} ref={ref} {...props}>
         {children}
       </Comp>
-    </TreeContext.Provider>
-  )
-}
-
-interface TreeItemLabelProps<T = any>
-  extends React.HTMLAttributes<HTMLSpanElement> {
-  item?: ItemInstance<T>
-}
-
-function TreeItemLabel<T = any>({
-  item: propItem,
-  children,
-  className,
-  ...props
-}: TreeItemLabelProps<T>) {
-  const { currentItem } = useTreeContext<T>()
-  const item = propItem || currentItem
-
-  if (!item) {
-    console.warn("TreeItemLabel: No item provided via props or context")
-    return null
+    );
   }
+);
 
-  return (
-    <span
-      data-slot="tree-item-label"
-      className={cn(
-        "in-focus-visible:ring-ring/50 bg-background hover:bg-accent in-data-[selected=true]:bg-accent in-data-[selected=true]:text-accent-foreground in-data-[drag-target=true]:bg-accent flex items-center gap-1 rounded-sm px-2 py-1.5 text-sm transition-colors not-in-data-[folder=true]:ps-7 in-focus-visible:ring-[3px] in-data-[search-match=true]:bg-blue-50! [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        className
-      )}
-      {...props}
-    >
-      {item.isFolder() && (
-        <ChevronDownIcon className="text-muted-foreground size-4 in-aria-[expanded=false]:-rotate-90" />
-      )}
-      {children ||
-        (typeof item.getItemName === "function" ? item.getItemName() : null)}
-    </span>
-  )
+Tree.displayName = "Tree";
+
+// Tree Item Props
+export interface TreeItemProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof treeItemVariants> {
+  nodeId: string;
+  label: string;
+  icon?: React.ReactNode;
+  data?: any;
+  level?: number;
+  isLast?: boolean;
+  parentPath?: boolean[];
+  hasChildren?: boolean;
+  asChild?: boolean;
 }
 
-function TreeDragLine({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  const { tree } = useTreeContext()
+// Tree Item
+const TreeItem = React.forwardRef<HTMLDivElement, TreeItemProps>(
+  (
+    {
+      className,
+      variant,
+      nodeId,
+      label,
+      icon,
+      data,
+      level = 0,
+      isLast = false,
+      parentPath = [],
+      hasChildren = false,
+      asChild = false,
+      children,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
+    const {
+      expandedIds,
+      selectedIds,
+      toggleExpanded,
+      handleSelection,
+      showLines,
+      showIcons,
+      animateExpand,
+      indent,
+      onNodeClick,
+    } = useTree();
 
-  if (!tree || typeof tree.getDragLineStyle !== "function") {
-    console.warn(
-      "TreeDragLine: No tree provided via context or tree does not have getDragLineStyle method"
-    )
-    return null
+    const isExpanded = expandedIds.has(nodeId);
+    const isSelected = selectedIds.includes(nodeId);
+    const currentPath = [...parentPath, isLast];
+
+    const getDefaultIcon = () =>
+      hasChildren ? (
+        isExpanded ? (
+          <FolderOpen className="h-4 w-4" />
+        ) : (
+          <Folder className="h-4 w-4" />
+        )
+      ) : (
+        <File className="h-4 w-4" />
+      );
+
+    const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      if (hasChildren) toggleExpanded(nodeId);
+      handleSelection(nodeId, e.ctrlKey || e.metaKey);
+      onNodeClick?.(nodeId, data);
+      onClick?.(e);
+    };
+
+    const Comp = asChild ? Slot : "div";
+
+    return (
+      <div className="select-none">
+        <motion.div
+          className={cn(
+            treeItemVariants({ variant, selected: isSelected, className })
+          )}
+          style={{ paddingLeft: level * indent + 8 }}
+          onClick={handleClick}
+          whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
+        >
+          {/* Tree Lines */}
+          {showLines && level > 0 && (
+            <div className="absolute left-0 top-0 bottom-0 pointer-events-none">
+              {currentPath.map((isLastInPath, pathIndex) => (
+                <div
+                  key={pathIndex}
+                  className="absolute top-0 bottom-0 border-l border-border/40"
+                  style={{
+                    left: pathIndex * indent + 12,
+                    display:
+                      pathIndex === currentPath.length - 1 && isLastInPath
+                        ? "none"
+                        : "block",
+                  }}
+                />
+              ))}
+              <div
+                className="absolute top-1/2 border-t border-border/40"
+                style={{
+                  left: (level - 1) * indent + 12,
+                  width: indent - 4,
+                  transform: "translateY(-1px)",
+                }}
+              />
+              {isLast && (
+                <div
+                  className="absolute top-0 border-l border-border/40"
+                  style={{
+                    left: (level - 1) * indent + 12,
+                    height: "50%",
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Expand Icon */}
+          <motion.div
+            className="flex items-center justify-center w-4 h-4 mr-1"
+            animate={{ rotate: hasChildren && isExpanded ? 90 : 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          >
+            {hasChildren && (
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            )}
+          </motion.div>
+
+          {/* Node Icon */}
+          {showIcons && (
+            <motion.div
+              className="flex items-center justify-center w-4 h-4 mr-2 text-muted-foreground"
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.15 }}
+            >
+              {icon || getDefaultIcon()}
+            </motion.div>
+          )}
+
+          {/* Label */}
+          <span className="text-sm  truncate flex-1 text-foreground">
+            {label}
+          </span>
+        </motion.div>
+
+        {/* Children */}
+        <AnimatePresence>
+          {hasChildren && isExpanded && children && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{
+                duration: animateExpand ? 0.3 : 0,
+                ease: "easeInOut",
+              }}
+              className="overflow-hidden"
+            >
+              <motion.div
+                initial={{ y: -10 }}
+                animate={{ y: 0 }}
+                exit={{ y: -10 }}
+                transition={{
+                  duration: animateExpand ? 0.2 : 0,
+                  delay: animateExpand ? 0.1 : 0,
+                }}
+              >
+                {children}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
   }
+);
 
-  const dragLine = tree.getDragLineStyle()
-  return (
-    <div
-      style={dragLine}
-      className={cn(
-        "bg-primary before:bg-background before:border-primary absolute z-30 -mt-px h-0.5 w-[unset] before:absolute before:-top-[3px] before:left-0 before:size-2 before:rounded-full before:border-2",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+TreeItem.displayName = "TreeItem";
 
-export { Tree, TreeItem, TreeItemLabel, TreeDragLine }
+export { TreeProvider, Tree, TreeItem, treeVariants, treeItemVariants };

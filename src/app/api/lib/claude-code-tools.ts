@@ -113,7 +113,7 @@ export const createGraphTools = (baseUrl: string) => {
     }
   ),
 
-  // edge_delete
+  // delete (unified for nodes and edges)
   tool(
     'edge_delete',
     'Delete a connection (edge) between two nodes in the graph.',
@@ -138,16 +138,16 @@ export const createGraphTools = (baseUrl: string) => {
         const result = await response.json();
 
         if (!response.ok || result.error) {
-          console.error('❌ TOOL: edge_delete API error:', result.error);
+          console.error(`❌ TOOL: delete API error (${action}):`, result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: edge_delete API success');
+        console.log(`📤 TOOL: delete API success (${action})`);
         return result;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: edge_delete API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to delete edge via API: ${errorMessage}` }] };
+        console.error(`💥 TOOL: delete API call error (${action}):`, errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to delete via API: ${errorMessage}` }] };
       }
     }
   ),
@@ -164,6 +164,8 @@ export const createGraphTools = (baseUrl: string) => {
       level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
       comment: z.string().optional(),
       properties: z.array(PropertySchema).optional(),
+      children: z.array(z.object({ id: z.string(), title: z.string() })).optional().describe('Array of child node references {id, title} for nested node structures'),
+      path: z.array(z.string()).optional().describe('Array of node IDs to navigate to nested graph level where the node should be created'),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
@@ -183,6 +185,8 @@ export const createGraphTools = (baseUrl: string) => {
             level,
             comment,
             properties,
+            children,
+            path,
             position,
             metadata
           })
@@ -209,7 +213,7 @@ export const createGraphTools = (baseUrl: string) => {
   // node_edit
   tool(
     'node_edit',
-    'Edit node fields with two modes: replace (fully replaces node) or merge (merges properties with existing data).',
+    'Edit node fields including title, prompt, properties, position, children, and metadata. Two modes: replace (fully replaces node) or merge (merges with existing data). Can edit nodes at nested graph levels using path parameter. Use this for updating metadata (files, bugs) instead of node_metadata_update.',
     {
       nodeId: z.string().min(1),
       mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
@@ -220,6 +224,7 @@ export const createGraphTools = (baseUrl: string) => {
       comment: z.string().optional(),
       properties: z.array(PropertySchema).optional(),
       children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
+      path: z.array(z.string()).optional().describe('Array of node IDs to navigate to nested graph level where the node exists'),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
@@ -241,6 +246,7 @@ export const createGraphTools = (baseUrl: string) => {
             comment,
             properties,
             children,
+            path,
             position,
             metadata
           })

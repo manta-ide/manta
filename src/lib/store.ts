@@ -46,6 +46,7 @@ interface ProjectStore {
   optimisticOperationsActive: boolean; // Flag to prevent graph updates during optimistic operations
   // Timestamp (ms) until which SSE updates are suppressed to avoid stale snapshots overriding optimistic UI
   sseSuppressedUntil?: number | null;
+  navigationPath: string[]; // Path of node IDs for nested graph navigation
   resetStore: () => void;
 
   // Sidebar layout state
@@ -75,6 +76,7 @@ interface ProjectStore {
   setActiveLayer: (name: string) => Promise<void>;
   setLayersSidebarOpen: (open: boolean) => void;
   toggleLayersSidebar: () => void;
+  setNavigationPath: (path: string[]) => void;
   
   // Graph operations
   setSelectedNode: (id: string | null, node?: GraphNode | null) => void;
@@ -196,6 +198,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   isBuildingGraph: false,
   optimisticOperationsActive: false,
   sseSuppressedUntil: null,
+  navigationPath: [],
 
   // Sidebar layout state
   leftSidebarWidth: 320,
@@ -233,6 +236,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isBuildingGraph: false,
     optimisticOperationsActive: false,
     sseSuppressedUntil: null,
+    navigationPath: [],
     leftSidebarWidth: 320,
     rightSidebarWidth: 288,
   }),
@@ -399,6 +403,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
   setLayersSidebarOpen: (open: boolean) => set({ layersSidebarOpen: open }),
   toggleLayersSidebar: () => set((state) => ({ layersSidebarOpen: !state.layersSidebarOpen })),
+  setNavigationPath: (path) => set({ navigationPath: path }),
 
   // Sidebar layout operations
   setLeftSidebarWidth: (width: number) => {
@@ -621,26 +626,68 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return compositeId === edgeId;
     };
 
-    const nextEdges = (state.graph.edges || []).map((edge) => {
-      if (!matchEdge(edge as GraphEdge)) return edge;
-      const nextShape = sanitizeShape(updates.shape);
-      const merged = {
-        ...edge,
-        ...updates,
-        ...(updates.shape !== undefined ? { shape: nextShape ?? undefined } : {}),
-      } as GraphEdge;
-      if (merged.shape === undefined) {
-        delete (merged as any).shape;
+    const navigationPath = state.navigationPath || [];
+    let nextGraph = { ...state.graph };
+    let targetEdges: GraphEdge[] = [];
+    
+    if (navigationPath.length === 0) {
+      // Update edges in root graph
+      targetEdges = (state.graph.edges || []).map((edge) => {
+        if (!matchEdge(edge as GraphEdge)) return edge;
+        const nextShape = sanitizeShape(updates.shape);
+        const merged = {
+          ...edge,
+          ...updates,
+          ...(updates.shape !== undefined ? { shape: nextShape ?? undefined } : {}),
+        } as GraphEdge;
+        if (merged.shape === undefined) {
+          delete (merged as any).shape;
+        }
+        return merged;
+      });
+      nextGraph = { ...state.graph, edges: targetEdges } as Graph;
+    } else {
+      // Update edges in nested graph - need to rebuild tree
+      let current = nextGraph;
+      for (let i = 0; i < navigationPath.length; i++) {
+        const pathNodeId = navigationPath[i];
+        const nodeIdx = current.nodes.findIndex(n => n.id === pathNodeId);
+        if (nodeIdx === -1) break;
+        
+        if (i === navigationPath.length - 1) {
+          // This is the target graph - update edges here
+          const targetNode = current.nodes[nodeIdx];
+          targetEdges = (targetNode.graph?.edges || []).map((edge: GraphEdge) => {
+            if (!matchEdge(edge as GraphEdge)) return edge;
+            const nextShape = sanitizeShape(updates.shape);
+            const merged = {
+              ...edge,
+              ...updates,
+              ...(updates.shape !== undefined ? { shape: nextShape ?? undefined } : {}),
+            } as GraphEdge;
+            if (merged.shape === undefined) {
+              delete (merged as any).shape;
+            }
+            return merged;
+          });
+          current.nodes[nodeIdx] = {
+            ...targetNode,
+            graph: {
+              ...(targetNode.graph || { nodes: [], edges: [] }),
+              edges: targetEdges
+            }
+          };
+        } else {
+          // Continue navigating
+          current = current.nodes[nodeIdx].graph || { nodes: [], edges: [] };
+        }
       }
-      return merged;
-    });
-
-    const nextGraph = { ...state.graph, edges: nextEdges } as Graph;
+    }
 
     let nextSelectedEdge: GraphEdge | null = null;
     if (state.selectedEdgeId) {
       const currentSelectionId = state.selectedEdgeId;
-      const found = nextEdges.find((edge) => {
+      const found = targetEdges.find((edge) => {
         const actualId = edge.id || `${edge.source}-${edge.target}`;
         return actualId === currentSelectionId;
       });
@@ -659,48 +706,149 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateProperty: async (nodeId: string, propertyId: string, value: any) => {
     const state = get();
     if (state.graph) {
-      const updatedGraph = {
-        ...state.graph,
-        nodes: state.graph.nodes.map((n: any) => n.id === nodeId ? ({
-          ...n,
-          properties: (n.properties || []).map((p: any) => p.id === propertyId ? { ...p, value } : p).sort((a: any, b: any) => a.id.localeCompare(b.id))
-        }) : n)
-      } as any;
+      const navigationPath = state.navigationPath || [];
+      
+      // Build updated graph with nested graph support
+      let updatedGraph = { ...state.graph };
+      
+      if (navigationPath.length === 0) {
+        // Update in root graph
+        updatedGraph = {
+          ...state.graph,
+          nodes: state.graph.nodes.map((n: any) => n.id === nodeId ? ({
+            ...n,
+            properties: (n.properties || []).map((p: any) => p.id === propertyId ? { ...p, value } : p).sort((a: any, b: any) => a.id.localeCompare(b.id))
+          }) : n)
+        } as any;
+      } else {
+        // Update in nested graph - need to rebuild tree
+        let current = updatedGraph;
+        for (let i = 0; i < navigationPath.length; i++) {
+          const pathNodeId = navigationPath[i];
+          const nodeIdx = current.nodes.findIndex(n => n.id === pathNodeId);
+          if (nodeIdx === -1) break;
+          
+          if (i === navigationPath.length - 1) {
+            // This is the target graph - update the node here
+            const targetNode = current.nodes[nodeIdx];
+            current.nodes[nodeIdx] = {
+              ...targetNode,
+              graph: {
+                ...(targetNode.graph || { nodes: [], edges: [] }),
+                nodes: (targetNode.graph?.nodes || []).map((n: any) => n.id === nodeId ? ({
+                  ...n,
+                  properties: (n.properties || []).map((p: any) => p.id === propertyId ? { ...p, value } : p).sort((a: any, b: any) => a.id.localeCompare(b.id))
+                }) : n)
+              }
+            };
+          } else {
+            // Continue navigating
+            current = current.nodes[nodeIdx].graph || { nodes: [], edges: [] };
+          }
+        }
+      }
 
       // Skip graph state update if optimistic operations are active
       if (!state.optimisticOperationsActive) {
         set({ graph: updatedGraph });
       }
     }
-    await fetch('/api/graph-api?type=current', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodeId, propertyId, value }) });
+    await fetch('/api/graph-api?type=current', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodeId, propertyId, value, navigationPath: get().navigationPath }) });
   },
 
   updatePropertyLocal: (nodeId: string, propertyId: string, value: any) => {
     const state = get();
     if (!state.graph) return;
-    const updatedGraph = {
-      ...state.graph,
-      nodes: state.graph.nodes.map((n: any) =>
-        n.id === nodeId
-          ? ({
-              ...n,
-              properties: (n.properties || []).map((p: any) =>
-                p.id === propertyId ? { ...p, value } : p
-              ).sort((a: any, b: any) => a.id.localeCompare(b.id))
-            })
-          : n
-      )
-    } as any;
+    
+    const navigationPath = state.navigationPath || [];
+    let updatedGraph = { ...state.graph };
+    
+    if (navigationPath.length === 0) {
+      // Update in root graph
+      updatedGraph = {
+        ...state.graph,
+        nodes: state.graph.nodes.map((n: any) =>
+          n.id === nodeId
+            ? ({
+                ...n,
+                properties: (n.properties || []).map((p: any) =>
+                  p.id === propertyId ? { ...p, value } : p
+                ).sort((a: any, b: any) => a.id.localeCompare(b.id))
+              })
+            : n
+        )
+      } as any;
+    } else {
+      // Update in nested graph - need to rebuild tree
+      let current = updatedGraph;
+      for (let i = 0; i < navigationPath.length; i++) {
+        const pathNodeId = navigationPath[i];
+        const nodeIdx = current.nodes.findIndex(n => n.id === pathNodeId);
+        if (nodeIdx === -1) break;
+        
+        if (i === navigationPath.length - 1) {
+          // This is the target graph - update the node here
+          const targetNode = current.nodes[nodeIdx];
+          current.nodes[nodeIdx] = {
+            ...targetNode,
+            graph: {
+              ...(targetNode.graph || { nodes: [], edges: [] }),
+              nodes: (targetNode.graph?.nodes || []).map((n: any) => n.id === nodeId ? ({
+                ...n,
+                properties: (n.properties || []).map((p: any) =>
+                  p.id === propertyId ? { ...p, value } : p
+                ).sort((a: any, b: any) => a.id.localeCompare(b.id))
+              }) : n)
+            }
+          };
+        } else {
+          // Continue navigating
+          current = current.nodes[nodeIdx].graph || { nodes: [], edges: [] };
+        }
+      }
+    }
+    
     set({ graph: updatedGraph });
   },
 
   deleteNode: async (nodeId: string) => {
     const state = get();
     if (!state.graph) return;
-    const next = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
-    set({ graph: next });
+    
+    const navigationPath = state.navigationPath || [];
+    let updatedGraph = { ...state.graph };
+    
+    if (navigationPath.length === 0) {
+      // Delete from root graph
+      updatedGraph = { ...state.graph, nodes: state.graph.nodes.filter(n => n.id !== nodeId) } as Graph;
+    } else {
+      // Delete from nested graph - need to rebuild tree
+      let current = updatedGraph;
+      for (let i = 0; i < navigationPath.length; i++) {
+        const pathNodeId = navigationPath[i];
+        const nodeIdx = current.nodes.findIndex(n => n.id === pathNodeId);
+        if (nodeIdx === -1) break;
+        
+        if (i === navigationPath.length - 1) {
+          // This is the target graph - delete the node here
+          const targetNode = current.nodes[nodeIdx];
+          current.nodes[nodeIdx] = {
+            ...targetNode,
+            graph: {
+              ...(targetNode.graph || { nodes: [], edges: [] }),
+              nodes: (targetNode.graph?.nodes || []).filter((n: GraphNode) => n.id !== nodeId)
+            }
+          };
+        } else {
+          // Continue navigating
+          current = current.nodes[nodeIdx].graph || { nodes: [], edges: [] };
+        }
+      }
+    }
+    
+    set({ graph: updatedGraph });
 
-    const xml = graphToXml(next);
+    const xml = graphToXml(updatedGraph);
     await fetch('/api/graph-api?type=current', { method: 'PUT', headers: { 'Content-Type': 'application/xml' }, body: xml });
   },
 
@@ -775,6 +923,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
               console.log('🔁 SSE: Active layer changed to', data.activeLayer);
               set({ activeLayer: data.activeLayer ?? null, graphLoading: true });
               get().loadGraph().catch(() => {});
+              return;
+            }
+
+            // Handle layers list changes
+            if (data?.type === 'layers-changed') {
+              console.log('📂 SSE: Layers changed, updating layer list');
+              set({
+                layers: Array.isArray(data.layers) ? data.layers : [],
+                activeLayer: data.activeLayer ?? null
+              });
               return;
             }
 

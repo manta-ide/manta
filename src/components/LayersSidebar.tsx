@@ -4,6 +4,9 @@ import React, { useEffect } from 'react';
 import { useProjectStore } from '@/lib/store';
 import { Globe, Box, Puzzle, Code } from 'lucide-react';
 import ResizeHandle from './ResizeHandle';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '@/lib/utils';
+import type { GraphNode, Graph } from '@/app/api/lib/schemas';
 
 type Props = { open?: boolean };
 
@@ -18,7 +21,10 @@ const C4_LAYERS = [
 export default function LayersSidebar({ open = true }: Props) {
   const { activeLayer, loadLayers, setActiveLayer, graphLoading, rightSidebarWidth, setRightSidebarWidth } = useProjectStore();
 
-  useEffect(() => { loadLayers(); }, [loadLayers]);
+  // Always use root graph to build the tree
+  const graphTree = useMemo(() => {
+    return buildGraphTree(graph);
+  }, [graph]);
 
   if (!open) return null;
 

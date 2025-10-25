@@ -165,10 +165,10 @@ export async function GET(req: NextRequest) {
     // Check if requesting a specific node
       if (nodeId) {
         console.log('🎯 GET: looking for specific node:', nodeId);
-        const node = graph.nodes?.find((n: any) => n.id === nodeId);
+        const node = targetGraph.nodes?.find((n: any) => n.id === nodeId);
         if (!node) {
           console.error('❌ GET: node not found:', nodeId);
-          const availableNodes = graph.nodes?.map((n: any) => n.id).join(', ') || 'none';
+          const availableNodes = targetGraph.nodes?.map((n: any) => n.id).join(', ') || 'none';
           return NextResponse.json(
             { error: `Node with ID '${nodeId}' not found. Available nodes: ${availableNodes}` },
             { status: 404 }
@@ -177,12 +177,12 @@ export async function GET(req: NextRequest) {
         console.log('✅ GET: found node:', node.title);
 
         // Find all connections (edges) for this node
-        const edges = graph.edges || [];
+        const edges = targetGraph.edges || [];
         const nodeConnections = edges.filter((e: any) => e.source === nodeId || e.target === nodeId);
 
         // Create a map of node IDs to titles for better display
         const nodeTitleMap = new Map<string, string>();
-        graph.nodes?.forEach((n: any) => {
+        targetGraph.nodes?.forEach((n: any) => {
           nodeTitleMap.set(n.id, n.title);
         });
 
@@ -224,10 +224,10 @@ export async function GET(req: NextRequest) {
       }
 
     if (!wantsJson) {
-      const xml = graphToXml(graph);
+      const xml = graphToXml(targetGraph);
       return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Accept-Charset': 'utf-8' } });
     }
-    return NextResponse.json({ success: true, graph });
+    return NextResponse.json({ success: true, graph: targetGraph });
   } catch (error) {
     console.error('Error fetching graph data:', error);
     return NextResponse.json(
@@ -354,7 +354,7 @@ export async function PATCH(req: NextRequest) {
     const user = { id: 'default-user' };
     
     const body = await req.json();
-    const { nodeId, propertyId, value } = body;
+    const { nodeId, propertyId, value, navigationPath = [] } = body;
     
     if (!nodeId || !propertyId) {
       return NextResponse.json(
@@ -377,16 +377,29 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Find the node and update the property
-    const nodeIndex = graph.nodes.findIndex(n => n.id === nodeId);
+    // Navigate to the target graph based on navigationPath
+    let targetGraph = graph;
+    for (const pathNodeId of navigationPath) {
+      const parentNode = targetGraph.nodes?.find(n => n.id === pathNodeId);
+      if (!parentNode || !parentNode.graph) {
+        return NextResponse.json(
+          { error: `Navigation failed: node ${pathNodeId} or its graph not found` },
+          { status: 404 }
+        );
+      }
+      targetGraph = parentNode.graph;
+    }
+
+    // Find the node in the target graph and update the property
+    const nodeIndex = targetGraph.nodes.findIndex(n => n.id === nodeId);
     if (nodeIndex === -1) {
       return NextResponse.json(
-        { error: 'Node not found' },
+        { error: 'Node not found in target graph' },
         { status: 404 }
       );
     }
 
-    const node = graph.nodes[nodeIndex];
+    const node = targetGraph.nodes[nodeIndex];
     const propertyIndex = node.properties?.findIndex(p => p.id === propertyId);
 
     if (propertyIndex === -1 || propertyIndex === undefined || !node.properties) {
@@ -396,7 +409,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Update the property value directly in the graph
+    // Update the property value directly in the target graph
     node.properties[propertyIndex] = { ...node.properties[propertyIndex], value };
 
     // Save the updated graph without broadcasting (user-initiated change)
@@ -407,7 +420,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Property updated successfully',
-      updatedNode: getGraphSession()?.nodes.find(n => n.id === nodeId) || null
+      updatedNode: targetGraph.nodes.find(n => n.id === nodeId) || null
     });
   } catch (error) {
     console.error('❌ Graph API PATCH error:', error);

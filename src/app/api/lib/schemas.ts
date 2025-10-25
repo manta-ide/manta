@@ -89,7 +89,8 @@ export const GraphNodeSchema = z.object({
   properties: z.array(PropertySchema).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
-  metadata: NodeMetadataSchema.optional()
+  metadata: NodeMetadataSchema.optional(),
+  graph: z.lazy(():any => GraphSchema.optional()) // Nested graph support
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 

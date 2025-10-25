@@ -99,12 +99,12 @@ Rules:
 - Delete nodes only when specifically requested, ensuring remaining structure stays connected
 - Can edit property values for existing nodes when specifically instructed
 - Add bugs to node metadata when issues are identified or requested
-- Use node_metadata_update() to track bugs and issues in node metadata
+- Use node_edit() with metadata parameter to track bugs and issues
 - Keep responses brief and use tools efficiently
 - For read-only queries, call read() once and answer succinctly
 - Avoid unnecessary tool calls when a single call is sufficient
 
-Output: Brief responses with tool calls as needed. Focus on efficient graph operations.`;
+Output: Brief responses with tool calls as needed. Focus on efficient graph operations at appropriate C4 levels.`;
 
 /**
  * Building agent prompt - implements code from graph diffs
@@ -142,7 +142,7 @@ SCENARIOS:
 For "indexing_code_to_graph" scenario:
 1. Launch indexing subagent on specified target
 2. Analyze created nodes for completeness, accuracy, and property coverage
-3. Score based on: node count vs expected, property completeness, relationship accuracy, metadata quality
+3. Score based on: node count vs expected, property completeness, relationship accuracy, metadata quality, proper C4 level usage, nesting structure (children arrays)
 4. Identify main problems in indexing performance
 5. Save the intermediate results to the output file.
 

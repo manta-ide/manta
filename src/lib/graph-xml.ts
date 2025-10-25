@@ -812,6 +812,17 @@ export function xmlToGraph(xml: string): Graph {
         };
       }
 
+      // Parse nested graph if present
+      let nestedGraph: Graph | undefined = undefined;
+      if (nodeData.graph) {
+        try {
+          const nestedXml = xmlBuilder.build({ graph: nodeData.graph });
+          nestedGraph = xmlToGraph(`<?xml version="1.0" encoding="UTF-8"?>\n${nestedXml}`);
+        } catch (e) {
+          console.warn(`Failed to parse nested graph for node ${id}:`, e);
+        }
+      }
+
       return {
         id,
         title,
