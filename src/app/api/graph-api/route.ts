@@ -544,12 +544,11 @@ export async function POST(req: NextRequest) {
         const node: any = {
           id: nodeId,
           title,
-          prompt,
+          description: prompt || '', // Renamed from prompt to description
           type: type || 'component', // Use provided type or default to component
           level: level, // C4 level for architectural elements
           properties: properties || [],
-          ...(comment ? { comment } : {}),
-          ...(position ? { position: { x: position.x, y: position.y, z: typeof position.z === 'number' ? position.z : 0 } } : {})
+          ...(comment ? { comment } : {})
         };
         const normalizedMetadata = normalizeNodeMetadata(metadata);
         if (normalizedMetadata) {

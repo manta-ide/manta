@@ -165,28 +165,21 @@ export function useCopyPaste() {
     ) => {
       if (bufferedNodes.length === 0) return;
 
-      const minX = Math.min(...bufferedNodes.map((s) => s.position?.x || 0));
-      const minY = Math.min(...bufferedNodes.map((s) => s.position?.y || 0));
-
       const now = Date.now();
       const idMap = new Map<string, string>();
 
       try {
         setOptimisticOperationsActive(true);
 
-        // Create new GraphNodes with updated IDs and positions
+        // Create new GraphNodes with updated IDs (positions will be calculated by layout)
         const newGraphNodes: GraphNode[] = await Promise.all(
           bufferedNodes.map(async (node) => {
             const newId = generateNodeId();
             idMap.set(node.originalId, newId);
 
-            const x = pasteX + ((node.position?.x || 0) - minX);
-            const y = pasteY + ((node.position?.y || 0) - minY);
-
             const newNode: GraphNode = {
               ...node,
               id: newId,
-              position: { x, y, z: 0 },
             };
 
             return newNode;
@@ -234,10 +227,10 @@ export function useCopyPaste() {
         };
         useProjectStore.setState({ graph: updatedGraph });
 
-        // Create ReactFlow nodes
+        // Create ReactFlow nodes (positions will be recalculated by layout)
         const newReactFlowNodes: Node[] = newGraphNodes.map((node) => ({
           id: node.id,
-          position: node.position || { x: 0, y: 0 },
+          position: { x: 0, y: 0 }, // Temporary position, will be recalculated by layout
           data: {
             label: node.title,
             node: node,

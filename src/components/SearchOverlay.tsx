@@ -213,7 +213,7 @@ export default function SearchOverlay() {
               <div className="max-h-64 overflow-auto text-left">
                 {searchResults.map((r, i) => {
                   const isActive = i === searchActiveIndex;
-                  const label = r.field === 'title' ? 'Title' : r.field === 'prompt' ? 'Prompt' : `Property: ${r.propertyId}`;
+                  const label = r.field === 'title' ? 'Title' : r.field === 'description' ? 'Description' : `Property: ${r.propertyId}`;
                   const nodeTitle = graph?.nodes?.find((n: any) => n.id === r.nodeId)?.title || r.nodeId;
                   const value = r.value || '';
                   const q = (searchQuery || '').trim();
