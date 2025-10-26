@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGraphSession, loadGraphFromFile, storeGraph, registerStreamController, unregisterStreamController, storeCurrentGraph, loadCurrentGraphFromFile, storeCurrentGraphWithoutBroadcast, storeCurrentGraphFromAgent } from '../lib/graph-service';
+import { getGraphSession, loadGraphFromFile, storeGraph, registerStreamController, unregisterStreamController, storeCurrentGraph, loadCurrentGraphFromFile, storeCurrentGraphWithoutBroadcast, storeCurrentGraphFromAgent, clearGraphSession } from '../lib/graph-service';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { GraphSchema } from '../lib/schemas';
+import { auth } from '@clerk/nextjs/server';
 
 const LOCAL_MODE = process.env.NODE_ENV !== 'production';
-const DEFAULT_USER_ID = 'default-user';
-
-
-// Get default user for all requests
-async function getSessionFromRequest(req: NextRequest) {
-  return { user: { id: DEFAULT_USER_ID } } as any;
-}
 
 export async function GET(req: NextRequest) {
   try {
-    // Ensure layers directory exists and initialize graphs if needed
-    // No longer need to initialize layers - C4 layers are always available
+    // Authenticate user
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Get current user session for all GET requests
-    const session = await getSessionFromRequest(req);
-
-    const user = session?.user || { id: 'default-user' };
+    const user = { id: userId };
     
     // Check if this is an SSE request
     const url = new URL(req.url);
@@ -243,10 +237,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Get current user session
-    const session = await getSessionFromRequest(req);
+    // Authenticate user
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const user = session?.user || { id: DEFAULT_USER_ID };
+    const user = { id: userId };
 
     const body = await req.json();
     const { action, ...params } = body;
@@ -299,13 +296,13 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    // Ensure layers directory exists (C4 layers are always available)
-    // No longer need to ensure layers root
+    // Authenticate user
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Get current user session
-    const session = await getSessionFromRequest(req);
-
-    const user = session?.user || { id: 'default-user' };
+    const user = { id: userId };
     
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
     const isAgentInitiated = req.headers.get('x-agent-initiated') === 'true';
@@ -345,13 +342,13 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Ensure layers directory exists (C4 layers are always available)
-    // No longer need to ensure layers root
+    // Authenticate user
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Get current user session
-    const session = await getSessionFromRequest(req);
-
-    const user = { id: 'default-user' };
+    const user = { id: userId };
     
     const body = await req.json();
     const { nodeId, propertyId, value } = body;
@@ -420,20 +417,20 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    // Ensure layers directory exists (C4 layers are always available)
-    // No longer need to ensure layers root
+    // Authenticate user
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    console.log('🗑️ Deleting graph...', req.body);
+    console.log('🗑️ Deleting graph for user:', userId);
 
-    // Import the clearGraphSession function
-    const { clearGraphSession } = await import('../lib/graph-service');
-    
     // Clear the graph from storage and delete the file
-    await clearGraphSession();
-    
+    await clearGraphSession(userId);
+
     console.log('✅ Graph deleted successfully');
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       message: 'Graph deleted successfully'
     });

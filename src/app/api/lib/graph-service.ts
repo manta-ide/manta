@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema, PropertySchema, NodeMetadataSchema, MetadataInputSchema } from './schemas';
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
-import { supabase, getOrCreateDefaultUser, getOrCreateDefaultProject } from '@/lib/supabase';
+import { supabase, getOrCreateDefaultProject } from '@/lib/supabase';
+import { auth } from '@clerk/nextjs/server';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import type { NodeMetadata } from './schemas';
@@ -29,15 +30,30 @@ const setCurrentGraph = (graph: Graph | null) => {
   globalGraphState.currentGraph = graph;
 };
 
-// Get or initialize project ID
-async function getProjectId(): Promise<string> {
+// Get or initialize project ID for authenticated user
+async function getProjectId(userId: string): Promise<string> {
   if (globalGraphState.projectId) {
     return globalGraphState.projectId;
   }
 
-  // Initialize default user and project
-  const user = await getOrCreateDefaultUser();
-  const project = await getOrCreateDefaultProject(user.id);
+  // Ensure user exists in users table (should be created by Clerk webhook)
+  const { data: existingUser, error: userCheckError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+
+  if (userCheckError && userCheckError.code !== 'PGRST116') { // PGRST116 is "not found"
+    console.error('Error checking user:', userCheckError);
+    throw new Error('Failed to verify user');
+  }
+
+  if (!existingUser) {
+    throw new Error('User not found. Please try again.');
+  }
+
+  // Get or create default project for this user
+  const project = await getOrCreateDefaultProject(userId);
   globalGraphState.projectId = project.id;
   return project.id;
 }
@@ -183,9 +199,9 @@ function normalizeGraph(original: Graph): Graph {
 }
 
 // Read graph from Supabase
-async function readGraphFromSupabase(): Promise<Graph | null> {
+async function readGraphFromSupabase(userId: string): Promise<Graph | null> {
   try {
-    const projectId = await getProjectId();
+    const projectId = await getProjectId(userId);
 
     // Fetch all nodes for this project
     const { data: nodesData, error: nodesError } = await supabase
@@ -236,9 +252,9 @@ async function readGraphFromSupabase(): Promise<Graph | null> {
 }
 
 // Write graph to Supabase
-async function writeGraphToSupabase(graph: Graph): Promise<void> {
+async function writeGraphToSupabase(graph: Graph, userId: string): Promise<void> {
   try {
-    const projectId = await getProjectId();
+    const projectId = await getProjectId(userId);
 
     // Delete all existing nodes and edges for this project (cascade will handle edges)
     await supabase.from('nodes').delete().eq('project_id', projectId);
@@ -294,45 +310,45 @@ export function getCurrentGraphSession(): Graph | null { return getCurrentGraph(
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await writeGraphToSupabase(normalized);
+  await writeGraphToSupabase(normalized, userId);
   await broadcastGraphReload(userId);
 }
 
 export async function storeCurrentGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await writeGraphToSupabase(normalized);
+  await writeGraphToSupabase(normalized, userId);
   await broadcastGraphReload(userId);
 }
 
 export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await writeGraphToSupabase(normalized);
+  await writeGraphToSupabase(normalized, userId);
   await broadcastGraphReload(userId, { source: 'agent' });
 }
 
 export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await writeGraphToSupabase(normalized);
+  await writeGraphToSupabase(normalized, userId);
 }
 
-export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
-  const graph = await readGraphFromSupabase();
+export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
+  const graph = await readGraphFromSupabase(userId);
   setCurrentGraph(graph);
   return graph;
 }
 
-export async function loadCurrentGraphFromFile(_userId: string): Promise<Graph | null> {
-  const graph = await readGraphFromSupabase();
+export async function loadCurrentGraphFromFile(userId: string): Promise<Graph | null> {
+  const graph = await readGraphFromSupabase(userId);
   setCurrentGraph(graph);
   return graph;
 }
 
-export async function clearGraphSession(): Promise<void> {
+export async function clearGraphSession(userId: string): Promise<void> {
   try {
-    const projectId = await getProjectId();
+    const projectId = await getProjectId(userId);
     // Delete all nodes (cascade will handle edges)
     await supabase.from('nodes').delete().eq('project_id', projectId);
     setCurrentGraph(null);
@@ -349,31 +365,24 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
   return current.nodes.find(node => node.id === nodeId) || null;
 }
 
-export async function markNodesBuilt(nodeIds: string[], _userId: string): Promise<void> {
+export async function markNodesBuilt(nodeIds: string[], userId: string): Promise<void> {
   const current = getCurrentGraph();
   if (!current) return;
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
   setCurrentGraph(updated);
-  await writeGraphToSupabase(updated);
+  await writeGraphToSupabase(updated, userId);
 }
 
-export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Promise<void> {
+export async function markNodesUnbuilt(nodeIds: string[], userId: string): Promise<void> {
   const current = getCurrentGraph();
   if (!current) return;
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
   setCurrentGraph(updated);
-  await writeGraphToSupabase(updated);
+  await writeGraphToSupabase(updated, userId);
 }
 
-export async function initializeGraphsFromFiles(): Promise<void> {
-  // Load current graph from Supabase
-  const currentGraphFromSupabase = await readGraphFromSupabase();
-  if (currentGraphFromSupabase) {
-    setCurrentGraph(currentGraphFromSupabase);
-  }
-}
 
 // Helper functions moved from graph-api route
 const LOCAL_MODE = process.env.NODE_ENV !== 'production';

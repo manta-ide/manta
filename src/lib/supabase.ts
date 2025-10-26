@@ -27,10 +27,11 @@ export function createServerSupabaseClient() {
 export type Database = {
   users: {
     id: string;
-    email: string | null;
-    name: string | null;
-    created_at: string;
-    updated_at: string;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
+    created_at: string | null;
+    updated_at: string | null;
   };
   projects: {
     id: string;
@@ -61,37 +62,19 @@ export type Database = {
     created_at: string;
     updated_at: string;
   };
+  api_keys: {
+    id: string;
+    user_id: string;
+    name: string;
+    key_hash: string;
+    created_at: string | null;
+    last_used_at: string | null;
+    expires_at: string | null;
+  };
 };
 
-// Helper function to get or create default user
-export async function getOrCreateDefaultUser() {
-  const defaultUserId = 'default-user';
-  
-  // Try to get the user
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', defaultUserId)
-    .single();
-
-  if (existingUser) {
-    return existingUser;
-  }
-
-  // Create the default user
-  const { data: newUser, error } = await supabase
-    .from('users')
-    .insert([{ id: defaultUserId, email: 'default@manta.dev', name: 'Default User' }])
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error creating default user:', error);
-    throw error;
-  }
-
-  return newUser;
-}
+// Note: Users are now created automatically by the Clerk webhook
+// No need for manual user creation functions
 
 // Helper function to get or create default project
 export async function getOrCreateDefaultProject(userId: string) {
