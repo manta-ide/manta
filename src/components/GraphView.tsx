@@ -482,7 +482,11 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   );
 }
 
-function GraphCanvas() {
+interface GraphCanvasProps {
+  projectId: string;
+}
+
+function GraphCanvas({ projectId }: GraphCanvasProps) {
   const [nodes, setNodes] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   // Track nodes being dragged locally to avoid overwriting their position from incoming graph updates
@@ -892,7 +896,7 @@ function GraphCanvas() {
 
       // Now fetch current graph and persist changes
       const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-      const url = `${origin}/api/graph-api?graphType=current`;
+      const url = `${origin}/api/graph-api?graphType=current&projectId=${projectId}`;
 
       let data;
       try {
@@ -2330,7 +2334,7 @@ function GraphCanvas() {
 
       // Then persist to the graph API
       const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-      const url = `${origin}/api/graph-api?graphType=current`;
+      const url = `${origin}/api/graph-api?graphType=current&projectId=${projectId}`;
 
       // Get current graph data (accept both XML and JSON)
       const data = await fetch(url, {
@@ -2766,10 +2770,14 @@ function GraphCanvas() {
   );
 }
 
-function GraphView() {
+interface GraphViewProps {
+  projectId: string;
+}
+
+function GraphView({ projectId }: GraphViewProps) {
   return (
     <ReactFlowProvider>
-      <GraphCanvas />
+      <GraphCanvas projectId={projectId} />
     </ReactFlowProvider>
   );
 }

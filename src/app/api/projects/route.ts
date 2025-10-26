@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 export async function GET() {
   try {
@@ -66,10 +68,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    const client = createServerSupabaseClient();
+    // Use service role client for creating projects (bypasses RLS)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // First ensure the user exists in the users table (should be created by webhook)
-    const { data: existingUser, error: userCheckError } = await client
+    const { data: existingUser, error: userCheckError } = await serviceClient
       .from('users')
       .select('id')
       .eq('id', userId)
@@ -84,11 +94,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found. Please try again.' }, { status: 400 });
     }
 
-    // Generate a unique project ID
-    const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a UUID for the project
+    const projectId = randomUUID();
 
     // Create the project
-    const { data: project, error: projectError } = await client
+    const { data: project, error: projectError } = await serviceClient
       .from('projects')
       .insert({
         id: projectId,
@@ -104,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Link user to project as owner
-    const { error: linkError } = await client
+    const { error: linkError } = await serviceClient
       .from('user_projects')
       .insert({
         user_id: userId,
@@ -114,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     if (linkError) {
       console.error('Error linking user to project:', linkError);
-      // Don't fail the whole request, but log the error
+      return NextResponse.json({ error: 'Failed to link user to project' }, { status: 500 });
     }
 
     return NextResponse.json({

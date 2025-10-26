@@ -8,7 +8,6 @@ import {
   FolderOpen,
   Key,
   CreditCard,
-  Network,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -158,22 +157,6 @@ function DashboardSidebar({ onCollapsedChange }: { onCollapsedChange: (collapsed
                       <motion.li variants={variants}>
                         {!isCollapsed && (
                           <p className="ml-2 text-sm font-medium text-zinc-400">Billing</p>
-                        )}
-                      </motion.li>
-                    </Link>
-                    <Link
-                      href="/graph"
-                      className={cn(
-                        "flex h-8 flex-row items-center rounded-md px-2 py-1.5 transition hover:bg-zinc-800 hover:text-zinc-100",
-                        pathname === "/graph" && "bg-zinc-800 text-zinc-100",
-                      )}
-                    >
-                      <Network className="h-4 w-4 text-zinc-400" />
-                      <motion.li variants={variants}>
-                        {!isCollapsed && (
-                          <div className="ml-2 flex items-center gap-2">
-                            <p className="text-sm font-medium text-zinc-400">Graph View</p>
-                          </div>
                         )}
                       </motion.li>
                     </Link>

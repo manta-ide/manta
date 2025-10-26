@@ -18,6 +18,10 @@ const isLocalMode = (): boolean => {
 };
 
 interface ProjectStore {
+  // Project state
+  currentProjectId: string | null;
+  setCurrentProjectId: (id: string | null) => void;
+
   // File system state
   files: Map<string, string>;
   currentFile: string | null;
@@ -168,6 +172,10 @@ function reconcileGraph(current: Graph | null, incoming: Graph | null): Graph | 
 
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
+  // Project state
+  currentProjectId: null,
+  setCurrentProjectId: (id) => set({ currentProjectId: id }),
+
   // File system state
   files: new Map(),
   currentFile: null,
@@ -209,6 +217,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   searchResults: [],
   searchActiveIndex: -1,
   resetStore: () => set({
+    currentProjectId: null,
     files: new Map(),
     currentFile: null,
     selectedFile: null,
@@ -415,8 +424,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   loadGraph: async () => {
     try {
+      const { currentProjectId } = get();
+      if (!currentProjectId) {
+        console.warn('No project ID set, skipping graph load');
+        return;
+      }
       set({ graphLoading: true, graphError: null });
-      const res = await fetch('/api/graph-api?graphType=current', { method: 'GET', headers: { Accept: 'application/xml' } });
+      const res = await fetch(`/api/graph-api?graphType=current&projectId=${currentProjectId}`, { method: 'GET', headers: { Accept: 'application/xml' } });
       if (!res.ok) throw new Error('Graph not found');
       const xml = await res.text();
       let fullGraph = xmlToGraph(xml);
@@ -716,10 +730,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   // Graph event handling
   connectToGraphEvents: async (_userId?: string) => {
     try {
+      const { currentProjectId } = get();
+      if (!currentProjectId) {
+        console.warn('No project ID set, skipping graph events connection');
+        return;
+      }
+
       // Close any previous source
       if (graphEventSource) { graphEventSource.close(); graphEventSource = null; }
 
-      const es = new EventSource('/api/graph-api?sse=true');
+      const es = new EventSource(`/api/graph-api?sse=true&projectId=${currentProjectId}`);
       graphEventSource = es;
 
       es.onopen = () => {

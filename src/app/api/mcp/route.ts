@@ -1,31 +1,45 @@
 import { z } from 'zod';
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { auth } from '@clerk/nextjs/server';
 import { graphOperations } from '../lib/graph-service';
 
 const verifyToken = async (
   req: Request,
   bearerToken?: string,
 ): Promise<AuthInfo | undefined> => {
-  if (!bearerToken) return undefined;
+  try {
+    // Try to authenticate with Clerk first
+    const { userId } = await auth();
 
-  // TODO: Replace with proper token verification logic
-  // This is a placeholder implementation - in production, you should:
-  // 1. Verify the JWT token against your authorization server
-  // 2. Check token expiration
-  // 3. Validate scopes and permissions
-  const isValid = bearerToken === process.env.MCP_ACCESS_TOKEN;
+    if (userId) {
+      return {
+        token: `clerk-${userId}`,
+        scopes: ['read:graph', 'write:graph'],
+        clientId: 'manta-client',
+        extra: {
+          userId: userId,
+        },
+      };
+    }
 
-  if (!isValid) return undefined;
+    // Fallback to MCP access token for backward compatibility
+    if (bearerToken && bearerToken === process.env.MCP_ACCESS_TOKEN) {
+      return {
+        token: bearerToken,
+        scopes: ['read:graph', 'write:graph'],
+        clientId: 'manta-client',
+        extra: {
+          userId: 'default-user', // Use default user for token-based auth
+        },
+      };
+    }
 
-  return {
-    token: bearerToken,
-    scopes: ['read:graph', 'write:graph'],
-    clientId: 'manta-client',
-    extra: {
-      userId: 'system-user',
-    },
-  };
+    return undefined;
+  } catch (error) {
+    console.error('MCP authentication error:', error);
+    return undefined;
+  }
 };
 
 const handler = createMcpHandler(

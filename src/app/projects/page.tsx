@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { SidebarProvider, useSidebar } from '@/components/DashboardSidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ interface Project {
 }
 
 function ProjectsContent() {
+  const router = useRouter();
   const { sidebarWidth } = useSidebar();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,9 +124,12 @@ function ProjectsContent() {
                       id="name"
                       value={newProjectName}
                       onChange={(e) => setNewProjectName(e.target.value)}
-                      placeholder="Enter project name"
+                      placeholder="accountname/projectname"
                       className="bg-zinc-800 border-zinc-600 text-zinc-100"
                     />
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Use GitHub format: username/repository
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="description" className="text-zinc-200">Description (Optional)</Label>
@@ -200,6 +205,10 @@ function ProjectsContent() {
                       size="sm"
                       variant="outline"
                       className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
+                      onClick={() => {
+                        // Use the project name directly (format: accountname/projectname)
+                        router.push(`/projects/${encodeURIComponent(project.name)}`);
+                      }}
                     >
                       Open Project
                     </Button>

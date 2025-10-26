@@ -77,22 +77,41 @@ export type Database = {
 // No need for manual user creation functions
 
 // Helper function to get or create default project
+// This must use service role to bypass RLS when creating projects
 export async function getOrCreateDefaultProject(userId: string) {
-  const defaultProjectId = 'default-project';
+  // Create service role client to bypass RLS
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // Try to get the project
-  const { data: existingProject } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', defaultProjectId)
-    .single();
-
-  if (existingProject) {
-    return existingProject;
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Supabase service role credentials not configured');
   }
 
-  // Create the default project
-  const { data: newProject, error: projectError } = await supabase
+  const { createClient } = require('@supabase/supabase-js');
+  const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // Generate a deterministic project ID for this user (so multiple calls return the same project)
+  const { randomUUID } = require('crypto');
+  const defaultProjectId = randomUUID(); // Generate a proper UUID
+
+  // Check if user already has a project
+  const { data: existingUserProject } = await serviceSupabase
+    .from('user_projects')
+    .select('project_id, projects(id, name, description, created_at, updated_at)')
+    .eq('user_id', userId)
+    .eq('role', 'owner')
+    .limit(1)
+    .single();
+
+  if (existingUserProject?.projects) {
+    console.log('✅ Found existing project for user:', userId);
+    return existingUserProject.projects;
+  }
+
+  console.log('📁 Creating default project for user:', userId);
+
+  // Create the default project with UUID
+  const { data: newProject, error: projectError } = await serviceSupabase
     .from('projects')
     .insert([{ id: defaultProjectId, name: 'Default Project', description: 'Default Manta project' }])
     .select()
@@ -104,13 +123,16 @@ export async function getOrCreateDefaultProject(userId: string) {
   }
 
   // Link user to project
-  const { error: linkError } = await supabase
+  const { error: linkError } = await serviceSupabase
     .from('user_projects')
     .insert([{ user_id: userId, project_id: defaultProjectId, role: 'owner' }]);
 
   if (linkError) {
     console.error('Error linking user to project:', linkError);
+    throw linkError;
   }
+
+  console.log('✅ Default project created and linked for user:', userId);
 
   return newProject;
 }

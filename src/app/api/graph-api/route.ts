@@ -23,8 +23,13 @@ export async function GET(req: NextRequest) {
     const fresh = url.searchParams.get('fresh') === 'true'; // Force fresh read from filesystem
     const nodeId = url.searchParams.get('nodeId'); // For reading specific nodes
     const layer = url.searchParams.get('layer'); // For filtering by C4 layer
+    const projectId = url.searchParams.get('projectId'); // For filtering by project
     const accept = (req.headers.get('accept') || '').toLowerCase();
     const wantsJson = accept.includes('application/json') && !accept.includes('application/xml');
+
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
     
     if (isSSE) {
       // Set up SSE headers
@@ -48,7 +53,7 @@ export async function GET(req: NextRequest) {
                if (LOCAL_MODE) {
                  // In development mode, always reload from file to pick up directory changes
                  try {
-                   graph = await loadCurrentGraphFromFile(user.id);
+                   graph = await loadCurrentGraphFromFile(user.id, projectId);
                  } catch (loadError) {
                    console.log('ℹ️ No graph file found in dev mode, skipping SSE update (loadError: ', loadError, ')');
                    return; // Don't send any data if no graph exists
@@ -103,12 +108,12 @@ export async function GET(req: NextRequest) {
     let graph = null;
       if (fresh) {
         // Force fresh read from filesystem, bypass session cache
-        graph = await loadCurrentGraphFromFile(user.id);
+        graph = await loadCurrentGraphFromFile(user.id, projectId);
       } else {
         // In development mode, always reload from file to pick up directory changes
         // In production, use session cache for performance
         if (LOCAL_MODE) {
-          graph = await loadCurrentGraphFromFile(user.id);
+          graph = await loadCurrentGraphFromFile(user.id, projectId);
         } else {
           graph = getGraphSession();
           if (!graph) {
@@ -123,7 +128,7 @@ export async function GET(req: NextRequest) {
       // Create an empty graph for new projects
       graph = { nodes: [], edges: [] };
       // Save it to file so future requests find it
-      await storeCurrentGraph(graph, user.id);
+      await storeCurrentGraph(graph, user.id, projectId);
     }
 
     // Apply layer filtering if specified
@@ -318,15 +323,22 @@ export async function PUT(req: NextRequest) {
 
     console.log(`💾 Saving graph for user ${user.id}${isAgentInitiated ? ' (agent-initiated)' : ''}...`);
 
+    const url = new URL(req.url);
+    const projectId = url.searchParams.get('projectId');
+    
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
+
     // Store the graph
     // Only broadcast if this is agent-initiated
     if (isAgentInitiated) {
-      await storeCurrentGraph(graph, user.id);
+      await storeCurrentGraph(graph, user.id, projectId);
       console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes (broadcasted)`);
     } else {
       // For user-initiated changes, save without broadcasting
       const { storeCurrentGraphWithoutBroadcast } = await import('../lib/graph-service');
-      await storeCurrentGraphWithoutBroadcast(graph, user.id);
+      await storeCurrentGraphWithoutBroadcast(graph, user.id, projectId);
       console.log(`✅ Graph saved successfully with ${graph.nodes?.length || 0} nodes (no broadcast)`);
     }
 
