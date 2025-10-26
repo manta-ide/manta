@@ -1,6 +1,7 @@
 import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from './schemas';
+import { graphOperations } from './graph-service';
 
 export const createGraphTools = (baseUrl: string) => {
   console.log('🔧 Creating graph tools (graph-service backed)', { baseUrl });
@@ -16,56 +17,60 @@ export const createGraphTools = (baseUrl: string) => {
       includeProperties: z.boolean().optional(),
       includeChildren: z.boolean().optional(),
     },
-    async ({ nodeId, layer }) => {
-      console.log('🔍 TOOL: read called via API', { nodeId, layer });
+    async ({ nodeId, layer, includeProperties, includeChildren }) => {
+      console.log('🔍 TOOL: read called directly', { nodeId, layer, includeProperties, includeChildren });
 
       try {
-        const queryParams = new URLSearchParams();
-        if (nodeId) queryParams.set('nodeId', nodeId);
-        if (layer) queryParams.set('layer', layer);
-
-        const response = await fetch(`${baseUrl}/api/graph-api?${queryParams.toString()}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
+        const result = await graphOperations.read({
+          nodeId,
+          layer,
+          includeProperties,
+          includeChildren
         });
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('❌ TOOL: read API error:', errorData.error);
-          return { content: [{ type: 'text', text: `Error: ${errorData.error || 'Failed to read graph'}` }] };
-        }
-
-        // For individual node requests, the API returns plain text (not JSON)
-        if (nodeId) {
-          const text = await response.text();
-          console.log('📤 TOOL: read returning node data');
-          return { content: [{ type: 'text', text }] };
-        }
-
-        // For graph summary requests, the API returns JSON
-        const result = await response.json();
-
-        if (result.error) {
-          console.error('❌ TOOL: read API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: read operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: read API success');
+        console.log('📤 TOOL: read success');
 
-        if (result.success && result.graph) {
-          console.log('📤 TOOL: read returning formatted graph summary');
-          const nodes = result.graph.nodes?.map((n: any) => ({ id: n.id, title: n.title })) || [];
+        if (nodeId && result.node) {
+          // Format individual node data
+          let text = `**Node: ${result.node.title} (${nodeId})**\n\n`;
+          text += `**Description:** ${result.node.description || 'No description'}\n\n`;
+
+          // Add properties if they exist and are requested
+          if (includeProperties && result.node.properties && result.node.properties.length > 0) {
+            text += `**Properties:**\n`;
+            result.node.properties.forEach((prop: any) => {
+              const hasMinMax = (typeof prop.min === 'number') || (typeof prop.max === 'number');
+              const rangeText = hasMinMax ? ` [${prop.min ?? ''}..${prop.max ?? ''}${typeof prop.step === 'number' ? `, step ${prop.step}` : ''}]` : '';
+              text += `- ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type}${rangeText})\n`;
+            });
+            text += '\n';
+          }
+
+          // Add connections if they exist
+          // Note: This would need to be enhanced to get actual connections
+          text += `**Connections:** Available through graph query\n`;
+
+          return { content: [{ type: 'text', text }] };
+        }
+
+        if (result.layers) {
+          // Format layer data
           const layerInfo = layer ? ` (filtered by ${layer} layer)` : '';
-          const formattedResult = JSON.stringify({ nodes }, null, 2);
-          return { content: [{ type: 'text', text: `Graph Summary${layerInfo}:\n${formattedResult}` }] };
+          const formattedResult = JSON.stringify({ layers: result.layers }, null, 2);
+          return { content: [{ type: 'text', text: `Graph Layers${layerInfo}:\n${formattedResult}` }] };
         }
 
         // Fallback
-        return { content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result, null, 2) }] };
+        return { content: [{ type: 'text', text: 'Graph read successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: read API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to read graph via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: read operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to read graph: ${errorMessage}` }] };
       }
     }
   ),
@@ -81,34 +86,27 @@ export const createGraphTools = (baseUrl: string) => {
       shape: z.enum(['refines', 'relates']).optional().describe('The semantic relationship type: "refines" for hierarchical connections, "relates" for same-level connections'),
     },
     async ({ sourceId, targetId, role, shape }) => {
-      console.log('🔗 TOOL: edge_create called via API', { sourceId, targetId, role, shape });
+      console.log('🔗 TOOL: edge_create called directly', { sourceId, targetId, role, shape });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'edge_create',
-            sourceId,
-            targetId,
-            role,
-            shape
-          })
+        const result = await graphOperations.edgeCreate({
+          sourceId,
+          targetId,
+          role,
+          shape
         });
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: edge_create API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: edge_create operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: edge_create API success');
-        return result;
+        console.log('📤 TOOL: edge_create success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Edge created successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: edge_create API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to create edge via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: edge_create operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to create edge: ${errorMessage}` }] };
       }
     }
   ),
@@ -122,32 +120,25 @@ export const createGraphTools = (baseUrl: string) => {
       targetId: z.string().min(1, 'Target node ID is required'),
     },
     async ({ sourceId, targetId }) => {
-      console.log('🗑️ TOOL: edge_delete called via API', { sourceId, targetId });
+      console.log('🗑️ TOOL: edge_delete called directly', { sourceId, targetId });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'edge_delete',
-            sourceId,
-            targetId
-          })
+        const result = await graphOperations.edgeDelete({
+          sourceId,
+          targetId
         });
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: edge_delete API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: edge_delete operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: edge_delete API success');
-        return result;
+        console.log('📤 TOOL: edge_delete success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Edge deleted successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: edge_delete API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to delete edge via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: edge_delete operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to delete edge: ${errorMessage}` }] };
       }
     }
   ),
@@ -168,39 +159,31 @@ export const createGraphTools = (baseUrl: string) => {
       metadata: MetadataInputSchema.optional(),
     },
     async ({ nodeId, title, prompt, type, level, comment, properties, position, metadata }) => {
-      console.log('➕ TOOL: node_create called via API', { nodeId, title, type, comment: !!comment, position: !!position, metadata });
+      console.log('➕ TOOL: node_create called directly', { nodeId, title, type, comment: !!comment, position: !!position, metadata });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'node_create',
-            nodeId,
-            title,
-            prompt,
-            type,
-            level,
-            comment,
-            properties,
-            position,
-            metadata
-          })
+        const result = await graphOperations.nodeCreate({
+          title,
+          prompt,
+          type,
+          level,
+          comment,
+          properties,
+          position,
+          metadata
         });
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: node_create API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: node_create operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: node_create API success');
-        return result;
+        console.log('📤 TOOL: node_create success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Node created successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: node_create API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to create node via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: node_create operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to create node: ${errorMessage}` }] };
       }
     }
   ),
@@ -224,41 +207,35 @@ export const createGraphTools = (baseUrl: string) => {
       metadata: MetadataInputSchema.optional(),
     },
     async ({ nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata }) => {
-      console.log('✏️ TOOL: node_edit called via API', { nodeId, mode, title: !!title, prompt: !!prompt, type: !!type, level: !!level, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
+      console.log('✏️ TOOL: node_edit called directly', { nodeId, mode, title: !!title, prompt: !!prompt, type: !!type, level: !!level, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'node_edit',
-            nodeId,
-            mode,
-            title,
-            prompt,
-            type,
-            level,
-            comment,
-            properties,
-            children,
-            position,
-            metadata
-          })
+        const result = await graphOperations.nodeEdit({
+          nodeId,
+          mode,
+          title,
+          prompt,
+          description: prompt, // Map prompt to description
+          type,
+          level,
+          comment,
+          properties,
+          children,
+          position,
+          metadata
         });
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: node_edit API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: node_edit operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: node_edit API success');
-        return result;
+        console.log('📤 TOOL: node_edit success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Node edited successfully' }] };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: node_edit API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to edit node via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: node_edit operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to edit node: ${errorMessage}` }] };
     }
   }
   ),
@@ -274,34 +251,27 @@ export const createGraphTools = (baseUrl: string) => {
       merge: z.boolean().optional().describe('If true, merge with existing metadata instead of replacing it.'),
     },
     async ({ nodeId, files, bugs, merge = false }) => {
-      console.log('🗂️ TOOL: node_metadata_update called via API', { nodeId, filesCount: files?.length ?? 'undefined', bugsCount: bugs?.length ?? 'undefined', merge });
+      console.log('🗂️ TOOL: node_metadata_update called directly', { nodeId, filesCount: files?.length ?? 'undefined', bugsCount: bugs?.length ?? 'undefined', merge });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'node_metadata_update',
-            nodeId,
-            files,
-            bugs,
-            merge
-          })
+        const result = await graphOperations.nodeMetadataUpdate({
+          nodeId,
+          files,
+          bugs,
+          merge
         });
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: node_metadata_update API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: node_metadata_update operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: node_metadata_update API success');
-        return result;
+        console.log('📤 TOOL: node_metadata_update success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Metadata updated successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: node_metadata_update API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to update metadata via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: node_metadata_update operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to update metadata: ${errorMessage}` }] };
       }
     }
   ),
@@ -313,32 +283,25 @@ export const createGraphTools = (baseUrl: string) => {
     'Delete a node by id.',
     { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true) },
     async ({ nodeId, recursive }) => {
-      console.log('🗑️ TOOL: node_delete called via API', { nodeId, recursive });
+      console.log('🗑️ TOOL: node_delete called directly', { nodeId, recursive });
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'node_delete',
-            nodeId,
-            recursive
-          })
+        const result = await graphOperations.nodeDelete({
+          nodeId,
+          recursive
         });
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: node_delete API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: node_delete operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: node_delete API success');
-        return result;
+        console.log('📤 TOOL: node_delete success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Node deleted successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: node_delete API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to delete node via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: node_delete operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to delete node: ${errorMessage}` }] };
       }
     }
   ),
@@ -349,30 +312,22 @@ export const createGraphTools = (baseUrl: string) => {
     'Fully clear the graph, leaving only empty nodes and edges tags, and outer structure.',
     {},
     async () => {
-      console.log('🧹 TOOL: graph_clear called via API');
+      console.log('🧹 TOOL: graph_clear called directly');
 
       try {
-        const response = await fetch(`${baseUrl}/api/graph-api`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'graph_clear'
-          })
-        });
+        const result = await graphOperations.graphClear();
 
-        const result = await response.json();
-
-        if (!response.ok || result.error) {
-          console.error('❌ TOOL: graph_clear API error:', result.error);
+        if (!result.success) {
+          console.error('❌ TOOL: graph_clear operation failed:', result.error);
           return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
         }
 
-        console.log('📤 TOOL: graph_clear API success');
-        return result;
+        console.log('📤 TOOL: graph_clear success');
+        return { content: [{ type: 'text', text: result.content?.text || 'Graph cleared successfully' }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('💥 TOOL: graph_clear API call error:', errorMessage);
-        return { content: [{ type: 'text', text: `Error: Failed to clear graph via API: ${errorMessage}` }] };
+        console.error('💥 TOOL: graph_clear operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to clear graph: ${errorMessage}` }] };
       }
     }
   ),

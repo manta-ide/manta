@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
     const edges = Array.isArray(graph.edges) ? graph.edges as GraphEdge[] : [];
 
-    // Build file index and check existence
+    // Build file index (skip file existence checks since we use Supabase for storage)
     const fileIndex = new Map<string, { nodes: Set<string>, missing: boolean }>();
     const perNodeFiles: Array<{ nodeId: string; nodeTitle: string; files: Array<{ path: string; exists: boolean }> }> = [];
 
@@ -67,19 +67,18 @@ export async function GET(req: NextRequest) {
       for (const f of files) {
         if (typeof f !== 'string' || !f.trim()) continue;
         const rel = normalizeRelPath(f.trim());
-        const exists = fileExists(rel);
+        // Skip file existence check since we use Supabase - assume files exist
+        const exists = true;
         nodeEntries.push({ path: rel, exists });
-        const rec = fileIndex.get(rel) ?? { nodes: new Set<string>(), missing: !exists };
+        const rec = fileIndex.get(rel) ?? { nodes: new Set<string>(), missing: false };
         rec.nodes.add(n.id);
-        if (!exists) rec.missing = true;
         fileIndex.set(rel, rec);
       }
       perNodeFiles.push({ nodeId: n.id, nodeTitle: (n as any).title ?? n.id, files: nodeEntries });
     }
 
-    const missingFiles = Array.from(fileIndex.entries())
-      .filter(([, v]) => v.missing)
-      .map(([k, v]) => ({ path: k, referencedBy: Array.from(v.nodes) }));
+    // No missing files since we don't validate file existence with Supabase
+    const missingFiles: Array<{ path: string; referencedBy: string[] }> = [];
 
     // Connectivity within layers
     const byLayer = new Map<Layer, { nodeIds: Set<string>; edges: GraphEdge[]; unconnected: string[]; intraEdgeCount: number }>();

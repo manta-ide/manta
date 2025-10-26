@@ -55,7 +55,6 @@ Connection Rules:
 Connectivity Guarantees:
 - Between layers: Ensure refines chains exist code→component→container→system. Every code node must refine a component; every component refines a container; every container refines a system.
 - Within each layer: Ensure there is at least one relates edge such that nodes are not all isolated. Prefer relates edges guided by module/folder/package proximity or interfaces.
-- No isolated nodes: every node must have at least one edge. Report and resolve any isolates by adding appropriate refines/relates edges or by merging nodes when duplication is detected.
 
 Property Rules:
 Every C4 element should have consistent properties: identity (id, title, description), runtime context (language, threading, etc.), interfaces, operations, performance limits, security, observability, and versioning. Use constrained property types: text, number/slider, select/radio, boolean/checkbox, object, object-list.
