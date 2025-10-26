@@ -1,10 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
+// Initialize basic Supabase client (following Clerk documentation)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyd2Frd2drenRjY3hmdmZpeHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNTEwOTIsImV4cCI6MjA3NjkyNzA5Mn0.oTpXn6Wu_0olN-wct3B7wP7_Qc9HSLIP9GBCYGmoLFk';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyd2Frd2drenRjY3hmdmZpeHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzNTEwOTIsImV4cCI6MjA3NjkyNzA5Mn0.oTpXn6Wu_0olN-wct3B7wP7_Qc9HSLIP9GBCYGmoLFk';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Create a Clerk-authenticated Supabase client for server-side operations
+export function createServerSupabaseClient() {
+  const { auth } = require('@clerk/nextjs/server');
+
+  return createClient(
+    supabaseUrl,
+    supabaseKey,
+    {
+      async accessToken() {
+        return (await auth()).getToken();
+      },
+    },
+  );
+}
+
+// Note: For client-side Clerk integration, use createClerkSupabaseClient from './supabase-client'
 
 // Database types for type safety
 export type Database = {

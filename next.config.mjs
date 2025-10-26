@@ -21,6 +21,10 @@ const nextConfig = {
   transpilePackages: [],
   // Ensure the dist directory is cleaned between builds
   cleanDistDir: true,
+  // Disable static optimization for pages using Clerk
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
 };
 
 export default nextConfig;
