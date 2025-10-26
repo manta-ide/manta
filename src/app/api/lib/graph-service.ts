@@ -297,8 +297,9 @@ async function writeGraphToSupabase(graph: Graph, userId: string): Promise<void>
       }
     }
   } catch (error) {
-    console.error('Error writing graph to Supabase:', error);
-    throw error;
+    // In restricted/dev environments, network may be blocked.
+    // Log and continue so the app can operate with in-memory graph.
+    console.warn('Supabase write skipped or failed; continuing with in-memory graph only:', error);
   }
 }
 

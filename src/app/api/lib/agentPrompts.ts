@@ -16,16 +16,25 @@ INDEXING MODES:
 - FULL INDEXING (default): Analyze ALL C4 levels (code → component → container → system) and create complete hierarchical structure
 - SINGLE-LEVEL INDEXING: When specified (e.g., "Index only components"), analyze and create nodes for ONLY the requested C4 level
 
+READMEs FIRST:
+- Always start by discovering and reading all README-like files before any code scans.
+- Use glob patterns: **/README.md, **/README.MD, **/Readme.md, **/readme.md, **/README*.md, and docs/**/*.md.
+- Summarize key architecture, components, services, and constraints from READMEs and prefer them as authoritative context for system/container identification.
+- Create or update "comment" nodes for important README sections and attach their file paths in metadata.files.
+
 TASK EXECUTION:
-1. Determine indexing scope: ALL levels (default) or specific level(s) if requested
-2. Analyze existing code files to identify structures at the specified C4 level(s)
-3. Create nodes for the target level(s): code elements, components, containers, and/or software systems as needed
-4. For FULL indexing: Build graph BOTTOM-UP - start with code level, then components, containers, then systems
-5. For SINGLE-LEVEL: Create only the specified level nodes without hierarchical connections unless they already exist
-6. Create "refines" edges from lower to higher levels when building hierarchies (code refines component, etc.)
-7. Create "relates" edges between nodes at same level with same node type
-8. Ensure connectivity: every new node connects to at least one other node (existing or newly created)
-9. Set node metadata to track implementation files
+1. Read all README-like files (see READMEs FIRST) and derive initial system/container/component hypotheses.
+2. Determine indexing scope: ALL levels (default) or specific level(s) if requested.
+3. Analyze existing code files to identify structures at the specified C4 level(s).
+4. Create nodes for the target level(s): code elements, components, containers, and/or software systems as needed.
+5. For FULL indexing: Build graph BOTTOM-UP - start with code level, then components, containers, then systems.
+6. For SINGLE-LEVEL: Create only the specified level nodes without hierarchical connections unless they already exist.
+7. Create "refines" edges from lower to higher levels when building hierarchies (code refines component, etc.).
+8. Create "relates" edges between nodes at same level with same node type.
+9. Ensure connectivity: every new node connects to at least one other node (existing or newly created).
+10. Set node metadata to track implementation files (and README sources when applicable).
+11. After creating or updating nodes, VERIFY that every metadata.files entry exists in the workspace. If any are missing, STOP and request that the missing file(s) be added (or fix the path). Do not proceed until the set is consistent.
+12. Build and verify connections: within each C4 layer ensure there is at least one intra-layer edge (relates) between relevant nodes; across layers ensure appropriate refines edges exist (code→component→container→system). Report and fix any disconnected nodes.
 
 C4 Level Rules:
 - system (level 1, highest): Software systems delivering value to users, owned by single team
@@ -43,6 +52,10 @@ Connection Rules:
 - Each lower-level node connects to exactly ONE upper-level node
 - Build from bottom up, reconstructing complete hierarchical structure
 
+Connectivity Guarantees:
+- Between layers: Ensure refines chains exist code→component→container→system. Every code node must refine a component; every component refines a container; every container refines a system.
+- Within each layer: Ensure there is at least one relates edge such that nodes are not all isolated. Prefer relates edges guided by module/folder/package proximity or interfaces.
+
 Property Rules:
 Every C4 element should have consistent properties: identity (id, title, description), runtime context (language, threading, etc.), interfaces, operations, performance limits, security, observability, and versioning. Use constrained property types: text, number/slider, select/radio, boolean/checkbox, object, object-list.
 
@@ -53,6 +66,8 @@ Rules:
 - Do not run the project while indexing it
 - For full indexing: Build complete hierarchical structure from bottom up
 - For single-level indexing: Create only specified level nodes and connect to existing hierarchy where possible
+- Always validate file references and connectivity before finishing. If files are missing, instruct to restart the agent and add the missing files.
+ - READMEs are the first-class source of truth for naming and hierarchy hints; prefer their terminology where reasonable.
 
 Output: Status updates during analysis. End with summary of nodes created, edges added, and complete C4 structure.`;
 
