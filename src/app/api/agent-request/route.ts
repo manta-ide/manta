@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { graphToXml } from '@/lib/graph-xml';
 import { MessageSchema, Graph } from '@/app/api/lib/schemas';
+import { auth } from '@clerk/nextjs/server';
 
 /* =========================
    Graph Editor Config
@@ -82,8 +83,6 @@ const RequestSchema = z.object({
   // Build-graph specific fields
   graphDiff: z.any().optional(),
   currentGraph: z.any().optional(),
-  // Session management
-  resume: z.string().optional(),
 });
 
 // Removed buildParsedMessages - now using system prompt approach in Claude Code
@@ -93,8 +92,15 @@ const RequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Use default user for all reqs
-    const userId = 'default-user';
+    // Authenticate user
+    const { userId } = await auth();
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) {
       console.log('Agent req schema error:', parsed.error.flatten());
@@ -113,8 +119,7 @@ export async function POST(req: NextRequest) {
       selectedNodeIds,
       rebuildAll,
       graphDiff,
-      currentGraph,
-      resume
+      currentGraph
     } = parsed.data;
     // forward auth headers for downstream API calls
     setGraphEditorAuthHeaders({
@@ -158,9 +163,9 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
+        userId,
         options: {
-          verbose: true,
-          ...(resume && { resume })
+          verbose: true
         }
       })
     });
@@ -170,7 +175,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Pass through the streaming response from execute
-    return response;
+    // Create a new Response to avoid NextResponse.rewrite() issues
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'text/plain',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   } catch (err: any) {
     console.error(err);
     // Reset pending changes on error

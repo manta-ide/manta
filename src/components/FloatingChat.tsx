@@ -68,36 +68,6 @@ export default function FloatingChat() {
   const { messages, loading, loadingHistory } = state;
   const { sendMessage, clearMessages } = actions;
 
-  // Session management state
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-
-  // Load session_id from localStorage on mount
-  useEffect(() => {
-    const savedSessionId = localStorage.getItem('claude-session-id');
-    if (savedSessionId) {
-      setCurrentSessionId(savedSessionId);
-    }
-  }, []);
-
-  // Save session_id to localStorage when it changes
-  useEffect(() => {
-    if (currentSessionId) {
-      localStorage.setItem('claude-session-id', currentSessionId);
-    }
-  }, [currentSessionId]);
-
-  // Extract session_id from the latest assistant message (fallback)
-  useEffect(() => {
-    console.log(messages);
-    const lastAssistantMessage = messages.slice().reverse().find(m => m.role === 'assistant');
-    if (lastAssistantMessage && (lastAssistantMessage as any).variables?.SESSION_ID) {
-      const sessionId = (lastAssistantMessage as any).variables.SESSION_ID;
-      if (sessionId !== currentSessionId) {
-        console.log('🎯 FloatingChat: Fallback - setting session_id from message:', sessionId);
-        setCurrentSessionId(sessionId);
-      }
-    }
-  }, [messages, currentSessionId]);
 
   // No longer using job system - simplified logic
 
@@ -380,14 +350,7 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
             includeFile: contextSnapshot.includeFile,
             includeNodes: contextSnapshot.includeNodes,
             // Preserve the original text (with @tags) for UI display
-            displayContent: rawInput,
-            // Pass current session_id for resume functionality
-            resume: currentSessionId || undefined,
-            // Callback to handle session_id when received
-            onSessionId: (sessionId: string) => {
-              console.log('🎯 FloatingChat: Received session_id via callback:', sessionId);
-              setCurrentSessionId(sessionId);
-            }
+            displayContent: rawInput
           });
   };
 
@@ -415,9 +378,6 @@ Selected node to split: ${title} (ID: ${primaryNode?.id ?? 'unknown'}).`;
     setClearing(true);
     try {
       await clearMessages();
-      // Clear session when clearing messages
-      setCurrentSessionId(null);
-      localStorage.removeItem('claude-session-id');
     } finally {
       setClearing(false);
     }

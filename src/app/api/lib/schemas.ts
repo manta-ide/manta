@@ -313,6 +313,7 @@ export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;
 
 export const ClaudeCodeRequestSchema = z.object({
   prompt: z.string(),
+  userId: z.string(),
   options: ClaudeCodeOptionsSchema.optional(),
 });
 

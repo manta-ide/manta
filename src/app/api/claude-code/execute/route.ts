@@ -443,7 +443,7 @@ function pretty(obj: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, options } = ClaudeCodeRequestSchema.parse(await req.json());
+    const { prompt, userId, options } = ClaudeCodeRequestSchema.parse(await req.json());
 
     const envVerbose = String(process.env.VERBOSE_CLAUDE_LOGS || '').toLowerCase();
     const defaultVerbose = envVerbose === '1' || envVerbose === 'true' || envVerbose === 'yes' || envVerbose === 'on';
@@ -480,7 +480,7 @@ export async function POST(req: NextRequest) {
 
           // Configure based on subagent
           const baseUrl = getBaseUrl(req as any);
-          const mcpServer = createGraphMcpServer(baseUrl);
+          const mcpServer = createGraphMcpServer(baseUrl, userId);
 
           // Log the working directory
           const workingDirectory = projectDir();
@@ -496,7 +496,7 @@ export async function POST(req: NextRequest) {
                 content: prompt
               },
               parent_tool_use_id: null,
-              session_id: options?.resume || ''
+              session_id: ''
             };
             //if(first)
             //Required for claude code sdk to work. 1800000 = 30 minutes for max task length
@@ -518,8 +518,7 @@ export async function POST(req: NextRequest) {
             strictMcpConfig: true,
             model: "sonnet",
             pathToClaudeCodeExecutable: cliPath,
-            agents: AGENTS_CONFIG,
-            ...(options?.resume && { resume: options.resume })
+            agents: AGENTS_CONFIG
           } as any;
 
           let messageCount = 0;
@@ -793,8 +792,7 @@ export async function POST(req: NextRequest) {
           console.log('RESULT>>>>>>>>>', message);
           const resultData = {
             type: 'result',
-            content: fullResponse,
-            session_id: (message as any).session_id
+            content: fullResponse
           };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
           controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));

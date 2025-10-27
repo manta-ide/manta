@@ -5,6 +5,7 @@ const isProtectedRoute = createRouteMatcher([
   '/api-keys(.*)',
   '/billing(.*)',
   '/graph(.*)',
+  '/api/agent-request',
 ])
 
 const isPublicRoute = createRouteMatcher([

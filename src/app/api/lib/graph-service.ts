@@ -238,8 +238,18 @@ async function readGraphFromSupabase(userId: string, explicitProjectId?: string)
   try {
     const projectId = explicitProjectId || await getProjectId(userId);
 
+    // Use service role client to bypass RLS for all database operations
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase service role credentials not configured');
+    }
+
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
     // Fetch all nodes for this project
-    const { data: nodesData, error: nodesError } = await supabase
+    const { data: nodesData, error: nodesError } = await serviceSupabase
       .from('nodes')
       .select('*')
       .eq('project_id', projectId);
@@ -250,7 +260,7 @@ async function readGraphFromSupabase(userId: string, explicitProjectId?: string)
     }
 
     // Fetch all edges for this project
-    const { data: edgesData, error: edgesError } = await supabase
+    const { data: edgesData, error: edgesError } = await serviceSupabase
       .from('edges')
       .select('*')
       .eq('project_id', projectId);
@@ -291,8 +301,18 @@ async function writeGraphToSupabase(graph: Graph, userId: string, explicitProjec
   try {
     const projectId = explicitProjectId || await getProjectId(userId);
 
+    // Use service role client to bypass RLS for all database operations
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase service role credentials not configured');
+    }
+
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
     // Delete all existing nodes and edges for this project (cascade will handle edges)
-    await supabase.from('nodes').delete().eq('project_id', projectId);
+    await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
 
     // Insert nodes
     if (graph.nodes && graph.nodes.length > 0) {
@@ -302,7 +322,7 @@ async function writeGraphToSupabase(graph: Graph, userId: string, explicitProjec
         data: node,
       }));
 
-      const { error: nodesError } = await supabase
+      const { error: nodesError } = await serviceSupabase
         .from('nodes')
         .insert(nodesToInsert);
 
@@ -322,7 +342,7 @@ async function writeGraphToSupabase(graph: Graph, userId: string, explicitProjec
         data: edge,
       }));
 
-      const { error: edgesError } = await supabase
+      const { error: edgesError } = await serviceSupabase
         .from('edges')
         .insert(edgesToInsert);
 
@@ -385,8 +405,19 @@ export async function loadCurrentGraphFromFile(userId: string, projectId?: strin
 export async function clearGraphSession(userId: string): Promise<void> {
   try {
     const projectId = await getProjectId(userId);
+
+    // Use service role client to bypass RLS for all database operations
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase service role credentials not configured');
+    }
+
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
     // Delete all nodes (cascade will handle edges)
-    await supabase.from('nodes').delete().eq('project_id', projectId);
+    await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
     setCurrentGraph(null);
   } catch (error) {
     console.error('Error clearing graph session:', error);
@@ -655,6 +686,7 @@ const saveGraph = async (graph: any, userId: string = DEFAULT_USER_ID): Promise<
 // ---- Graph operations API ----
 export const graphOperations = {
   async nodeCreate(params: {
+    nodeId?: string; // Allow specifying node ID
     title: string;
     prompt?: string;
     type?: string;
@@ -664,10 +696,10 @@ export const graphOperations = {
     position?: { x: number; y: number; z?: number };
     metadata?: unknown;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-  }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
+  }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; nodeId?: string }> {
     console.log('➕ TOOL: node_create called', params);
 
-    const { userId = DEFAULT_USER_ID, title, prompt, type, level, comment, properties, position, metadata } = params;
+    const { userId = DEFAULT_USER_ID, nodeId: requestedNodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
 
     try {
       // Use Supabase read only
@@ -681,9 +713,16 @@ export const graphOperations = {
       const validatedGraph = graph;
       console.log('✅ TOOL: node_create schema validation passed, nodes:', validatedGraph.nodes?.length || 0);
 
-      // Always generate UUID for new nodes
-      const nodeId = randomUUID();
-      console.log('🆔 TOOL: node_create generated UUID:', nodeId);
+      // Use provided nodeId or generate UUID for new nodes
+      let nodeId = requestedNodeId || randomUUID();
+
+      // Check if node with this ID already exists
+      if (requestedNodeId && validatedGraph.nodes.some((n: any) => n.id === requestedNodeId)) {
+        console.error('❌ TOOL: node_create node with ID already exists:', requestedNodeId);
+        return { success: false, error: `Node with ID '${requestedNodeId}' already exists.` };
+      }
+
+      console.log('🆔 TOOL: node_create using nodeId:', nodeId, requestedNodeId ? '(provided)' : '(generated)');
 
       const node: any = {
         id: nodeId,
@@ -712,7 +751,7 @@ export const graphOperations = {
 
       const result = `Successfully added node "${nodeId}" with title "${title}". The node has ${node.properties.length} properties.`;
       console.log('📤 TOOL: node_create returning success:', result);
-      return { success: true, content: { type: 'text', text: result } };
+      return { success: true, content: { type: 'text', text: result }, nodeId };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('💥 TOOL: node_create unexpected error:', errorMessage);
@@ -1007,7 +1046,7 @@ export const graphOperations = {
     role?: string;
     shape?: string;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-  }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
+  }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; edgeId?: string }> {
     console.log('🔗 TOOL: edge_create called', params);
 
     const { userId = DEFAULT_USER_ID, sourceId, targetId, role, shape } = params;
@@ -1077,7 +1116,7 @@ export const graphOperations = {
 
       const result = `Created edge from ${sourceId} to ${targetId}${role ? ` (${role})` : ''}${shape ? ` [${shape}]` : ''}`;
       console.log('📤 TOOL: edge_create returning result:', result);
-      return { success: true, content: { type: 'text', text: result } };
+      return { success: true, content: { type: 'text', text: result }, edgeId };
     } catch (error) {
       console.error('💥 TOOL: edge_create error:', error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from './schemas';
 import { graphOperations } from './graph-service';
 
-export const createGraphTools = (baseUrl: string) => {
+export const createGraphTools = (baseUrl: string, userId?: string) => {
   console.log('🔧 Creating graph tools (graph-service backed)', { baseUrl });
 
   return [
@@ -22,6 +22,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.read({
+          userId,
           nodeId,
           layer,
           includeProperties,
@@ -90,6 +91,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.edgeCreate({
+          userId,
           sourceId,
           targetId,
           role,
@@ -102,7 +104,9 @@ export const createGraphTools = (baseUrl: string) => {
         }
 
         console.log('📤 TOOL: edge_create success');
-        return { content: [{ type: 'text', text: result.content?.text || 'Edge created successfully' }] };
+        const responseText = result.content?.text || 'Edge created successfully';
+        const finalText = result.edgeId ? `${responseText} (ID: ${result.edgeId})` : responseText;
+        return { content: [{ type: 'text', text: finalText }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('💥 TOOL: edge_create operation error:', errorMessage);
@@ -124,6 +128,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.edgeDelete({
+          userId,
           sourceId,
           targetId
         });
@@ -163,6 +168,8 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.nodeCreate({
+          nodeId,
+          userId,
           title,
           prompt,
           type,
@@ -179,7 +186,9 @@ export const createGraphTools = (baseUrl: string) => {
         }
 
         console.log('📤 TOOL: node_create success');
-        return { content: [{ type: 'text', text: result.content?.text || 'Node created successfully' }] };
+        const responseText = result.content?.text || 'Node created successfully';
+        const finalText = result.nodeId ? `${responseText} (ID: ${result.nodeId})` : responseText;
+        return { content: [{ type: 'text', text: finalText }] };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('💥 TOOL: node_create operation error:', errorMessage);
@@ -211,6 +220,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.nodeEdit({
+          userId,
           nodeId,
           mode,
           title,
@@ -255,6 +265,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.nodeMetadataUpdate({
+          userId,
           nodeId,
           files,
           bugs,
@@ -287,6 +298,7 @@ export const createGraphTools = (baseUrl: string) => {
 
       try {
         const result = await graphOperations.nodeDelete({
+          userId,
           nodeId,
           recursive
         });
@@ -315,7 +327,7 @@ export const createGraphTools = (baseUrl: string) => {
       console.log('🧹 TOOL: graph_clear called directly');
 
       try {
-        const result = await graphOperations.graphClear({});
+        const result = await graphOperations.graphClear({ userId });
 
         if (!result.success) {
           console.error('❌ TOOL: graph_clear operation failed:', result.error);
@@ -335,8 +347,8 @@ export const createGraphTools = (baseUrl: string) => {
   ];
 };
 
-export const createGraphMcpServer = (baseUrl: string) => {
-  console.log('🔧 Creating graph MCP server', { baseUrl });
-  const tools = createGraphTools(baseUrl);
+export const createGraphMcpServer = (baseUrl: string, userId?: string) => {
+  console.log('🔧 Creating graph MCP server', { baseUrl, userId });
+  const tools = createGraphTools(baseUrl, userId);
   return createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });
 };
