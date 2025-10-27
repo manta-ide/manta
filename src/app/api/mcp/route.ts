@@ -151,7 +151,7 @@ const handler = createMcpHandler(
       'read',
       'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Returns XML by default. Use the project field to specify which project to read from.',
       {
-        project: z.string().describe('Project name as it appears in your Manta projects'),
+        project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
         nodeId: z.string().optional().describe('Optional node ID to read specific node details'),
         layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
@@ -179,56 +179,25 @@ const handler = createMcpHandler(
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
           const client = createClient(supabaseUrl, supabaseServiceKey!);
 
-          // If project is specified, resolve it to a project ID
-          if (params.project) {
-            const { data: projectData, error: projectError } = await client
-              .from('projects')
-              .select('id')
-              .eq('name', params.project)
-              .single();
+          // Resolve project name to project ID
+          const { data: projectData, error: projectError } = await client
+            .from('projects')
+            .select('id')
+            .eq('name', params.project)
+            .single();
 
-            if (projectError || !projectData) {
-              console.error('❌ Project lookup failed:', { projectName: params.project, error: projectError });
-              return {
-                content: [{
-                  type: 'text',
-                  text: `Error: Project "${params.project}" not found`
-                }]
-              };
-            }
-
-            projectId = projectData.id;
-            console.log('✅ Found project:', { name: params.project, id: projectId });
-          } else {
-            // Get the default/most recent project for the authenticated user
-            const authInfo = await verifyToken(currentRequest, apiKey);
-            if (!authInfo?.extra?.userId) {
-              return {
-                content: [{
-                  type: 'text',
-                  text: 'Error: Unable to authenticate user'
-                }]
-              };
-            }
-
-            const { data: userProjects, error: projectsError } = await client
-              .from('user_projects')
-              .select('project_id')
-              .eq('user_id', authInfo.extra.userId)
-              .order('created_at', { ascending: false })
-              .limit(1);
-
-            if (projectsError || !userProjects || userProjects.length === 0) {
-              return {
-                content: [{
-                  type: 'text',
-                  text: 'Error: No projects found for user'
-                }]
-              };
-            }
-
-            projectId = userProjects[0].project_id;
+          if (projectError || !projectData) {
+            console.error('❌ Project lookup failed:', { projectName: params.project, error: projectError });
+            return {
+              content: [{
+                type: 'text',
+                text: `Error: Project "${params.project}" not found`
+              }]
+            };
           }
+
+          projectId = projectData.id;
+          console.log('✅ Found project:', { name: params.project, id: projectId });
 
           // Call graph API directly with project ID
           const url = new URL(currentRequest.url);
