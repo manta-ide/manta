@@ -125,13 +125,13 @@ async function resolveProjectId(userId: string, projectIdentifier: string): Prom
   if (projectError || !projectData) {
     console.log('📁 Project not found, creating new project:', projectIdentifier);
 
-    // Create new project with the given name
+    // Create new project with the given name (default to public)
     const { randomUUID } = require('crypto');
     const newProjectId = randomUUID();
 
     const { data: newProject, error: createError } = await serviceSupabase
       .from('projects')
-      .insert([{ id: newProjectId, name: projectIdentifier, description: `Project: ${projectIdentifier}` }])
+      .insert([{ id: newProjectId, name: projectIdentifier, description: `Project: ${projectIdentifier}`, is_public: true }])
       .select()
       .single();
 

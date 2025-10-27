@@ -62,10 +62,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, is_public = true } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    // Validate is_public if provided
+    if (is_public !== undefined && typeof is_public !== 'boolean') {
+      return NextResponse.json({ error: 'is_public must be a boolean' }, { status: 400 });
     }
 
     // Use service role client for creating projects (bypasses RLS)
@@ -104,6 +109,7 @@ export async function POST(request: NextRequest) {
         id: projectId,
         name: name.trim(),
         description: description?.trim() || null,
+        is_public,
       })
       .select()
       .single();
@@ -133,6 +139,91 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in POST /api/projects:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { projectId, name, description, is_public } = body;
+
+    if (!projectId || typeof projectId !== 'string') {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
+
+    // Validate is_public if provided
+    if (is_public !== undefined && typeof is_public !== 'boolean') {
+      return NextResponse.json({ error: 'is_public must be a boolean' }, { status: 400 });
+    }
+
+    // Use service role client for updating projects (bypasses RLS)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if user is owner of the project
+    const { data: userProject, error: checkError } = await serviceClient
+      .from('user_projects')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .single();
+
+    if (checkError || !userProject) {
+      return NextResponse.json({ error: 'Project not found or access denied' }, { status: 404 });
+    }
+
+    if (userProject.role !== 'owner') {
+      return NextResponse.json({ error: 'Only project owners can update project settings' }, { status: 403 });
+    }
+
+    // Build update object
+    const updates: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (name !== undefined && typeof name === 'string' && name.trim().length > 0) {
+      updates.name = name.trim();
+    }
+
+    if (description !== undefined) {
+      updates.description = typeof description === 'string' ? description.trim() : null;
+    }
+
+    if (is_public !== undefined) {
+      updates.is_public = is_public;
+    }
+
+    // Update the project
+    const { data: project, error: updateError } = await serviceClient
+      .from('projects')
+      .update(updates)
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating project:', updateError);
+      return NextResponse.json({ error: 'Failed to update project' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ...project,
+      role: userProject.role
+    });
+  } catch (error) {
+    console.error('Error in PATCH /api/projects:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

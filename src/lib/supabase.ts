@@ -37,6 +37,7 @@ export type Database = {
     id: string;
     name: string;
     description: string | null;
+    is_public: boolean;
     created_at: string;
     updated_at: string;
   };
@@ -97,7 +98,7 @@ export async function getOrCreateDefaultProject(userId: string) {
   // Check if user already has a project
   const { data: existingUserProject } = await serviceSupabase
     .from('user_projects')
-    .select('project_id, projects(id, name, description, created_at, updated_at)')
+    .select('project_id, projects(id, name, description, is_public, created_at, updated_at)')
     .eq('user_id', userId)
     .eq('role', 'owner')
     .limit(1)
@@ -110,10 +111,10 @@ export async function getOrCreateDefaultProject(userId: string) {
 
   console.log('📁 Creating default project for user:', userId);
 
-  // Create the default project with UUID
+  // Create the default project with UUID (default to public)
   const { data: newProject, error: projectError } = await serviceSupabase
     .from('projects')
-    .insert([{ id: defaultProjectId, name: 'Default Project', description: 'Default Manta project' }])
+    .insert([{ id: defaultProjectId, name: 'Default Project', description: 'Default Manta project', is_public: true }])
     .select()
     .single();
 

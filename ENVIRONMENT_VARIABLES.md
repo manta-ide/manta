@@ -121,7 +121,27 @@ The function automatically has access to:
 - RLS policies use `auth.jwt()->>'sub'` to identify users
 - Seamless integration between Clerk and Supabase Auth
 
-### Row Level Security (RLS)
+### Public and Private Projects
+
+✅ **COMPLETED**: Projects now support public and private visibility settings.
+
+**Database Schema:**
+- Projects table includes `is_public` boolean field (defaults to `true`)
+- All existing projects have been set to public
+- Index on `is_public` for efficient filtering
+
+**Access Control:**
+- **Public Projects**: Anyone can view public projects and their nodes/edges
+- **Private Projects**: Only users with explicit access can view private projects
+- **Modifications**: Only project members can modify nodes/edges
+- **Project Settings**: Only project owners can update project settings (including visibility)
+
+**API Endpoints:**
+- `GET /api/projects` - Returns all projects the user has access to (includes `is_public` field)
+- `POST /api/projects` - Create a new project with optional `is_public` field (defaults to `true`)
+- `PATCH /api/projects` - Update project settings including `is_public` (owner only)
+
+## Row Level Security (RLS)
 
 ✅ **COMPLETED**: All RLS policies have been successfully applied to your Supabase database.
 
