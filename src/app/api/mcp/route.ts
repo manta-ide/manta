@@ -208,8 +208,8 @@ const handler = createMcpHandler(
           if (params.nodeId) {
             graphApiUrl.searchParams.set('nodeId', params.nodeId);
           }
-          // When reading a project, always use system layer only
-          graphApiUrl.searchParams.set('layer', 'system');
+          // Apply layer filtering if specified (defaults to 'system' if not provided)
+          graphApiUrl.searchParams.set('layer', params.layer || 'system');
 
           const acceptHeader = params.format === 'json' ? 'application/json' : 'application/xml, application/json';
 
