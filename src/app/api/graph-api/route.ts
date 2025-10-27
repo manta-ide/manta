@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
         } else {
           graph = getGraphSession();
           if (!graph) {
-            await loadGraphFromFile(user.id);
+            await loadCurrentGraphFromFile(user.id, projectId);
             graph = getGraphSession();
           }
         }
