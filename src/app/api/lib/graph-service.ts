@@ -93,6 +93,71 @@ async function getProjectId(userId: string, retryCount = 0): Promise<string> {
   return project.id;
 }
 
+// Resolve project identifier to project ID
+async function resolveProjectId(userId: string, projectIdentifier: string): Promise<string> {
+  // If it looks like a UUID (36 characters with dashes), treat it as a direct project ID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(projectIdentifier)) {
+    console.log('🔍 Treating projectIdentifier as direct UUID:', projectIdentifier);
+    return projectIdentifier;
+  }
+
+  // Otherwise, treat it as a project name and look it up
+  console.log('🔍 Looking up project by name:', projectIdentifier);
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Supabase service role credentials not configured');
+  }
+
+  const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // Look up project by name for this user
+  const { data: projectData, error: projectError } = await serviceSupabase
+    .from('user_projects')
+    .select('project_id, projects(id, name)')
+    .eq('user_id', userId)
+    .eq('projects.name', projectIdentifier)
+    .single();
+
+  if (projectError || !projectData) {
+    console.log('📁 Project not found, creating new project:', projectIdentifier);
+
+    // Create new project with the given name
+    const { randomUUID } = require('crypto');
+    const newProjectId = randomUUID();
+
+    const { data: newProject, error: createError } = await serviceSupabase
+      .from('projects')
+      .insert([{ id: newProjectId, name: projectIdentifier, description: `Project: ${projectIdentifier}` }])
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating project:', createError);
+      throw createError;
+    }
+
+    // Link user to project
+    const { error: linkError } = await serviceSupabase
+      .from('user_projects')
+      .insert([{ user_id: userId, project_id: newProjectId, role: 'owner' }]);
+
+    if (linkError) {
+      console.error('Error linking user to project:', linkError);
+      throw linkError;
+    }
+
+    console.log('✅ Created and linked project:', newProjectId);
+    return newProjectId;
+  }
+
+  console.log('✅ Found existing project:', projectData.project_id);
+  return projectData.project_id;
+}
+
 // SSE broadcast system
 const activeStreams = globalGraphState.activeStreams;
 
@@ -234,9 +299,9 @@ function normalizeGraph(original: Graph): Graph {
 }
 
 // Read graph from Supabase
-async function readGraphFromSupabase(userId: string, explicitProjectId?: string): Promise<Graph | null> {
+async function readGraphFromSupabase(userId: string, projectIdentifier?: string): Promise<Graph | null> {
   try {
-    const projectId = explicitProjectId || await getProjectId(userId);
+    const projectId = projectIdentifier ? await resolveProjectId(userId, projectIdentifier) : await getProjectId(userId);
 
     // Use service role client to bypass RLS for all database operations
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -297,9 +362,9 @@ async function readGraphFromSupabase(userId: string, explicitProjectId?: string)
 }
 
 // Write graph to Supabase
-async function writeGraphToSupabase(graph: Graph, userId: string, explicitProjectId?: string): Promise<void> {
+async function writeGraphToSupabase(graph: Graph, userId: string, projectIdentifier?: string): Promise<void> {
   try {
-    const projectId = explicitProjectId || await getProjectId(userId);
+    const projectId = projectIdentifier ? await resolveProjectId(userId, projectIdentifier) : await getProjectId(userId);
 
     // Use service role client to bypass RLS for all database operations
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -638,10 +703,10 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
 };
 
 // Helper function to read current graph from Supabase
-const readLocalGraph = async (userId: string = DEFAULT_USER_ID): Promise<any | null> => {
+const readLocalGraph = async (userId: string = DEFAULT_USER_ID, projectId?: string): Promise<any | null> => {
   try {
-    console.log('🔍 TOOL: readLocalGraph via Supabase');
-    const currentGraph = await readGraphFromSupabase(userId);
+    console.log('🔍 TOOL: readLocalGraph via Supabase', { userId, projectId });
+    const currentGraph = await readGraphFromSupabase(userId, projectId);
 
     if (!currentGraph) {
       console.log('🔍 TOOL: No graph found in Supabase');
@@ -662,8 +727,8 @@ const readLocalGraph = async (userId: string = DEFAULT_USER_ID): Promise<any | n
 };
 
 // Helper function to save graph to Supabase
-const saveGraph = async (graph: any, userId: string = DEFAULT_USER_ID): Promise<{ success: boolean; error?: string }> => {
-  console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0);
+const saveGraph = async (graph: any, userId: string = DEFAULT_USER_ID, projectId?: string): Promise<{ success: boolean; error?: string }> => {
+  console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0, { userId, projectId });
 
   try {
     const parsed = GraphSchema.safeParse(graph);
@@ -673,7 +738,7 @@ const saveGraph = async (graph: any, userId: string = DEFAULT_USER_ID): Promise<
       return { success: false, error: `Graph validation failed: ${errorMsg}` };
     }
 
-    await storeCurrentGraphFromAgent(parsed.data, userId);
+    await storeCurrentGraphFromAgent(parsed.data, userId, projectId);
     console.log('✅ TOOL: saveGraph graph saved successfully via Supabase');
     return { success: true };
   } catch (error) {
@@ -696,14 +761,15 @@ export const graphOperations = {
     position?: { x: number; y: number; z?: number };
     metadata?: unknown;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; nodeId?: string }> {
     console.log('➕ TOOL: node_create called', params);
 
-    const { userId = DEFAULT_USER_ID, nodeId: requestedNodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
+    const { userId = DEFAULT_USER_ID, projectId, nodeId: requestedNodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
 
     try {
       // Use Supabase read only
-      const localGraph = await readLocalGraph(userId);
+      const localGraph = await readLocalGraph(userId, projectId);
       if (!localGraph) {
         console.error('❌ TOOL: node_create no graph found in Supabase');
         const errorMsg = 'No graph data available. Please ensure the graph exists.';
@@ -743,7 +809,7 @@ export const graphOperations = {
       console.log('✅ TOOL: node_create added node, total nodes:', validatedGraph.nodes.length);
 
       console.log('💾 TOOL: node_create saving updated graph');
-      const saveResult = await saveGraph(validatedGraph, userId);
+      const saveResult = await saveGraph(validatedGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -774,14 +840,15 @@ export const graphOperations = {
     position?: { x: number; y: number; z?: number };
     metadata?: unknown;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('✏️ TOOL: node_edit called', params);
 
-    const { userId = DEFAULT_USER_ID, nodeId, mode = 'replace', title, prompt: description, type, level, comment, properties, children, position, metadata } = params;
+    const { userId = DEFAULT_USER_ID, projectId, nodeId, mode = 'replace', title, prompt: description, type, level, comment, properties, children, position, metadata } = params;
 
     try {
       // Use Supabase read only
-      const localGraph = await readLocalGraph(userId);
+      const localGraph = await readLocalGraph(userId, projectId);
       if (!localGraph) {
         console.error('❌ TOOL: node_edit no graph found in Supabase');
         const errorMsg = 'No graph data available. Please ensure the graph exists.';
@@ -946,7 +1013,7 @@ export const graphOperations = {
 
       validatedGraph.nodes[idx] = next;
       console.log('💾 TOOL: node_edit saving updated graph');
-      const saveResult = await saveGraph(validatedGraph, userId);
+      const saveResult = await saveGraph(validatedGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -966,14 +1033,15 @@ export const graphOperations = {
     nodeId: string;
     recursive?: boolean;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🗑️ TOOL: node_delete called', params);
 
-    const { userId = DEFAULT_USER_ID, nodeId, recursive } = params;
+    const { userId = DEFAULT_USER_ID, projectId, nodeId, recursive } = params;
 
     try {
       // Use Supabase read only
-      const localGraph = await readLocalGraph(userId);
+      const localGraph = await readLocalGraph(userId, projectId);
       if (!localGraph) {
         console.error('❌ TOOL: node_delete no graph found in Supabase');
         const errorMsg = 'No graph data available. Please ensure the graph exists.';
@@ -1025,7 +1093,7 @@ export const graphOperations = {
       }
 
       console.log('💾 TOOL: node_delete saving updated graph');
-      const saveResult = await saveGraph(validatedGraph, userId);
+      const saveResult = await saveGraph(validatedGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -1046,14 +1114,15 @@ export const graphOperations = {
     role?: string;
     shape?: string;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; edgeId?: string }> {
     console.log('🔗 TOOL: edge_create called', params);
 
-    const { userId = DEFAULT_USER_ID, sourceId, targetId, role, shape } = params;
+    const { userId = DEFAULT_USER_ID, projectId, sourceId, targetId, role, shape } = params;
 
     try {
       // Use Supabase read only
-      const localGraph = await readLocalGraph(userId);
+      const localGraph = await readLocalGraph(userId, projectId);
       if (!localGraph) {
         console.error('❌ TOOL: edge_create no graph found in Supabase');
         const errorMsg = 'No graph data available. Please ensure the graph exists.';
@@ -1108,7 +1177,7 @@ export const graphOperations = {
       console.log('✅ TOOL: edge_create added edge, total edges:', validatedGraph.edges.length);
 
       console.log('💾 TOOL: edge_create saving updated graph');
-      const saveResult = await saveGraph(validatedGraph, userId);
+      const saveResult = await saveGraph(validatedGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -1127,14 +1196,15 @@ export const graphOperations = {
     sourceId: string;
     targetId: string;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🗑️ TOOL: edge_delete called', params);
 
-    const { userId = DEFAULT_USER_ID, sourceId, targetId } = params;
+    const { userId = DEFAULT_USER_ID, projectId, sourceId, targetId } = params;
 
     try {
       // Use Supabase read only
-      const localGraph = await readLocalGraph(userId);
+      const localGraph = await readLocalGraph(userId, projectId);
       if (!localGraph) {
         console.error('❌ TOOL: edge_delete no graph found in Supabase');
         const errorMsg = 'No graph data available. Please ensure the graph exists.';
@@ -1159,7 +1229,7 @@ export const graphOperations = {
       console.log('✅ TOOL: edge_delete removed edge, total edges:', validatedGraph.edges.length);
 
       console.log('💾 TOOL: edge_delete saving updated graph');
-      const saveResult = await saveGraph(validatedGraph, userId);
+      const saveResult = await saveGraph(validatedGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -1180,13 +1250,14 @@ export const graphOperations = {
     bugs?: string[];
     merge?: boolean;
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🗂️ TOOL: node_metadata_update called', params);
 
-    const { userId = DEFAULT_USER_ID, nodeId, files, bugs, merge = false } = params;
+    const { userId = DEFAULT_USER_ID, projectId, nodeId, files, bugs, merge = false } = params;
 
     try {
-      const graphData = await readLocalGraph(userId);
+      const graphData = await readLocalGraph(userId, projectId);
       if (!graphData) {
         console.error('❌ TOOL: node_metadata_update no graph data available in Supabase');
         const errorMsg = 'No graph data available. Please ensure the graph exists.';
@@ -1257,7 +1328,7 @@ export const graphOperations = {
       nextGraph.nodes[idx] = nextNode;
 
       console.log('💾 TOOL: node_metadata_update saving graph with metadata files:', finalFiles.length, 'bugs:', finalBugs.length);
-      const saveResult = await saveGraph(nextGraph, userId);
+      const saveResult = await saveGraph(nextGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -1281,10 +1352,10 @@ export const graphOperations = {
     }
   },
 
-  async graphClear(params: { userId?: string }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
+  async graphClear(params: { userId?: string; projectId?: string }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🧹 TOOL: graph_clear called', params);
 
-    const { userId = DEFAULT_USER_ID } = params;
+    const { userId = DEFAULT_USER_ID, projectId } = params;
 
     try {
       // Create empty graph structure
@@ -1296,7 +1367,7 @@ export const graphOperations = {
       console.log('💾 TOOL: graph_clear clearing graph');
 
       // Clear the graph
-      const saveResult = await saveGraph(emptyGraph, userId);
+      const saveResult = await saveGraph(emptyGraph, userId, projectId);
       if (!saveResult.success) {
         return { success: false, error: saveResult.error };
       }
@@ -1319,14 +1390,15 @@ export const graphOperations = {
     includeChildren?: boolean;
     format?: 'json' | 'xml'; // Optional format parameter, defaults to 'json'
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
+    projectId?: string; // Optional projectId parameter
   }): Promise<{ success: boolean; error?: string; node?: any; layers?: any[]; content?: string }> {
     console.log('🔍 TOOL: read called', params);
 
-    const { userId = DEFAULT_USER_ID, nodeId, layer, includeProperties, includeChildren, format = 'json' } = params;
+    const { userId = DEFAULT_USER_ID, projectId, nodeId, layer, includeProperties, includeChildren, format = 'json' } = params;
 
     try {
       // Get graph data
-      const graphResult = await readLocalGraph(userId);
+      const graphResult = await readLocalGraph(userId, projectId);
       if (!graphResult) {
         return { success: false, error: 'No graph available' };
       }

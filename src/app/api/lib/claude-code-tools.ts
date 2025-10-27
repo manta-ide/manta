@@ -4,7 +4,7 @@ import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from '
 import { graphOperations } from './graph-service';
 
 export const createGraphTools = (baseUrl: string, userId?: string) => {
-  console.log('🔧 Creating graph tools (graph-service backed)', { baseUrl });
+  console.log('🔧 Creating graph tools (API backed)', { baseUrl });
 
   return [
   // read (rich read)
@@ -12,21 +12,25 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
     'read',
     'Read from the graph, or a specific node with all its connections. Can filter by C4 architectural layer.',
     {
+      projectId: z.string().describe('The project ID to read from'),
       nodeId: z.string().optional(),
       layer: z.enum(['system', 'container', 'component', 'code']).optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code"'),
       includeProperties: z.boolean().optional(),
       includeChildren: z.boolean().optional(),
+      format: z.enum(['json', 'xml']).optional().describe('Output format: "json" or "xml" (defaults to "json")'),
     },
-    async ({ nodeId, layer, includeProperties, includeChildren }) => {
-      console.log('🔍 TOOL: read called directly', { nodeId, layer, includeProperties, includeChildren });
+    async ({ projectId, nodeId, layer, includeProperties, includeChildren, format = 'json' }) => {
+      console.log('🔍 TOOL: read called', { projectId, nodeId, layer, includeProperties, includeChildren, format });
 
       try {
         const result = await graphOperations.read({
           userId,
+          projectId,
           nodeId,
           layer,
           includeProperties,
-          includeChildren
+          includeChildren,
+          format
         });
 
         if (!result.success) {
@@ -36,15 +40,19 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
 
         console.log('📤 TOOL: read success');
 
-        if (nodeId && result.node) {
-          // Format individual node data
-          let text = `**Node: ${result.node.title} (${nodeId})**\n\n`;
-          text += `**Description:** ${result.node.description || 'No description'}\n\n`;
+        if (result.content) {
+          // XML format
+          return { content: [{ type: 'text', text: result.content }] };
+        } else if (result.node) {
+          // JSON format - individual node
+          const node = result.node;
+          let text = `**Node: ${node.title} (${nodeId})**\n\n`;
+          text += `**Description:** ${node.description || 'No description'}\n\n`;
 
           // Add properties if they exist and are requested
-          if (includeProperties && result.node.properties && result.node.properties.length > 0) {
+          if (includeProperties && node.properties && node.properties.length > 0) {
             text += `**Properties:**\n`;
-            result.node.properties.forEach((prop: any) => {
+            node.properties.forEach((prop: any) => {
               const hasMinMax = (typeof prop.min === 'number') || (typeof prop.max === 'number');
               const rangeText = hasMinMax ? ` [${prop.min ?? ''}..${prop.max ?? ''}${typeof prop.step === 'number' ? `, step ${prop.step}` : ''}]` : '';
               text += `- ${prop.id}: ${JSON.stringify(prop.value)} (${prop.type}${rangeText})\n`;
@@ -53,17 +61,13 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
           }
 
           // Add connections if they exist
-          // Note: This would need to be enhanced to get actual connections
           text += `**Connections:** Available through graph query\n`;
 
           return { content: [{ type: 'text', text }] };
-        }
-
-        if (result.layers) {
-          // Format layer data
-          const layerInfo = layer ? ` (filtered by ${layer} layer)` : '';
+        } else if (result.layers) {
+          // JSON format - layers
           const formattedResult = JSON.stringify({ layers: result.layers }, null, 2);
-          return { content: [{ type: 'text', text: `Graph Layers${layerInfo}:\n${formattedResult}` }] };
+          return { content: [{ type: 'text', text: `Graph Layers:\n${formattedResult}` }] };
         }
 
         // Fallback
@@ -81,17 +85,19 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
     'edge_create',
     'Create a connection (edge) between two nodes in the graph.',
     {
+      projectId: z.string().describe('The project ID to operate on'),
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
       role: z.string().optional(),
       shape: z.enum(['refines', 'relates']).optional().describe('The semantic relationship type: "refines" for hierarchical connections, "relates" for same-level connections'),
     },
-    async ({ sourceId, targetId, role, shape }) => {
-      console.log('🔗 TOOL: edge_create called directly', { sourceId, targetId, role, shape });
+    async ({ projectId, sourceId, targetId, role, shape }) => {
+      console.log('🔗 TOOL: edge_create called', { projectId, sourceId, targetId, role, shape });
 
       try {
         const result = await graphOperations.edgeCreate({
           userId,
+          projectId,
           sourceId,
           targetId,
           role,
@@ -120,15 +126,17 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
     'edge_delete',
     'Delete a connection (edge) between two nodes in the graph.',
     {
+      projectId: z.string().describe('The project ID to operate on'),
       sourceId: z.string().min(1, 'Source node ID is required'),
       targetId: z.string().min(1, 'Target node ID is required'),
     },
-    async ({ sourceId, targetId }) => {
-      console.log('🗑️ TOOL: edge_delete called directly', { sourceId, targetId });
+    async ({ projectId, sourceId, targetId }) => {
+      console.log('🗑️ TOOL: edge_delete called', { projectId, sourceId, targetId });
 
       try {
         const result = await graphOperations.edgeDelete({
           userId,
+          projectId,
           sourceId,
           targetId
         });
@@ -153,6 +161,7 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
     'node_create',
     'Create a new node and persist it to the graph.',
     {
+      projectId: z.string().describe('The project ID to operate on'),
       nodeId: z.string().min(1),
       title: z.string().min(1),
       prompt: z.string().min(1),
@@ -163,13 +172,14 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, title, prompt, type, level, comment, properties, position, metadata }) => {
-      console.log('➕ TOOL: node_create called directly', { nodeId, title, type, comment: !!comment, position: !!position, metadata });
+    async ({ projectId, nodeId, title, prompt, type, level, comment, properties, position, metadata }) => {
+      console.log('➕ TOOL: node_create called', { projectId, nodeId, title, type, comment: !!comment, position: !!position, metadata });
 
       try {
         const result = await graphOperations.nodeCreate({
           nodeId,
           userId,
+          projectId,
           title,
           prompt,
           type,
@@ -203,6 +213,7 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
     'node_edit',
     'Edit node fields with two modes: replace (fully replaces node) or merge (merges properties with existing data).',
     {
+      projectId: z.string().describe('The project ID to operate on'),
       nodeId: z.string().min(1),
       mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
       title: z.string().optional(),
@@ -215,12 +226,13 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata }) => {
-      console.log('✏️ TOOL: node_edit called directly', { nodeId, mode, title: !!title, prompt: !!prompt, type: !!type, level: !!level, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
+    async ({ projectId, nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata }) => {
+      console.log('✏️ TOOL: node_edit called', { projectId, nodeId, mode, title: !!title, prompt: !!prompt, type: !!type, level: !!level, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
 
       try {
         const result = await graphOperations.nodeEdit({
           userId,
+          projectId,
           nodeId,
           mode,
           title,
@@ -255,17 +267,19 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
     'node_metadata_update',
     'Update metadata for a node, including implementation file references and bug tracking.',
     {
+      projectId: z.string().describe('The project ID to operate on'),
       nodeId: z.string().min(1),
       files: z.array(z.string().min(1)).optional().describe('Project-relative file paths to associate with this node.'),
       bugs: z.array(z.string().min(1)).optional().describe('List of bugs that need to be fixed for this node.'),
       merge: z.boolean().optional().describe('If true, merge with existing metadata instead of replacing it.'),
     },
-    async ({ nodeId, files, bugs, merge = false }) => {
-      console.log('🗂️ TOOL: node_metadata_update called directly', { nodeId, filesCount: files?.length ?? 'undefined', bugsCount: bugs?.length ?? 'undefined', merge });
+    async ({ projectId, nodeId, files, bugs, merge = false }) => {
+      console.log('🗂️ TOOL: node_metadata_update called', { projectId, nodeId, filesCount: files?.length ?? 'undefined', bugsCount: bugs?.length ?? 'undefined', merge });
 
       try {
         const result = await graphOperations.nodeMetadataUpdate({
           userId,
+          projectId,
           nodeId,
           files,
           bugs,
@@ -292,13 +306,18 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
   tool(
     'node_delete',
     'Delete a node by id.',
-    { nodeId: z.string().min(1), recursive: z.boolean().optional().default(true) },
-    async ({ nodeId, recursive }) => {
-      console.log('🗑️ TOOL: node_delete called directly', { nodeId, recursive });
+    {
+      projectId: z.string().describe('The project ID to operate on'),
+      nodeId: z.string().min(1),
+      recursive: z.boolean().optional().default(true)
+    },
+    async ({ projectId, nodeId, recursive }) => {
+      console.log('🗑️ TOOL: node_delete called', { projectId, nodeId, recursive });
 
       try {
         const result = await graphOperations.nodeDelete({
           userId,
+          projectId,
           nodeId,
           recursive
         });
@@ -322,12 +341,14 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
   tool(
     'graph_clear',
     'Fully clear the graph, leaving only empty nodes and edges tags, and outer structure.',
-    {},
-    async () => {
-      console.log('🧹 TOOL: graph_clear called directly');
+    {
+      projectId: z.string().describe('The project ID to operate on'),
+    },
+    async ({ projectId }) => {
+      console.log('🧹 TOOL: graph_clear called', { projectId });
 
       try {
-        const result = await graphOperations.graphClear({ userId });
+        const result = await graphOperations.graphClear({ userId, projectId });
 
         if (!result.success) {
           console.error('❌ TOOL: graph_clear operation failed:', result.error);
