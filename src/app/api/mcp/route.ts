@@ -46,17 +46,19 @@ const handler = createMcpHandler(
   (server) => {
     server.tool(
       'read',
-      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer.',
+      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Returns XML by default.',
       {
         nodeId: z.string().optional().describe('Optional node ID to read specific node details'),
         layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
-        includeProperties: z.boolean().optional().describe('Whether to include node properties in the response')
+        includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
+        format: z.enum(['json', 'xml']).optional().describe('Output format: "json" or "xml" (defaults to "xml")')
       },
       async (params) => {
         console.log('🔍 MCP TOOL: read called', params);
 
         try {
-          const result = await graphOperations.read(params);
+          // Default to XML format for MCP
+          const result = await graphOperations.read({ ...params, format: params.format || 'xml' });
 
           if (!result.success) {
             console.error('❌ MCP TOOL: read error:', result.error);
@@ -70,6 +72,17 @@ const handler = createMcpHandler(
 
           console.log('📤 MCP TOOL: read success');
 
+          // Handle XML format response
+          if (result.content) {
+            return {
+              content: [{
+                type: 'text',
+                text: result.content
+              }]
+            };
+          }
+
+          // Handle JSON format response (legacy support)
           if (params.nodeId) {
             // When nodeId is specified, return the full node details
             return {

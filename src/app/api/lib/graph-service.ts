@@ -1317,11 +1317,12 @@ export const graphOperations = {
     layer?: string;
     includeProperties?: boolean;
     includeChildren?: boolean;
+    format?: 'json' | 'xml'; // Optional format parameter, defaults to 'json'
     userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-  }): Promise<{ success: boolean; error?: string; node?: any; layers?: any[] }> {
+  }): Promise<{ success: boolean; error?: string; node?: any; layers?: any[]; content?: string }> {
     console.log('🔍 TOOL: read called', params);
 
-    const { userId = DEFAULT_USER_ID, nodeId, layer, includeProperties, includeChildren } = params;
+    const { userId = DEFAULT_USER_ID, nodeId, layer, includeProperties, includeChildren, format = 'json' } = params;
 
     try {
       // Get graph data
@@ -1340,7 +1341,15 @@ export const graphOperations = {
         }
 
         // Return full node details
-        return { success: true, node: node };
+        if (format === 'xml') {
+          // For XML format, return the full graph with just the requested node
+          const singleNodeGraph = { nodes: [node], edges: [] };
+          const xmlContent = graphToXml(singleNodeGraph);
+          return { success: true, content: xmlContent };
+        } else {
+          // JSON format
+          return { success: true, node: node };
+        }
       }
 
       // Determine which layer to use (default to 'system')
@@ -1370,7 +1379,15 @@ export const graphOperations = {
         nodes
       }));
 
-      return { success: true, layers: result };
+      if (format === 'xml') {
+        // For XML format, return the filtered graph
+        const filteredGraph = { nodes: filteredNodes, edges: graph.edges || [] };
+        const xmlContent = graphToXml(filteredGraph);
+        return { success: true, content: xmlContent };
+      } else {
+        // JSON format
+        return { success: true, layers: result };
+      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

@@ -1,21 +1,7 @@
 import { create } from 'zustand';
 import { FileNode, Graph, GraphNode, GraphEdge } from '@/app/api/lib/schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
-import { autoMarkUnbuiltFromBaseGraph } from './graph-diff';
 import { applyLayerToGraph } from './layers';
-
-// Base graphs removed - no longer need graph state updates
-
-// Utility function to determine if we're in local mode
-const isLocalMode = (): boolean => {
-  if (typeof window === 'undefined') return false; // SSR fallback
-  try {
-    const { hostname, port } = window.location;
-    return (hostname === 'localhost' || hostname === '127.0.0.1') && (port === '' || port === '3000');
-  } catch {
-    return false;
-  }
-};
 
 interface ProjectStore {
   // Project state
