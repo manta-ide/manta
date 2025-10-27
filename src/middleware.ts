@@ -12,6 +12,8 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/api/mcp', // MCP route uses API key authentication, not Clerk
+  '/api/graph-api', // Graph API route supports both Clerk and API key authentication
 ])
 
 export default clerkMiddleware(async (auth, req) => {

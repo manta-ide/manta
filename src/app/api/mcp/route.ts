@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createMcpHandler, withMcpAuth } from 'mcp-handler';
+import { createMcpHandler } from 'mcp-handler';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { createServerSupabaseClient } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 const verifyToken = async (
@@ -14,8 +14,16 @@ const verifyToken = async (
       // Hash the provided token
       const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
 
-      // Check against stored API keys in Supabase
-      const client = createServerSupabaseClient();
+      // Check against stored API keys in Supabase using service client
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseServiceKey) {
+        return undefined;
+      }
+
+      const client = createClient(supabaseUrl, supabaseServiceKey);
+
       const { data: apiKeyData, error } = await client
         .from('api_keys')
         .select('user_id, name')
@@ -51,7 +59,7 @@ const handler = createMcpHandler(
       'read',
       'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Returns XML by default. Use the project field to specify which project to read from (GitHub format: username/repository).',
       {
-        project: z.string().optional().describe('Project name in GitHub format (username/repository), e.g., "primefaces/primereact". If not specified, reads from the default project.'),
+        project: z.string().describe('Project name in GitHub format (username/repository), e.g., "primefaces/primereact".'),
         nodeId: z.string().optional().describe('Optional node ID to read specific node details'),
         layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
@@ -75,7 +83,9 @@ const handler = createMcpHandler(
 
           let projectId;
 
-          const client = createServerSupabaseClient();
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
+          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const client = createClient(supabaseUrl, supabaseServiceKey!);
 
           // If project is specified, resolve it to a project ID
           if (params.project) {
@@ -135,9 +145,8 @@ const handler = createMcpHandler(
           if (params.nodeId) {
             graphApiUrl.searchParams.set('nodeId', params.nodeId);
           }
-          if (params.layer) {
-            graphApiUrl.searchParams.set('layer', params.layer);
-          }
+          // When reading a project, always use system layer only
+          graphApiUrl.searchParams.set('layer', 'system');
 
           const acceptHeader = params.format === 'json' ? 'application/json' : 'application/xml, application/json';
 
@@ -187,16 +196,45 @@ const handler = createMcpHandler(
   { basePath: '/api' },
 );
 
-const authHandler = withMcpAuth(handler, verifyToken, {
-  required: true,
-  requiredScopes: ['read:graph'],
-  resourceMetadataPath: '/.well-known/oauth-protected-resource',
-});
+// Custom authentication wrapper that handles MANTA-API-KEY header
+async function customAuthHandler(request: Request) {
+  // Extract API key from MANTA-API-KEY header
+  const apiKey = request.headers.get('manta-api-key');
 
-// Wrap the handler to capture the request
-async function wrappedHandler(request: Request) {
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({
+        error: 'invalid_token',
+        error_description: 'No authorization provided'
+      }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  // Verify the API key
+  const authInfo = await verifyToken(request, apiKey);
+
+  if (!authInfo) {
+    return new Response(
+      JSON.stringify({
+        error: 'invalid_token',
+        error_description: 'Invalid API key'
+      }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  // Set the current request for use in tool handlers
   currentRequest = request;
-  return authHandler(request);
+
+  // Call the handler (which should now work since we have auth)
+  return handler(request);
 }
 
-export { wrappedHandler as GET, wrappedHandler as POST, wrappedHandler as DELETE };
+export { customAuthHandler as GET, customAuthHandler as POST, customAuthHandler as DELETE };

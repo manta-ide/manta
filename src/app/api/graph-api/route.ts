@@ -3,16 +3,59 @@ import { getGraphSession, loadGraphFromFile, storeGraph, registerStreamControlle
 import { graphToXml, xmlToGraph } from '@/lib/graph-xml';
 import { GraphSchema } from '../lib/schemas';
 import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 const LOCAL_MODE = process.env.NODE_ENV !== 'production';
 
+// Authentication helper that supports both Clerk and API key authentication
+async function authenticateUser(req: NextRequest): Promise<{ userId: string } | null> {
+  try {
+    // Try API key authentication first
+    const apiKey = req.headers.get('manta-api-key');
+    if (apiKey && apiKey.startsWith('manta_')) {
+      const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseServiceKey) {
+        return null;
+      }
+
+      const client = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: apiKeyData, error } = await client
+        .from('api_keys')
+        .select('user_id')
+        .eq('key_hash', keyHash)
+        .single();
+
+      if (!error && apiKeyData) {
+        return { userId: apiKeyData.user_id };
+      }
+    }
+
+    // Fallback to Clerk authentication
+    const { userId } = await auth();
+    if (userId) {
+      return { userId };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return null;
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
-    // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    // Authenticate user (supports both Clerk and API key authentication)
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { userId } = authResult;
 
     const user = { id: userId };
     
@@ -242,11 +285,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    // Authenticate user (supports both Clerk and API key authentication)
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { userId } = authResult;
 
     const user = { id: userId };
 
@@ -301,11 +345,12 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    // Authenticate user (supports both Clerk and API key authentication)
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { userId } = authResult;
 
     const user = { id: userId };
     
@@ -354,11 +399,12 @@ export async function PUT(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    // Authenticate user (supports both Clerk and API key authentication)
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { userId } = authResult;
 
     const user = { id: userId };
     
@@ -429,11 +475,12 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    // Authenticate user (supports both Clerk and API key authentication)
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { userId } = authResult;
 
     console.log('🗑️ Deleting graph for user:', userId);
 
