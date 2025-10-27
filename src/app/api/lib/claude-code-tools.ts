@@ -315,7 +315,7 @@ export const createGraphTools = (baseUrl: string) => {
       console.log('🧹 TOOL: graph_clear called directly');
 
       try {
-        const result = await graphOperations.graphClear();
+        const result = await graphOperations.graphClear({});
 
         if (!result.success) {
           console.error('❌ TOOL: graph_clear operation failed:', result.error);

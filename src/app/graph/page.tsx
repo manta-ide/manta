@@ -12,13 +12,14 @@ import { useEffect } from 'react';
 function GraphContent() {
   const { sidebarWidth } = useSidebar();
   const layersSidebarOpen = useProjectStore((s) => s.layersSidebarOpen);
+  const currentProjectId = useProjectStore((s) => s.currentProjectId);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ marginLeft: sidebarWidth }}>
       <div className="flex h-full">
         <SelectedNodeSidebar />
         <div className="relative flex-1 min-w-0">
-          <GraphView />
+          <GraphView projectId={currentProjectId || ''} />
           <SearchOverlay />
           <FloatingChat />
         </div>
