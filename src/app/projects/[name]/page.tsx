@@ -94,8 +94,8 @@ export default function ProjectPage({ params }: { params: Promise<{ name: string
   const resolvedParams = use(params);
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
   
-  // Decode the URL-encoded project name
-  const projectName = decodeURIComponent(resolvedParams.name);
+  // Convert URL format from "account-repo" back to "account/repo"
+  const projectName = resolvedParams.name.replace(/-/g, '/');
 
   useEffect(() => {
     const handler = () => setLayersSidebarOpen(true);

@@ -1028,7 +1028,10 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
 
   // Initialize layers and graphs when component mounts
   useEffect(() => {
-    console.log('🏁 GraphView component mounted, loading layers and graphs...');
+    console.log('🏁 GraphView component mounted or projectId changed, loading layers and graphs...', { projectId });
+
+    // Reset loading state when project changes
+    setGraphsLoaded(false);
 
     // Load layers first to ensure activeLayer is set before graph loading
     const { loadLayers } = useProjectStore.getState();
@@ -1052,7 +1055,7 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
         setGraphsLoaded(true);
       });
     });
-  }, [loadGraphs]);
+  }, [loadGraphs, projectId]);
 
   // Handle keyboard shortcuts for deletion (Delete and Backspace keys)
   useEffect(() => {

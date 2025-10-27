@@ -278,15 +278,26 @@ FOR UPDATE USING (
 );
 ```
 
-## Legacy MCP OAuth Configuration
+## MCP Authentication
 
-To enable OAuth authentication for the MCP server, set the following environment variables:
+MCP authentication uses API keys generated through the UI at `/api-keys`. Include your API key in the request using the `MANTA-API-KEY` header:
 
-### MCP_ACCESS_TOKEN
-A secure access token that clients must provide in the Authorization header.
+```json
+{
+  "mcpServers": {
+    "manta-graph-reader": {
+      "url": "https://your-manta-instance.com/api/mcp",
+      "headers": {
+        "MANTA-API-KEY": "manta_your-generated-api-key"
+      }
+    }
+  }
+}
 ```
-MCP_ACCESS_TOKEN=your-secure-access-token-here
-```
+
+### Legacy Environment Variables (Deprecated)
+
+The following legacy environment variables are no longer used:
 
 ### OAUTH_AUTHORIZATION_SERVER_URL
 The URL of your OAuth authorization server that issues valid tokens.
