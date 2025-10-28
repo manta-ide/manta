@@ -12,7 +12,7 @@ const LOCAL_MODE = process.env.NODE_ENV !== 'production';
 async function authenticateUser(req: NextRequest): Promise<{ userId: string } | null> {
   try {
     // Try API key authentication first
-    const apiKey = req.headers.get('manta-api-key');
+    const apiKey = req.headers.get('MANTA_API_KEY');
     if (apiKey && apiKey.startsWith('manta_')) {
       const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
 
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
                  graph = getGraphSession();
                  if (!graph) {
                    try {
-                     await loadGraphFromFile(user.id);
+                     await loadGraphFromFile(user.id, projectId);
                      graph = getGraphSession();
                    } catch (loadError) {
                      console.log('ℹ️ No graph file found, skipping SSE update (loadError: ', loadError, ')');
@@ -307,10 +307,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get projectId from body
+    const projectId = params.projectId;
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'Project ID is required' },
+        { status: 400 }
+      );
+    }
+
     // Get graph data - always load from file first
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile(user.id);
+      await loadGraphFromFile(user.id, projectId);
       graph = getGraphSession();
     }
 
@@ -409,7 +418,7 @@ export async function PATCH(req: NextRequest) {
     const user = { id: userId };
     
     const body = await req.json();
-    const { nodeId, propertyId, value } = body;
+    const { nodeId, propertyId, value, projectId } = body;
     
     if (!nodeId || !propertyId) {
       return NextResponse.json(
@@ -417,11 +426,18 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'Project ID is required' },
+        { status: 400 }
+      );
+    }
     
     // Get current graph
     let graph = getGraphSession();
     if (!graph) {
-      await loadGraphFromFile(user.id);
+      await loadGraphFromFile(user.id, projectId);
       graph = getGraphSession();
     }
     
@@ -455,7 +471,7 @@ export async function PATCH(req: NextRequest) {
     node.properties[propertyIndex] = { ...node.properties[propertyIndex], value };
 
     // Save the updated graph without broadcasting (user-initiated change)
-    await storeCurrentGraphWithoutBroadcast(graph, user.id);
+    await storeCurrentGraphWithoutBroadcast(graph, user.id, projectId);
 
     console.log(`✅ Property updated successfully`);
 
@@ -484,8 +500,16 @@ export async function DELETE(req: NextRequest) {
 
     console.log('🗑️ Deleting graph for user:', userId);
 
+    // Get projectId from query params
+    const url = new URL(req.url);
+    const projectId = url.searchParams.get('projectId');
+    
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
+
     // Clear the graph from storage and delete the file
-    await clearGraphSession(userId);
+    await clearGraphSession(userId, projectId);
 
     console.log('✅ Graph deleted successfully');
 

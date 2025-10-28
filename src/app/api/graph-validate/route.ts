@@ -7,8 +7,8 @@ import type { Graph, GraphEdge, GraphNode } from '@/app/api/lib/schemas';
 type Layer = 'system' | 'container' | 'component' | 'code';
 const C4_LAYERS: Layer[] = ['system', 'container', 'component', 'code'];
 
-function ensureGraphLoaded() {
-  return loadCurrentGraphFromFile('default-user').catch(() => null);
+function ensureGraphLoaded(userId: string, projectId: string) {
+  return loadCurrentGraphFromFile(userId, projectId).catch(() => null);
 }
 
 function getProjectRoot(): string {
@@ -36,10 +36,22 @@ function layerOf(node: GraphNode): Layer | null {
 
 export async function GET(req: NextRequest) {
   try {
+    // Get required parameters
+    const url = new URL(req.url);
+    const userId = url.searchParams.get('userId') || 'default-user';
+    const projectId = url.searchParams.get('projectId');
+    
+    if (!projectId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Project ID is required'
+      }, { status: 400 });
+    }
+
     // Load graph from backing store if needed
     let graph: Graph | null = getGraphSession();
     if (!graph) {
-      await ensureGraphLoaded();
+      await ensureGraphLoaded(userId, projectId);
       graph = getGraphSession();
     }
 

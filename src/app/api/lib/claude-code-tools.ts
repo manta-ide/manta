@@ -3,10 +3,55 @@ import { z } from 'zod';
 import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from './schemas';
 import { graphOperations } from './graph-service';
 
-export const createGraphTools = (baseUrl: string, userId?: string) => {
-  console.log('🔧 Creating graph tools (API backed)', { baseUrl });
+export const createGraphTools = (baseUrl: string, userId: string) => {
+  console.log('🔧 Creating graph tools (API backed)', { baseUrl, userId });
 
   return [
+  // list_projects
+  tool(
+    'list_projects',
+    'List all projects available to the user. Returns project ID, name, description, and creation date.',
+    {},
+    async () => {
+      console.log('📋 TOOL: list_projects called', { userId });
+
+      try {
+        const result = await graphOperations.listProjects({ userId });
+
+        if (!result.success) {
+          console.error('❌ TOOL: list_projects operation failed:', result.error);
+          return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+        }
+
+        console.log('📤 TOOL: list_projects success, found', result.projects?.length || 0, 'projects');
+
+        if (result.projects && result.projects.length > 0) {
+          let text = `**Available Projects (${result.projects.length})**\n\n`;
+          result.projects.forEach((project: any) => {
+            text += `**${project.name}** (ID: \`${project.id}\`)\n`;
+            if (project.description) {
+              text += `  Description: ${project.description}\n`;
+            }
+            if (project.role) {
+              text += `  Role: ${project.role}\n`;
+            }
+            if (project.created_at) {
+              text += `  Created: ${new Date(project.created_at).toLocaleDateString()}\n`;
+            }
+            text += '\n';
+          });
+          return { content: [{ type: 'text', text }] };
+        } else {
+          return { content: [{ type: 'text', text: 'No projects found. You may need to create a new project first.' }] };
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('💥 TOOL: list_projects operation error:', errorMessage);
+        return { content: [{ type: 'text', text: `Error: Failed to list projects: ${errorMessage}` }] };
+      }
+    }
+  ),
+
   // read (rich read)
   tool(
     'read',
@@ -368,7 +413,7 @@ export const createGraphTools = (baseUrl: string, userId?: string) => {
   ];
 };
 
-export const createGraphMcpServer = (baseUrl: string, userId?: string) => {
+export const createGraphMcpServer = (baseUrl: string, userId: string) => {
   console.log('🔧 Creating graph MCP server', { baseUrl, userId });
   const tools = createGraphTools(baseUrl, userId);
   return createSdkMcpServer({ name: 'graph-tools', version: '1.0.0', tools });

@@ -4,7 +4,6 @@ import * as fs from 'fs';
 import { spawn } from 'child_process';
 import { query, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, type SDKResultMessage, type SDKSystemMessage, type SDKPartialAssistantMessage, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
-import { createGraphMcpServer } from '../../lib/claude-code-tools';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
 
@@ -480,7 +479,24 @@ export async function POST(req: NextRequest) {
 
           // Configure based on subagent
           const baseUrl = getBaseUrl(req as any);
-          const mcpServer = createGraphMcpServer(baseUrl, userId);
+          
+          // Get API key from environment variable
+          const apiKey = process.env.MANTA_API_KEY;
+          
+          if (!apiKey) {
+            throw new Error('MANTA_API_KEY environment variable is not set');
+          }
+
+          logLine(`🔑 Using API key from environment for MCP authentication`);
+
+          // Configure MCP server to use HTTP endpoint instead of local server
+          const mcpServerConfig = {
+            type: 'http',
+            url: `${baseUrl}/api/mcp`,
+            headers: {
+              'MANTA_API_KEY': apiKey
+            }
+          };
 
           // Log the working directory
           const workingDirectory = projectDir();
@@ -509,9 +525,9 @@ export async function POST(req: NextRequest) {
           const queryOptions: Options = {
             includePartialMessages: true,
             systemPrompt: orchestratorSystemPrompt,
-            mcpServers: { 'graph-tools': mcpServer },
+            mcpServers: { 'manta': mcpServerConfig },
             //allowedTools: ['Task'],
-            //disallowedTools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__graph-tools__node_metadata_update','mcp__graph-tools__read','mcp__graph-tools__node_create','mcp__graph-tools__node_edit','mcp__graph-tools__node_delete','mcp__graph-tools__edge_create','mcp__graph-tools__edge_delete','WebSearch',"SlashCommand"],
+            //disallowedTools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__manta__node_metadata_update','mcp__manta__read','mcp__manta__node_create','mcp__manta__node_edit','mcp__manta__node_delete','mcp__manta__edge_create','mcp__manta__edge_delete','WebSearch',"SlashCommand"],
             permissionMode: 'bypassPermissions',
             abortController: new AbortController(),
             cwd: workingDirectory,
@@ -637,7 +653,7 @@ export async function POST(req: NextRequest) {
       if ((message as any).tool_calls) {
         logLine('🔧 Claude wants to execute tools:', (message as any).tool_calls.length);
         (message as any).tool_calls.forEach((call: any, index: number) => {
-          const toolName = call.function?.name?.replace('mcp__graph-tools__', '');
+          const toolName = call.function?.name?.replace('mcp__manta__', '');
           logLine(`🔧 Claude tool call #${index + 1}: ${toolName} args:`, pretty(call.function?.arguments));
 
           // Send tool call to UI for visibility only if stream is still open

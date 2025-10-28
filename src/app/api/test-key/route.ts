@@ -4,10 +4,10 @@ import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = request.headers.get('manta-api-key');
+    const apiKey = request.headers.get('MANTA_API_KEY');
 
     if (!apiKey) {
-      return NextResponse.json({ error: 'No MANTA-API-KEY header' }, { status: 400 });
+      return NextResponse.json({ error: 'No MANTA_API_KEY header' }, { status: 400 });
     }
 
     console.log('🧪 Test endpoint - API key received:', apiKey);

@@ -300,7 +300,7 @@ FOR UPDATE USING (
 
 ## MCP Authentication
 
-MCP authentication uses API keys generated through the UI at `/api-keys`. Include your API key in the request using the `MANTA-API-KEY` header:
+MCP authentication uses API keys generated through the UI at `/api-keys`. Include your API key in the request using the `MANTA_API_KEY` header:
 
 ```json
 {
@@ -308,12 +308,26 @@ MCP authentication uses API keys generated through the UI at `/api-keys`. Includ
     "manta-graph-reader": {
       "url": "https://your-manta-instance.com/api/mcp",
       "headers": {
-        "MANTA-API-KEY": "manta_your-generated-api-key"
+        "MANTA_API_KEY": "manta_your-generated-api-key"
       }
     }
   }
 }
 ```
+
+### Claude Code Integration
+
+For Claude Code to connect to the MCP server, you need to set the `MANTA_API_KEY` environment variable:
+
+```bash
+# API key for Claude Code to connect to MCP server
+MANTA_API_KEY=manta_your-generated-api-key
+```
+
+**Setup Steps:**
+1. Generate an API key through the UI at `/api-keys`
+2. Add the `MANTA_API_KEY` variable to your `.env.local` file
+3. Claude Code will automatically use this key to authenticate with the MCP server at `/api/mcp`
 
 ### Legacy Environment Variables (Deprecated)
 
