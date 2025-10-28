@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data: apiKeys, error } = await client
       .from('api_keys')
-      .select('id, name, created_at, last_used_at, expires_at')
+      .select('id, name, type, created_at, last_used_at, expires_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -38,11 +38,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, type } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
+
+    // Validate type field
+    const keyType = type && ['admin', 'user'].includes(type) ? type : 'user';
 
     const client = createServerSupabaseClient();
 
@@ -56,8 +59,9 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         name: name.trim(),
         key_hash: keyHash,
+        type: keyType,
       })
-      .select('id, name, created_at')
+      .select('id, name, type, created_at')
       .single();
 
     if (error) {

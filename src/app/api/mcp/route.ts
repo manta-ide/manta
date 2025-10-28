@@ -28,18 +28,20 @@ const verifyToken = async (
 
       const { data: apiKeyData, error } = await client
         .from('api_keys')
-        .select('user_id, name')
+        .select('user_id, name, type')
         .eq('key_hash', keyHash)
         .single();
 
       if (!error && apiKeyData) {
+        const isAdmin = apiKeyData.type === 'admin';
         return {
           token: `api-key-${apiKeyData.user_id}`,
-          scopes: ['read:graph', 'write:graph'],
+          scopes: isAdmin ? ['read:graph', 'write:graph'] : ['read:graph'],
           clientId: 'manta-client',
           extra: {
             userId: apiKeyData.user_id,
             keyName: apiKeyData.name,
+            keyType: apiKeyData.type,
           },
         };
       }
@@ -54,6 +56,11 @@ const verifyToken = async (
 
 // Store the current request for use in tool handlers
 let currentRequest: Request | null = null;
+
+// Helper function to check if the API key has admin permissions
+const checkAdminPermission = (authInfo: AuthInfo | undefined): boolean => {
+  return authInfo?.extra?.keyType === 'admin';
+};
 
 const handler = createMcpHandler(
   (server) => {
@@ -303,6 +310,16 @@ const handler = createMcpHandler(
             };
           }
 
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
+              }]
+            };
+          }
+
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
           const client = createClient(supabaseUrl, supabaseServiceKey!);
@@ -392,6 +409,16 @@ const handler = createMcpHandler(
               content: [{
                 type: 'text',
                 text: 'Error: Unable to authenticate user'
+              }]
+            };
+          }
+
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
               }]
             };
           }
@@ -487,6 +514,16 @@ const handler = createMcpHandler(
               content: [{
                 type: 'text',
                 text: 'Error: Unable to authenticate user'
+              }]
+            };
+          }
+
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
               }]
             };
           }
@@ -597,6 +634,16 @@ const handler = createMcpHandler(
             };
           }
 
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
+              }]
+            };
+          }
+
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
           const client = createClient(supabaseUrl, supabaseServiceKey!);
@@ -697,6 +744,16 @@ const handler = createMcpHandler(
             };
           }
 
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
+              }]
+            };
+          }
+
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
           const client = createClient(supabaseUrl, supabaseServiceKey!);
@@ -787,6 +844,16 @@ const handler = createMcpHandler(
             };
           }
 
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
+              }]
+            };
+          }
+
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
           const client = createClient(supabaseUrl, supabaseServiceKey!);
@@ -869,6 +936,16 @@ const handler = createMcpHandler(
               content: [{
                 type: 'text',
                 text: 'Error: Unable to authenticate user'
+              }]
+            };
+          }
+
+          // Check for admin permissions
+          if (!checkAdminPermission(authInfo)) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'Error: Admin API key required for write operations. This is a readonly user key.'
               }]
             };
           }

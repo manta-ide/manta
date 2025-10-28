@@ -9,12 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Copy, Eye, EyeOff, Trash2, Key, Calendar } from 'lucide-react';
+import { Plus, Copy, Eye, EyeOff, Trash2, Key, Calendar, Shield, User } from 'lucide-react';
 
 interface ApiKey {
   id: string;
   name: string;
+  type: 'admin' | 'user';
   created_at: string;
   last_used_at?: string;
   expires_at?: string;
@@ -26,6 +28,7 @@ function ApiKeysContent() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyType, setNewKeyType] = useState<'admin' | 'user'>('user');
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -62,13 +65,14 @@ function ApiKeysContent() {
       const response = await fetch('/api/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim() }),
+        body: JSON.stringify({ name: newKeyName.trim(), type: newKeyType }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setCreatedKey(data.key);
         setNewKeyName('');
+        setNewKeyType('user');
         setDialogOpen(false);
         fetchApiKeys();
         toast.success('API key created successfully!');
@@ -180,6 +184,34 @@ function ApiKeysContent() {
                       className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="keyType" className="text-zinc-300">Key Type</Label>
+                    <Select value={newKeyType} onValueChange={(value: 'admin' | 'user') => setNewKeyType(value)}>
+                      <SelectTrigger className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100">
+                        <SelectValue placeholder="Select key type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-800 border-zinc-700">
+                        <SelectItem value="user" className="text-zinc-100 focus:bg-zinc-700">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">User (Read-only)</div>
+                              <div className="text-xs text-zinc-400">Can list projects and read graphs</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="admin" className="text-zinc-100 focus:bg-zinc-700">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">Admin (Full Access)</div>
+                              <div className="text-xs text-zinc-400">Can create, edit, and delete nodes and edges</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
@@ -265,7 +297,22 @@ function ApiKeysContent() {
                       <div className="flex items-center gap-3">
                         <Key className="h-5 w-5 text-zinc-400" />
                         <div>
-                          <CardTitle className="text-zinc-100">{apiKey.name}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-zinc-100">{apiKey.name}</CardTitle>
+                            <Badge 
+                              variant={apiKey.type === 'admin' ? 'default' : 'secondary'}
+                              className={apiKey.type === 'admin' 
+                                ? 'bg-blue-600 text-blue-100 hover:bg-blue-700' 
+                                : 'bg-zinc-700 text-zinc-300'
+                              }
+                            >
+                              {apiKey.type === 'admin' ? (
+                                <><Shield className="h-3 w-3 mr-1" /> Admin</>
+                              ) : (
+                                <><User className="h-3 w-3 mr-1" /> User</>
+                              )}
+                            </Badge>
+                          </div>
                           <CardDescription className="text-zinc-400">
                             Created {formatDate(apiKey.created_at)}
                             {apiKey.last_used_at && (
