@@ -114,15 +114,56 @@ async function resolveProjectId(userId: string, projectIdentifier: string): Prom
 
   const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Look up project by name for this user
-  const { data: projectData, error: projectError } = await serviceSupabase
-    .from('user_projects')
-    .select('project_id, projects(id, name)')
-    .eq('user_id', userId)
-    .eq('projects.name', projectIdentifier)
-    .single();
+  // First, find the project by name
+  const { data: projects, error: projectLookupError } = await serviceSupabase
+    .from('projects')
+    .select('id, name')
+    .eq('name', projectIdentifier);
 
-  if (projectError || !projectData) {
+  if (projectLookupError) {
+    console.error('Error looking up project:', projectLookupError);
+    throw projectLookupError;
+  }
+
+  // If project exists, verify user has access to it
+  if (projects && projects.length > 0) {
+    const projectId = projects[0].id;
+    
+    // Check if user is linked to this project
+    const { data: userProject, error: linkCheckError } = await serviceSupabase
+      .from('user_projects')
+      .select('project_id')
+      .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .single();
+
+    if (linkCheckError && linkCheckError.code !== 'PGRST116') {
+      console.error('Error checking user project link:', linkCheckError);
+      throw linkCheckError;
+    }
+
+    if (userProject) {
+      console.log('✅ Found existing project:', projectId);
+      return projectId;
+    }
+
+    // Project exists but user doesn't have access - link them to it
+    console.log('🔗 Project exists but user not linked, linking user to project:', projectId);
+    const { error: linkError } = await serviceSupabase
+      .from('user_projects')
+      .insert([{ user_id: userId, project_id: projectId, role: 'owner' }]);
+
+    if (linkError) {
+      console.error('Error linking user to existing project:', linkError);
+      throw linkError;
+    }
+
+    console.log('✅ Linked user to existing project:', projectId);
+    return projectId;
+  }
+
+  // Project doesn't exist, create it
+  if (!projects || projects.length === 0) {
     console.log('📁 Project not found, creating new project:', projectIdentifier);
 
     // Create new project with the given name (default to public)
@@ -154,8 +195,8 @@ async function resolveProjectId(userId: string, projectIdentifier: string): Prom
     return newProjectId;
   }
 
-  console.log('✅ Found existing project:', projectData.project_id);
-  return projectData.project_id;
+  // This should never be reached, but just in case
+  throw new Error('Unable to resolve project ID');
 }
 
 // SSE broadcast system
@@ -299,9 +340,9 @@ function normalizeGraph(original: Graph): Graph {
 }
 
 // Read graph from Supabase
-async function readGraphFromSupabase(userId: string, projectIdentifier?: string): Promise<Graph | null> {
+async function readGraphFromSupabase(userId: string, projectIdentifier: string): Promise<Graph | null> {
   try {
-    const projectId = projectIdentifier ? await resolveProjectId(userId, projectIdentifier) : await getProjectId(userId);
+    const projectId = await resolveProjectId(userId, projectIdentifier);
 
     // Use service role client to bypass RLS for all database operations
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -362,9 +403,9 @@ async function readGraphFromSupabase(userId: string, projectIdentifier?: string)
 }
 
 // Write graph to Supabase
-async function writeGraphToSupabase(graph: Graph, userId: string, projectIdentifier?: string): Promise<void> {
+async function writeGraphToSupabase(graph: Graph, userId: string, projectIdentifier: string): Promise<void> {
   try {
-    const projectId = projectIdentifier ? await resolveProjectId(userId, projectIdentifier) : await getProjectId(userId);
+    const projectId = await resolveProjectId(userId, projectIdentifier);
 
     // Use service role client to bypass RLS for all database operations
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -428,49 +469,47 @@ export function getGraphSession(): Graph | null { return getCurrentGraph(); }
 
 export function getCurrentGraphSession(): Graph | null { return getCurrentGraph(); }
 
-export async function storeGraph(graph: Graph, userId: string): Promise<void> {
-  const normalized = normalizeGraph(graph);
-  setCurrentGraph(normalized);
-  await writeGraphToSupabase(normalized, userId);
-  await broadcastGraphReload(userId);
-}
-
-export async function storeCurrentGraph(graph: Graph, userId: string, projectId?: string): Promise<void> {
+export async function storeGraph(graph: Graph, userId: string, projectId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
   await writeGraphToSupabase(normalized, userId, projectId);
   await broadcastGraphReload(userId);
 }
 
-export async function storeCurrentGraphFromAgent(graph: Graph, userId: string, projectId?: string): Promise<void> {
+export async function storeCurrentGraph(graph: Graph, userId: string, projectId: string): Promise<void> {
+  const normalized = normalizeGraph(graph);
+  setCurrentGraph(normalized);
+  await writeGraphToSupabase(normalized, userId, projectId);
+  await broadcastGraphReload(userId);
+}
+
+export async function storeCurrentGraphFromAgent(graph: Graph, userId: string, projectId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
   await writeGraphToSupabase(normalized, userId, projectId);
   await broadcastGraphReload(userId, { source: 'agent' });
 }
 
-export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string, projectId?: string): Promise<void> {
+export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string, projectId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
   await writeGraphToSupabase(normalized, userId, projectId);
 }
 
-export async function loadGraphFromFile(userId: string): Promise<Graph | null> {
-  const graph = await readGraphFromSupabase(userId);
-  setCurrentGraph(graph);
-  return graph;
-}
-
-export async function loadCurrentGraphFromFile(userId: string, projectId?: string): Promise<Graph | null> {
+export async function loadGraphFromFile(userId: string, projectId: string): Promise<Graph | null> {
   const graph = await readGraphFromSupabase(userId, projectId);
   setCurrentGraph(graph);
   return graph;
 }
 
-export async function clearGraphSession(userId: string): Promise<void> {
-  try {
-    const projectId = await getProjectId(userId);
+export async function loadCurrentGraphFromFile(userId: string, projectId: string): Promise<Graph | null> {
+  const graph = await readGraphFromSupabase(userId, projectId);
+  setCurrentGraph(graph);
+  return graph;
+}
 
+export async function clearGraphSession(userId: string, projectId: string): Promise<void> {
+  try {
     // Use service role client to bypass RLS for all database operations
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -481,8 +520,11 @@ export async function clearGraphSession(userId: string): Promise<void> {
 
     const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Resolve the project ID
+    const resolvedProjectId = await resolveProjectId(userId, projectId);
+
     // Delete all nodes (cascade will handle edges)
-    await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
+    await serviceSupabase.from('nodes').delete().eq('project_id', resolvedProjectId);
     setCurrentGraph(null);
   } catch (error) {
     console.error('Error clearing graph session:', error);
@@ -497,22 +539,22 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
   return current.nodes.find(node => node.id === nodeId) || null;
 }
 
-export async function markNodesBuilt(nodeIds: string[], userId: string): Promise<void> {
+export async function markNodesBuilt(nodeIds: string[], userId: string, projectId: string): Promise<void> {
   const current = getCurrentGraph();
   if (!current) return;
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
   setCurrentGraph(updated);
-  await writeGraphToSupabase(updated, userId);
+  await writeGraphToSupabase(updated, userId, projectId);
 }
 
-export async function markNodesUnbuilt(nodeIds: string[], userId: string): Promise<void> {
+export async function markNodesUnbuilt(nodeIds: string[], userId: string, projectId: string): Promise<void> {
   const current = getCurrentGraph();
   if (!current) return;
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
   setCurrentGraph(updated);
-  await writeGraphToSupabase(updated, userId);
+  await writeGraphToSupabase(updated, userId, projectId);
 }
 
 
@@ -703,7 +745,7 @@ const normalizeNodeMetadata = (metadata: unknown): NodeMetadata | undefined => {
 };
 
 // Helper function to read current graph from Supabase
-const readLocalGraph = async (userId: string = DEFAULT_USER_ID, projectId?: string): Promise<any | null> => {
+const readLocalGraph = async (userId: string, projectId: string): Promise<any | null> => {
   try {
     console.log('🔍 TOOL: readLocalGraph via Supabase', { userId, projectId });
     const currentGraph = await readGraphFromSupabase(userId, projectId);
@@ -727,7 +769,7 @@ const readLocalGraph = async (userId: string = DEFAULT_USER_ID, projectId?: stri
 };
 
 // Helper function to save graph to Supabase
-const saveGraph = async (graph: any, userId: string = DEFAULT_USER_ID, projectId?: string): Promise<{ success: boolean; error?: string }> => {
+const saveGraph = async (graph: any, userId: string, projectId: string): Promise<{ success: boolean; error?: string }> => {
   console.log('💾 TOOL: saveGraph called, nodes:', graph.nodes?.length || 0, 'edges:', graph.edges?.length || 0, { userId, projectId });
 
   try {
@@ -760,19 +802,19 @@ export const graphOperations = {
     properties?: any[];
     position?: { x: number; y: number; z?: number };
     metadata?: unknown;
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; nodeId?: string }> {
     console.log('➕ TOOL: node_create called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, nodeId: requestedNodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
+    const { userId, projectId, nodeId: requestedNodeId, title, prompt, type, level, comment, properties, position, metadata } = params;
 
     try {
       // Use Supabase read only
       const localGraph = await readLocalGraph(userId, projectId);
       if (!localGraph) {
         console.error('❌ TOOL: node_create no graph found in Supabase');
-        const errorMsg = 'No graph data available. Please ensure the graph exists.';
+        const errorMsg = 'No graph data available. Please ensure the graph exists or create a new one.';
         return { success: false, error: errorMsg };
       }
       let graph = localGraph.graph;
@@ -839,12 +881,12 @@ export const graphOperations = {
     children?: any[];
     position?: { x: number; y: number; z?: number };
     metadata?: unknown;
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('✏️ TOOL: node_edit called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, nodeId, mode = 'replace', title, prompt: description, type, level, comment, properties, children, position, metadata } = params;
+    const { userId, projectId, nodeId, mode = 'replace', title, prompt: description, type, level, comment, properties, children, position, metadata } = params;
 
     try {
       // Use Supabase read only
@@ -1032,12 +1074,12 @@ export const graphOperations = {
   async nodeDelete(params: {
     nodeId: string;
     recursive?: boolean;
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🗑️ TOOL: node_delete called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, nodeId, recursive } = params;
+    const { userId, projectId, nodeId, recursive } = params;
 
     try {
       // Use Supabase read only
@@ -1113,12 +1155,12 @@ export const graphOperations = {
     targetId: string;
     role?: string;
     shape?: string;
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; edgeId?: string }> {
     console.log('🔗 TOOL: edge_create called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, sourceId, targetId, role, shape } = params;
+    const { userId, projectId, sourceId, targetId, role, shape } = params;
 
     try {
       // Use Supabase read only
@@ -1195,12 +1237,12 @@ export const graphOperations = {
   async edgeDelete(params: {
     sourceId: string;
     targetId: string;
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🗑️ TOOL: edge_delete called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, sourceId, targetId } = params;
+    const { userId, projectId, sourceId, targetId } = params;
 
     try {
       // Use Supabase read only
@@ -1249,12 +1291,12 @@ export const graphOperations = {
     files?: string[];
     bugs?: string[];
     merge?: boolean;
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🗂️ TOOL: node_metadata_update called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, nodeId, files, bugs, merge = false } = params;
+    const { userId, projectId, nodeId, files, bugs, merge = false } = params;
 
     try {
       const graphData = await readLocalGraph(userId, projectId);
@@ -1352,10 +1394,10 @@ export const graphOperations = {
     }
   },
 
-  async graphClear(params: { userId?: string; projectId?: string }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
+  async graphClear(params: { userId: string; projectId: string }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('🧹 TOOL: graph_clear called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId } = params;
+    const { userId, projectId } = params;
 
     try {
       // Create empty graph structure
@@ -1389,12 +1431,12 @@ export const graphOperations = {
     includeProperties?: boolean;
     includeChildren?: boolean;
     format?: 'json' | 'xml'; // Optional format parameter, defaults to 'json'
-    userId?: string; // Optional userId parameter - defaults to DEFAULT_USER_ID
-    projectId?: string; // Optional projectId parameter
+    userId: string; // Required userId parameter
+    projectId: string; // Required projectId parameter
   }): Promise<{ success: boolean; error?: string; node?: any; layers?: any[]; content?: string }> {
     console.log('🔍 TOOL: read called', params);
 
-    const { userId = DEFAULT_USER_ID, projectId, nodeId, layer, includeProperties, includeChildren, format = 'json' } = params;
+    const { userId, projectId, nodeId, layer, includeProperties, includeChildren, format = 'json' } = params;
 
     try {
       // Get graph data
@@ -1465,6 +1507,50 @@ export const graphOperations = {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('💥 TOOL: read error:', errorMessage);
       return { success: false, error: `Error reading graph: ${errorMessage}` };
+    }
+  },
+
+  async listProjects(params: { userId: string }): Promise<{ success: boolean; error?: string; projects?: Array<{ id: string; name: string; description?: string; created_at?: string }> }> {
+    console.log('📋 TOOL: list_projects called', params);
+
+    const { userId } = params;
+
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error('Supabase service role credentials not configured');
+      }
+
+      const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Get all projects for this user via user_projects join
+      const { data: userProjects, error: projectsError } = await serviceSupabase
+        .from('user_projects')
+        .select('project_id, role, projects(id, name, description, created_at)')
+        .eq('user_id', userId);
+
+      if (projectsError) {
+        console.error('Error fetching user projects:', projectsError);
+        throw projectsError;
+      }
+
+      // Transform the data to a simpler format
+      const projects = (userProjects || []).map((up: any) => ({
+        id: up.projects.id,
+        name: up.projects.name,
+        description: up.projects.description,
+        created_at: up.projects.created_at,
+        role: up.role
+      }));
+
+      console.log('✅ TOOL: list_projects found', projects.length, 'projects');
+      return { success: true, projects };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('💥 TOOL: list_projects error:', errorMessage);
+      return { success: false, error: `Error listing projects: ${errorMessage}` };
     }
   }
 };
