@@ -6,6 +6,8 @@ import { query, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, 
 import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
+import { graphOperations } from '@/app/api/lib/graph-service';
+import { getOrCreateDefaultProject } from '@/lib/supabase';
 
 // Type definitions for Claude Code installations
 interface ClaudeInstallation {
@@ -813,6 +815,20 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
           controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));
           controller.close();
+        }
+
+        // After stream completion, run graph verifier in background (non-blocking)
+        try {
+          const userIdForVerify = (await (async () => {
+            try { const body = await req.json(); return body?.userId; } catch { return undefined; }
+          })()) || undefined;
+          if (userIdForVerify) {
+            const project = await getOrCreateDefaultProject(userIdForVerify);
+            const verifyRes = await graphOperations.graphVerify({ userId: userIdForVerify, projectId: project.id });
+            console.log('🧪 Graph verifier report:', verifyRes);
+          }
+        } catch (e) {
+          console.warn('Graph post-run verification hook failed:', e);
         }
       }
     }

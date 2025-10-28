@@ -5,6 +5,10 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from '../lib/schemas';
 import { graphOperations } from '../lib/graph-service';
+import { getDevProjectDir } from '@/lib/project-config';
+import { indexDirectory } from '@/lib/ast/indexer';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const verifyToken = async (
   req: Request,
@@ -153,6 +157,33 @@ const userHandler = createMcpHandler(
               text: `Error: Failed to list projects: ${errorMessage}`
             }]
           };
+        }
+      }
+    );
+
+    server.tool(
+      'ast_index',
+      'Generate a lightweight AST-based symbol index for a directory using glob patterns. Supports TS/JS/TSX/JSX.',
+      {
+        dir: z.string().optional().describe('Base directory to index (defaults to the current project directory).'),
+        include: z.array(z.string()).optional().describe('Glob include patterns, e.g., **/*.ts'),
+        exclude: z.array(z.string()).optional().describe('Glob exclude patterns, e.g., **/node_modules/**'),
+        maxFiles: z.number().optional().describe('Optional limit to number of files parsed'),
+      },
+      async (params) => {
+        try {
+          const baseDir = params.dir ? path.resolve(params.dir) : getDevProjectDir();
+          if (!fs.existsSync(baseDir)) {
+            return { content: [{ type: 'text', text: `Error: Directory not found: ${baseDir}` }] };
+          }
+          const res = await indexDirectory(baseDir, params.include, params.exclude);
+          const files = params.maxFiles && params.maxFiles > 0 ? res.files.slice(0, params.maxFiles) : res.files;
+          const payload = { root: res.root, files };
+          return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error('💥 MCP TOOL: ast_index error:', msg);
+          return { content: [{ type: 'text', text: `Error: Failed to index AST: ${msg}` }] };
         }
       }
     );
@@ -671,6 +702,53 @@ const adminHandler = createMcpHandler(
               text: `Error: Failed to delete edge: ${errorMessage}`
             }]
           };
+        }
+      }
+    );
+
+    // graph_verify (read-only verification of current graph)
+    server.tool(
+      'graph_verify',
+      'Verify graph integrity: unique IDs, valid edges, basic C4 connectivity checks, and existing metadata files. Returns a JSON report.',
+      {
+        project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
+      },
+      async (params) => {
+        try {
+          if (!currentRequest) {
+            return { content: [{ type: 'text', text: 'Error: No request context available' }] };
+          }
+
+          const apiKey = currentRequest.headers.get('MANTA_API_KEY') || '';
+          const authInfo = await verifyToken(currentRequest, apiKey);
+          if (!authInfo?.extra?.userId) {
+            return { content: [{ type: 'text', text: 'Error: Unable to authenticate user' }] };
+          }
+
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jrwakwgkztccxfvfixyi.supabase.co';
+          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+          const client = createClient(supabaseUrl, supabaseServiceKey);
+
+          const { data: projectData, error: projectError } = await client
+            .from('projects')
+            .select('id')
+            .eq('name', params.project)
+            .single();
+
+          if (projectError || !projectData) {
+            return { content: [{ type: 'text', text: `Error: Project "${params.project}" not found` }] };
+          }
+
+          const verifyRes = await graphOperations.graphVerify({ userId: String(authInfo.extra.userId), projectId: projectData.id });
+          if (!verifyRes.success) {
+            return { content: [{ type: 'text', text: `Error: ${verifyRes.error}` }] };
+          }
+
+          return { content: [{ type: 'text', text: JSON.stringify(verifyRes.report) }] };
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error('💥 MCP TOOL: graph_verify error:', msg);
+          return { content: [{ type: 'text', text: `Error: Failed to verify graph: ${msg}` }] };
         }
       }
     );

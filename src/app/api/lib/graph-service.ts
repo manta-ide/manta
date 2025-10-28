@@ -868,6 +868,68 @@ export const graphOperations = {
     }
   },
 
+  async graphVerify(params: {
+    userId: string;
+    projectId: string;
+  }): Promise<{ success: boolean; report?: any; error?: string }> {
+    try {
+      const { userId, projectId } = params;
+      const local = await readLocalGraph(userId, projectId);
+      if (!local) return { success: false, error: 'No graph data available' };
+      const graph = local.graph as any;
+      const nodes: any[] = Array.isArray(graph.nodes) ? graph.nodes : [];
+      const edges: any[] = Array.isArray(graph.edges) ? graph.edges : [];
+
+      const issues: string[] = [];
+      const warnings: string[] = [];
+
+      const seen = new Set<string>();
+      for (const n of nodes) {
+        if (!n?.id) { issues.push('Node without id'); continue; }
+        if (seen.has(n.id)) issues.push(`Duplicate node id: ${n.id}`);
+        seen.add(n.id);
+      }
+
+      const idSet = new Set(nodes.map(n => n.id));
+      for (const e of edges) {
+        if (!e?.source || !e?.target) { issues.push('Edge missing source/target'); continue; }
+        if (!idSet.has(e.source)) issues.push(`Edge source missing: ${e.source}`);
+        if (!idSet.has(e.target)) issues.push(`Edge target missing: ${e.target}`);
+      }
+
+      const incident = new Map<string, number>();
+      for (const n of nodes) incident.set(n.id, 0);
+      for (const e of edges) {
+        if (incident.has(e.source)) incident.set(e.source, (incident.get(e.source) || 0) + 1);
+        if (incident.has(e.target)) incident.set(e.target, (incident.get(e.target) || 0) + 1);
+      }
+      const orphans = Array.from(incident.entries()).filter(([_, c]) => (c || 0) === 0).map(([id]) => id);
+      if (orphans.length) warnings.push(`Orphan nodes with no connections: ${orphans.join(', ')}`);
+
+      // Check metadata files exist
+      const missingFiles: string[] = [];
+      for (const n of nodes) {
+        const files = n?.metadata?.files || [];
+        if (Array.isArray(files)) {
+          for (const f of files) {
+            const abs = path.isAbsolute(f) ? f : path.join(process.cwd(), f);
+            try {
+              if (!require('fs').existsSync(abs)) missingFiles.push(`${n.id}: ${f}`);
+            } catch {
+              missingFiles.push(`${n.id}: ${f}`);
+            }
+          }
+        }
+      }
+      if (missingFiles.length) issues.push(`Missing metadata files (${missingFiles.length})`);
+
+      const report = { ok: issues.length === 0, issues, warnings, counts: { nodes: nodes.length, edges: edges.length } };
+      return { success: true, report };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  },
+
   async nodeEdit(params: {
     nodeId: string;
     mode?: 'replace' | 'merge';
