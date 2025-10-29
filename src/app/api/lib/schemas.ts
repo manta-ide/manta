@@ -73,8 +73,7 @@ export const NodeTypeEnum = z.enum([
   'system',
   'container',
   'component',
-  'code',
-  'comment'
+  'code'
 ]);
 export type NodeType = z.infer<typeof NodeTypeEnum>;
 
@@ -82,10 +81,9 @@ export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
-  comment: z.string().optional(),
   type: NodeTypeEnum,
   level: C4LevelEnum.optional(),
-  shape: z.enum(['rectangle', 'circle', 'comment', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
+  shape: z.enum(['rectangle', 'circle', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
   properties: z.array(PropertySchema).optional(),
   width: z.number().optional(),
   height: z.number().optional(),

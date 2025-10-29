@@ -245,16 +245,9 @@ function CustomNode({ data, selected }: { data: any; selected: boolean }) {
   const shape = (node as any).shape ||
     (() => {
       try {
-        // Check if this is a comment node (has width and height properties)
-        const hasWidthProp = Array.isArray(node.properties) && node.properties.some(p => p.id === 'width');
-        const hasHeightProp = Array.isArray(node.properties) && node.properties.some(p => p.id === 'height');
-        if (hasWidthProp && hasHeightProp) {
-          return 'comment';
-        }
-
         const p = Array.isArray((node as any).properties) ? (node as any).properties.find((pp: any) => (pp?.id || '').toLowerCase() === 'shape') : null;
         const v = (p && typeof p.value === 'string') ? p.value : undefined;
-        return (v === 'circle' || v === 'rectangle' || v === 'comment' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'round-rectangle';
+        return (v === 'circle' || v === 'rectangle' || v === 'diamond' || v === 'hexagon' || v === 'arrow-rectangle' || v === 'cylinder' || v === 'parallelogram' || v === 'round-rectangle') ? v : 'round-rectangle';
       } catch {
         return 'round-rectangle';
       }
@@ -530,12 +523,8 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
     buildEntireGraph,
     isBuildingGraph
   } = useProjectStore();
-  // Tool modes: 'select', 'pan', 'add-node', 'comment'
-  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node' | 'comment'>('select');
-  // Comment creation drag state
-  const [isCreatingComment, setIsCreatingComment] = useState(false);
-  const [commentDragStart, setCommentDragStart] = useState<{ x: number; y: number } | null>(null);
-  const [commentDragEnd, setCommentDragEnd] = useState<{ x: number; y: number } | null>(null);
+  // Tool modes: 'select', 'pan', 'add-node'
+  const [currentTool, setCurrentTool] = useState<'select' | 'pan' | 'add-node'>('select');
   // Viewport transform for converting flow coords <-> screen coords
   const viewport = useViewport();
   // Use the store for graph data
@@ -698,7 +687,6 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
       id: newNodeId,
       title: 'New Node',
       description: '',
-      comment: '',
       type: nodeType,
       level: nodeLevel,
       shape: 'round-rectangle'
@@ -764,85 +752,6 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
     }
   }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, suppressSSE]);
 
-  // Create a new comment node at the specified position with custom dimensions
-  const createCommentNode = useCallback(async (position: { x: number; y: number }, dimensions: { width: number; height: number }) => {
-    if (!graph) return;
-
-    const newNodeId = generateNodeId();
-    const newNode: GraphNode = {
-      id: newNodeId,
-      title: 'Comment',
-      description: 'Add your comment here...',
-      comment: '',
-      type: 'comment',
-      shape: 'comment',
-      properties: [
-        { id: 'width', value: dimensions.width },
-        { id: 'height', value: dimensions.height }
-      ]
-    };
-
-    try {
-      // Mark optimistic operation as in progress
-      setOptimisticOperationsActive(true);
-
-      // Set selection immediately before adding the node
-      setSelectedNode(newNodeId, newNode);
-      setSelectedNodeIds([newNodeId]);
-
-      // Update local graph state immediately for instant feedback
-      const updatedGraph = {
-        ...graph,
-        nodes: [...graph.nodes, newNode]
-      };
-      useProjectStore.setState({ graph: updatedGraph });
-
-      // Create ReactFlow node and add to local state (already selected)
-      const reactFlowNode: Node = {
-        id: newNodeId,
-        position,
-        width: dimensions.width,
-        height: dimensions.height,
-        data: {
-          label: newNode.title,
-          node: newNode,
-          properties: newNode.properties,
-          graph: graph
-        },
-        type: 'custom',
-        selected: true, // Node is already selected
-      };
-      setNodes((nds) => [...nds, reactFlowNode]);
-
-      console.log('➕ Optimistically created new comment node:', newNodeId);
-
-      // Persist update via API (real-time updates will sync)
-      await updateNode(newNodeId, newNode);
-
-      // Switch back to select tool after creating comment
-      setCurrentTool('select');
-
-      console.log('✅ Successfully persisted comment node to server:', newNodeId);
-
-      // Suppress SSE for longer to avoid stale snapshot race, then clear optimistic flag
-      suppressSSE?.(2000);
-      setOptimisticOperationsActive(false);
-    } catch (error) {
-      console.error('❌ Failed to create comment node:', error);
-      // Remove the node from both local states if persistence failed
-      setNodes((nds) => nds.filter(n => n.id !== newNodeId));
-      if (graph) {
-        const revertedGraph = {
-          ...graph,
-          nodes: graph.nodes.filter(n => n.id !== newNodeId)
-        };
-        useProjectStore.setState({ graph: revertedGraph });
-      }
-
-      // Clear optimistic operation flag on error (after rollback)
-      setOptimisticOperationsActive(false);
-    }
-  }, [graph, generateNodeId, updateNode, setSelectedNode, setSelectedNodeIds, setNodes, setOptimisticOperationsActive, setCurrentTool, suppressSSE]);
 
   // Handle deletion of selected nodes and edges
   const handleDeleteSelected = useCallback(async (selectedNodes: Node[], selectedEdges: Edge[]) => {
@@ -2488,48 +2397,9 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
       return;
     }
 
-    if (currentTool === 'comment') {
-      // Start comment creation drag
-      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      setCommentDragStart(flowPosition);
-      setCommentDragEnd(flowPosition);
-      setIsCreatingComment(true);
-      event.preventDefault();
-      return;
-    }
-
     event.preventDefault();
   }, [currentTool, reactFlow, createNewNode]);
 
-  // Handle mouse move for comment drag selection
-  const onPaneMouseMove = useCallback((event: ReactMouseEvent) => {
-    if (isCreatingComment && commentDragStart) {
-      const flowPosition = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      setCommentDragEnd(flowPosition);
-    }
-  }, [isCreatingComment, commentDragStart, reactFlow]);
-
-  // Handle mouse up for comment creation
-  const onPaneMouseUp = useCallback(async (event: ReactMouseEvent) => {
-    if (isCreatingComment && commentDragStart && commentDragEnd) {
-      // Calculate the bounds of the comment
-      const minX = Math.min(commentDragStart.x, commentDragEnd.x);
-      const maxX = Math.max(commentDragStart.x, commentDragEnd.x);
-      const minY = Math.min(commentDragStart.y, commentDragEnd.y);
-      const maxY = Math.max(commentDragStart.y, commentDragEnd.y);
-
-      const width = Math.max(maxX - minX, 400); // Minimum width
-      const height = Math.max(maxY - minY, 250); // Minimum height
-
-      // Create the comment node
-      await createCommentNode({ x: minX, y: minY }, { width, height });
-
-      // Reset drag state
-      setIsCreatingComment(false);
-      setCommentDragStart(null);
-      setCommentDragEnd(null);
-    }
-  }, [isCreatingComment, commentDragStart, commentDragEnd, reactFlow, createCommentNode]);
 
   // Node types for ReactFlow
   const nodeTypes = {
@@ -2603,8 +2473,6 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
         panOnDrag={currentTool === 'pan' ? [0, 2] : [2]} // Left mouse pan in pan mode, right mouse always pans
         selectionOnDrag={currentTool === 'select'}
         onMouseDown={onPaneMouseDown}
-        onMouseMove={onPaneMouseMove}
-        onMouseUp={onPaneMouseUp}
         colorMode="dark"
         nodesDraggable={false}
         nodesConnectable={false}
@@ -2650,27 +2518,6 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
             </defs>
             {/* Overlay rectangle uses the mask so holes are transparent */}
             <rect x="0" y="0" width="100%" height="100%" fill="rgba(255,255,255,0.55)" mask="url(#graph-focus-holes-mask)" />
-          </svg>
-        </div>
-      )}
-
-      {/* Comment drag selection overlay */}
-      {isCreatingComment && commentDragStart && commentDragEnd && (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 950 }}>
-          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0 }}>
-            <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.zoom})`}>
-              <rect
-                x={Math.min(commentDragStart.x, commentDragEnd.x)}
-                y={Math.min(commentDragStart.y, commentDragEnd.y)}
-                width={Math.abs(commentDragEnd.x - commentDragStart.x)}
-                height={Math.abs(commentDragEnd.y - commentDragStart.y)}
-                fill="rgba(59, 130, 246, 0.1)"
-                stroke="#3b82f6"
-                strokeWidth="2"
-                strokeDasharray="5,5"
-                rx="4"
-              />
-            </g>
           </svg>
         </div>
       )}
