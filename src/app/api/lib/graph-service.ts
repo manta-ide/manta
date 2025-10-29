@@ -421,12 +421,20 @@ async function writeGraphToSupabase(graph: Graph, userId: string, projectIdentif
 
   const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Delete all existing nodes and edges for this project (cascade will handle edges)
-  const { error: deleteError } = await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
+  // Delete all existing edges first (to avoid foreign key constraint violations)
+  const { error: deleteEdgesError } = await serviceSupabase.from('edges').delete().eq('project_id', projectId);
   
-  if (deleteError) {
-    console.error('Error deleting existing nodes from Supabase:', deleteError);
-    throw deleteError;
+  if (deleteEdgesError) {
+    console.error('Error deleting existing edges from Supabase:', deleteEdgesError);
+    throw deleteEdgesError;
+  }
+
+  // Then delete all existing nodes for this project
+  const { error: deleteNodesError } = await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
+  
+  if (deleteNodesError) {
+    console.error('Error deleting existing nodes from Supabase:', deleteNodesError);
+    throw deleteNodesError;
   }
 
   // Insert nodes
