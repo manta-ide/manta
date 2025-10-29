@@ -584,7 +584,7 @@ export async function POST(req: NextRequest) {
           const queryOptions: Options = {
             includePartialMessages: true,
             systemPrompt: orchestratorSystemPrompt,
-            mcpServers: { 'manta': mcpServerConfig, 'firecrawl': firecrawlConfig },
+            mcpServers: { 'manta': mcpServerConfig},//, 'firecrawl': firecrawlConfig },
             //allowedTools: ['Task'],
             //disallowedTools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__manta__node_metadata_update','mcp__manta__read','mcp__manta__node_create','mcp__manta__node_edit','mcp__manta__node_delete','mcp__manta__edge_create','mcp__manta__edge_delete','WebSearch',"SlashCommand"],
             permissionMode: 'bypassPermissions',
