@@ -409,64 +409,65 @@ async function readGraphFromSupabase(userId: string, projectIdentifier: string):
 
 // Write graph to Supabase
 async function writeGraphToSupabase(graph: Graph, userId: string, projectIdentifier: string): Promise<void> {
-  try {
-    const projectId = await resolveProjectId(userId, projectIdentifier);
+  const projectId = await resolveProjectId(userId, projectIdentifier);
 
-    // Use service role client to bypass RLS for all database operations
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Use service role client to bypass RLS for all database operations
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Supabase service role credentials not configured');
-    }
-
-    const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Delete all existing nodes and edges for this project (cascade will handle edges)
-    await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
-
-    // Insert nodes
-    if (graph.nodes && graph.nodes.length > 0) {
-      const nodesToInsert = graph.nodes.map(node => ({
-        id: node.id,
-        project_id: projectId,
-        data: node,
-      }));
-
-      const { error: nodesError } = await serviceSupabase
-        .from('nodes')
-        .insert(nodesToInsert);
-
-      if (nodesError) {
-        console.error('Error inserting nodes to Supabase:', nodesError);
-        throw nodesError;
-      }
-    }
-
-    // Insert edges
-    if (graph.edges && graph.edges.length > 0) {
-      const edgesToInsert = graph.edges.map(edge => ({
-        id: edge.id,
-        project_id: projectId,
-        source_id: edge.source,
-        target_id: edge.target,
-        data: edge,
-      }));
-
-      const { error: edgesError } = await serviceSupabase
-        .from('edges')
-        .insert(edgesToInsert);
-
-      if (edgesError) {
-        console.error('Error inserting edges to Supabase:', edgesError);
-        throw edgesError;
-      }
-    }
-  } catch (error) {
-    // In restricted/dev environments, network may be blocked.
-    // Log and continue so the app can operate with in-memory graph.
-    console.warn('Supabase write skipped or failed; continuing with in-memory graph only:', error);
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Supabase service role credentials not configured');
   }
+
+  const serviceSupabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // Delete all existing nodes and edges for this project (cascade will handle edges)
+  const { error: deleteError } = await serviceSupabase.from('nodes').delete().eq('project_id', projectId);
+  
+  if (deleteError) {
+    console.error('Error deleting existing nodes from Supabase:', deleteError);
+    throw deleteError;
+  }
+
+  // Insert nodes
+  if (graph.nodes && graph.nodes.length > 0) {
+    const nodesToInsert = graph.nodes.map(node => ({
+      id: node.id,
+      project_id: projectId,
+      data: node,
+    }));
+
+    const { error: nodesError } = await serviceSupabase
+      .from('nodes')
+      .insert(nodesToInsert);
+
+    if (nodesError) {
+      console.error('Error inserting nodes to Supabase:', nodesError);
+      throw nodesError;
+    }
+  }
+
+  // Insert edges
+  if (graph.edges && graph.edges.length > 0) {
+    const edgesToInsert = graph.edges.map(edge => ({
+      id: edge.id,
+      project_id: projectId,
+      source_id: edge.source,
+      target_id: edge.target,
+      data: edge,
+    }));
+
+    const { error: edgesError } = await serviceSupabase
+      .from('edges')
+      .insert(edgesToInsert);
+
+    if (edgesError) {
+      console.error('Error inserting edges to Supabase:', edgesError);
+      throw edgesError;
+    }
+  }
+  
+  console.log(`✅ Successfully wrote graph to Supabase: ${graph.nodes.length} nodes, ${graph.edges?.length || 0} edges`);
 }
 
 // --- Public API (in-memory + persistence) ---
