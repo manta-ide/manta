@@ -159,11 +159,11 @@ const userHandler = createMcpHandler(
 
     server.tool(
       'read',
-      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Use the project field to specify which project to read from.',
+      'Read from current graph, or specific node(s) with their connections. Supports batching: pass a single nodeId/layer or arrays for batch operations. Use the project field to specify which project to read from.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().optional().describe('Optional node ID to read specific node details with all connections'),
-        layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
+        nodeId: z.union([z.string(), z.array(z.string())]).optional().describe('Optional node ID(s) to read specific node details with all connections. Accepts a single string or an array of strings for batch reading'),
+        layer: z.union([z.string(), z.array(z.string())]).optional().describe('Optional C4 architectural layer filter(s): "system", "container", "component", or "code". Accepts a single string or array for reading multiple layers (defaults to "system")'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
       },
       async (params) => {
@@ -208,19 +208,81 @@ const userHandler = createMcpHandler(
           projectId = projectData.id;
           console.log('✅ Found project:', { name: params.project, id: projectId });
 
-          // Call graph API directly with project ID
+          // Handle batching for nodeIds and layers
+          const nodeIds = Array.isArray(params.nodeId) ? params.nodeId : (params.nodeId ? [params.nodeId] : undefined);
+          const layers = Array.isArray(params.layer) ? params.layer : (params.layer ? [params.layer] : ['system']);
+
+          // If batching, make multiple requests
+          if ((nodeIds && nodeIds.length > 1) || layers.length > 1) {
+            const results: string[] = [];
+            
+            // For multiple layers without specific nodes
+            if (!nodeIds || nodeIds.length === 0) {
+              for (const layer of layers) {
+                const url = new URL(currentRequest.url);
+                const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
+                graphApiUrl.searchParams.set('graphType', 'current');
+                graphApiUrl.searchParams.set('projectId', projectId);
+                graphApiUrl.searchParams.set('layer', layer);
+
+                const graphResponse = await fetch(graphApiUrl.toString(), {
+                  headers: {
+                    'Accept': 'application/xml, application/json',
+                    'MANTA_API_KEY': apiKey,
+                  }
+                });
+
+                if (graphResponse.ok) {
+                  const content = await graphResponse.text();
+                  results.push(`=== Layer: ${layer} ===\n${content}\n`);
+                }
+              }
+            } else {
+              // For multiple nodes across layers
+              for (const nodeId of nodeIds) {
+                for (const layer of layers) {
+                  const url = new URL(currentRequest.url);
+                  const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
+                  graphApiUrl.searchParams.set('graphType', 'current');
+                  graphApiUrl.searchParams.set('projectId', projectId);
+                  graphApiUrl.searchParams.set('nodeId', nodeId);
+                  graphApiUrl.searchParams.set('layer', layer);
+
+                  const graphResponse = await fetch(graphApiUrl.toString(), {
+                    headers: {
+                      'Accept': 'application/xml, application/json',
+                      'MANTA_API_KEY': apiKey,
+                    }
+                  });
+
+                  if (graphResponse.ok) {
+                    const content = await graphResponse.text();
+                    results.push(`=== Node: ${nodeId}, Layer: ${layer} ===\n${content}\n`);
+                  }
+                }
+              }
+            }
+
+            console.log('📤 MCP TOOL: read batch success');
+            return {
+              content: [{
+                type: 'text',
+                text: results.join('\n')
+              }]
+            };
+          }
+
+          // Single request path
           const url = new URL(currentRequest.url);
           const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
           graphApiUrl.searchParams.set('graphType', 'current');
           graphApiUrl.searchParams.set('projectId', projectId);
 
-          if (params.nodeId) {
-            graphApiUrl.searchParams.set('nodeId', params.nodeId);
+          if (nodeIds && nodeIds.length === 1) {
+            graphApiUrl.searchParams.set('nodeId', nodeIds[0]);
           }
-          // Apply layer filtering if specified (defaults to 'system' if not provided)
-          graphApiUrl.searchParams.set('layer', params.layer || 'system');
+          graphApiUrl.searchParams.set('layer', layers[0]);
 
-          // Always request XML format
           const acceptHeader = 'application/xml, application/json';
 
           console.log('🔍 Calling graph API:', graphApiUrl.toString());
@@ -245,7 +307,6 @@ const userHandler = createMcpHandler(
             };
           }
 
-          // Always return as text (XML or formatted text for specific nodes)
           const content = await graphResponse.text();
 
           console.log('📄 Graph content length:', content.length, 'characters');
@@ -375,11 +436,11 @@ const adminHandler = createMcpHandler(
 
     server.tool(
       'read',
-      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Use the project field to specify which project to read from.',
+      'Read from current graph, or specific node(s) with their connections. Supports batching: pass a single nodeId/layer or arrays for batch operations. Use the project field to specify which project to read from.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().optional().describe('Optional node ID to read specific node details with all connections'),
-        layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
+        nodeId: z.union([z.string(), z.array(z.string())]).optional().describe('Optional node ID(s) to read specific node details with all connections. Accepts a single string or an array of strings for batch reading'),
+        layer: z.union([z.string(), z.array(z.string())]).optional().describe('Optional C4 architectural layer filter(s): "system", "container", "component", or "code". Accepts a single string or array for reading multiple layers (defaults to "system")'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
       },
       async (params) => {
@@ -424,19 +485,81 @@ const adminHandler = createMcpHandler(
           projectId = projectData.id;
           console.log('✅ Found project:', { name: params.project, id: projectId });
 
-          // Call graph API directly with project ID
+          // Handle batching for nodeIds and layers
+          const nodeIds = Array.isArray(params.nodeId) ? params.nodeId : (params.nodeId ? [params.nodeId] : undefined);
+          const layers = Array.isArray(params.layer) ? params.layer : (params.layer ? [params.layer] : ['system']);
+
+          // If batching, make multiple requests
+          if ((nodeIds && nodeIds.length > 1) || layers.length > 1) {
+            const results: string[] = [];
+            
+            // For multiple layers without specific nodes
+            if (!nodeIds || nodeIds.length === 0) {
+              for (const layer of layers) {
+                const url = new URL(currentRequest.url);
+                const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
+                graphApiUrl.searchParams.set('graphType', 'current');
+                graphApiUrl.searchParams.set('projectId', projectId);
+                graphApiUrl.searchParams.set('layer', layer);
+
+                const graphResponse = await fetch(graphApiUrl.toString(), {
+                  headers: {
+                    'Accept': 'application/xml, application/json',
+                    'MANTA_API_KEY': apiKey,
+                  }
+                });
+
+                if (graphResponse.ok) {
+                  const content = await graphResponse.text();
+                  results.push(`=== Layer: ${layer} ===\n${content}\n`);
+                }
+              }
+            } else {
+              // For multiple nodes across layers
+              for (const nodeId of nodeIds) {
+                for (const layer of layers) {
+                  const url = new URL(currentRequest.url);
+                  const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
+                  graphApiUrl.searchParams.set('graphType', 'current');
+                  graphApiUrl.searchParams.set('projectId', projectId);
+                  graphApiUrl.searchParams.set('nodeId', nodeId);
+                  graphApiUrl.searchParams.set('layer', layer);
+
+                  const graphResponse = await fetch(graphApiUrl.toString(), {
+                    headers: {
+                      'Accept': 'application/xml, application/json',
+                      'MANTA_API_KEY': apiKey,
+                    }
+                  });
+
+                  if (graphResponse.ok) {
+                    const content = await graphResponse.text();
+                    results.push(`=== Node: ${nodeId}, Layer: ${layer} ===\n${content}\n`);
+                  }
+                }
+              }
+            }
+
+            console.log('📤 MCP TOOL: read batch success');
+            return {
+              content: [{
+                type: 'text',
+                text: results.join('\n')
+              }]
+            };
+          }
+
+          // Single request path
           const url = new URL(currentRequest.url);
           const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
           graphApiUrl.searchParams.set('graphType', 'current');
           graphApiUrl.searchParams.set('projectId', projectId);
 
-          if (params.nodeId) {
-            graphApiUrl.searchParams.set('nodeId', params.nodeId);
+          if (nodeIds && nodeIds.length === 1) {
+            graphApiUrl.searchParams.set('nodeId', nodeIds[0]);
           }
-          // Apply layer filtering if specified (defaults to 'system' if not provided)
-          graphApiUrl.searchParams.set('layer', params.layer || 'system');
+          graphApiUrl.searchParams.set('layer', layers[0]);
 
-          // Always request XML format
           const acceptHeader = 'application/xml, application/json';
 
           console.log('🔍 Calling graph API:', graphApiUrl.toString());
@@ -461,7 +584,6 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          // Always return as text (XML or formatted text for specific nodes)
           const content = await graphResponse.text();
 
           console.log('📄 Graph content length:', content.length, 'characters');
@@ -493,11 +615,17 @@ const adminHandler = createMcpHandler(
     // edge_create
     server.tool(
       'edge_create',
-      'Create a connection (edge) between two nodes in the graph.',
+      'Create connection(s) (edge) between nodes in the graph. Supports batching: pass single edge properties or an array of edge objects for batch creation.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        sourceId: z.string().min(1, 'Source node ID is required'),
-        targetId: z.string().min(1, 'Target node ID is required'),
+        edges: z.array(z.object({
+          sourceId: z.string().min(1, 'Source node ID is required'),
+          targetId: z.string().min(1, 'Target node ID is required'),
+          role: z.string().optional(),
+          shape: z.enum(['refines', 'relates']).optional().describe('The semantic relationship type: "refines" for hierarchical connections, "relates" for same-level connections'),
+        })).optional().describe('Array of edge objects for batch creation. If provided, sourceId/targetId/role/shape at root level are ignored'),
+        sourceId: z.string().optional().describe('Source node ID (used only if edges array is not provided)'),
+        targetId: z.string().optional().describe('Target node ID (used only if edges array is not provided)'),
         role: z.string().optional(),
         shape: z.enum(['refines', 'relates']).optional().describe('The semantic relationship type: "refines" for hierarchical connections, "relates" for same-level connections'),
       },
@@ -546,30 +674,56 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const result = await graphOperations.edgeCreate({
-            userId: String(authInfo.extra.userId),
-            projectId: projectData.id,
+          // Normalize to array format
+          const edgesToCreate = params.edges || (params.sourceId && params.targetId ? [{
             sourceId: params.sourceId,
             targetId: params.targetId,
             role: params.role,
             shape: params.shape
-          });
+          }] : []);
 
-          if (!result.success) {
+          if (edgesToCreate.length === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: ${result.error}`
+                text: 'Error: No edges specified. Provide either edges array or sourceId/targetId'
               }]
             };
           }
 
-          const responseText = result.content?.text || 'Edge created successfully';
-          const finalText = result.edgeId ? `${responseText} (ID: ${result.edgeId})` : responseText;
+          // Handle batch creation
+          const results: string[] = [];
+          const errors: string[] = [];
+
+          for (const edge of edgesToCreate) {
+            const result = await graphOperations.edgeCreate({
+              userId: String(authInfo.extra.userId),
+              projectId: projectData.id,
+              sourceId: edge.sourceId,
+              targetId: edge.targetId,
+              role: edge.role,
+              shape: edge.shape
+            });
+
+            if (result.success) {
+              const responseText = result.content?.text || 'Edge created successfully';
+              const finalText = result.edgeId ? `${responseText} (ID: ${result.edgeId})` : responseText;
+              results.push(`✓ ${edge.sourceId} → ${edge.targetId}: ${finalText}`);
+            } else {
+              errors.push(`✗ ${edge.sourceId} → ${edge.targetId}: ${result.error}`);
+            }
+          }
+
+          const summary = [
+            `Batch edge creation completed: ${results.length} succeeded, ${errors.length} failed`,
+            ...results,
+            ...errors
+          ].join('\n');
+
           return {
             content: [{
               type: 'text',
-              text: finalText
+              text: summary
             }]
           };
         } catch (error) {
@@ -588,11 +742,15 @@ const adminHandler = createMcpHandler(
     // edge_delete
     server.tool(
       'edge_delete',
-      'Delete a connection (edge) between two nodes in the graph.',
+      'Delete connection(s) (edge) between nodes in the graph. Supports batching: pass single edge properties or an array of edge objects for batch deletion.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        sourceId: z.string().min(1, 'Source node ID is required'),
-        targetId: z.string().min(1, 'Target node ID is required'),
+        edges: z.array(z.object({
+          sourceId: z.string().min(1, 'Source node ID is required'),
+          targetId: z.string().min(1, 'Target node ID is required'),
+        })).optional().describe('Array of edge objects for batch deletion. If provided, sourceId/targetId at root level are ignored'),
+        sourceId: z.string().optional().describe('Source node ID (used only if edges array is not provided)'),
+        targetId: z.string().optional().describe('Target node ID (used only if edges array is not provided)'),
       },
       async (params) => {
         console.log('🗑️ MCP TOOL: edge_delete called', params);
@@ -638,26 +796,51 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const result = await graphOperations.edgeDelete({
-            userId: String(authInfo.extra.userId),
-            projectId: projectData.id,
+          // Normalize to array format
+          const edgesToDelete = params.edges || (params.sourceId && params.targetId ? [{
             sourceId: params.sourceId,
-            targetId: params.targetId
-          });
+            targetId: params.targetId,
+          }] : []);
 
-          if (!result.success) {
+          if (edgesToDelete.length === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: ${result.error}`
+                text: 'Error: No edges specified. Provide either edges array or sourceId/targetId'
               }]
             };
           }
 
+          // Handle batch deletion
+          const results: string[] = [];
+          const errors: string[] = [];
+
+          for (const edge of edgesToDelete) {
+            const result = await graphOperations.edgeDelete({
+              userId: String(authInfo.extra.userId),
+              projectId: projectData.id,
+              sourceId: edge.sourceId,
+              targetId: edge.targetId
+            });
+
+            if (result.success) {
+              const responseText = result.content?.text || 'Edge deleted successfully';
+              results.push(`✓ ${edge.sourceId} → ${edge.targetId}: ${responseText}`);
+            } else {
+              errors.push(`✗ ${edge.sourceId} → ${edge.targetId}: ${result.error}`);
+            }
+          }
+
+          const summary = [
+            `Batch edge deletion completed: ${results.length} succeeded, ${errors.length} failed`,
+            ...results,
+            ...errors
+          ].join('\n');
+
           return {
             content: [{
               type: 'text',
-              text: result.content?.text || 'Edge deleted successfully'
+              text: summary
             }]
           };
         } catch (error) {
@@ -676,13 +859,23 @@ const adminHandler = createMcpHandler(
     // node_create
     server.tool(
       'node_create',
-      'Create a new node and persist it to the graph.',
+      'Create node(s) and persist to the graph. Supports batching: pass single node properties or an array of node objects for batch creation.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().min(1),
-        title: z.string().min(1),
+        nodes: z.array(z.object({
+          nodeId: z.string().min(1),
+          title: z.string().min(1),
+          description: z.string().optional().describe('Description or purpose of the node'),
+          type: NodeTypeEnum.describe('The node type: system, container, component, or code'),
+          level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+          properties: z.array(PropertySchema).optional(),
+          position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
+          metadata: MetadataInputSchema.optional(),
+        })).optional().describe('Array of node objects for batch creation. If provided, nodeId/title/etc at root level are ignored'),
+        nodeId: z.string().optional().describe('Node ID (used only if nodes array is not provided)'),
+        title: z.string().optional().describe('Node title (used only if nodes array is not provided)'),
         description: z.string().optional().describe('Description or purpose of the node'),
-        type: NodeTypeEnum.describe('The node type: system, container, component, or code'),
+        type: NodeTypeEnum.optional().describe('The node type: system, container, component, or code'),
         level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
         properties: z.array(PropertySchema).optional(),
         position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
@@ -732,10 +925,9 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const result = await graphOperations.nodeCreate({
+          // Normalize to array format
+          const nodesToCreate = params.nodes || (params.nodeId && params.title && params.type ? [{
             nodeId: params.nodeId,
-            userId: String(authInfo.extra.userId),
-            projectId: projectData.id,
             title: params.title,
             description: params.description,
             type: params.type,
@@ -743,23 +935,54 @@ const adminHandler = createMcpHandler(
             properties: params.properties,
             position: params.position,
             metadata: params.metadata
-          });
+          }] : []);
 
-          if (!result.success) {
+          if (nodesToCreate.length === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: ${result.error}`
+                text: 'Error: No nodes specified. Provide either nodes array or nodeId/title/type'
               }]
             };
           }
 
-          const responseText = result.content?.text || 'Node created successfully';
-          const finalText = result.nodeId ? `${responseText} (ID: ${result.nodeId})` : responseText;
+          // Handle batch creation
+          const results: string[] = [];
+          const errors: string[] = [];
+
+          for (const node of nodesToCreate) {
+            const result = await graphOperations.nodeCreate({
+              nodeId: node.nodeId,
+              userId: String(authInfo.extra.userId),
+              projectId: projectData.id,
+              title: node.title,
+              description: node.description,
+              type: node.type,
+              level: node.level,
+              properties: node.properties,
+              position: node.position,
+              metadata: node.metadata
+            });
+
+            if (result.success) {
+              const responseText = result.content?.text || 'Node created successfully';
+              const finalText = result.nodeId ? `${responseText} (ID: ${result.nodeId})` : responseText;
+              results.push(`✓ ${node.nodeId}: ${finalText}`);
+            } else {
+              errors.push(`✗ ${node.nodeId}: ${result.error}`);
+            }
+          }
+
+          const summary = [
+            `Batch node creation completed: ${results.length} succeeded, ${errors.length} failed`,
+            ...results,
+            ...errors
+          ].join('\n');
+
           return {
             content: [{
               type: 'text',
-              text: finalText
+              text: summary
             }]
           };
         } catch (error) {
@@ -778,11 +1001,23 @@ const adminHandler = createMcpHandler(
     // node_edit
     server.tool(
       'node_edit',
-      'Edit node fields with two modes: replace (fully replaces node) or merge (merges properties with existing data).',
+      'Edit node(s) with two modes: replace (fully replaces node) or merge (merges properties with existing data). Supports batching: pass single node properties or an array of node edit objects.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().min(1),
-        mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
+        nodes: z.array(z.object({
+          nodeId: z.string().min(1),
+          mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          type: NodeTypeEnum.optional().describe('The node type: system, container, component, or code'),
+          level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+          properties: z.array(PropertySchema).optional(),
+          children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
+          position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
+          metadata: MetadataInputSchema.optional(),
+        })).optional().describe('Array of node edit objects for batch editing. If provided, nodeId/mode/etc at root level are ignored'),
+        nodeId: z.string().optional().describe('Node ID (used only if nodes array is not provided)'),
+        mode: z.enum(['replace', 'merge']).optional().describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
         title: z.string().optional(),
         description: z.string().optional(),
         type: NodeTypeEnum.optional().describe('The node type: system, container, component, or code'),
@@ -836,11 +1071,10 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const result = await graphOperations.nodeEdit({
-            userId: String(authInfo.extra.userId),
-            projectId: projectData.id,
+          // Normalize to array format
+          const nodesToEdit = params.nodes || (params.nodeId ? [{
             nodeId: params.nodeId,
-            mode: params.mode,
+            mode: params.mode || 'replace',
             title: params.title,
             description: params.description,
             type: params.type,
@@ -849,21 +1083,55 @@ const adminHandler = createMcpHandler(
             children: params.children,
             position: params.position,
             metadata: params.metadata
-          });
+          }] : []);
 
-          if (!result.success) {
+          if (nodesToEdit.length === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: ${result.error}`
+                text: 'Error: No nodes specified. Provide either nodes array or nodeId'
               }]
             };
           }
 
+          // Handle batch editing
+          const results: string[] = [];
+          const errors: string[] = [];
+
+          for (const node of nodesToEdit) {
+            const result = await graphOperations.nodeEdit({
+              userId: String(authInfo.extra.userId),
+              projectId: projectData.id,
+              nodeId: node.nodeId,
+              mode: node.mode,
+              title: node.title,
+              description: node.description,
+              type: node.type,
+              level: node.level,
+              properties: node.properties,
+              children: node.children,
+              position: node.position,
+              metadata: node.metadata
+            });
+
+            if (result.success) {
+              const responseText = result.content?.text || 'Node edited successfully';
+              results.push(`✓ ${node.nodeId}: ${responseText}`);
+            } else {
+              errors.push(`✗ ${node.nodeId}: ${result.error}`);
+            }
+          }
+
+          const summary = [
+            `Batch node editing completed: ${results.length} succeeded, ${errors.length} failed`,
+            ...results,
+            ...errors
+          ].join('\n');
+
           return {
             content: [{
               type: 'text',
-              text: result.content?.text || 'Node edited successfully'
+              text: summary
             }]
           };
         } catch (error) {
@@ -882,10 +1150,16 @@ const adminHandler = createMcpHandler(
     // node_metadata_update
     server.tool(
       'node_metadata_update',
-      'Update metadata for a node, including implementation file references and bug tracking.',
+      'Update metadata for node(s), including implementation file references and bug tracking. Supports batching: pass single node properties or an array of metadata update objects.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().min(1),
+        nodes: z.array(z.object({
+          nodeId: z.string().min(1),
+          files: z.array(z.string().min(1)).optional().describe('Project-relative file paths to associate with this node.'),
+          bugs: z.array(z.string().min(1)).optional().describe('List of bugs that need to be fixed for this node.'),
+          merge: z.boolean().optional().describe('If true, merge with existing metadata instead of replacing it.'),
+        })).optional().describe('Array of metadata update objects for batch updates. If provided, nodeId/files/bugs at root level are ignored'),
+        nodeId: z.string().optional().describe('Node ID (used only if nodes array is not provided)'),
         files: z.array(z.string().min(1)).optional().describe('Project-relative file paths to associate with this node.'),
         bugs: z.array(z.string().min(1)).optional().describe('List of bugs that need to be fixed for this node.'),
         merge: z.boolean().optional().describe('If true, merge with existing metadata instead of replacing it.'),
@@ -934,28 +1208,55 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const result = await graphOperations.nodeMetadataUpdate({
-            userId: String(authInfo.extra.userId),
-            projectId: projectData.id,
+          // Normalize to array format
+          const nodesToUpdate = params.nodes || (params.nodeId ? [{
             nodeId: params.nodeId,
             files: params.files,
             bugs: params.bugs,
-            merge: params.merge || false
-          });
+            merge: params.merge
+          }] : []);
 
-          if (!result.success) {
+          if (nodesToUpdate.length === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: ${result.error}`
+                text: 'Error: No nodes specified. Provide either nodes array or nodeId'
               }]
             };
           }
 
+          // Handle batch updates
+          const results: string[] = [];
+          const errors: string[] = [];
+
+          for (const node of nodesToUpdate) {
+            const result = await graphOperations.nodeMetadataUpdate({
+              userId: String(authInfo.extra.userId),
+              projectId: projectData.id,
+              nodeId: node.nodeId,
+              files: node.files,
+              bugs: node.bugs,
+              merge: node.merge || false
+            });
+
+            if (result.success) {
+              const responseText = result.content?.text || 'Metadata updated successfully';
+              results.push(`✓ ${node.nodeId}: ${responseText}`);
+            } else {
+              errors.push(`✗ ${node.nodeId}: ${result.error}`);
+            }
+          }
+
+          const summary = [
+            `Batch metadata update completed: ${results.length} succeeded, ${errors.length} failed`,
+            ...results,
+            ...errors
+          ].join('\n');
+
           return {
             content: [{
               type: 'text',
-              text: result.content?.text || 'Metadata updated successfully'
+              text: summary
             }]
           };
         } catch (error) {
@@ -974,11 +1275,19 @@ const adminHandler = createMcpHandler(
     // node_delete
     server.tool(
       'node_delete',
-      'Delete a node by id.',
+      'Delete node(s) by id. Supports batching: pass single nodeId or an array of nodeIds/objects for batch deletion.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().min(1),
-        recursive: z.boolean().optional().default(true)
+        nodeIds: z.union([
+          z.string().min(1),
+          z.array(z.string().min(1)),
+          z.array(z.object({
+            nodeId: z.string().min(1),
+            recursive: z.boolean().optional().default(true)
+          }))
+        ]).optional().describe('Node ID(s) to delete. Accepts a single string, array of strings, or array of objects with nodeId and recursive flag. If provided, nodeId at root level is ignored'),
+        nodeId: z.string().optional().describe('Node ID (used only if nodeIds is not provided)'),
+        recursive: z.boolean().optional().default(true).describe('If true, recursively delete child nodes')
       },
       async (params) => {
         console.log('🗑️ MCP TOOL: node_delete called', params);
@@ -1024,26 +1333,65 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const result = await graphOperations.nodeDelete({
-            userId: String(authInfo.extra.userId),
-            projectId: projectData.id,
-            nodeId: params.nodeId,
-            recursive: params.recursive
-          });
+          // Normalize to array format
+          let nodesToDelete: Array<{ nodeId: string; recursive: boolean }> = [];
+          
+          if (params.nodeIds) {
+            if (typeof params.nodeIds === 'string') {
+              nodesToDelete = [{ nodeId: params.nodeIds, recursive: params.recursive ?? true }];
+            } else if (Array.isArray(params.nodeIds)) {
+              if (params.nodeIds.length > 0 && typeof params.nodeIds[0] === 'string') {
+                nodesToDelete = (params.nodeIds as string[]).map(id => ({ 
+                  nodeId: id, 
+                  recursive: params.recursive ?? true 
+                }));
+              } else {
+                nodesToDelete = params.nodeIds as Array<{ nodeId: string; recursive: boolean }>;
+              }
+            }
+          } else if (params.nodeId) {
+            nodesToDelete = [{ nodeId: params.nodeId, recursive: params.recursive ?? true }];
+          }
 
-          if (!result.success) {
+          if (nodesToDelete.length === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: ${result.error}`
+                text: 'Error: No nodes specified. Provide either nodeIds or nodeId'
               }]
             };
           }
 
+          // Handle batch deletion
+          const results: string[] = [];
+          const errors: string[] = [];
+
+          for (const node of nodesToDelete) {
+            const result = await graphOperations.nodeDelete({
+              userId: String(authInfo.extra.userId),
+              projectId: projectData.id,
+              nodeId: node.nodeId,
+              recursive: node.recursive
+            });
+
+            if (result.success) {
+              const responseText = result.content?.text || 'Node deleted successfully';
+              results.push(`✓ ${node.nodeId}: ${responseText}`);
+            } else {
+              errors.push(`✗ ${node.nodeId}: ${result.error}`);
+            }
+          }
+
+          const summary = [
+            `Batch node deletion completed: ${results.length} succeeded, ${errors.length} failed`,
+            ...results,
+            ...errors
+          ].join('\n');
+
           return {
             content: [{
               type: 'text',
-              text: result.content?.text || 'Node deleted successfully'
+              text: summary
             }]
           };
         } catch (error) {
