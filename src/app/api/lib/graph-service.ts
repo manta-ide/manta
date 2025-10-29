@@ -331,7 +331,12 @@ function normalizeGraph(original: Graph): Graph {
     byPair.add(pair);
     // Generate UUID if edge doesn't have an ID
     const id = e.id || randomUUID();
-    nextEdges.push({ id, source, target, role: e.role });
+    // Preserve all edge properties (role, shape, etc.)
+    const edge: any = { ...e, id, source, target };
+    // Clean up alternate field names if they exist
+    delete edge.source_id;
+    delete edge.target_id;
+    nextEdges.push(edge);
   }
 
   const normalized: any = { nodes: normalizedNodes };

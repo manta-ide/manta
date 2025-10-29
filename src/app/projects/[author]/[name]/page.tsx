@@ -90,12 +90,12 @@ function ProjectGraphContent({ projectName }: { projectName: string }) {
   );
 }
 
-export default function ProjectPage({ params }: { params: Promise<{ name: string }> }) {
+export default function ProjectPage({ params }: { params: Promise<{ author: string; name: string }> }) {
   const resolvedParams = use(params);
   const setLayersSidebarOpen = useProjectStore((s) => s.setLayersSidebarOpen);
   
-  // Convert URL format from "account-repo" back to "account/repo"
-  const projectName = resolvedParams.name.replace(/-/g, '/');
+  // Construct project name from author and name params
+  const projectName = `${resolvedParams.author}/${resolvedParams.name}`;
 
   useEffect(() => {
     const handler = () => setLayersSidebarOpen(true);
@@ -113,3 +113,4 @@ export default function ProjectPage({ params }: { params: Promise<{ name: string
     </SidebarProvider>
   );
 }
+

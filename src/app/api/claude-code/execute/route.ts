@@ -7,6 +7,52 @@ import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
 
+// ---- File Logging Setup ----
+const LOGS_DIR = path.join(process.cwd(), 'logs', 'claude-code');
+let logStream: fs.WriteStream | null = null;
+
+function initializeLogFile(): fs.WriteStream {
+  // Create logs directory if it doesn't exist
+  if (!fs.existsSync(LOGS_DIR)) {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+  }
+  
+  // Create log file with timestamp
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const logFilePath = path.join(LOGS_DIR, `claude-code-${timestamp}.log`);
+  
+  const stream = fs.createWriteStream(logFilePath, { flags: 'a' });
+  console.log(`📝 Logging to file: ${logFilePath}`);
+  
+  return stream;
+}
+
+function logToFile(message: string) {
+  if (!logStream) {
+    logStream = initializeLogFile();
+  }
+  
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] ${message}\n`;
+  
+  try {
+    logStream.write(logLine);
+  } catch (error) {
+    console.error('Failed to write to log file:', error);
+  }
+}
+
+function logBoth(message: string) {
+  console.log(message);
+  logToFile(message);
+}
+
+function logErrorBoth(message: string, error?: any) {
+  const fullMessage = error ? `${message} ${error}` : message;
+  console.error(fullMessage);
+  logToFile(`ERROR: ${fullMessage}`);
+}
+
 // Type definitions for Claude Code installations
 interface ClaudeInstallation {
   path: string;
@@ -22,12 +68,12 @@ function envVerbose(): boolean {
 }
 
 function findClaudeBinary(): string {
-  if (envVerbose()) console.log('🔍 Searching for Claude Code binary...');
+  if (envVerbose()) logBoth('🔍 Searching for Claude Code binary...');
 
   // First try the current approach (development/standalone detection)
   const quickPath = getQuickCliPath();
   if (quickPath && fs.existsSync(quickPath)) {
-    if (envVerbose()) console.log(`✅ Found Claude Code via quick detection: ${quickPath}`);
+    if (envVerbose()) logBoth(`✅ Found Claude Code via quick detection: ${quickPath}`);
     return quickPath;
   }
 
@@ -41,14 +87,14 @@ function findClaudeBinary(): string {
   // Log all found installations
   if (envVerbose()) {
     installations.forEach(install => {
-      console.log(`📍 Found Claude installation: ${install.path} (${install.source})`);
+      logBoth(`📍 Found Claude installation: ${install.path} (${install.source})`);
     });
   }
 
   // Select the best installation
   const best = selectBestInstallation(installations);
   if (best) {
-    if (envVerbose()) console.log(`🎯 Selected Claude installation: ${best.path} (${best.source})`);
+    if (envVerbose()) logBoth(`🎯 Selected Claude installation: ${best.path} (${best.source})`);
     return best.path;
   }
 
@@ -447,8 +493,8 @@ export async function POST(req: NextRequest) {
     const envVerbose = String(process.env.VERBOSE_CLAUDE_LOGS || '').toLowerCase();
     const defaultVerbose = envVerbose === '1' || envVerbose === 'true' || envVerbose === 'yes' || envVerbose === 'on';
     const verbose = true;
-    const logHeader = (title: string) => { if (!verbose) return; console.log(`\n====== ${title} ======`); };
-    const logLine = (prefix: string, message?: any) => { if (!verbose) return; console.log(prefix, message ?? ''); };
+    const logHeader = (title: string) => { if (!verbose) return; logBoth(`\n====== ${title} ======`); };
+    const logLine = (prefix: string, message?: any) => { if (!verbose) return; logBoth(`${prefix} ${message ?? ''}`); };
 
     logHeader('Claude Code Execute');
     logLine('🎯 Claude Code: User asked (full):', prompt);
@@ -564,7 +610,7 @@ export async function POST(req: NextRequest) {
               await handleMessage(message as SDKMessage, controller, encoder);
             }
           } catch (queryError) {
-            logHeader('❌ Claude Code: Query error' + queryError);
+            logErrorBoth('❌ Claude Code: Query error', queryError);
 
             // Only send error and close if stream is still open
             if (!streamClosed) {
@@ -599,7 +645,7 @@ export async function POST(req: NextRequest) {
           }
 
         } catch (error) {
-          console.error('Streaming error:', error);
+          logErrorBoth('Streaming error:', error);
 
           // Only close stream if not already closed
           if (!streamClosed) {
@@ -608,7 +654,7 @@ export async function POST(req: NextRequest) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n\n`));
               controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));
             } catch (enqueueError) {
-              console.error('⚠️ Failed to enqueue final error - stream may be closed:', enqueueError);
+              logErrorBoth('⚠️ Failed to enqueue final error - stream may be closed:', enqueueError);
             }
             controller.close();
           }
@@ -642,7 +688,7 @@ export async function POST(req: NextRequest) {
         default:
           // Reduce noise from stream_event messages unless they contain useful info
           if ((message as any).type !== 'stream_event') {
-            console.log(`📝 Claude Code: Unhandled message type: ${(message as any).type}`);
+            logBoth(`📝 Claude Code: Unhandled message type: ${(message as any).type}`);
           }
       }
     }
@@ -805,7 +851,7 @@ export async function POST(req: NextRequest) {
         // Only close stream if not already closed
         if (!streamClosed) {
           streamClosed = true;
-          console.log('RESULT>>>>>>>>>', message);
+          logBoth('RESULT>>>>>>>>>' + JSON.stringify(message));
           const resultData = {
             type: 'result',
             content: fullResponse
@@ -827,7 +873,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Claude Code API error:', error);
+    logErrorBoth('Claude Code API error:', error);
     return new Response(`Error: ${error?.message || String(error)}`, {
       status: 500,
       headers: { 'Content-Type': 'text/plain' }

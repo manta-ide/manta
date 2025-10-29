@@ -206,9 +206,8 @@ function ProjectsContent() {
                       variant="outline"
                       className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
                       onClick={() => {
-                        // Convert project name from "account/repo" format to "account-repo" for URL
-                        const urlName = project.name.replace(/\//g, '-');
-                        router.push(`/projects/${urlName}`);
+                        // Use project name directly in URL: "account/repo" becomes "/projects/account/repo"
+                        router.push(`/projects/${project.name}`);
                       }}
                     >
                       Open Project
