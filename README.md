@@ -48,6 +48,9 @@ An MCP tool `graph_verify` checks basic graph integrity. It is also triggered au
 - **xAI Grok support (optional)**  
 Add `XAI_API_KEY` to enable a simple `/api/grok` proxy for experimentation with Grok models.
 
+- **Firecrawl MCP (optional)**  
+Scrape, crawl, search, and extract site content via Firecrawl MCP. See `docs/firecrawl-mcp.md`.
+
 ## 🧑‍💻 Developers
 
 1. Install and setup Claude Code by Anthropic:

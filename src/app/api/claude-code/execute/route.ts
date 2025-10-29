@@ -500,6 +500,17 @@ export async function POST(req: NextRequest) {
             }
           };
 
+          // Configure Firecrawl MCP server via stdio (npx)
+          const firecrawlConfig: any = {
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', 'firecrawl-mcp'],
+            env: {
+              ...process.env,
+              FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY || ''
+            }
+          };
+
           // Log the working directory
           const workingDirectory = projectDir();
           const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
@@ -527,7 +538,7 @@ export async function POST(req: NextRequest) {
           const queryOptions: Options = {
             includePartialMessages: true,
             systemPrompt: orchestratorSystemPrompt,
-            mcpServers: { 'manta': mcpServerConfig },
+            mcpServers: { 'manta': mcpServerConfig, 'firecrawl': firecrawlConfig },
             //allowedTools: ['Task'],
             //disallowedTools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__manta__node_metadata_update','mcp__manta__read','mcp__manta__node_create','mcp__manta__node_edit','mcp__manta__node_delete','mcp__manta__edge_create','mcp__manta__edge_delete','WebSearch',"SlashCommand"],
             permissionMode: 'bypassPermissions',
