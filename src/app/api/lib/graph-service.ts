@@ -810,8 +810,7 @@ export const graphOperations = {
     nodeId?: string; // Allow specifying node ID
     title: string;
     description?: string;
-    type?: string;
-    level?: string;
+    layer?: string;
     properties?: any[];
     position?: { x: number; y: number; z?: number };
     metadata?: unknown;
@@ -820,7 +819,7 @@ export const graphOperations = {
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string }; nodeId?: string }> {
     console.log('➕ TOOL: node_create called', params);
 
-    const { userId, projectId, nodeId: requestedNodeId, title, description, type, level, properties, position, metadata } = params;
+    const { userId, projectId, nodeId: requestedNodeId, title, description, layer, properties, position, metadata } = params;
 
     try {
       // Use Supabase read only
@@ -849,8 +848,7 @@ export const graphOperations = {
         id: nodeId,
         title,
         description: description || '',
-        type: type || 'component', // Use provided type or default to component
-        level: level, // C4 level for architectural elements
+        ...(layer ? { layer } : {}),
         properties: properties || []
       };
       const normalizedMetadata = normalizeNodeMetadata(metadata);
@@ -947,8 +945,7 @@ export const graphOperations = {
     mode?: 'replace' | 'merge';
     title?: string;
     description?: string;
-    type?: string;
-    level?: string;
+    layer?: string;
     properties?: any[];
     children?: any[];
     position?: { x: number; y: number; z?: number };
@@ -958,7 +955,7 @@ export const graphOperations = {
   }): Promise<{ success: boolean; error?: string; content?: { type: string; text: string } }> {
     console.log('✏️ TOOL: node_edit called', params);
 
-    const { userId, projectId, nodeId, mode = 'replace', title, description, type, level, properties, children, position, metadata } = params;
+    const { userId, projectId, nodeId, mode = 'replace', title, description, layer, properties, children, position, metadata } = params;
 
     try {
       // Use Supabase read only
@@ -992,13 +989,9 @@ export const graphOperations = {
         console.log('📝 TOOL: node_edit updating description, length:', description.length);
         next.description = description;
       }
-      if (type !== undefined) {
-        console.log('🏷️ TOOL: node_edit updating type:', type);
-        next.type = type;
-      }
-      if (level !== undefined) {
-        console.log('🏷️ TOOL: node_edit updating level:', level);
-        next.level = level;
+      if (layer !== undefined) {
+        console.log('🏷️ TOOL: node_edit updating layer:', layer);
+        next.layer = layer;
       }
       if (children !== undefined) {
         console.log('👶 TOOL: node_edit updating children, count:', children.length);

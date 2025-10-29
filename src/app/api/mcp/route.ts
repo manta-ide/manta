@@ -3,7 +3,7 @@ import { createMcpHandler } from 'mcp-handler';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from '../lib/schemas';
+import { PropertySchema, MetadataInputSchema } from '../lib/schemas';
 import { graphOperations } from '../lib/graph-service';
 import { getDevProjectDir } from '@/lib/project-config';
 import { indexDirectory } from '@/lib/ast/indexer';
@@ -190,11 +190,11 @@ const userHandler = createMcpHandler(
 
     server.tool(
       'read',
-      'Read from current graph, or specific node(s) with their connections. Supports batching: pass a single nodeId/layer or arrays for batch operations. Use the project field to specify which project to read from.',
+      'Read from current graph, or specific node(s) with their connections. Supports batching: pass a single nodeId/layer or arrays for batch operations. If no layer or nodeId is specified, returns a list of available layers. Use the project field to specify which project to read from.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
         nodeId: z.union([z.string(), z.array(z.string())]).optional().describe('Optional node ID(s) to read specific node details with all connections. Accepts a single string or an array of strings for batch reading'),
-        layer: z.union([z.string(), z.array(z.string())]).optional().describe('Optional C4 architectural layer filter(s): "system", "container", "component", or "code". Accepts a single string or array for reading multiple layers (defaults to "system")'),
+        layer: z.union([z.string(), z.array(z.string())]).optional().describe('Optional layer filter(s). Accepts a single string or array for reading multiple layers. If not specified and no nodeId provided, returns list of available layers'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
       },
       async (params) => {
@@ -241,15 +241,77 @@ const userHandler = createMcpHandler(
 
           // Handle batching for nodeIds and layers
           const nodeIds = Array.isArray(params.nodeId) ? params.nodeId : (params.nodeId ? [params.nodeId] : undefined);
-          const layers = Array.isArray(params.layer) ? params.layer : (params.layer ? [params.layer] : ['system']);
+          const layers = Array.isArray(params.layer) ? params.layer : (params.layer ? [params.layer] : undefined);
+
+          // If no layer and no nodeId specified, return list of available layers
+          if (!layers && !nodeIds) {
+            console.log('🔍 No layer or nodeId specified, fetching available layers');
+            const url = new URL(currentRequest.url);
+            const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
+            graphApiUrl.searchParams.set('graphType', 'current');
+            graphApiUrl.searchParams.set('projectId', projectId);
+
+            const graphResponse = await fetch(graphApiUrl.toString(), {
+              headers: {
+                'Accept': 'application/json',
+                'MANTA_API_KEY': apiKey,
+              }
+            });
+
+            if (!graphResponse.ok) {
+              const errorText = await graphResponse.text();
+              console.error('❌ Graph API error:', errorText);
+              return {
+                content: [{
+                  type: 'text',
+                  text: `Error: Failed to read graph (${graphResponse.status}): ${errorText}`
+                }]
+              };
+            }
+
+            const graphData = await graphResponse.json();
+            const availableLayers = new Set<string>();
+            
+            if (graphData?.nodes && Array.isArray(graphData.nodes)) {
+              graphData.nodes.forEach((node: any) => {
+                if (node.layer && typeof node.layer === 'string') {
+                  availableLayers.add(node.layer);
+                }
+              });
+            }
+
+            const layerList = Array.from(availableLayers).sort();
+            
+            if (layerList.length === 0) {
+              return {
+                content: [{
+                  type: 'text',
+                  text: 'No layers found in this project. Create nodes with a layer property to see them here.'
+                }]
+              };
+            }
+
+            const layersText = `Available layers in project "${params.project}":\n\n` + 
+              layerList.map(layer => `- ${layer}`).join('\n') +
+              `\n\nTotal: ${layerList.length} layer(s)\n\n` +
+              `To read a specific layer, use the 'layer' parameter. Example: layer: "${layerList[0]}"`;
+
+            console.log('📤 MCP TOOL: read success - returning available layers');
+            return {
+              content: [{
+                type: 'text',
+                text: layersText
+              }]
+            };
+          }
 
           // If batching, make multiple requests
-          if ((nodeIds && nodeIds.length > 1) || layers.length > 1) {
+          if ((nodeIds && nodeIds.length > 1) || (layers && layers.length > 1)) {
             const results: string[] = [];
             
             // For multiple layers without specific nodes
             if (!nodeIds || nodeIds.length === 0) {
-              for (const layer of layers) {
+              for (const layer of (layers || [])) {
                 const url = new URL(currentRequest.url);
                 const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
                 graphApiUrl.searchParams.set('graphType', 'current');
@@ -271,7 +333,7 @@ const userHandler = createMcpHandler(
             } else {
               // For multiple nodes across layers
               for (const nodeId of nodeIds) {
-                for (const layer of layers) {
+                for (const layer of (layers || [])) {
                   const url = new URL(currentRequest.url);
                   const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
                   graphApiUrl.searchParams.set('graphType', 'current');
@@ -312,7 +374,9 @@ const userHandler = createMcpHandler(
           if (nodeIds && nodeIds.length === 1) {
             graphApiUrl.searchParams.set('nodeId', nodeIds[0]);
           }
-          graphApiUrl.searchParams.set('layer', layers[0]);
+          if (layers && layers.length > 0) {
+            graphApiUrl.searchParams.set('layer', layers[0]);
+          }
 
           const acceptHeader = 'application/xml, application/json';
 
@@ -467,11 +531,11 @@ const adminHandler = createMcpHandler(
 
     server.tool(
       'read',
-      'Read from current graph, or specific node(s) with their connections. Supports batching: pass a single nodeId/layer or arrays for batch operations. Use the project field to specify which project to read from.',
+      'Read from current graph, or specific node(s) with their connections. Supports batching: pass a single nodeId/layer or arrays for batch operations. If no layer or nodeId is specified, returns a list of available layers. Use the project field to specify which project to read from.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
         nodeId: z.union([z.string(), z.array(z.string())]).optional().describe('Optional node ID(s) to read specific node details with all connections. Accepts a single string or an array of strings for batch reading'),
-        layer: z.union([z.string(), z.array(z.string())]).optional().describe('Optional C4 architectural layer filter(s): "system", "container", "component", or "code". Accepts a single string or array for reading multiple layers (defaults to "system")'),
+        layer: z.union([z.string(), z.array(z.string())]).optional().describe('Optional layer filter(s). Accepts a single string or array for reading multiple layers. If not specified and no nodeId provided, returns list of available layers'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
       },
       async (params) => {
@@ -518,15 +582,77 @@ const adminHandler = createMcpHandler(
 
           // Handle batching for nodeIds and layers
           const nodeIds = Array.isArray(params.nodeId) ? params.nodeId : (params.nodeId ? [params.nodeId] : undefined);
-          const layers = Array.isArray(params.layer) ? params.layer : (params.layer ? [params.layer] : ['system']);
+          const layers = Array.isArray(params.layer) ? params.layer : (params.layer ? [params.layer] : undefined);
+
+          // If no layer and no nodeId specified, return list of available layers
+          if (!layers && !nodeIds) {
+            console.log('🔍 No layer or nodeId specified, fetching available layers');
+            const url = new URL(currentRequest.url);
+            const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
+            graphApiUrl.searchParams.set('graphType', 'current');
+            graphApiUrl.searchParams.set('projectId', projectId);
+
+            const graphResponse = await fetch(graphApiUrl.toString(), {
+              headers: {
+                'Accept': 'application/json',
+                'MANTA_API_KEY': apiKey,
+              }
+            });
+
+            if (!graphResponse.ok) {
+              const errorText = await graphResponse.text();
+              console.error('❌ Graph API error:', errorText);
+              return {
+                content: [{
+                  type: 'text',
+                  text: `Error: Failed to read graph (${graphResponse.status}): ${errorText}`
+                }]
+              };
+            }
+
+            const graphData = await graphResponse.json();
+            const availableLayers = new Set<string>();
+            
+            if (graphData?.nodes && Array.isArray(graphData.nodes)) {
+              graphData.nodes.forEach((node: any) => {
+                if (node.layer && typeof node.layer === 'string') {
+                  availableLayers.add(node.layer);
+                }
+              });
+            }
+
+            const layerList = Array.from(availableLayers).sort();
+            
+            if (layerList.length === 0) {
+              return {
+                content: [{
+                  type: 'text',
+                  text: 'No layers found in this project. Create nodes with a layer property to see them here.'
+                }]
+              };
+            }
+
+            const layersText = `Available layers in project "${params.project}":\n\n` + 
+              layerList.map(layer => `- ${layer}`).join('\n') +
+              `\n\nTotal: ${layerList.length} layer(s)\n\n` +
+              `To read a specific layer, use the 'layer' parameter. Example: layer: "${layerList[0]}"`;
+
+            console.log('📤 MCP TOOL: read success - returning available layers');
+            return {
+              content: [{
+                type: 'text',
+                text: layersText
+              }]
+            };
+          }
 
           // If batching, make multiple requests
-          if ((nodeIds && nodeIds.length > 1) || layers.length > 1) {
+          if ((nodeIds && nodeIds.length > 1) || (layers && layers.length > 1)) {
             const results: string[] = [];
             
             // For multiple layers without specific nodes
             if (!nodeIds || nodeIds.length === 0) {
-              for (const layer of layers) {
+              for (const layer of (layers || [])) {
                 const url = new URL(currentRequest.url);
                 const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
                 graphApiUrl.searchParams.set('graphType', 'current');
@@ -548,7 +674,7 @@ const adminHandler = createMcpHandler(
             } else {
               // For multiple nodes across layers
               for (const nodeId of nodeIds) {
-                for (const layer of layers) {
+                for (const layer of (layers || [])) {
                   const url = new URL(currentRequest.url);
                   const graphApiUrl = new URL(`${url.protocol}//${url.host}/api/graph-api`);
                   graphApiUrl.searchParams.set('graphType', 'current');
@@ -589,7 +715,9 @@ const adminHandler = createMcpHandler(
           if (nodeIds && nodeIds.length === 1) {
             graphApiUrl.searchParams.set('nodeId', nodeIds[0]);
           }
-          graphApiUrl.searchParams.set('layer', layers[0]);
+          if (layers && layers.length > 0) {
+            graphApiUrl.searchParams.set('layer', layers[0]);
+          }
 
           const acceptHeader = 'application/xml, application/json';
 
@@ -944,8 +1072,7 @@ const adminHandler = createMcpHandler(
           nodeId: z.string().min(1),
           title: z.string().min(1),
           description: z.string().optional().describe('Description or purpose of the node'),
-          type: NodeTypeEnum.describe('The node type: system, container, component, or code'),
-          level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+          layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
           properties: z.array(PropertySchema).optional(),
           position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
           metadata: MetadataInputSchema.optional(),
@@ -953,8 +1080,7 @@ const adminHandler = createMcpHandler(
         nodeId: z.string().optional().describe('Node ID (used only if nodes array is not provided)'),
         title: z.string().optional().describe('Node title (used only if nodes array is not provided)'),
         description: z.string().optional().describe('Description or purpose of the node'),
-        type: NodeTypeEnum.optional().describe('The node type: system, container, component, or code'),
-        level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+        layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
         properties: z.array(PropertySchema).optional(),
         position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
         metadata: MetadataInputSchema.optional(),
@@ -1004,12 +1130,11 @@ const adminHandler = createMcpHandler(
           }
 
           // Normalize to array format
-          const nodesToCreate = params.nodes || (params.nodeId && params.title && params.type ? [{
+          const nodesToCreate = params.nodes || (params.nodeId && params.title ? [{
             nodeId: params.nodeId,
             title: params.title,
             description: params.description,
-            type: params.type,
-            level: params.level,
+            layer: params.layer,
             properties: params.properties,
             position: params.position,
             metadata: params.metadata
@@ -1035,8 +1160,7 @@ const adminHandler = createMcpHandler(
               projectId: projectData.id,
               title: node.title,
               description: node.description,
-              type: node.type,
-              level: node.level,
+              layer: node.layer,
               properties: node.properties,
               position: node.position,
               metadata: node.metadata
@@ -1087,8 +1211,7 @@ const adminHandler = createMcpHandler(
           mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
           title: z.string().optional(),
           description: z.string().optional(),
-          type: NodeTypeEnum.optional().describe('The node type: system, container, component, or code'),
-          level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+          layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
           properties: z.array(PropertySchema).optional(),
           children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
           position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
@@ -1098,8 +1221,7 @@ const adminHandler = createMcpHandler(
         mode: z.enum(['replace', 'merge']).optional().describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
         title: z.string().optional(),
         description: z.string().optional(),
-        type: NodeTypeEnum.optional().describe('The node type: system, container, component, or code'),
-        level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+        layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
         properties: z.array(PropertySchema).optional(),
         children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
         position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
@@ -1155,8 +1277,7 @@ const adminHandler = createMcpHandler(
             mode: params.mode || 'replace',
             title: params.title,
             description: params.description,
-            type: params.type,
-            level: params.level,
+            layer: params.layer,
             properties: params.properties,
             children: params.children,
             position: params.position,
@@ -1184,8 +1305,7 @@ const adminHandler = createMcpHandler(
               mode: node.mode,
               title: node.title,
               description: node.description,
-              type: node.type,
-              level: node.level,
+              layer: node.layer,
               properties: node.properties,
               children: node.children,
               position: node.position,

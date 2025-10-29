@@ -67,7 +67,10 @@ export async function indexDirectory(dir: string, include: string[] = ['**/*.{ts
         const pos = node.getStartLinePos ? node.getStartLinePos() : undefined;
         const line = node.getStartLineNumber ? node.getStartLineNumber() : undefined;
         const column = node.getNonWhitespaceStart ? node.getNonWhitespaceStart() : undefined;
-        symbols.push({ name: String(name), kind: mapKind(kind), loc: line ? { line, column: (column ?? 0) } : undefined });
+        const mappedKind = mapKind(kind);
+        if (mappedKind) {
+          symbols.push({ name: String(name), kind: mappedKind, loc: line ? { line, column: (column ?? 0) } : undefined });
+        }
       });
     });
 

@@ -1,6 +1,6 @@
 import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import { PropertySchema, MetadataInputSchema, NodeTypeEnum, C4LevelEnum } from './schemas';
+import { PropertySchema, MetadataInputSchema } from './schemas';
 import { graphOperations } from './graph-service';
 
 export const createGraphTools = (baseUrl: string, userId: string) => {
@@ -59,7 +59,7 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
     {
       projectId: z.string().describe('The project ID to read from'),
       nodeId: z.string().optional(),
-      layer: z.enum(['system', 'container', 'component', 'code']).optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code"'),
+      layer: z.string().optional().describe('Optional layer filter (can be any string)'),
       includeProperties: z.boolean().optional(),
       includeChildren: z.boolean().optional(),
       format: z.enum(['json', 'xml']).optional().describe('Output format: "json" or "xml" (defaults to "json")'),
@@ -210,15 +210,14 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
       nodeId: z.string().min(1),
       title: z.string().min(1),
       prompt: z.string().min(1),
-      type: NodeTypeEnum.describe('The node type: system, container, component, code, or comment'),
-      level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+      layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
       comment: z.string().optional(),
       properties: z.array(PropertySchema).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ projectId, nodeId, title, prompt, type, level, comment, properties, position, metadata }) => {
-      console.log('➕ TOOL: node_create called', { projectId, nodeId, title, type, comment: !!comment, position: !!position, metadata });
+    async ({ projectId, nodeId, title, prompt, layer, comment, properties, position, metadata }) => {
+      console.log('➕ TOOL: node_create called', { projectId, nodeId, title, layer, comment: !!comment, position: !!position, metadata });
 
       try {
         const result = await graphOperations.nodeCreate({
@@ -227,8 +226,7 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
           projectId,
           title,
           description: prompt, // Map prompt to description
-          type,
-          level,
+          layer,
           properties,
           position,
           metadata
@@ -262,16 +260,15 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
       mode: z.enum(['replace', 'merge']).default('replace').describe('Edit mode: "replace" fully replaces the node, "merge" merges properties with existing data'),
       title: z.string().optional(),
       prompt: z.string().optional(),
-      type: NodeTypeEnum.optional().describe('The node type: system, container, component, code, or comment'),
-      level: C4LevelEnum.optional().describe('The C4 model level for architectural elements: system, container, component, or code'),
+      layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
       comment: z.string().optional(),
       properties: z.array(PropertySchema).optional(),
       children: z.array(z.object({ id: z.string(), title: z.string() })).optional(),
       position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
       metadata: MetadataInputSchema.optional(),
     },
-    async ({ projectId, nodeId, mode = 'replace', title, prompt, type, level, comment, properties, children, position, metadata }) => {
-      console.log('✏️ TOOL: node_edit called', { projectId, nodeId, mode, title: !!title, prompt: !!prompt, type: !!type, level: !!level, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
+    async ({ projectId, nodeId, mode = 'replace', title, prompt, layer, comment, properties, children, position, metadata }) => {
+      console.log('✏️ TOOL: node_edit called', { projectId, nodeId, mode, title: !!title, prompt: !!prompt, layer, comment: !!comment, propertiesCount: properties?.length, childrenCount: children?.length, position: !!position, hasMetadata: metadata !== undefined });
 
       try {
         const result = await graphOperations.nodeEdit({
@@ -281,8 +278,7 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
           mode,
           title,
           description: prompt, // Map prompt to description
-          type,
-          level,
+          layer,
           properties,
           children,
           position,

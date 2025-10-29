@@ -61,28 +61,11 @@ export const MetadataInputSchema = z.union([
 ]);
 export type MetadataInput = z.infer<typeof MetadataInputSchema>;
 
-export const C4LevelEnum = z.enum([
-  'system',
-  'container',
-  'component',
-  'code'
-]);
-export type C4Level = z.infer<typeof C4LevelEnum>;
-
-export const NodeTypeEnum = z.enum([
-  'system',
-  'container',
-  'component',
-  'code'
-]);
-export type NodeType = z.infer<typeof NodeTypeEnum>;
-
 export const GraphNodeSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string(),
-  type: NodeTypeEnum,
-  level: C4LevelEnum.optional(),
+  layer: z.string().optional(),
   shape: z.enum(['rectangle', 'circle', 'diamond', 'hexagon', 'arrow-rectangle', 'cylinder', 'parallelogram', 'round-rectangle']).optional(),
   properties: z.array(PropertySchema).optional(),
   width: z.number().optional(),

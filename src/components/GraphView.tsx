@@ -675,20 +675,12 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
     if (!graph) return;
 
     const newNodeId = generateNodeId();
-    // Use the active layer's C4 type, defaulting to 'component' if not a valid C4 layer
-    const nodeType = (activeLayer === 'system' || activeLayer === 'container' || activeLayer === 'component' || activeLayer === 'code')
-      ? activeLayer as 'system' | 'container' | 'component' | 'code'
-      : 'component';
-    const nodeLevel = (activeLayer === 'system' || activeLayer === 'container' || activeLayer === 'component' || activeLayer === 'code')
-      ? activeLayer as 'system' | 'container' | 'component' | 'code'
-      : 'component';
 
     const newNode: GraphNode = {
       id: newNodeId,
       title: 'New Node',
       description: '',
-      type: nodeType,
-      level: nodeLevel,
+      layer: activeLayer || undefined, // Use the current active layer
       shape: 'round-rectangle'
     };
 
@@ -1429,11 +1421,11 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
 
         // Get all upper level nodes that should be shown as outlines
         const upperLevelNodes = fullGraph.nodes.filter(node =>
-          c4Layers.includes((node as any).type) &&
-          layerHierarchy[(node as any).type as keyof typeof layerHierarchy] < currentLevelIndex
+          c4Layers.includes((node as any).layer) &&
+          layerHierarchy[(node as any).layer as keyof typeof layerHierarchy] < currentLevelIndex
         );
 
-        console.log('📊 Upper level nodes found:', upperLevelNodes.map(n => ({ id: n.id, title: n.title, type: (n as any).type })));
+        console.log('📊 Upper level nodes found:', upperLevelNodes.map(n => ({ id: n.id, title: n.title, layer: (n as any).layer })));
 
         // Create a map of current level nodes for quick lookup
         const currentLevelNodeMap = new Map(graph.nodes.map(node => [node.id, node]));
@@ -1476,7 +1468,7 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
             shape: 'round-rectangle',
             position: { x: 0, y: 0, z: 0 }, // Will be calculated later
             properties: [],
-            outlineType: (upperNode as any).type,
+            outlineType: (upperNode as any).layer,
             childNodeIds,
           };
 
@@ -1516,6 +1508,7 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
       console.log('🎯 Final sorted nodes:', sortedNodes.map(n => ({
         id: n.id,
         title: n.title,
+        layer: (n as any).layer,
         type: (n as any).type,
         isOutline: (n as any).type === 'outline'
       })));
@@ -1541,7 +1534,7 @@ function GraphCanvas({ projectId }: GraphCanvasProps) {
             childNodeIds.includes(n.id) && (n as any).type !== 'outline'
           );
 
-          console.log('👶 Found child nodes for outline:', childNodes.map(c => ({ id: c.id, title: c.title, type: (c as any).type })));
+          console.log('👶 Found child nodes for outline:', childNodes.map(c => ({ id: c.id, title: c.title, layer: (c as any).layer })));
 
           if (childNodes.length > 0) {
             // Create outline node with temporary position - will be repositioned after layout

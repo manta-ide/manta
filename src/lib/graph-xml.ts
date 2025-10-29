@@ -1,4 +1,4 @@
-import type { Graph, GraphNode, Property, NodeMetadata, NodeType } from '@/app/api/lib/schemas';
+import type { Graph, GraphNode, Property, NodeMetadata } from '@/app/api/lib/schemas';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import path from 'path';
 
@@ -801,7 +801,8 @@ export function xmlToGraph(xml: string): Graph {
       const shapeRaw = (nodeData as any)['@_shape'];
       const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
       const typeRaw = (nodeData as any)['@_type'];
-      const type = typeof typeRaw === 'string' && ['system', 'container', 'component', 'code'].includes(typeRaw) ? typeRaw as NodeType : 'component';
+      // Layer is now a free-form string, no type validation needed
+      const layer = typeof typeRaw === 'string' ? typeRaw : undefined;
 
       // Build metadata object if we have files or bugs
       let metadata: NodeMetadata | undefined = undefined;
@@ -819,7 +820,7 @@ export function xmlToGraph(xml: string): Graph {
         properties,
         ...(metadata ? { metadata } : {}),
         ...(shape ? { shape: shape as any } : {}),
-        ...(type ? { type } : {})
+        ...(layer ? { layer } : {})
       } as GraphNode;
     });
 

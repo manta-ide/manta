@@ -5,7 +5,7 @@ import { useProjectStore } from '@/lib/store';
 import { useChatService } from '@/lib/chatService';
 import PropertyEditor from './property-editors';
 import ResizeHandle from './ResizeHandle';
-import { Property, NodeType } from '@/app/api/lib/schemas';
+import { Property } from '@/app/api/lib/schemas';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,7 +40,6 @@ export default function SelectedNodeSidebar() {
 	const [promptDraft, setPromptDraft] = useState<string>('');
 	const [titleDraft, setTitleDraft] = useState<string>('');
   const [shapeDraft, setShapeDraft] = useState<'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'arrow-rectangle' | 'cylinder' | 'parallelogram' | 'round-rectangle'>('round-rectangle');
-  const [typeDraft, setTypeDraft] = useState<NodeType>('component');
   const [edgeShapeDraft, setEdgeShapeDraft] = useState<EdgeShape>('relates');
   const [edgeShapeError, setEdgeShapeError] = useState<string | null>(null);
 	// Building state is tracked locally since node.state was removed
@@ -109,7 +108,6 @@ export default function SelectedNodeSidebar() {
 		setPromptDraft(selectedNode?.description ?? '');
 		setTitleDraft(selectedNode?.title ?? '');
 		setShapeDraft(((selectedNode as any)?.shape as any) || 'rectangle');
-		setTypeDraft(((selectedNode as any)?.type as NodeType) || 'component');
 		setRebuildError(null);
 		setRebuildSuccess(false);
 
@@ -151,22 +149,6 @@ export default function SelectedNodeSidebar() {
       });
     }
   }, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
-
-  const handleTypeChange = useCallback((newType: NodeType) => {
-    setTypeDraft(newType);
-    if (selectedNode) {
-      const updatedNode = { ...selectedNode, type: newType } as any;
-      setSelectedNode(selectedNodeId, updatedNode);
-    }
-    if (selectedNodeId) {
-      updateNode(selectedNodeId, { type: newType }).catch((error) => {
-        console.error('Failed to save type:', error);
-        setRebuildError('Failed to save type');
-        setTimeout(() => setRebuildError(null), 3000);
-      });
-    }
-  }, [selectedNode, selectedNodeId, setSelectedNode, updateNode]);
-
 
   const handleEdgeShapeChange = useCallback((newShape: EdgeShape) => {
     setEdgeShapeDraft(newShape);
@@ -329,18 +311,6 @@ export default function SelectedNodeSidebar() {
 								  <option value="cylinder">Cylinder</option>
 								  <option value="parallelogram">Parallelogram</option>
 								  <option value="round-rectangle">Round Rectangle</option>
-								</SelectNative>
-								<div className="text-xs font-medium text-zinc-300 mt-3 mb-2">C4 Type</div>
-								<SelectNative
-								  value={typeDraft}
-								  onChange={(e) => handleTypeChange(e.target.value as NodeType)}
-								  className="bg-zinc-800 border-zinc-700 text-white"
-								  disabled
-								>
-								  <option value="system">System</option>
-								  <option value="container">Container</option>
-								  <option value="component">Component</option>
-								  <option value="code">Code</option>
 								</SelectNative>
 							</>
 						);
