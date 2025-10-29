@@ -159,13 +159,12 @@ const userHandler = createMcpHandler(
 
     server.tool(
       'read',
-      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Returns XML by default. Use the project field to specify which project to read from.',
+      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Use the project field to specify which project to read from.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().optional().describe('Optional node ID to read specific node details'),
+        nodeId: z.string().optional().describe('Optional node ID to read specific node details with all connections'),
         layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
-        format: z.enum(['json', 'xml']).optional().describe('Output format: "json" or "xml" (defaults to "xml")')
       },
       async (params) => {
         console.log('🔍 MCP TOOL: read called', params);
@@ -221,7 +220,8 @@ const userHandler = createMcpHandler(
           // Apply layer filtering if specified (defaults to 'system' if not provided)
           graphApiUrl.searchParams.set('layer', params.layer || 'system');
 
-          const acceptHeader = params.format === 'json' ? 'application/json' : 'application/xml, application/json';
+          // Always request XML format
+          const acceptHeader = 'application/xml, application/json';
 
           console.log('🔍 Calling graph API:', graphApiUrl.toString());
 
@@ -245,9 +245,8 @@ const userHandler = createMcpHandler(
             };
           }
 
-          const content = params.format === 'json'
-            ? JSON.stringify(await graphResponse.json(), null, 2)
-            : await graphResponse.text();
+          // Always return as text (XML or formatted text for specific nodes)
+          const content = await graphResponse.text();
 
           console.log('📄 Graph content length:', content.length, 'characters');
           if (content.length < 100) {
@@ -376,13 +375,12 @@ const adminHandler = createMcpHandler(
 
     server.tool(
       'read',
-      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Returns XML by default. Use the project field to specify which project to read from.',
+      'Read from current graph, or a specific node with all its connections. Can filter by C4 architectural layer. Use the project field to specify which project to read from.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
-        nodeId: z.string().optional().describe('Optional node ID to read specific node details'),
+        nodeId: z.string().optional().describe('Optional node ID to read specific node details with all connections'),
         layer: z.string().optional().describe('Optional C4 architectural layer filter: "system", "container", "component", or "code" (defaults to "system")'),
         includeProperties: z.boolean().optional().describe('Whether to include node properties in the response'),
-        format: z.enum(['json', 'xml']).optional().describe('Output format: "json" or "xml" (defaults to "xml")')
       },
       async (params) => {
         console.log('🔍 MCP TOOL: read called', params);
@@ -438,7 +436,8 @@ const adminHandler = createMcpHandler(
           // Apply layer filtering if specified (defaults to 'system' if not provided)
           graphApiUrl.searchParams.set('layer', params.layer || 'system');
 
-          const acceptHeader = params.format === 'json' ? 'application/json' : 'application/xml, application/json';
+          // Always request XML format
+          const acceptHeader = 'application/xml, application/json';
 
           console.log('🔍 Calling graph API:', graphApiUrl.toString());
 
@@ -462,9 +461,8 @@ const adminHandler = createMcpHandler(
             };
           }
 
-          const content = params.format === 'json'
-            ? JSON.stringify(await graphResponse.json(), null, 2)
-            : await graphResponse.text();
+          // Always return as text (XML or formatted text for specific nodes)
+          const content = await graphResponse.text();
 
           console.log('📄 Graph content length:', content.length, 'characters');
           if (content.length < 100) {
