@@ -468,13 +468,13 @@ ${optionsXml}
     const zVal = hasPos ? (typeof (n as any).position.z === 'number' ? (n as any).position.z : 0) : undefined;
     const zAttr = hasPos ? ` z="${escapeXml(String(zVal))}"` : '';
 
-    // Include shape and type attributes if present
+    // Include shape and layer attributes if present
     const shape = (n as any).shape;
     const shapeAttr = shape ? ` shape="${escapeXml(String(shape))}"` : '';
-    const type = (n as any).type;
-    const typeAttr = type ? ` type="${escapeXml(String(type))}"` : '';
+    const layer = (n as any).layer;
+    const layerAttr = layer ? ` layer="${escapeXml(String(layer))}"` : '';
 
-    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}${typeAttr}>${desc}${metadataXml}${props}\n    </node>`;
+    return `    <node id="${escapeXml(n.id)}" title="${escapeXml(n.title)}"${xAttr}${yAttr}${zAttr}${shapeAttr}${layerAttr}>${desc}${metadataXml}${props}\n    </node>`;
   }).join('\n\n');
 
   const allEdges = (graph as any).edges || [] as Array<{ id?: string; source: string; target: string; role?: string; sourceHandle?: string; targetHandle?: string; shape?: string }>;
@@ -797,12 +797,14 @@ export function xmlToGraph(xml: string): Graph {
 
       const metadataFiles = filesFromXml(nodeData.metadata?.files);
       const metadataBugs = bugsFromXml(nodeData.metadata?.bugs);
-      // Optional shape and type
+      // Optional shape and layer
       const shapeRaw = (nodeData as any)['@_shape'];
       const shape = typeof shapeRaw === 'string' ? shapeRaw : undefined;
+      
+      // Support both 'layer' (new) and 'type' (old) for backward compatibility
+      const layerRaw = (nodeData as any)['@_layer'];
       const typeRaw = (nodeData as any)['@_type'];
-      // Layer is now a free-form string, no type validation needed
-      const layer = typeof typeRaw === 'string' ? typeRaw : undefined;
+      const layer = typeof layerRaw === 'string' ? layerRaw : (typeof typeRaw === 'string' ? typeRaw : undefined);
 
       // Build metadata object if we have files or bugs
       let metadata: NodeMetadata | undefined = undefined;

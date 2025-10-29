@@ -382,10 +382,21 @@ async function readGraphFromSupabase(userId: string, projectIdentifier: string):
     }
 
     // Convert to graph format
-    const nodes = (nodesData || []).map(node => ({
-      ...node.data,
-      id: node.id,
-    }));
+    const nodes = (nodesData || []).map(node => {
+      const nodeData = node.data || {};
+      // Backward compatibility: convert old 'type' property to new 'layer' property
+      if (nodeData.type && !nodeData.layer) {
+        console.log(`🔄 Converting node ${node.id} type="${nodeData.type}" to layer`);
+        nodeData.layer = nodeData.type;
+        delete nodeData.type;
+      }
+      return {
+        ...nodeData,
+        id: node.id,
+      };
+    });
+
+    console.log(`📊 Loaded ${nodes.length} nodes from Supabase:`, nodes.map(n => ({ id: n.id, title: n.title, layer: n.layer })));
 
     const edges = (edgesData || []).map(edge => ({
       ...edge.data,

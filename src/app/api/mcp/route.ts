@@ -1065,19 +1065,17 @@ const adminHandler = createMcpHandler(
     // node_create
     server.tool(
       'node_create',
-      'Create node(s) and persist to the graph. Supports batching: pass single node properties or an array of node objects for batch creation.',
+      'Create node(s) and persist to the graph. Node IDs are automatically generated. Supports batching: pass single node properties or an array of node objects for batch creation.',
       {
         project: z.string().describe('REQUIRED: Project name as it appears in your Manta projects'),
         nodes: z.array(z.object({
-          nodeId: z.string().min(1),
           title: z.string().min(1),
           description: z.string().optional().describe('Description or purpose of the node'),
           layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
           properties: z.array(PropertySchema).optional(),
           position: z.object({ x: z.number(), y: z.number(), z: z.number().optional() }).optional(),
           metadata: MetadataInputSchema.optional(),
-        })).optional().describe('Array of node objects for batch creation. If provided, nodeId/title/etc at root level are ignored'),
-        nodeId: z.string().optional().describe('Node ID (used only if nodes array is not provided)'),
+        })).optional().describe('Array of node objects for batch creation. If provided, title/description/etc at root level are ignored'),
         title: z.string().optional().describe('Node title (used only if nodes array is not provided)'),
         description: z.string().optional().describe('Description or purpose of the node'),
         layer: z.string().optional().describe('The layer this node belongs to (optional, can be any string)'),
@@ -1130,8 +1128,7 @@ const adminHandler = createMcpHandler(
           }
 
           // Normalize to array format
-          const nodesToCreate = params.nodes || (params.nodeId && params.title ? [{
-            nodeId: params.nodeId,
+          const nodesToCreate = params.nodes || (params.title ? [{
             title: params.title,
             description: params.description,
             layer: params.layer,
@@ -1144,7 +1141,7 @@ const adminHandler = createMcpHandler(
             return {
               content: [{
                 type: 'text',
-                text: 'Error: No nodes specified. Provide either nodes array or nodeId/title/type'
+                text: 'Error: No nodes specified. Provide either nodes array or at minimum a title'
               }]
             };
           }
@@ -1155,7 +1152,7 @@ const adminHandler = createMcpHandler(
 
           for (const node of nodesToCreate) {
             const result = await graphOperations.nodeCreate({
-              nodeId: node.nodeId,
+              // nodeId is intentionally not passed - always auto-generated
               userId: String(authInfo.extra.userId),
               projectId: projectData.id,
               title: node.title,
@@ -1167,11 +1164,11 @@ const adminHandler = createMcpHandler(
             });
 
             if (result.success) {
+              const createdNodeId = result.nodeId;
               const responseText = result.content?.text || 'Node created successfully';
-              const finalText = result.nodeId ? `${responseText} (ID: ${result.nodeId})` : responseText;
-              results.push(`✓ ${node.nodeId}: ${finalText}`);
+              results.push(`✓ ${node.title} (ID: ${createdNodeId}): ${responseText}`);
             } else {
-              errors.push(`✗ ${node.nodeId}: ${result.error}`);
+              errors.push(`✗ ${node.title}: ${result.error}`);
             }
           }
 

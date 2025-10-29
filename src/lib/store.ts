@@ -378,12 +378,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
   setActiveLayer: async (name: string) => {
-    // Only C4 layers are supported
-    const c4Layers = ['system', 'container', 'component', 'code'];
-    if (!c4Layers.includes(name)) {
-      console.warn(`Invalid layer: ${name}. Only C4 layers are supported.`);
-      return;
-    }
+    // Any layer name is now supported (dynamic layers)
+    console.log('🎯 Setting active layer:', name);
 
     // Update active layer via API
     await fetch('/api/layers', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
@@ -427,18 +423,39 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Store the full graph for outline calculations
       set({ fullGraph });
 
+      // Dynamically discover available layers from the loaded graph
+      const { getAvailableLayers } = await import('./layers');
+      const availableLayers = getAvailableLayers(fullGraph);
+      console.log('📊 Discovered layers from graph:', availableLayers);
+
       // Apply layer filtering to the graph
       let graph = fullGraph;
-      if (state.activeLayer) {
-        const c4Layers = ['system', 'container', 'component', 'code'];
-        if (c4Layers.includes(state.activeLayer)) {
-          // For C4 layers, filter by type directly
-          graph = applyLayerToGraph(fullGraph, state.activeLayer);
-        }
-        // User layers are no longer supported
+      let activeLayer = state.activeLayer;
+      
+      // Check if the active layer exists in the available layers
+      if (activeLayer && !availableLayers.includes(activeLayer)) {
+        console.warn(`⚠️ Active layer "${activeLayer}" not found in available layers. Clearing active layer to show all nodes.`);
+        activeLayer = null;
+        // Update the active layer on the server
+        fetch('/api/layers', { 
+          method: 'PUT', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ name: null }) 
+        }).catch(err => console.error('Failed to clear active layer:', err));
+      }
+      
+      if (activeLayer) {
+        // Filter by the active layer (works for any layer name)
+        console.log(`🔍 Filtering graph by layer: ${activeLayer}`);
+        graph = applyLayerToGraph(fullGraph, activeLayer);
+        console.log(`✅ Filtered to ${graph.nodes.length} nodes in layer "${activeLayer}"`);
+      } else {
+        // If no layer is active, show all nodes (no filtering)
+        console.log('📋 No active layer, showing all nodes:', fullGraph.nodes.length);
+        graph = fullGraph;
       }
 
-      set({ graph, graphLoading: false, graphError: null });
+      set({ graph, layers: availableLayers, activeLayer, graphLoading: false, graphError: null });
     } catch (error) {
       set({ graphError: 'Failed to load graph', graphLoading: false });
       console.error('Error loading graph:', error);
