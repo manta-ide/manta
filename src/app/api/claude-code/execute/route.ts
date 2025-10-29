@@ -6,6 +6,8 @@ import { query, type SDKMessage, type SDKAssistantMessage, type SDKUserMessage, 
 import { ClaudeCodeRequestSchema } from '@/app/api/lib/schemas';
 import { getBaseUrl, projectDir } from '@/app/api/lib/claude-code-utils';
 import { orchestratorSystemPrompt, AGENTS_CONFIG } from '@/app/api/lib/agentPrompts';
+import { graphOperations } from '@/app/api/lib/graph-service';
+import { getOrCreateDefaultProject } from '@/lib/supabase';
 
 // ---- File Logging Setup ----
 const LOGS_DIR = path.join(process.cwd(), 'logs', 'claude-code');
@@ -544,6 +546,17 @@ export async function POST(req: NextRequest) {
             }
           };
 
+          // Configure Firecrawl MCP server via stdio (npx)
+          const firecrawlConfig: any = {
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', 'firecrawl-mcp'],
+            env: {
+              ...process.env,
+              FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY || ''
+            }
+          };
+
           // Log the working directory
           const workingDirectory = projectDir();
           const mode = process.env.MANTA_MODE === 'user-project' ? 'user project' : 'development';
@@ -571,7 +584,7 @@ export async function POST(req: NextRequest) {
           const queryOptions: Options = {
             includePartialMessages: true,
             systemPrompt: orchestratorSystemPrompt,
-            mcpServers: { 'manta': mcpServerConfig },
+            mcpServers: { 'manta': mcpServerConfig, 'firecrawl': firecrawlConfig },
             //allowedTools: ['Task'],
             //disallowedTools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'TodoWrite', 'ExitPlanMode', 'BashOutput', 'KillShell', 'mcp__manta__node_metadata_update','mcp__manta__read','mcp__manta__node_create','mcp__manta__node_edit','mcp__manta__node_delete','mcp__manta__edge_create','mcp__manta__edge_delete','WebSearch',"SlashCommand"],
             permissionMode: 'bypassPermissions',
@@ -859,6 +872,20 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
           controller.enqueue(encoder.encode('data: [STREAM_END]\n\n'));
           controller.close();
+        }
+
+        // After stream completion, run graph verifier in background (non-blocking)
+        try {
+          const userIdForVerify = (await (async () => {
+            try { const body = await req.json(); return body?.userId; } catch { return undefined; }
+          })()) || undefined;
+          if (userIdForVerify) {
+            const project = await getOrCreateDefaultProject(userIdForVerify);
+            const verifyRes = await graphOperations.graphVerify({ userId: userIdForVerify, projectId: project.id });
+            console.log('🧪 Graph verifier report:', verifyRes);
+          }
+        } catch (e) {
+          console.warn('Graph post-run verification hook failed:', e);
         }
       }
     }

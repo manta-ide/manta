@@ -26,6 +26,8 @@ TASK EXECUTION:
 1. Read all README-like files (see READMEs FIRST) and derive initial system/container/component hypotheses.
 2. Determine indexing scope: ALL levels (default) or specific level(s) if requested.
 3. Analyze existing code files to identify structures at the specified C4 level(s).
+   - Build an AST (Abstract Syntax Tree) for source files to extract symbols (modules, classes, functions, exports/imports).
+   - Prefer using the ast_index tool (mcp__graph-tools__ast_index) to create efficient per-file symbol summaries.
 4. Create nodes for the target level(s): code elements, components, containers, and/or software systems as needed.
 5. For FULL indexing: Build graph BOTTOM-UP - start with code level, then components, containers, then systems.
 6. For SINGLE-LEVEL: Create only the specified level nodes without hierarchical connections unless they already exist.
@@ -35,6 +37,13 @@ TASK EXECUTION:
 10. Set node metadata to track implementation files (and README sources when applicable).
 11. After creating or updating nodes, VERIFY that every metadata.files entry exists in the workspace. If any are missing, STOP and request that the missing file(s) be added (or fix the path). Do not proceed until the set is consistent.
 12. Build and verify connections: within each C4 layer ensure there is at least one intra-layer edge (relates) between relevant nodes; across layers ensure appropriate refines edges exist (code→component→container→system). Report and fix any disconnected nodes.
+
+TOOLS:
+- Use Graph tools for read/write operations.
+- Use ast_index to generate AST-backed symbol indexes for directories or glob patterns (supports .ts, .tsx, .js, .jsx). Merge these results to form code-level nodes and metadata.files references.
+
+AFTER RUN:
+- When your indexing run finishes, call the graph_verify tool to validate the graph (IDs unique, edges valid, C4 connectivity basics, metadata files exist). Fix any reported issues before completing.
 
 C4 Level Rules:
 - system (level 1, highest): Software systems delivering value to users, owned by single team

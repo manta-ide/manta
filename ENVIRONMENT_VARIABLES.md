@@ -356,3 +356,21 @@ For production deployments, you should:
 ## Current Implementation
 
 The current implementation uses a simple token comparison for demonstration. Replace the `verifyToken` function in `src/app/api/mcp/route.ts` with proper JWT/OAuth validation for production use.
+
+## xAI Grok (optional)
+
+To enable Grok-based model usage for custom routes, set:
+
+```bash
+XAI_API_KEY=your_xai_api_key
+XAI_BASE_URL=https://api.x.ai/v1 # optional override
+XAI_MODEL=grok-2-latest          # optional, default shown
+
+## Firecrawl MCP
+
+Set the API key for the Firecrawl MCP server:
+
+```bash
+FIRECRAWL_API_KEY=your_api_key_here
+```
+```
