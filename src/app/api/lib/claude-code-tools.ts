@@ -226,10 +226,9 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
           userId,
           projectId,
           title,
-          prompt,
+          description: prompt, // Map prompt to description
           type,
           level,
-          comment,
           properties,
           position,
           metadata
@@ -281,11 +280,9 @@ export const createGraphTools = (baseUrl: string, userId: string) => {
           nodeId,
           mode,
           title,
-          prompt,
           description: prompt, // Map prompt to description
           type,
           level,
-          comment,
           properties,
           children,
           position,
