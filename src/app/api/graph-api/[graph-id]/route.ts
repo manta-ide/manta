@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { xmlToGraph } from '@/lib/graph-xml';
-import fs from 'fs';
-import path from 'path';
-import { getDevProjectDir } from '@/lib/project-config';
+import { GRAPHS_DATA, graphExists } from '@/data/graphs';
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ 'graph-id': string }> }
 ) {
   try {
@@ -19,21 +17,16 @@ export async function GET(
       );
     }
 
-    // Get the graph directory path
-    const devProjectDir = getDevProjectDir();
-    const graphDir = path.join(devProjectDir, 'manta', 'graphs', graphId);
-    const currentGraphPath = path.join(graphDir, 'current-graph.xml');
-
-    // Check if the graph exists
-    if (!fs.existsSync(currentGraphPath)) {
+    // Check if the graph exists in memory
+    if (!graphExists(graphId)) {
       return NextResponse.json(
         { error: `Graph "${graphId}" not found` },
         { status: 404 }
       );
     }
 
-    // Read and parse the graph
-    const xmlContent = fs.readFileSync(currentGraphPath, 'utf8');
+    // Read and parse the graph from memory
+    const xmlContent = GRAPHS_DATA[graphId].current;
     const graph = xmlToGraph(xmlContent);
 
     return NextResponse.json({

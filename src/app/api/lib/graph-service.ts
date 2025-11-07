@@ -1,10 +1,7 @@
 import { z } from 'zod';
 import { GraphSchema, GraphNodeSchema } from './schemas';
 import { xmlToGraph, graphToXml } from '@/lib/graph-xml';
-import fs from 'fs';
-import path from 'path';
-import { getDevProjectDir } from '@/lib/project-config';
-import { activeLayerDir, getActiveLayer, getActiveLayerGraphPaths, setActiveLayer as persistActiveLayer, ensureLayersRoot, getLayersInfo, createLayer } from '@/lib/layers';
+import { GRAPHS_DATA, graphExists, getAvailableGraphIds } from '@/data/graphs';
 import { analyzeGraphDiff } from '@/lib/graph-diff';
 
 export type Graph = z.infer<typeof GraphSchema>;
@@ -30,141 +27,80 @@ const setCurrentGraph = (graph: Graph | null) => {
   globalGraphState.currentGraph = graph;
 };
 
-// Local mode toggle and helpers
+// In-memory graph storage - replaces filesystem operations
 const LOCAL_MODE = process.env.NODE_ENV !== 'production';
-function getProjectDir(): string {
-  // Use the configured development project directory
+
+// Active graph ID tracking (simulates active layer)
+let activeGraphId = 'main';
+
+function getActiveGraphId(): string {
+  return activeGraphId;
+}
+
+function setActiveGraphId(graphId: string): void {
+  if (graphExists(graphId)) {
+    activeGraphId = graphId;
+  } else {
+    console.warn(`Graph "${graphId}" does not exist. Keeping active graph as "${activeGraphId}".`);
+  }
+}
+
+function readCurrentGraphFromMemory(graphId: string = activeGraphId): Graph | null {
   try {
-    const devProjectDir = getDevProjectDir();
-    if (fs.existsSync(devProjectDir)) {
-      return devProjectDir;
+    if (!graphExists(graphId)) {
+      console.warn(`Graph "${graphId}" not found in memory`);
+      return null;
     }
+    const raw = GRAPHS_DATA[graphId].current;
+    const graph = xmlToGraph(raw);
+    const parsed = GraphSchema.safeParse(graph);
+    return parsed.success ? parsed.data : (graph as Graph);
   } catch (error) {
-    console.warn('Failed to get dev project directory, falling back to current directory:', error);
-  }
-
-  // Fallback to current directory if dev project directory doesn't exist
-  try {
-    const cwd = process.cwd();
-    if (fs.existsSync(path.join(cwd, 'manta'))) return cwd;
-    return cwd;
-  } catch {
-    return process.cwd();
-  }
-}
-function getGraphDir(): string { return path.join(getProjectDir(), 'manta'); }
-function getGraphPath(): string { return path.join(getGraphDir(), 'graph.xml'); }
-
-function ensureDefaultLayer(): void {
-  // Check if any layers exist, if not create a default one
-  const info = getLayersInfo();
-  if (info.layers.length === 0) {
-    const name = createLayer('graph1');
-    persistActiveLayer(name);
-  }
-}
-
-function getCurrentGraphPath(): string {
-  // Ensure a default layer exists
-  ensureDefaultLayer();
-
-  // Prefer active layer if configured
-  try {
-    const paths = getActiveLayerGraphPaths();
-    if (paths.current && fs.existsSync(path.dirname(paths.current))) {
-      return paths.current;
-    }
-  } catch {}
-  return path.join(getGraphDir(), 'current-graph.xml');
-}
-function getBaseGraphPath(): string {
-  // Ensure a default layer exists
-  ensureDefaultLayer();
-
-  // Prefer active layer if configured
-  try {
-    const paths = getActiveLayerGraphPaths();
-    if (paths.base && fs.existsSync(path.dirname(paths.base))) {
-      return paths.base;
-    }
-  } catch {}
-  return path.join(getGraphDir(), 'base-graph.xml');
-}
-function getLegacyGraphJsonPath(): string { return path.join(getGraphDir(), 'graph.json'); }
-function ensureGraphDir() { try { fs.mkdirSync(getGraphDir(), { recursive: true }); } catch {} }
-function readGraphFromFs(): Graph | null {
-  try {
-    const pXml = getGraphPath();
-    const pJson = getLegacyGraphJsonPath();
-    if (fs.existsSync(pXml)) {
-      const raw = fs.readFileSync(pXml, 'utf8');
-      const graph = xmlToGraph(raw);
-      const parsed = GraphSchema.safeParse(graph);
-      return parsed.success ? parsed.data : (graph as Graph);
-    }
-    if (fs.existsSync(pJson)) {
-      const raw = fs.readFileSync(pJson, 'utf8');
-      let data: any;
-      try { data = JSON.parse(raw); } catch { data = null; }
-      if (data) {
-        const parsed = GraphSchema.safeParse(data);
-        const graph = parsed.success ? parsed.data : (data as Graph);
-        try { writeGraphToFs(graph); } catch {}
-        return graph;
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-function writeGraphToFs(graph: Graph) {
-  ensureGraphDir();
-  const xml = graphToXml(graph);
-  fs.writeFileSync(getGraphPath(), xml, 'utf8');
-}
-
-function readCurrentGraphFromFs(): Graph | null {
-  try {
-    const currentPath = getCurrentGraphPath();
-    if (fs.existsSync(currentPath)) {
-      const raw = fs.readFileSync(currentPath, 'utf8');
-      const graph = xmlToGraph(raw);
-      const parsed = GraphSchema.safeParse(graph);
-      return parsed.success ? parsed.data : (graph as Graph);
-    }
-    // Fallback to main graph file if current doesn't exist
-    return readGraphFromFs();
-  } catch {
+    console.error(`Error reading current graph "${graphId}":`, error);
     return null;
   }
 }
 
-function writeCurrentGraphToFs(graph: Graph) {
-  ensureGraphDir();
-  const xml = graphToXml(graph);
-  fs.writeFileSync(getCurrentGraphPath(), xml, 'utf8');
+function writeCurrentGraphToMemory(graph: Graph, graphId: string = activeGraphId) {
+  try {
+    if (!graphExists(graphId)) {
+      console.warn(`Graph "${graphId}" does not exist. Cannot write.`);
+      return;
+    }
+    const xml = graphToXml(graph);
+    GRAPHS_DATA[graphId].current = xml;
+  } catch (error) {
+    console.error(`Error writing current graph "${graphId}":`, error);
+  }
 }
 
-function readBaseGraphFromFs(): Graph | null {
+function readBaseGraphFromMemory(graphId: string = activeGraphId): Graph | null {
   try {
-    const basePath = getBaseGraphPath();
-    if (fs.existsSync(basePath)) {
-      const raw = fs.readFileSync(basePath, 'utf8');
-      const graph = xmlToGraph(raw);
-      const parsed = GraphSchema.safeParse(graph);
-      return parsed.success ? parsed.data : (graph as Graph);
+    if (!graphExists(graphId)) {
+      console.warn(`Graph "${graphId}" not found in memory`);
+      return null;
     }
-    return null;
-  } catch {
+    const raw = GRAPHS_DATA[graphId].base;
+    const graph = xmlToGraph(raw);
+    const parsed = GraphSchema.safeParse(graph);
+    return parsed.success ? parsed.data : (graph as Graph);
+  } catch (error) {
+    console.error(`Error reading base graph "${graphId}":`, error);
     return null;
   }
 }
 
-function writeBaseGraphToFs(graph: Graph) {
-  ensureGraphDir();
-  const xml = graphToXml(graph);
-  fs.writeFileSync(getBaseGraphPath(), xml, 'utf8');
+function writeBaseGraphToMemory(graph: Graph, graphId: string = activeGraphId) {
+  try {
+    if (!graphExists(graphId)) {
+      console.warn(`Graph "${graphId}" does not exist. Cannot write.`);
+      return;
+    }
+    const xml = graphToXml(graph);
+    GRAPHS_DATA[graphId].base = xml;
+  } catch (error) {
+    console.error(`Error writing base graph "${graphId}":`, error);
+  }
 }
 
 // SSE broadcast system
@@ -306,20 +242,20 @@ function normalizeGraph(original: Graph): Graph {
   return normalized as Graph;
 }
 
-// Persist graph to local filesystem
-async function saveGraphToFs(graph: Graph): Promise<void> {
+// Persist graph to in-memory storage
+async function saveGraphToMemory(graph: Graph, graphId: string = activeGraphId): Promise<void> {
   const normalized = normalizeGraph(graph);
-  writeCurrentGraphToFs(normalized);
+  writeCurrentGraphToMemory(normalized, graphId);
 }
 
-async function saveCurrentGraphToFs(graph: Graph): Promise<void> {
+async function saveCurrentGraphToMemory(graph: Graph, graphId: string = activeGraphId): Promise<void> {
   const normalized = normalizeGraph(graph);
-  writeCurrentGraphToFs(normalized);
+  writeCurrentGraphToMemory(normalized, graphId);
 }
 
-async function saveBaseGraphToFs(graph: Graph): Promise<void> {
+async function saveBaseGraphToMemory(graph: Graph, graphId: string = activeGraphId): Promise<void> {
   const normalized = normalizeGraph(graph);
-  writeBaseGraphToFs(normalized);
+  writeBaseGraphToMemory(normalized, graphId);
 }
 
 // --- Public API (in-memory + persistence) ---
@@ -335,33 +271,33 @@ export function getBaseGraphSession(): Graph | null {
 export async function storeGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await saveCurrentGraphToMemory(normalized);
   await broadcastGraphReload(userId);
 }
 
 export async function storeCurrentGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await saveCurrentGraphToMemory(normalized);
   await broadcastGraphReload(userId);
 }
 
 export async function storeCurrentGraphFromAgent(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await saveCurrentGraphToMemory(normalized);
   await broadcastGraphReload(userId, { source: 'agent' });
 }
 
 export async function storeCurrentGraphWithoutBroadcast(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
   setCurrentGraph(normalized);
-  await saveCurrentGraphToFs(normalized);
+  await saveCurrentGraphToMemory(normalized);
 }
 
 export async function storeBaseGraph(graph: Graph, userId: string): Promise<void> {
   const normalized = normalizeGraph(graph);
-  await saveBaseGraphToFs(normalized);
+  await saveBaseGraphToMemory(normalized);
   // Broadcast base graph update for UI awareness
   broadcastBaseGraphUpdate(normalized);
 }
@@ -413,20 +349,20 @@ function broadcastBaseGraphUpdate(graph: Graph): void {
 
 
 export async function loadGraphFromFile(_userId: string): Promise<Graph | null> {
-  // Prioritize current graph file, fallback to main graph file
-  const graph = readCurrentGraphFromFs();
+  // Load from in-memory storage
+  const graph = readCurrentGraphFromMemory();
   setCurrentGraph(graph);
   return graph;
 }
 
 export async function loadCurrentGraphFromFile(_userId: string): Promise<Graph | null> {
-  const graph = readCurrentGraphFromFs();
+  const graph = readCurrentGraphFromMemory();
   setCurrentGraph(graph);
   return graph;
 }
 
 export async function loadBaseGraphFromFile(_userId: string): Promise<Graph | null> {
-  return readBaseGraphFromFs();
+  return readBaseGraphFromMemory();
 }
 
 export async function clearGraphSession(): Promise<void> { setCurrentGraph(null); }
@@ -442,7 +378,7 @@ export function getGraphNode(nodeId: string): z.infer<typeof GraphNodeSchema> | 
 export function getUnbuiltNodeIds(): string[] {
   const current = getCurrentGraph();
   if (!current) return [];
-  const baseGraph = readBaseGraphFromFs();
+  const baseGraph = readBaseGraphFromMemory();
   if (!baseGraph) {
     // If no base graph exists, consider all nodes unbuilt
     return current.nodes.map(n => n.id);
@@ -457,7 +393,7 @@ export async function markNodesBuilt(nodeIds: string[], _userId: string): Promis
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'built' } : n)) };
   setCurrentGraph(updated);
-  writeCurrentGraphToFs(updated);
+  writeCurrentGraphToMemory(updated);
 }
 
 export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Promise<void> {
@@ -466,22 +402,32 @@ export async function markNodesUnbuilt(nodeIds: string[], _userId: string): Prom
   const idSet = new Set(nodeIds);
   const updated = { ...current, nodes: current.nodes.map(n => (idSet.has(n.id) ? { ...n, state: 'unbuilt' } : n)) };
   setCurrentGraph(updated);
-  writeCurrentGraphToFs(updated);
+  writeCurrentGraphToMemory(updated);
 }
 
 export async function initializeGraphsFromFiles(): Promise<void> {
-  // Load current graph from file
-  const currentGraphFromFile = readCurrentGraphFromFs();
-  if (currentGraphFromFile) {
-    setCurrentGraph(currentGraphFromFile);
+  // Load current graph from in-memory storage
+  const currentGraphFromMemory = readCurrentGraphFromMemory();
+  if (currentGraphFromMemory) {
+    setCurrentGraph(currentGraphFromMemory);
   }
   // Note: base graph is loaded on-demand, not pre-loaded here
 }
 
 // ---- Layer management helpers (exposed for API routes) ----
-export function getActiveLayerName(): string | null { return getActiveLayer(); }
+// Now these work with graph IDs instead of filesystem layers
+export function getActiveLayerName(): string | null { return getActiveGraphId(); }
 export function setActiveLayer(name: string | null): void {
-  persistActiveLayer(name ?? null);
+  if (name) {
+    setActiveGraphId(name);
+  }
 }
-export function ensureLayersDir(): void { ensureLayersRoot(); }
-export function getLayersState(): { layers: string[]; activeLayer: string | null } { return getLayersInfo(); }
+export function ensureLayersDir(): void {
+  // No-op for in-memory storage
+}
+export function getLayersState(): { layers: string[]; activeLayer: string | null } {
+  return {
+    layers: getAvailableGraphIds(),
+    activeLayer: getActiveGraphId()
+  };
+}
