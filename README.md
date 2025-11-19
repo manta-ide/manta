@@ -39,18 +39,6 @@ The properties are not affecting the code, they are used only to direct the codi
 Indexing is done via agent, so you can work on high level of abstraction, or even the lowest one like a node per function or variable.
 You can also see how your app works from different angles, or check if there are any dependencies between modules that need to be removed for refactoring.  
 
-- **AST Indexing tool (new)**  
-An MCP tool `ast_index` builds a lightweight symbol index from your TS/JS sources to accelerate code→graph mapping.
-
-- **Graph Verifier (new)**  
-An MCP tool `graph_verify` checks basic graph integrity. It is also triggered automatically after an agent run.
-
-- **xAI Grok support (optional)**  
-Add `XAI_API_KEY` to enable a simple `/api/grok` proxy for experimentation with Grok models.
-
-- **Firecrawl MCP (optional)**  
-Scrape, crawl, search, and extract site content via Firecrawl MCP. See `docs/firecrawl-mcp.md`.
-
 ## 🧑‍💻 Developers
 
 1. Install and setup Claude Code by Anthropic:
